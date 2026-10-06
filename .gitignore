@@ -1,3 +1,19 @@
+# VS Code
+.vscode/
+
+# IntelliJ IDEA
+.idea
+*.iws
+*.iml
+*.ipr
+.env
+
+# Front-end
+
+
+# Back-end
+
+
 # Compiled class file
 *.class
 
