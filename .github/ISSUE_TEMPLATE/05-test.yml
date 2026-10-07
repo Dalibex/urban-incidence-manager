@@ -1,0 +1,69 @@
+name: Test
+description: Pruebas asociadas a un issue funcional (sub-issue para testers)
+title: "[Test]: "
+labels: ["testing"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Crea este issue como **sub-issue** del issue funcional que verifica.
+        El PR de implementación no se fusiona hasta que estas pruebas existen y pasan.
+
+  - type: input
+    id: issue
+    attributes:
+      label: Issue que verifica
+      placeholder: "#22"
+    validations:
+      required: true
+
+  - type: input
+    id: requisito
+    attributes:
+      label: Requisito
+      placeholder: RF03
+
+  - type: dropdown
+    id: tipo
+    attributes:
+      label: Tipo de prueba
+      multiple: true
+      options:
+        - Unitaria (test-unit)
+        - Integración con Testcontainers (test-integration)
+        - Contrato / API (test-api)
+        - E2E (test-e2e)
+        - Carga / rendimiento
+        - Resiliencia (fuente externa caída, SIGTERM, varias réplicas)
+        - Manual (aceptación, exploratoria, usabilidad)
+    validations:
+      required: true
+
+  - type: textarea
+    id: casos
+    attributes:
+      label: Casos de prueba
+      description: |
+        En **Verificación** pon el job de CI que ejecuta el caso (`test-unit`, `test-integration`...) o `Manual`. Los criterios del issue funcional referencian estos IDs, p. ej. `[Manual: T5]`.
+      value: |
+        | ID | Escenario | Datos de entrada | Resultado esperado | Verificación |
+        |---|---|---|---|---|
+        | T1 | Caso válido |  |  |  |
+        | T2 | Caso límite |  |  |  |
+        | T3 | Caso de error |  |  |  |
+        | T4 | Permisos (rol no autorizado) |  |  |  |
+    validations:
+      required: true
+
+  - type: textarea
+    id: criterios
+    attributes:
+      label: Criterios de aceptación
+      value: |
+        - [ ] Todos los casos automatizables están automatizados.
+        - [ ] Las pruebas se ejecutan en el job de CI indicado en cada caso.
+        - [ ] No dependen de servicios externos reales ni del orden de ejecución.
+        - [ ] La cobertura del módulo no baja del umbral acordado.
+        - [ ] Los casos manuales se han ejecutado sobre el commit del PR y las evidencias están en un comentario.
+    validations:
+      required: true

@@ -1,0 +1,75 @@
+name: Documentation
+description: Crear o actualizar documentación (README, guías, OpenAPI, C4)
+title: "[Docs]: "
+labels: ["documentation"]
+body:
+  - type: textarea
+    id: descripcion
+    attributes:
+      label: Descripción
+    validations:
+      required: true
+
+  - type: dropdown
+    id: documento
+    attributes:
+      label: Documento afectado
+      multiple: true
+      options:
+        - README.md
+        - CONTRIBUTING.md / SECURITY.md / CHANGELOG.md
+        - docs/architecture.md (C4)
+        - docs/development.md
+        - docs/deployment.md
+        - docs/testing.md
+        - docs/ci.md
+        - docs/api/openapi.yml
+        - Otro (indícalo en la descripción)
+    validations:
+      required: true
+
+  - type: input
+    id: publico
+    attributes:
+      label: Público destinatario
+      placeholder: Equipo de desarrollo, testers, profesorado, nuevos miembros...
+
+  - type: textarea
+    id: contenido
+    attributes:
+      label: Contenido que debe incluir
+      value: |
+        -
+        -
+    validations:
+      required: true
+
+  - type: dropdown
+    id: motivo
+    attributes:
+      label: Motivo
+      options:
+        - Documento nuevo
+        - El comportamiento o la configuración del sistema ha cambiado
+        - La documentación actual es incorrecta o incompleta
+    validations:
+      required: true
+
+  - type: input
+    id: relacionado
+    attributes:
+      label: PR o issue relacionado
+      description: Obligatorio si el motivo es un cambio en el sistema.
+      placeholder: "#34"
+
+  - type: textarea
+    id: criterios
+    attributes:
+      label: Criterios de aceptación
+      value: |
+        - [ ] Una persona ajena al cambio puede seguir el documento sin ayuda. [Revisión]
+        - [ ] Los comandos y ejemplos se han ejecutado y funcionan. [Manual]
+        - [ ] Los diagramas Mermaid se renderizan en GitHub. [Revisión]
+        - [ ] No contiene secretos ni datos personales. [Revisión]
+    validations:
+      required: true

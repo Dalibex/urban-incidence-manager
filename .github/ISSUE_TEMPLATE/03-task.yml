@@ -1,0 +1,64 @@
+name: Task
+description: Tarea técnica sin funcionalidad nueva para el usuario (configuración, ingesta, refactor, mantenimiento)
+title: "[Task]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Añade la label de área: `infra`, `backend`, `frontend`, `data-integration` ...
+        Si la tarea implementa un factor de 12-factor, usa la plantilla **12-Factor**.
+
+  - type: textarea
+    id: descripcion
+    attributes:
+      label: Descripción
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivacion
+    attributes:
+      label: Motivación
+      description: Por qué hace falta ahora. Qué problema evita o qué issue desbloquea.
+    validations:
+      required: true
+
+  - type: textarea
+    id: pasos
+    attributes:
+      label: Pasos previstos
+      value: |
+        1.
+        2.
+        3.
+
+  - type: textarea
+    id: criterios
+    attributes:
+      label: Criterios de aceptación
+      description: |
+        Cada criterio termina indicando cómo se verifica: `[CI: <job>]`, `[Manual: T<n>]` o `[Revisión]`. Ver `docs/ci.md`.
+      value: |
+        - [ ] Criterio 1 [CI: build]
+        - [ ] Criterio 2 [Revisión]
+    validations:
+      required: true
+
+  - type: textarea
+    id: verificacion
+    attributes:
+      label: Verificación
+      description: Cómo se comprueba que está hecho.
+      value: |
+        - Job de CI:
+        - Comprobación manual:
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencias
+    attributes:
+      label: Dependencias
+      value: |
+        - Depende de: #
+        - Desbloquea: #

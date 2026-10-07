@@ -1,0 +1,96 @@
+name: CI/CD
+description: Crear o modificar workflows de GitHub Actions
+title: "[CI]: "
+labels: ["ci"]
+body:
+  - type: textarea
+    id: descripcion
+    attributes:
+      label: Descripción
+    validations:
+      required: true
+
+  - type: dropdown
+    id: workflow
+    attributes:
+      label: Workflow
+      multiple: true
+      options:
+        - .github/workflows/ci.yml
+        - .github/workflows/pr-title.yml
+        - Workflow nuevo (indícalo en la descripción)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: jobs
+    attributes:
+      label: Jobs afectados
+      multiple: true
+      options:
+        - lint
+        - build
+        - test-unit
+        - test-integration
+        - quality
+        - smoke
+        - pr-title
+        - test-api
+        - test-e2e
+        - security
+        - docker
+        - deploy-staging
+        - Job nuevo (descríbelo en Cambios propuestos)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: disparadores
+    attributes:
+      label: Disparadores
+      multiple: true
+      options:
+        - pull_request hacia main
+        - push a main
+        - Etiqueta / release
+        - Programado (schedule)
+        - Manual (workflow_dispatch)
+    validations:
+      required: true
+
+  - type: textarea
+    id: cambios
+    attributes:
+      label: Cambios propuestos
+    validations:
+      required: true
+
+  - type: dropdown
+    id: proteccion
+    attributes:
+      label: Impacto en la protección de main
+      options:
+        - Sin impacto
+        - Añade un required status check
+        - Quita o renombra un required status check (avisar al equipo antes del merge)
+    validations:
+      required: true
+
+  - type: textarea
+    id: secretos
+    attributes:
+      label: Secretos y permisos
+      description: Secretos de GitHub necesarios (solo el nombre, nunca el valor) y permisos del GITHUB_TOKEN.
+      placeholder: "- Ninguno"
+
+  - type: textarea
+    id: criterios
+    attributes:
+      label: Criterios de aceptación
+      value: |
+        - [ ] El workflow pasa en un PR de prueba. [CI: <job>]
+        - [ ] Un PR con un fallo provocado queda bloqueado. [Manual]
+        - [ ] Tiempo de ejecución aceptable: < 10 min. [Revisión]
+        - [ ] `docs/ci.md` actualizado. [Revisión]
+    validations:
+      required: true

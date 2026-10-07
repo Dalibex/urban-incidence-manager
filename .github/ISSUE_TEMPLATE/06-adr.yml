@@ -1,0 +1,87 @@
+name: ADR
+description: Proponer y documentar una decisión de arquitectura
+title: "[ADR]: ADR-XXXX "
+labels: ["adr", "architecture", "documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        El entregable es el fichero `docs/adr/XXXX-titulo-corto.md`.
+        Pauta del proyecto: solo se incorpora un componente nuevo ante un **problema observable**, una **hipótesis comprobable** y una **decisión documentada y evaluable**.
+
+  - type: textarea
+    id: problema
+    attributes:
+      label: Problema observable
+      description: Qué se ha medido o detectado. Datos, métricas, incidentes.
+    validations:
+      required: true
+
+  - type: textarea
+    id: contexto
+    attributes:
+      label: Contexto
+      description: Requisitos (RF), atributos de calidad y restricciones que afectan.
+    validations:
+      required: true
+
+  - type: textarea
+    id: hipotesis
+    attributes:
+      label: Hipótesis
+      placeholder: Si adoptamos X, entonces la métrica Y mejora de A a B.
+    validations:
+      required: true
+
+  - type: textarea
+    id: opciones
+    attributes:
+      label: Opciones consideradas
+      value: |
+        | Opción | Ventajas | Inconvenientes |
+        |---|---|---|
+        | A. |  |  |
+        | B. |  |  |
+        | C. Mantener la situación actual |  |  |
+    validations:
+      required: true
+
+  - type: textarea
+    id: decision
+    attributes:
+      label: Decisión propuesta
+
+  - type: textarea
+    id: consecuencias
+    attributes:
+      label: Consecuencias
+      value: |
+        ### Positivas
+        -
+
+        ### Negativas
+        -
+
+  - type: textarea
+    id: evaluacion
+    attributes:
+      label: Cómo se evaluará
+      description: Métrica, umbral y momento de revisión. Qué resultado haría revocar la decisión.
+      value: |
+        - Métrica:
+        - Umbral:
+        - Revisión en:
+    validations:
+      required: true
+
+  - type: textarea
+    id: cierre
+    attributes:
+      label: Criterios de cierre
+      value: |
+        - [ ] `docs/adr/XXXX-*.md` creado con estado (Propuesta / Aceptada / Rechazada / Sustituida).
+        - [ ] Modelo C4 actualizado si cambia algún contenedor o componente.
+        - [ ] Revisado por al menos dos miembros del equipo.
+        - [ ] Issues de implementación derivados creados y enlazados.
+    validations:
+      required: true

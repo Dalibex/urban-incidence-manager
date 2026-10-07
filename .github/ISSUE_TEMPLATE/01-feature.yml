@@ -1,0 +1,147 @@
+name: Feature request
+description: Proponer una nueva funcionalidad ligada a un requisito (RF)
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Añade labels de área como `backend` / `frontend` según aplique, label de prioridad, y asigna el milestone del sprint actual.
+
+  - type: textarea
+    id: descripcion
+    attributes:
+      label: Descripción
+    validations:
+      required: true
+
+  - type: dropdown
+    id: requisito
+    attributes:
+      label: Requisito (RF)
+      multiple: true
+      options:
+        - RF01 Identidad y acceso
+        - RF02 Roles y permisos
+        - RF03 Registrar incidencia
+        - RF04 Localización
+        - RF05 Evidencias
+        - RF06 Consulta y seguimiento
+        - RF07 Búsqueda
+        - RF08 Mapa
+        - RF09 Validación
+        - RF10 Prioridad
+        - RF11 Asignación
+        - RF12 Ciclo de vida
+        - RF13 Colaboración
+        - RF14 Notificaciones
+        - RF15 Estadísticas
+        - RF16 Duplicados
+        - RF17 Análisis zonal
+        - RF18 Auditoría
+        - RF19 Informes
+        - RF20 Asistencia inteligente
+        - RF21 Barrio y distrito
+        - RF22 Activo urbano
+        - RF23 Contexto externo
+        - RF24 Vista contextual
+        - RF25 Correlación histórica
+        - RF26 Degradación controlada
+    validations:
+      required: true
+
+  - type: dropdown
+    id: actor
+    attributes:
+      label: Actor
+      multiple: true
+      options:
+        - Ciudadano
+        - Operador municipal
+        - Técnico
+        - Administrador
+        - Analista
+        - Sistema externo
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivacion
+    attributes:
+      label: Motivación
+      description: Historia de usuario.
+      placeholder: Como <actor>, quiero <acción> para <beneficio>.
+    validations:
+      required: true
+
+  - type: textarea
+    id: propuesta
+    attributes:
+      label: Propuesta
+      description: Endpoints, pantallas y entidades del dominio implicadas.
+
+  - type: textarea
+    id: alternativas
+    attributes:
+      label: Alternativas consideradas
+
+  - type: textarea
+    id: criterios
+    attributes:
+      label: Criterios de aceptación
+      description: |
+        Cada criterio debe ser observable y terminar indicando cómo se verifica: `[CI: <job>]`, `[Manual: T<n>]` (caso del sub-issue [Test]) o `[Revisión]`. Ver `docs/ci.md`.
+      value: |
+        - [ ] Criterio 1 [CI: test-unit]
+        - [ ] Criterio 2 [CI: test-integration]
+        - [ ] Criterio 3 [Manual: T1]
+    validations:
+      required: true
+
+  - type: textarea
+    id: pruebas
+    attributes:
+      label: Pruebas
+      description: Especificación mínima para el tester. Se detalla en un sub-issue [Test].
+      value: |
+        - Unit:
+        - Integración:
+        - E2E (si hay interfaz):
+        - Manual:
+    validations:
+      required: true
+
+  - type: textarea
+    id: verificacion_ci
+    attributes:
+      label: Verificación en CI
+      description: Deja solo los jobs que deben quedar en verde en el PR que cierra este issue y márcalos cuando lo estén.
+      value: |
+        - [ ] `lint`
+        - [ ] `build`
+        - [ ] `test-unit`
+        - [ ] `test-integration`
+        - [ ] `quality`
+        - [ ] `smoke`
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencias
+    attributes:
+      label: Dependencias
+      value: |
+        - Depende de: #
+        - Bloquea a: #
+
+  - type: textarea
+    id: documentacion
+    attributes:
+      label: Documentación
+      description: |
+        Indica la documentación que acompaña a esta feature o, si no hay ninguna aún, qué documentación actual debe actualizarse, ampliarse o crearse al implementarla. Borra lo que no aplique.
+      value: |
+        - [ ] OpenAPI (`docs/api/openapi.yml`)
+        - [ ] Modelo C4 (`docs/architecture.md`)
+        - [ ] ADR nuevo o actualizado
+        - [ ] Nuevas variables en `.env.example`

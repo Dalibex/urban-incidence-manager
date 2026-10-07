@@ -1,0 +1,78 @@
+name: 12-Factor
+description: Implementar o verificar uno de los doce factores
+title: "[12F-]: "
+labels: ["12-factor"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Completa el título con el número romano y el nombre del factor.
+        Ejemplo: `[12F-III]: Config — configuración fuera del código`
+
+  - type: dropdown
+    id: factor
+    attributes:
+      label: Factor
+      options:
+        - I. Codebase
+        - II. Dependencies
+        - III. Config
+        - IV. Backing services
+        - V. Build, release, run
+        - VI. Processes
+        - VII. Port binding
+        - VIII. Concurrency
+        - IX. Disposability
+        - X. Dev/prod parity
+        - XI. Logs
+        - XII. Admin processes
+    validations:
+      required: true
+
+  - type: textarea
+    id: mala_practica
+    attributes:
+      label: Mala práctica a evitar
+      description: Ejemplo concreto en UrbanPulse.
+
+  - type: textarea
+    id: estado_objetivo
+    attributes:
+      label: Estado objetivo
+      description: Cómo debe quedar.
+    validations:
+      required: true
+
+  - type: textarea
+    id: criterios
+    attributes:
+      label: Criterios de aceptación
+      description: |
+        Cada criterio termina indicando cómo se verifica: `[CI: <job>]`, `[Manual: T<n>]` o `[Revisión]`. Ver `docs/ci.md`.
+      value: |
+        - [ ] Criterio 1 [CI: smoke]
+        - [ ] Criterio 2 [CI: test-integration]
+        - [ ] Criterio 3 [Revisión]
+    validations:
+      required: true
+
+  - type: textarea
+    id: verificacion
+    attributes:
+      label: Cómo se verifica
+      description: |
+        Cada factor debe poder comprobarse de forma automática o reproducible. Ejemplos: arrancar la app con PORT=9090; ejecutar el build sin caché; enviar SIGTERM con una petición en curso; levantar dos réplicas.
+      value: |
+        - Job de CI:
+        - Prueba:
+    validations:
+      required: true
+
+  - type: textarea
+    id: documentacion
+    attributes:
+      label: Documentación
+      value: |
+        - [ ] `docs/development.md` o `docs/deployment.md` actualizado
+        - [ ] `.env.example` actualizado (si hay nuevas variables)
+        - [ ] Anexo de trazabilidad 12-factor actualizado
