@@ -1,0 +1,27 @@
+# Docker Compose configuration file
+services:
+  postgres:
+    # This service is used to run a Postgres database with PostGIS extension for spatial data support.
+    image: postgis/postgis:18-3.6
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB} # The name of the database to be created when the container starts.
+      POSTGRES_USER: ${POSTGRES_USER} # The username for the database.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD} # The password for the database user.
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432" # Port mapping for the Postgres service.
+    volumes:
+      - postgres-data:/var/lib/postgresql # Volume mapping to persist Postgres data on the host machine. The data will be stored in the "postgres-data" volume.
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    labels:
+      # Used by Spring Boot to automatically configure a connection to the Postgres database.
+      org.springframework.boot.service-connection: postgres
+
+volumes:
+  postgres-data:
