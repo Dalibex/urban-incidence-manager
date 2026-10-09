@@ -1,8 +1,8 @@
-# ADR-0009: Use opendata de Málaga as primary urban data source with OSM fallback
+# ADR-0009: Use OpenData from Málaga as primary urban data source with OSM fallback
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision Makers:** Project Team
-- **Date:** 2026-10-06
+- **Date:** 2026-10-08
 
 ## Context
 
@@ -10,7 +10,7 @@ Several capabilities of the platform need urban data that our users do not creat
 the neighborhood and district of an incident, associating it with the nearest urban asset,
 fetching external contextual data, showing that context to operators and correlating incidents
 with historical urban variables. The project scope states that external data comes from the
-opendata portal of the Ayuntamiento de Málaga (datos.malaga.eu).
+opendata portal of the "Ayuntamiento de Málaga" ([Ciudad de Málaga](https://www.malaga.eu//)).
 
 That portal is an external dependency we do not control, and its actual catalogue is unknown:
 it may not publish a geospatial inventory of urban assets (traffic lights, containers, bus
@@ -28,7 +28,7 @@ unavailable?
 We will use **the opendata portal of the Ayuntamiento de Málaga as the primary source of urban
 data**, with **OpenStreetMap as a documented fallback** for whatever the portal does not cover.
 
-- **Primary source:** datos.malaga.eu for districts, neighborhoods, equipment and any other
+- **Primary source:** OpenData for districts, neighborhoods, equipment and any other
   municipal dataset the catalogue actually offers. It is the authoritative source for the city
   of Málaga and it is the source stated in the project scope.
 - **Fallback source:** OSM (Overpass, already used for map features in
@@ -40,23 +40,17 @@ data**, with **OpenStreetMap as a documented fallback** for whatever the portal 
 - **Never blocks the report:** every enrichment (district, asset, context) runs asynchronously
   after the incident is created. If a source is down, the incident is still created and the
   dependent fields are filled in later or marked as unavailable.
-- **Provenance in the model:** every piece of external data is stored as an observation with
-  source, observation instant, ingest instant, unit, quality and expiry, so a value can always be
-  traced back to the source that produced it.
-- **Audit the catalogue first:** the real catalogue of datos.malaga.eu is verified before
-  committing to district, asset and context features; the outcome of that audit decides which of
-  the two legs of the decision is used in practice.
+- **Audit the catalogue first:** the real catalogue of OpenData is verified before
+  committing to district, asset and context features; the outcome of that audit decides which sourceis used in practice.
 
 ## Considered Options
 
-- **opendata de Málaga only** — One authoritative source and nothing else, but if the catalogue
+- **Opendata de Málaga only** — One authoritative source and nothing else, but if the catalogue
   lacks assets or polygons, district and asset features simply have no data and the map loses
   value.
 - **OpenStreetMap only** — Complete and free, but ignores the municipal authority of the
   opendata portal and the project scope, and would throw away better data where it exists.
-- **A commercial urban data provider** — Good coverage and SLAs, but cost, API keys and vendor
-  lock-in, which the project does not need.
-- **opendata de Málaga primary, OSM fallback** — Selected. The authoritative source is used
+- **OpenData de Málaga primary, OSM fallback** — Selected. The authoritative source is used
   when it covers the need, and the gap is filled from a source we already consume for maps, with
   the accuracy loss explicitly documented instead of hidden.
 
@@ -68,8 +62,7 @@ data**, with **OpenStreetMap as a documented fallback** for whatever the portal 
     project.
   - The fallback reuses the OSM knowledge already required by
     [ADR-0002](0002-open-street-map.md), so no third integration is introduced.
-  - Asynchronous enrichment plus provenance guarantees that no external failure ever blocks a
-    citizen report.
+  - Asynchronous enrichment guarantees that no external failure ever blocks a citizen report.
   - Recording source and quality on every observation makes the contextual view explainable and
     reproducible.
 - **Negatives:**

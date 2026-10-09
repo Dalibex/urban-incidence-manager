@@ -1,8 +1,8 @@
 # ADR-0006: Use React for the web application
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision Makers:** Project Team
-- **Date:** 2026-09-29
+- **Date:** 2026-10-08
 
 ## Context
 
@@ -23,7 +23,7 @@ We will use **React with TypeScript**, bundled with **Vite**.
 - **React Router** for routing and URL-driven filters (area, date, status), so views are shareable
   and bookmarkable.
 - **React Query** for server state: caching, retries and invalidation of incidents and evidences.
-- **Map rendering** with `react-leaflet` and OSM tiles (see [ADR-0002](0002-open-street-map.md)).
+- **Map rendering** with `MapLibre` and OSM tiles (see [ADR-0002](0002-open-street-map.md)).
 - **Styling** with CSS Modules, avoiding a component library that would impose its own design
   system.
 
@@ -32,12 +32,8 @@ We will use **React with TypeScript**, bundled with **Vite**.
 - **React + Vite + TypeScript** — Small, flexible and aligned with the mobile stack. Selected.
 - **Next.js** — SSR and routing out of the box, but most of this tool is behind authentication and
   client side; the extra server complexity is not justified at this stage.
-- **Vue** — Productive and easy to learn, but a different ecosystem from the mobile app, so
-  nothing is shared.
 - **Angular** — Strong structure and tooling, but heavier for this size and a different paradigm
   for the team.
-- **Server-rendered templates (Django, Rails, Laravel)** — Simple for classic forms, but the map
-  interaction and dense client side filtering need a rich interactive front end anyway.
 
 ## Consequences
 

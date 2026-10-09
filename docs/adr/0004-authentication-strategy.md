@@ -1,8 +1,8 @@
 # ADR-0004: Authentication strategy
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision Makers:** Project Team
-- **Date:** 2026-09-29
+- **Date:** 2026-10-08
 
 ## Context
 
@@ -22,7 +22,7 @@ tokens** issued by our own API.
   and revoked server-side on logout, password change or account deactivation.
 - **Credentials:** email and password hashed with a slow password hashing algorithm (Argon2 or
   bcrypt); login is rate limited.
-- **Authorization:** role checks in the API (`user`, `moderator`, `admin`); the client only hides
+- **Authorization:** role checks in the API (`user`, `admin`, `technician`, `operator`, `analyst`); the client only hides
   UI that the user cannot use, it never enforces permissions.
 - **Social login** (Google, Apple, GitHub) can be added later as a registration path without
   changing the token model.

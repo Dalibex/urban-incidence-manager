@@ -1,8 +1,8 @@
 # ADR-0008: Use Spring Boot for the backend
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision Makers:** Project Team
-- **Date:** 2026-09-29
+- **Date:** 2026-10-08
 
 ## Context
 
@@ -14,16 +14,14 @@ third-party map responses behind a dedicated cache layer (see [ADR-0012](0012-ca
 
 The clients are written in TypeScript and share domain logic with each other
 ([ADR-0007](0007-client-application-architecture.md)), but the backend has different requirements:
-transactions, a solid persistence layer, background jobs for cache refresh and a mature ecosystem.
+transactions, a solid persistence layer, background jobs for cache refresh.
 
 Which technology should be used for the backend?
 
 ## Decision
 
-We will use **Java with Spring Boot**, exposing a **REST API** over JSON.
+We will use **Java with Spring Boot**, exposing a **RESTFUL API** over JSON.
 
-- **Mature and well documented ecosystem:** Spring Data, Spring Security, validation and testing are
-  solved problems with a large community.
 - **Data access with JPA (Hibernate) plus native queries** for PostGIS operations, over the same
   PostgreSQL instance.
 - **Spring Security** for authentication, implementing the token strategy of
@@ -32,7 +30,7 @@ We will use **Java with Spring Boot**, exposing a **REST API** over JSON.
   types of the shared `api-client` package are generated from it
   ([ADR-0007](0007-client-application-architecture.md)).
 - **OSM access behind a caching layer:** Nominatim and Overpass responses are served from Redis
-  with a TTL, and refreshes run as scheduled background jobs, so usage policies and rate limits are
+  with a TTL (Time to Live), and refreshes run as scheduled background jobs, so usage policies and rate limits are
   respected ([ADR-0002](0002-open-street-map.md), [ADR-0012](0012-cache-redis.md)).
 - **Deployed as a containerized service**, without serverless or stateful infrastructure beyond the
   database.
@@ -44,14 +42,12 @@ We will use **Java with Spring Boot**, exposing a **REST API** over JSON.
   less suitable for the transactional and background processing workload.
 - **Python with FastAPI** — Productive for data work, but a third language and less mature enterprise
   tooling for this kind of service.
-- **Ktor (Kotlin)** — Modern and concise, but a smaller ecosystem and a shorter track record.
-- **Supabase or Firebase as backend** — Fast to start, but the data model, auth and business logic
-  would be locked to the vendor and harder to test or evolve.
 
 ## Consequences
 
 - **Positives:**
-  - Transactions, connection pooling and schema migrations are handled by mature libraries.
+
+  - Transactions, connection pooling and schema migrations are handled by well known libraries.
   - Strong typing and static analysis catch a large share of errors before running.
   - Spring Security, validation and testing support reduce the amount of infrastructure code.
   - Scheduled jobs for cache refresh come out of the box.
@@ -59,9 +55,9 @@ We will use **Java with Spring Boot**, exposing a **REST API** over JSON.
     Redis, so disposable cache rows never grow the relational database
     ([ADR-0012](0012-cache-redis.md)).
 - **Negatives:**
+
   - Java is a different language from the TypeScript clients, so code cannot be shared directly; the
     API contract must be maintained through OpenAPI and generated clients.
-  - More verbose and more ceremony than a Node.js service, which slows down small changes.
   - Higher memory and startup footprint than a lightweight Node.js service.
   - The JVM requires attention to container memory limits and build times.
 

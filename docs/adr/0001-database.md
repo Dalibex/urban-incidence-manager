@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Decision Makers:** Project Team
-- **Date:** 2026-09-29
+- **Date:** 2026-10-08
 
 ## Context
 
@@ -30,12 +30,11 @@ We will use **PostgreSQL** as primary database for all our data.
 - **MySQL** — Relational and widely known, but weaker geo-spatial support and no JSONB equivalent.
 - **MongoDB** — Document oriented; would mean embedding evidences in incident documents or manually managing references and consistency.
 
-PostgreSQL was selected because it covers both the relational and the flexible document needs with one engine, keeping referential integrity for incidents and evidences while still allowing flexible storage for map data.
+PostgreSQL was selected because it covers both the relational and the flexible document needs with one engine.
 
 ## Consequences
 
 - **Positives:**
-  - Strong consistency and referential integrity between incidents, evidences and locations.
   - Complex reporting queries (aggregations per area, per user, over time) are handled with plain SQL.
   - Transactions guarantee that an incident and its evidences are saved atomically.
   - JSONB columns allow storing evolving OpenStreetMap payloads without schema changes.

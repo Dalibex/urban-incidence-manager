@@ -1,8 +1,8 @@
 # ADR-0003: Use PostGIS for geo-spatial data
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision Makers:** Project Team
-- **Date:** 2026-09-29
+- **Date:** 2026-10-08
 
 ## Context
 
@@ -25,8 +25,6 @@ We will use the **PostGIS** extension on top of PostgreSQL for all geo-spatial d
 - **PostGIS** — Spatial types, indexes and functions inside PostgreSQL. Selected.
 - **Latitude/longitude columns with plain B-tree indexes** — No spatial operators; bounding-box
   filtering becomes manual and error prone.
-- **External geo-spatial service (e.g. Elasticsearch or a tile service)** — Powerful, but adds
-  another stateful system and a data duplication/consistency problem.
 
 PostGIS was selected because it keeps geo-spatial data in the same database as the rest of the
 model, so spatial filters compose with regular SQL and no second system has to be synchronized.
@@ -47,3 +45,4 @@ model, so spatial filters compose with regular SQL and no second system has to b
 
 - [ADR-0001: Use PostgreSQL for primary database](0001-database.md)
 - [ADR-0002: Use OpenStreetMap](0002-open-street-map.md)
+- [PostGIS Documentation](https://postgis.net/docs/manual-dev/en/postgis_introduction.html)

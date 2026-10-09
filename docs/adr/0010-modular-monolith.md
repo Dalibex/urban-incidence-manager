@@ -13,33 +13,33 @@ pueda documentarse y evaluarse." The design guideline also states that new compo
 added for an observable problem with a testable hypothesis.
 
 The system covers identity and roles, the full incident lifecycle, a map, statistics, external
-data ingestion and notifications. The team must deliver this inside one semester, and atomic
-writes across incidents, assignments, status changes and audit records are a core requirement of
-the domain model.
+data ingestion, notifications and AI assistance. The team must deliver this inside one semester,
+and atomic writes across incidents, assignments, status changes and audit records are a core
+requirement of the domain model.
 
-Which architectural style should the system adopt initially?
+The first version of this ADR listed six modules, and the C4 model listed a different set of
+components (including a generic "API REST Controllers" component). Code, ADR and C4 must use the
+same list so that each component in the diagram is a package in the code.
+
+Which architectural style should the system adopt initially, and which modules does it have?
 
 ## Decision
 
 We will build a **single deployable modular monolith**: one Spring Boot application
 ([ADR-0008](0008-backend.md)) with explicitly bounded internal modules.
 
-- **Modules** (packages with an internal API and no reaching into another module's internals):
-  - `identity`: users, roles, permissions, authentication (see
-    [ADR-0004](0004-authentication-strategy.md)).
-  - `incidents`: incident, lifecycle transitions, assignments, comments, audit trail.
-  - `geospatial`: locations, PostGIS queries, district and asset resolution (see
-    [ADR-0003](0003-geospatial-data-management.md)).
-  - `externaldata`: ingestion and caching of opendata and OSM responses (see
-    [ADR-0009](0009-urban-data-source.md)).
-  - `notifications`: events and delivery.
-  - `analytics`: statistics and reporting.
-- **One database, one schema**, owned by the application; modules share tables through their
-  published interfaces, not by arbitrary cross-module joins in application code.
-- **No network calls between modules**: everything is an in-process method call, so a single
-  transaction can cover incident creation plus audit plus status change.
-- **Enforcement:** package structure, visibility rules and architectural tests (for example
-  ArchUnit) keep module boundaries from eroding.
+- **Modules.** Each module is a package `es.uma.urbanpulse.<module>` and a component in the C4
+  model (`docs/architecture/workspace.dsl`):
+
+- **No layer components.** Controllers, services and repositories are not components of their own;
+  each module owns its layers.
+- **One database, one schema**, owned by the application; each module owns its tables and other
+  modules reach that data only through the module's public API, never through cross-module joins
+  or JPA relationships.
+- **No network calls between modules**: everything is an in-process method call or an in-process
+  domain event, so a single transaction can cover incident creation plus audit plus status change.
+- **Enforcement:** Spring Modulith verifies the module structure on every build
+  (`ApplicationModules.of(...).verify()`), so boundaries cannot erode silently.
 - **Trigger for extracting a component:** a module is only split out of the monolith when there
   is an observable problem, a testable hypothesis and a new ADR, following the design guideline
   of the specification. No extraction is planned now.
@@ -47,14 +47,10 @@ We will build a **single deployable modular monolith**: one Spring Boot applicat
 ## Considered Options
 
 - **Modular monolith** — One deployable, real transactions, explicit internal boundaries.
-  Selected.
 - **Microservices from day one** — Independent scaling and deployment, but network calls replace
   transactions, every cross-cutting feature needs distributed coordination, and there is no
   observable problem yet that would justify it.
-- **Serverless functions** — Pay per use and no servers, but the incident lifecycle is
-  transactional and stateful, cold starts hurt interactive flows, and local development and
-  testing become harder.
-- **Unstructured monolith (no internal modules)** — The fastest start, but with six functional
+- **simple monolith (no internal modules)** — The fastest start, but with seven functional
   areas the codebase becomes entangled and the boundaries that make later extraction possible
   never exist.
 
@@ -69,6 +65,8 @@ when, and only when, a real problem appears.
     ([ADR-0011](0011-deployment-12factor.md)).
   - ACID transactions across incidents, assignments, status changes and audit records without
     distributed sagas.
+  - The C4 component diagram and the package structure are the same thing, so the diagram stays
+    true and can be generated from code.
   - Module boundaries make the code testable per module and keep extraction options open.
   - Consistent with the design guideline of the specification, so no extra component is
     introduced without an observable problem.
@@ -76,8 +74,8 @@ when, and only when, a real problem appears.
   - Failure isolation does not exist: a bug in one module can take down the whole process.
   - Scaling is vertical for the application as a whole; a single hot module cannot be scaled
     independently.
-  - Boundaries are enforced by convention and tests, so they can still be violated under
-    deadline pressure.
+  - Boundaries are verified by tests, which only protect what the build runs; a disabled test
+    removes the protection.
   - Shared database means one schema migration affects every module at once.
 
 ## Links Related
@@ -86,3 +84,4 @@ when, and only when, a real problem appears.
 - [ADR-0008: Use Spring Boot for the backend](0008-backend.md)
 - [ADR-0009: Use opendata de Málaga as primary urban data source](0009-urban-data-source.md)
 - [ADR-0011: Deployment and 12-factor configuration](0011-deployment-12factor.md)
+- C4 model: `docs/architecture/workspace.dsl` (component view "Componentes")

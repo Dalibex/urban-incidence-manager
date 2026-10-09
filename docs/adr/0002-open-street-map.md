@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Decision Makers:** Project Team
-- **Date:** 2026-09-29
+- **Date:** 2026-10-08
 
 ## Context
 
@@ -18,7 +18,7 @@ Which source of map data should we use?
 
 ## Decision
 
-We will use **OpenStreetMap** data as the source of map features and geocoding.
+We will use **OpenStreetMap (OSM)** data as the source of map features and geocoding.
 
 - Use **Nominatim** for geocoding and reverse geocoding of user-entered addresses.
 - Use **Overpass API** to fetch map features around incident locations (roads, buildings, POIs).
@@ -33,11 +33,6 @@ We will use **OpenStreetMap** data as the source of map features and geocoding.
 - **OpenStreetMap (Nominatim / Overpass / OSM tiles)** — Open data, no keys, self-hostable. Selected.
 - **Google Maps Platform** — Excellent coverage and geocoding quality, but requires billing, an API
   key and proprietary terms; usage is metered per request.
-- **Mapbox** — Good vector tiles and geocoding, but paid tiers, key management and the same lock-in
-  concerns as above.
-- **A self-hosted tile stack (e.g. tile server plus a tileset such as OSM or a commercial
-  dataset)** — Full control over caching and availability, but adds operational work (tile
-  generation, CDN, monitoring) that is out of scope at the current project size.
 
 OpenStreetMap was selected because it provides the required map data without cost or vendor
 lock-in, and because it is going to be the main source for more than one project, so the
@@ -49,8 +44,7 @@ accumulated knowledge of its APIs will pay off.
   - No licensing cost, no billing quotas and no per-request metering.
   - No API key management, and no exposure of a provider key in the client.
   - Data can be self-hosted or mirrored, giving control over availability and caching.
-  - Detailed map data, usable consistently across projects.
-  - The same knowledge of Nominatim, Overpass and the OSM data model applies to other projects.
+  - Detailed map data.
 - **Negatives:**
   - Free public endpoints (Nominatim, Overpass) have strict usage policies and rate limits, so the
     app must cache aggressively and must not issue per-user requests directly.
@@ -64,3 +58,5 @@ accumulated knowledge of its APIs will pay off.
 
 - [ADR-0001: Use PostgreSQL for primary database](0001-database.md)
 - [ADR-0003: Use PostGIS for geo-spatial data](0003-geospatial-data-management.md)
+- [ADR-0005: Mobile Application Technology](0005-mobile-application-technology.md)
+- [ADR-0012: Redis Cache](0012-cache-redis.md)

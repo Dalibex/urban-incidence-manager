@@ -1,8 +1,8 @@
 # ADR-0005: Use React Native for the mobile application
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision Makers:** Project Team
-- **Date:** 2026-09-29
+- **Date:** 2026-10-08
 
 ## Context
 
@@ -21,9 +21,8 @@ We will use **React Native with Expo** and **TypeScript** for the mobile applica
   reusable, so the team maintains one way of thinking about the product (see [ADR-0007](0007-client-application-architecture.md)).
 - **Native capabilities through Expo:** camera, location, file system and secure token storage are
   available as maintained modules.
-- **Map support:** `react-native-maps` (or an Expo-compatible wrapper) covers rendering OSM-based
-  tiles and markers on both platforms.
-- **Managed workflow with EAS Build and EAS Update** for signing and distributing updates, which
+- **Map support:** `MapLibre` covers rendering OSM-based tiles and markers on both platforms.
+- **Managed workflow with EAS (Expo Application Services) Build and EAS Update** for signing and distributing updates, which
   avoids maintaining native build infrastructure.
 - **Single codebase for iOS and Android**, reducing duplicated effort.
 
@@ -34,21 +33,18 @@ We will use **React Native with Expo** and **TypeScript** for the mobile applica
   codebases, two teams-worth of knowledge and no code sharing with the web app.
 - **Flutter (Dart)** — Consistent UI across platforms and good performance, but a different language
   and ecosystem from the web app, so nothing is shared.
-- **Progressive web app** — One codebase and no store publishing, but no access to camera, GPS and
-  background features with the same reliability, and no presence in the app stores.
 
 ## Consequences
 
 - **Positives:**
+
   - Business logic, API client and design tokens are shared with the web application.
   - One team and one language (TypeScript) can maintain both clients.
   - EAS Build and EAS Update remove most of the native toolchain and distribution overhead.
   - Access to device capabilities and store distribution through Expo modules.
 - **Negatives:**
-  - The app depends on the React Native and Expo ecosystem, and some native libraries require a
-    custom development build (for example when using `react-native-maps` with OSM tiles).
-  - Performance is below fully native for very demanding interactions, which is acceptable for maps
-    and forms.
+
+  - The app depends on the React Native and Expo ecosystem. Vendor lock-in.
   - Expo services (builds, updates) may be paid depending on the plan.
 
 ## Links Related
