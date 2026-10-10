@@ -1,0 +1,93 @@
+# Continuous integration for UrbanPulse.
+#
+# Jobs:
+#   lint → repository hygiene (.env, Compose, image parity) and formatting (Spotless check)
+
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to a PR cancels the run still in progress for that PR. Runs on main are never cancelled.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Folder that contains pom.xml and mvnw, relative to the repository root.
+  BACKEND_DIR: urbanpulse
+  JAVA_VERSION: "25"
+  JAVA_DISTRIBUTION: temurin
+  # Must match docker-compose.yaml and TestcontainersConfiguration.java (checked by lint).
+  POSTGRES_IMAGE: postgis/postgis:18-3.6
+  # Read by Maven 3.9+ on every ./mvnw call: batch mode, no download progress noise.
+  MAVEN_ARGS: -B -ntp
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ${{ env.BACKEND_DIR }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: No .env file is versioned (12F-III)
+        # The whole repository is checked, not only BACKEND_DIR.
+        working-directory: .
+        run: |
+          tracked=$(git ls-files | grep -E '(^|/)\.env$' || true)
+          if [ -n "$tracked" ]; then
+            echo "::error title=12F-III Config::Versioned .env files: $tracked. Version only .env.example (.env is in .gitignore)."
+            exit 1
+          fi
+
+      - name: Same PostgreSQL image in Compose, Testcontainers and CI (12F-X)
+        run: |
+          status=0
+          if [ -f docker-compose.yaml ] && ! grep -qF "$POSTGRES_IMAGE" docker-compose.yaml; then
+            echo "::error file=docker-compose.yaml,title=12F-X Dev/prod parity::docker-compose.yaml does not use $POSTGRES_IMAGE (POSTGRES_IMAGE in ci.yml)."
+            status=1
+          fi
+          if ! grep -rqF "$POSTGRES_IMAGE" src/test/java; then
+            echo "::error title=12F-X Dev/prod parity::TestcontainersConfiguration.java does not use $POSTGRES_IMAGE (POSTGRES_IMAGE in ci.yml)."
+            status=1
+          fi
+          exit $status
+
+      - name: Docker Compose file is valid with .env.example (12F-III)
+        run: |
+          if [ ! -f docker-compose.yaml ]; then echo "No docker-compose.yaml, nothing to check."; exit 0; fi
+          if [ ! -f .env.example ]; then
+            echo "::error title=12F-III Config::docker-compose.yaml exists but .env.example does not."
+            exit 1
+          fi
+          cp .env.example .env
+          docker compose config --quiet
+          echo "docker-compose.yaml is valid (only parsed, no container is started)."
+
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+          cache-dependency-path: ${{ env.BACKEND_DIR }}/pom.xml
+
+      - name: Formatting (Spotless, google-java-format AOSP)
+        run: |
+          chmod +x mvnw
+          if ! ./mvnw spotless:check; then
+            echo "::error title=Formatting::Some files are not formatted. Run ./mvnw spotless:apply, commit and push. If this keeps happening, the pre-commit hook is not installed (docs/ci-setup.md)."
+            exit 1
+          fi
