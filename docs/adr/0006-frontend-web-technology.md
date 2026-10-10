@@ -55,3 +55,4 @@ We will use **React with TypeScript**, bundled with **Vite**.
 - [ADR-0004: Authentication strategy](0004-authentication-strategy.md)
 - [ADR-0005: Use React Native for the mobile application](0005-mobile-application-technology.md)
 - [ADR-0007: Client application architecture](0007-client-application-architecture.md)
+- [Vite](https://vite.dev/)

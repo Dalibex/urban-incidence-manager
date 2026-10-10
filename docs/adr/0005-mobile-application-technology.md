@@ -53,3 +53,6 @@ We will use **React Native with Expo** and **TypeScript** for the mobile applica
 - [ADR-0004: Authentication strategy](0004-authentication-strategy.md)
 - [ADR-0006: Use React for the web application](0006-frontend-web-technology.md)
 - [ADR-0007: Client application architecture](0007-client-application-architecture.md)
+- [Expo](https://expo.dev/)
+- [EAS Build](https://docs.expo.dev/build/introduction/)
+- [MapLibre GL JS](maplibre.org/projects/gl-js/)

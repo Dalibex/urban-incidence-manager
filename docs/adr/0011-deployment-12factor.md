@@ -1,8 +1,8 @@
 # ADR-0011: Deploy with docker-compose and 12-factor configuration
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision Makers:** Project Team
-- **Date:** 2026-10-06
+- **Date:** 2026-10-10
 
 ## Context
 
