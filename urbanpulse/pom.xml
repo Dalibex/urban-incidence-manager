@@ -310,7 +310,7 @@
 					</execution>
 					<execution>
 						<id>merge-coverage</id>
-						<phase>none</phase>
+						<phase>verify</phase>
 						<goals>
 							<goal>merge</goal>
 						</goals>
@@ -319,7 +319,8 @@
 								<fileSet>
 									<directory>${project.build.directory}</directory>
 									<includes>
-										<include>jacoco*.exec</include>
+                                        <include>jacoco.exec</include>
+                                        <include>jacoco-it.exec</include>
 									</includes>
 								</fileSet>
 							</fileSets>
