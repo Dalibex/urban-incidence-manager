@@ -1,0 +1,70 @@
+#!/bin/sh
+# pre-commit: formats the staged Java files with Spotless (google-java-format AOSP) and
+# adds the result to the same commit, so every commit is already formatted.
+# CI (job lint) only checks; it never changes code.
+#
+# Installed by any local ./mvnw build (profile install-git-hooks in pom.xml)
+# Skip it for one commit:  SKIP_FORMAT=1 git commit ...   (or git commit --no-verify)
+# Documentation: docs/ci.md
+
+set -eu
+
+# Folder with pom.xml and mvnw, relative to the repository root (same as BACKEND_DIR in ci.yml).
+BACKEND_DIR="urbanpulse"
+
+if [ "${SKIP_FORMAT:-0}" = "1" ]; then
+    echo "pre-commit: SKIP_FORMAT=1, formatting skipped (CI will still check it)."
+    exit 0
+fi
+
+cd "$(git rev-parse --show-toplevel)"
+
+# One file per line (paths with spaces are kept whole) and no glob expansion of file names.
+IFS='
+'
+set -f
+
+files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.java')
+if [ -z "$files" ]; then
+    exit 0 # no Java files in this commit: nothing to format, Maven is not started
+fi
+
+# A file with staged AND unstaged changes cannot be re-staged without also committing the
+# unstaged part, so stop and let the developer decide.
+# shellcheck disable=SC2086 # word splitting on newlines is intended
+partial=$(git diff --name-only -- $files)
+if [ -n "$partial" ]; then
+    echo "pre-commit: these files have changes that are not staged:"
+    printf '%s\n' "$partial" | sed 's/^/  /'
+    echo "Formatting them would add the unstaged changes to this commit."
+    echo "Stage the whole file (git add <file>) or stash the rest (git stash --keep-index), then commit again."
+    exit 1
+fi
+
+# -DspotlessFiles takes comma-separated regular expressions matched against absolute paths.
+# Build one per staged file; [\\/] matches both / and \ so it also works on Windows.
+patterns=""
+for f in $files; do
+    escaped=$(printf '%s\n' "$f" | sed -e 's/[][\.*^$+?(){}|]/\\&/g' -e 's#/#[\\\\/]#g')
+    patterns="${patterns:+$patterns,}.*[\\\\/]$escaped"
+done
+
+count=$(printf '%s\n' "$files" | wc -l | tr -d ' ')
+echo "pre-commit: formatting $count staged Java file(s) with Spotless..."
+
+if ! (cd "$BACKEND_DIR" && sh ./mvnw -q spotless:apply -DspotlessFiles="$patterns"); then
+    echo "pre-commit: spotless:apply failed. Usually a staged file does not compile (syntax error)."
+    echo "Fix it, or commit anyway with SKIP_FORMAT=1 git commit ... (CI lint will fail until it is formatted)."
+    exit 1
+fi
+
+# shellcheck disable=SC2086
+changed=$(git diff --name-only -- $files)
+if [ -n "$changed" ]; then
+    echo "pre-commit: reformatted and added to this commit:"
+    printf '%s\n' "$changed" | sed 's/^/  /'
+    # shellcheck disable=SC2086
+    git add -- $changed
+fi
+
+exit 0
