@@ -91,3 +91,57 @@ jobs:
             echo "::error title=Formatting::Some files are not formatted. Run ./mvnw spotless:apply, commit and push. If this keeps happening, the pre-commit hook is not installed (docs/ci-setup.md)."
             exit 1
           fi
+          
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: ${{ env.BACKEND_DIR }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+          cache-dependency-path: ${{ env.BACKEND_DIR }}/pom.xml
+
+      # Formatting is the job of lint, so a whitespace problem never turns this job red.
+      # The coverage and SpotBugs gates are disabled here and evaluated in the next two
+      # steps, so the name of the failing step tells you which gate failed.
+      - name: Unit and integration tests
+        run: |
+          chmod +x mvnw
+          ./mvnw -Dspotless.check.skip=true -Djacoco.haltOnFailure=false -Dspotbugs.failOnError=false verify
+
+      - name: Coverage gate (jacoco.minimum.coverage in pom.xml)
+        run: ./mvnw jacoco:check@check-coverage
+
+      - name: Static analysis gate (SpotBugs)
+        run: ./mvnw spotbugs:check
+
+      - name: Test and coverage summary
+        if: always()
+        working-directory: .
+        run: |
+          python3 .github/scripts/ci_summary.py junit "Unit tests" "$BACKEND_DIR/target/surefire-reports"
+          python3 .github/scripts/ci_summary.py junit "Integration tests" "$BACKEND_DIR/target/failsafe-reports"
+          python3 .github/scripts/ci_summary.py jacoco "Coverage (unit + integration)" "$BACKEND_DIR/target/site/jacoco-merged/jacoco.csv"
+
+      - name: Publish reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports
+          path: |
+            ${{ env.BACKEND_DIR }}/target/surefire-reports/
+            ${{ env.BACKEND_DIR }}/target/failsafe-reports/
+            ${{ env.BACKEND_DIR }}/target/site/jacoco-merged/
+            ${{ env.BACKEND_DIR }}/target/spotbugsXml.xml
+          if-no-files-found: ignore
+          retention-days: 7
+
