@@ -37,8 +37,10 @@
 		<spotless.version>3.10.3</spotless.version>
 		<!-- Google Java Format version used to format the code (Linting) -->
 		<google-java-format.version>1.35.0</google-java-format.version>
+		<!-- Exec Maven Plugin version used to run git commands to install the pre-commit hook -->
+		<exec-maven-plugin.version>3.1.0</exec-maven-plugin.version>
 
-		<!-- Testing -->
+		<!-- Testing -DskipUTs=true skips unit tests (*Test) and keeps integration tests (*IT) -->
 		<skipUTs>false</skipUTs>
 		<jacoco.version>0.8.15</jacoco.version>
 		<jacoco.minimum.coverage>0.80</jacoco.minimum.coverage> <!-- 80% minimum coverage -->
@@ -57,7 +59,7 @@
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
-			<version>1.18.40</version>
+			<version>${lombok.version}</version>
 			<scope>provided</scope>
 		</dependency>
 
@@ -117,6 +119,47 @@
 			<artifactId>spring-modulith-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- Testcontainers: integration tests (*IT) start their own PostGIS container.
+			Same image as docker-compose.yaml and POSTGRES_IMAGE in ci.yml
+			Versions are managed by the Spring Boot parent. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-testcontainers</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers-postgresql</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- Security dependencies for JWT Authentication -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>io.jsonwebtoken</groupId>
+			<artifactId>jjwt-api</artifactId>
+			<version>0.12.7</version>
+		</dependency>
+		<dependency>
+			<groupId>io.jsonwebtoken</groupId>
+			<artifactId>jjwt-impl</artifactId>
+			<version>0.12.7</version>
+			<scope>runtime</scope>
+		</dependency>
+		<dependency>
+			<groupId>io.jsonwebtoken</groupId>
+			<artifactId>jjwt-jackson</artifactId>
+			<version>0.12.7</version>
+			<scope>runtime</scope>
+		</dependency>
 	</dependencies>
 
 	<dependencyManagement>
@@ -162,7 +205,32 @@
 				</configuration>
 			</plugin>
 
+						<!-- Unit tests (*Test, *Tests): no Docker, no database. Run by ./mvnw test -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<skip>${skipUTs}</skip>
+				</configuration>
+			</plugin>
+
+			<!-- Integration tests (*IT): Spring context + PostGIS in Testcontainers (needs Docker).
+				Run by ./mvnw verify. Skip them with -DskipITs -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-failsafe-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>integration-test</goal>
+							<goal>verify</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
 			<!-- SpotBugs plugin for static code analysis -->
+			<!-- Fails on verify (job test in CI). Skip it with -Dspotbugs.skip=true -->
 			<plugin>
 				<groupId>com.github.spotbugs</groupId>
 				<artifactId>spotbugs-maven-plugin</artifactId>
@@ -171,17 +239,29 @@
 					<effort>Max</effort>
 					<threshold>Medium</threshold>
 				</configuration>
+								<executions>
+					<execution>
+						<id>spotbugs-check</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 
 			<!-- google-java-format plugin for code formatting
-				Fails on validate (job lint in CI). Corrected with ./mvnw spotless:apply -->
+				- The pre-commit hook (.githooks/pre-commit) runs spotless:apply on the staged files.
+				- check is bound to validate: any local build and the CI job lint fail if a file
+				  is not formatted. Fix it with ./mvnw spotless:apply.
+				- Skip the check in a local build with -Dspotless.check.skip=true -->
 			<plugin>
 				<groupId>com.diffplug.spotless</groupId>
 				<artifactId>spotless-maven-plugin</artifactId>
 				<version>${spotless.version}</version>
 				<configuration>
 					<java>
-						<!-- Versión fijada: es la misma con la que se ha formateado el código -->
+						<!-- Pinned version: the hook, the IDE plugin and CI must format the same way -->
 						<googleJavaFormat>
 							<version>${google-java-format.version}</version>
 							<style>AOSP</style>
@@ -203,6 +283,9 @@
 
 			<!-- JaCoCo plugin for code coverage -->
 			<!-- merge, report and check coverage are executed in the CI pipeline: job quality-->
+			<!-- Unit (jacoco.exec) and integration (jacoco-it.exec) data are merged, reported in
+				target/site/jacoco-merged and checked against jacoco.minimum.coverage on verify
+				(job test in CI). Without execution data (e.g. -DskipTests) they are skipped. -->
 			<plugin>
 				<groupId>org.jacoco</groupId>
 				<artifactId>jacoco-maven-plugin</artifactId>
@@ -245,7 +328,7 @@
 					</execution>
 					<execution>
 						<id>report-coverage</id>
-						<phase>none</phase>
+						<phase>verify</phase>
 						<goals>
 							<goal>report</goal>
 						</goals>
@@ -256,7 +339,7 @@
 					</execution>
 					<execution>
 						<id>check-coverage</id>
-						<phase>none</phase>
+						<phase>verify</phase>
 						<goals>
 							<goal>check</goal>
 						</goals>
@@ -281,5 +364,50 @@
 
 		</plugins>
 	</build>
+
+	<profiles>
+		<!-- Points git to the versioned hooks in .githooks on any local build
+			(./mvnw test, verify, package...). Not active in CI (GitHub Actions sets CI=true).
+			Exit code 128 = not a git repository (e.g. a downloaded zip): ignored. -->
+		<profile>
+			<id>install-git-hooks</id>
+			<activation>
+				<property>
+					<name>!env.CI</name>
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>exec-maven-plugin</artifactId>
+						<version>${exec-maven-plugin.version}</version>
+						<executions>
+							<execution>
+								<id>install-git-hooks</id>
+								<phase>initialize</phase>
+								<goals>
+									<goal>exec</goal>
+								</goals>
+								<configuration>
+									<executable>git</executable>
+									<arguments>
+										<argument>config</argument>
+										<argument>core.hooksPath</argument>
+										<argument>.githooks</argument>
+									</arguments>
+									<successCodes>
+										<successCode>0</successCode>
+										<successCode>128</successCode>
+									</successCodes>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+
 
 </project>
