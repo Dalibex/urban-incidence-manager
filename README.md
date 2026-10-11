@@ -1,54 +1,126 @@
-# Urban Pulse - Urban Incidence Manager
+# UrbanPulse
 
-Cloud platform for intelligent management of urban incidents reported by citizens.
+UrbanPulse is a platform for managing urban incidents reported by citizens and enriching them with contextual data from the city of Malaga.
 
-## Main Features
+> **Status:** Early development. The repository currently contains the Spring Boot backend skeleton and its local PostgreSQL/PostGIS infrastructure. Incident management workflows, web and mobile clients are not implemented yet.
 
-Currently the repository contains the initial backend skeleton and local development
-infrastructure, this is not even an alpha version.
+## Purpose
 
-## What's For?
+UrbanPulse aims to support the registration, classification, prioritization, tracking, analysis, and resolution of urban incidents.
 
-UrbanPulse combines citizen reports with contextual urban data from the city of Malaga to
-improve the classification, prioritization, tracking, analysis, and resolution of urban
-incidents.
+The platform assists municipal staff. It does not replace human decisions for sensitive actions.
 
-## Technologies
+## Current Scope
 
-- Spring Boot 4.1.1 (Java 25) with Spring Data JPA
-- PostgreSQL with PostGIS, run locally through Docker Compose
-- Maven Wrapper (no global Maven installation required)
+The repository currently provides:
 
-## Installation
+- A Spring Boot backend built with Java 25.
+- PostgreSQL with PostGIS for relational and geospatial data.
+- Spring Data JPA and PostgreSQL connectivity.
+- Docker Compose integration for local database startup.
+- Maven Wrapper.
+- Basic application-context testing.
 
-Requirements: Java 25, Docker Engine or Docker Desktop, Docker Compose v2, Git.
+## Technology Stack
+
+- Java 25
+- Spring Boot 4.1.1
+- Spring Data JPA
+- Spring Modulith
+- PostgreSQL 18 with PostGIS 3.6
+- Docker Compose
+- Maven Wrapper
+
+## Prerequisites
+
+Install Java 25, Docker Engine or Docker Desktop, and Git. Maven and PostgreSQL do not need to be installed locally.
+
+## Quick Start
+
+Clone the repository and enter the backend directory:
 
 ```bash
 git clone https://github.com/Dalibex/urban-incidence-manager.git
 cd urban-incidence-manager/urbanpulse
+```
+
+### Create the local environment file
+
+Linux or macOS:
+
+```bash
 cp .env.example .env
 ```
 
-See [docs/development.md](docs/development.md) for the full setup. **(TBC)**
+Windows PowerShell:
 
-## Configuration
+```powershell
+Copy-Item .env.example .env
+```
 
-Local database settings live in `urbanpulse/.env` (not versioned). Spring Boot detects
-`docker-compose.yaml` and connects to the database automatically. See
-[docs/deployment.md](docs/deployment.md). **(TBC)**
+Replace `POSTGRES_PASSWORD` in `.env`, then start the backend.
+
+### Run the application
+
+Linux or macOS:
+
+```bash
+./mvnw spring-boot:run
+```
+
+Windows PowerShell:
+
+```powershell
+./mvnw.cmd spring-boot:run
+```
+
+Spring Boot detects `docker-compose.yaml`, starts PostgreSQL/PostGIS, waits until the database is healthy, and configures the connection.
 
 ## Testing
 
+Docker must be running before executing the application-context tests.
+
+Linux or macOS:
+
 ```bash
-cd urbanpulse
+./mvnw verify
+```
+
+Windows PowerShell:
+
+```powershell
 ./mvnw.cmd verify
 ```
 
-Docker must be running, because the application context uses the database declared in
-`docker-compose.yaml`.
+## Project Structure
 
-## Deployment
+```text
+urban-incidence-manager/
+|-- docs/
+|   |-- adr/
+|   |-- deployment.md
+|   `-- development.md
+|-- urbanpulse/
+|   |-- docker-compose.yaml
+|   |-- pom.xml
+|   |-- mvnw
+|   |-- mvnw.cmd
+|   `-- src/
+|-- AGENTS.md
+|-- CHANGELOG.md
+`-- README.md
+```
 
-The PostgreSQL/PostGIS database is deployed with Docker Compose. Containerizing the backend and
-other deployment decisions are tracked in the architecture decisions under
-[docs/adr](docs/adr/).
+## Documentation
+
+- [Development guide](docs/development.md)
+- [Deployment guide](docs/deployment.md)
+- [Architecture Decision Records](docs/adr/)
+- [Changelog](CHANGELOG.md)
+- [AI Agents Context](AGENTS.md)
+
+Architecture documents distinguish accepted decisions from proposals. Check each ADR status before treating it as implemented.
+
+## License
+
+This project is licensed under the [Apache License 2.0](LICENSE).
