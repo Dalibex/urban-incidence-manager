@@ -2,7 +2,8 @@
 #
 # Jobs:
 #   lint → repository hygiene (.env, Compose, image parity) and formatting (Spotless check)
-
+#   test → unit (*Test) + integration (*IT, Testcontainers) tests, coverage gate and SpotBugs
+#   build → packages ONE jar per commit, smoke-tests it against PostGIS and publishes it
 
 name: CI
 
@@ -42,7 +43,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: No .env file is versioned (12F-III)
+      - name: No .env file is versioned
         # The whole repository is checked, not only BACKEND_DIR.
         working-directory: .
         run: |
@@ -52,7 +53,7 @@ jobs:
             exit 1
           fi
 
-      - name: Same PostgreSQL image in Compose, Testcontainers and CI (12F-X)
+      - name: Same PostgreSQL image in Compose, Testcontainers and CI
         run: |
           status=0
           if [ -f docker-compose.yaml ] && ! grep -qF "$POSTGRES_IMAGE" docker-compose.yaml; then
@@ -91,7 +92,7 @@ jobs:
             echo "::error title=Formatting::Some files are not formatted. Run ./mvnw spotless:apply, commit and push. If this keeps happening, the pre-commit hook is not installed (docs/ci-setup.md)."
             exit 1
           fi
-          
+
   test:
     name: test
     runs-on: ubuntu-latest
@@ -144,4 +145,110 @@ jobs:
             ${{ env.BACKEND_DIR }}/target/spotbugsXml.xml
           if-no-files-found: ignore
           retention-days: 7
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: ${{ env.BACKEND_DIR }}
+    env:
+      SMOKE_PORT: "9090"
+      SMOKE_DB: urbanpulse
+      SMOKE_USER: urbanpulse
+      # Throwaway database that only lives inside this job: not a secret.
+      SMOKE_PASSWORD: smoke
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+          cache-dependency-path: ${{ env.BACKEND_DIR }}/pom.xml
+
+      - name: Package (tests run in the test job)
+        run: |
+          chmod +x mvnw
+          ./mvnw -Dspotless.check.skip=true -DskipTests -Djacoco.skip=true -Dspotbugs.skip=true package
+
+      - name: Exactly one jar per commit
+        run: |
+          shopt -s nullglob
+          jars=(target/*.jar)
+          if [ "${#jars[@]}" -ne 1 ]; then
+            echo "::error title=12F-V Build::Expected exactly one jar in target/, found ${#jars[@]}: ${jars[*]}"
+            exit 1
+          fi
+          echo "JAR=${jars[0]}" >> "$GITHUB_ENV"
+          echo "Artifact: \`${jars[0]}\` (commit \`${GITHUB_SHA}\`)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Start PostGIS (backing service)
+        run: |
+          docker run -d --name smoke-db -p 5432:5432 \
+            -e POSTGRES_DB="$SMOKE_DB" -e POSTGRES_USER="$SMOKE_USER" -e POSTGRES_PASSWORD="$SMOKE_PASSWORD" \
+            "$POSTGRES_IMAGE"
+          # -h 127.0.0.1: during its first start the image runs init scripts on a temporary
+          # server that only listens on a socket; wait for the real server on TCP.
+          for _ in $(seq 1 60); do
+            if docker exec smoke-db pg_isready -h 127.0.0.1 -U "$SMOKE_USER" -d "$SMOKE_DB" >/dev/null 2>&1; then
+              echo "PostGIS ready ($POSTGRES_IMAGE)"; exit 0
+            fi
+            sleep 2
+          done
+          echo "::error title=Smoke::PostGIS did not start in 120 s."
+          docker logs smoke-db
+          exit 1
+
+      - name: Smoke test — the jar starts with env config and /actuator/health is UP
+        run: |
+          export SERVER_PORT="$SMOKE_PORT"
+          export SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5432/$SMOKE_DB"
+          export SPRING_DATASOURCE_USERNAME="$SMOKE_USER"
+          export SPRING_DATASOURCE_PASSWORD="$SMOKE_PASSWORD"
+          nohup java -jar "$JAR" > "$RUNNER_TEMP/app.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/app.pid"
+          for _ in $(seq 1 60); do
+            if body=$(curl -fsS "http://localhost:$SMOKE_PORT/actuator/health" 2>/dev/null) && echo "$body" | grep -q '"status":"UP"'; then
+              echo "Health on port $SMOKE_PORT: \`$body\`" | tee -a "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            if ! kill -0 "$(cat "$RUNNER_TEMP/app.pid")" 2>/dev/null; then
+              echo "::error title=Smoke::The application exited during startup (see the log step)."
+              exit 1
+            fi
+            sleep 2
+          done
+          echo "::error title=12F-VII Port binding::/actuator/health was not UP on port $SMOKE_PORT after 120 s."
+          exit 1
+
+      - name: Smoke test — clean shutdown on SIGTERM
+        run: |
+          pid=$(cat "$RUNNER_TEMP/app.pid")
+          kill -TERM "$pid"
+          for _ in $(seq 1 30); do
+            if ! kill -0 "$pid" 2>/dev/null; then
+              echo "The application stopped after SIGTERM." | tee -a "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error title=12F-IX Disposability::The application did not stop 30 s after SIGTERM."
+          exit 1
+
+      - name: Application log
+        if: always()
+        run: if [ -f "$RUNNER_TEMP/app.log" ]; then tail -n 200 "$RUNNER_TEMP/app.log"; else echo "No log"; fi
+
+      - name: Publish the jar
+        uses: actions/upload-artifact@v7
+        with:
+          name: urbanpulse-${{ github.sha }}
+          path: ${{ env.BACKEND_DIR }}/target/*.jar
+          if-no-files-found: error
+          retention-days: 7
+
 
