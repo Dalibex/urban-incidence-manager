@@ -52,9 +52,23 @@ done
 count=$(printf '%s\n' "$files" | wc -l | tr -d ' ')
 echo "pre-commit: formatting $count staged Java file(s) with Spotless..."
 
-if ! (cd "$BACKEND_DIR" && sh ./mvnw -q spotless:apply -DspotlessFiles="$patterns"); then
-    echo "pre-commit: spotless:apply failed. Usually a staged file does not compile (syntax error)."
-    echo "Fix it, or commit anyway with SKIP_FORMAT=1 git commit ... (CI lint will fail until it is formatted)."
+if ! out=$(cd "$BACKEND_DIR" && sh ./mvnw -q spotless:apply -DspotlessFiles="$patterns" 2>&1); then
+    # Maven could not even start: wrong or unreadable JAVA_HOME, or a JDK older than 25.
+    # That is a problem of this machine, not of the code, so do not block the commit:
+    # CI (job lint) checks the formatting anyway.
+    if printf '%s\n' "$out" | grep -qE 'JAVA_HOME|release version .* not supported|UnsupportedClassVersionError|class file version'; then
+        echo "pre-commit: WARNING - Maven could not run here, so these files were NOT formatted:"
+        printf '%s\n' "$files" | sed 's/^/  /'
+        printf '%s\n' "$out" | grep -v '^\[' | head -3 | sed 's/^/  /'
+        echo "  JAVA_HOME=${JAVA_HOME:-<not set>}"
+        echo "  The commit goes ahead; CI lint will fail if they are not formatted."
+        echo "  Fix: run ./mvnw spotless:apply from a terminal, or commit from a terminal / IntelliJ."
+        exit 0
+    fi
+    # Maven ran and spotless failed: usually a staged file with a syntax error. Block.
+    echo "pre-commit: spotless:apply failed. First errors:"
+    printf '%s\n' "$out" | grep -E '^\[ERROR\]' | head -5 | sed 's/^/  /'
+    echo "Fix the file, or commit anyway with SKIP_FORMAT=1 git commit ... (CI lint will fail until it is formatted)."
     exit 1
 fi
 
