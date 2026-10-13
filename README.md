@@ -35,6 +35,8 @@ The repository currently provides:
 
 Install Java 25, Docker Engine or Docker Desktop, and Git. Maven and PostgreSQL do not need to be installed locally.
 
+When running the project from a terminal, make sure Java 25 is available in `PATH` and `JAVA_HOME` points to the Java 25 JDK.
+
 ## Quick Start
 
 Clone the repository and enter the backend directory:
