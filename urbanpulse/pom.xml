@@ -31,7 +31,6 @@
 	<properties>
 		<!-- Java version used to compile and run the application -->
 		<java.version>25</java.version>
-		<spring-modulith.version>2.1.1</spring-modulith.version>
 		<!-- Properties for CI pipeline -->
 		<!-- Spotless plugin version used to format the code (Linting) -->
 		<spotless.version>3.10.3</spotless.version>
@@ -70,11 +69,6 @@
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
 
-		<!-- For defining the application as a modular monolith, with modules and events -->
-		<dependency>
-			<groupId>org.springframework.modulith</groupId>
-			<artifactId>spring-modulith-starter-core</artifactId>
-		</dependency>
 
 		<!-- Docker support -->
 		<dependency>
@@ -111,12 +105,6 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator-test</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<!-- ApplicationModules.verify(): ModularityTest -->
-		<dependency>
-			<groupId>org.springframework.modulith</groupId>
-			<artifactId>spring-modulith-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
 		<!-- Testcontainers: integration tests (*IT) start their own PostGIS container.
@@ -161,18 +149,6 @@
 			<scope>runtime</scope>
 		</dependency>
 	</dependencies>
-
-	<dependencyManagement>
-		<dependencies>
-			<dependency>
-				<groupId>org.springframework.modulith</groupId>
-				<artifactId>spring-modulith-bom</artifactId>
-				<version>${spring-modulith.version}</version>
-				<type>pom</type>
-				<scope>import</scope>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
 
 	<build>
 		<plugins>
