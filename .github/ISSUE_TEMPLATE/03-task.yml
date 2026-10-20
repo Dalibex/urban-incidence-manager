@@ -1,64 +1,64 @@
 name: Task
-description: Tarea técnica sin funcionalidad nueva para el usuario (configuración, ingesta, refactor, mantenimiento)
+description: Technical work with no new user-facing functionality (configuration, ingestion, refactoring, maintenance)
 title: "[Task]: "
 body:
   - type: markdown
     attributes:
       value: |
-        Añade la label de área: `infra`, `backend`, `frontend`, `data-integration` ...
-        Si la tarea implementa un factor de 12-factor, usa la plantilla **12-Factor**.
+        Add the area label: `infra`, `backend`, `frontend`, `mobile`, `data-integration`, `ai-ml`...
+        If the task implements one of the twelve factors, use the **12-Factor** form instead.
 
   - type: textarea
-    id: descripcion
+    id: description
     attributes:
-      label: Descripción
+      label: Description
     validations:
       required: true
 
   - type: textarea
-    id: motivacion
+    id: motivation
     attributes:
-      label: Motivación
-      description: Por qué hace falta ahora. Qué problema evita o qué issue desbloquea.
+      label: Motivation
+      description: Why it is needed now. Which problem it prevents or which issue it unblocks.
     validations:
       required: true
 
   - type: textarea
-    id: pasos
+    id: planned_steps
     attributes:
-      label: Pasos previstos
+      label: Planned steps
       value: |
         1.
         2.
         3.
 
   - type: textarea
-    id: criterios
+    id: acceptance_criteria
     attributes:
-      label: Criterios de aceptación
+      label: Acceptance criteria
       description: |
-        Cada criterio termina indicando cómo se verifica: `[CI: <job>]`, `[Manual: T<n>]` o `[Revisión]`. Ver `docs/ci.md`.
+        Each criterion ends with how it is verified: `[CI: <job>]`, `[Manual: T<n>]` or `[Review]`. See `docs/ci.md`.
       value: |
-        - [ ] Criterio 1 [CI: build]
-        - [ ] Criterio 2 [Revisión]
+        - [ ] Criterion 1 [CI: build]
+        - [ ] Criterion 2 [Review]
     validations:
       required: true
 
   - type: textarea
-    id: verificacion
+    id: verification
     attributes:
-      label: Verificación
-      description: Cómo se comprueba que está hecho.
+      label: Verification
+      description: How we check that it is done.
       value: |
-        - Job de CI:
-        - Comprobación manual:
+        - CI job:
+        - Manual check:
     validations:
       required: true
 
   - type: textarea
-    id: dependencias
+    id: dependencies
     attributes:
-      label: Dependencias
+      label: Dependencies
       value: |
-        - Depende de: #
-        - Desbloquea: #
+        - Depends on: #
+        - Unblocks: #

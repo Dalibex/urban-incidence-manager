@@ -1,12 +1,12 @@
 name: CI/CD
-description: Crear o modificar workflows de GitHub Actions
+description: Create or change GitHub Actions workflows
 title: "[CI]: "
 labels: ["ci"]
 body:
   - type: textarea
-    id: descripcion
+    id: description
     attributes:
-      label: Descripción
+      label: Description
     validations:
       required: true
 
@@ -18,79 +18,90 @@ body:
       options:
         - .github/workflows/ci.yml
         - .github/workflows/pr-title.yml
-        - Workflow nuevo (indícalo en la descripción)
+        - .github/actions/setup-js/action.yml
+        - .github/scripts/ci_summary.py
+        - New workflow (name it in the description)
     validations:
       required: true
 
   - type: dropdown
     id: jobs
     attributes:
-      label: Jobs afectados
+      label: Affected jobs
       multiple: true
       options:
+        - detect
         - lint
         - build
         - test-unit
         - test-integration
         - quality
         - smoke
+        - contract
         - pr-title
-        - test-api
         - test-e2e
         - security
         - docker
         - deploy-staging
-        - Job nuevo (descríbelo en Cambios propuestos)
+        - New job (describe it in Proposed changes)
     validations:
       required: true
 
   - type: dropdown
-    id: disparadores
+    id: triggers
     attributes:
-      label: Disparadores
+      label: Triggers
       multiple: true
       options:
-        - pull_request hacia main
-        - push a main
-        - Etiqueta / release
-        - Programado (schedule)
+        - pull_request to main
+        - push to main
+        - Tag / release
+        - Scheduled (schedule)
         - Manual (workflow_dispatch)
     validations:
       required: true
 
   - type: textarea
-    id: cambios
+    id: proposed_changes
     attributes:
-      label: Cambios propuestos
+      label: Proposed changes
     validations:
       required: true
 
   - type: dropdown
-    id: proteccion
+    id: main_protection
     attributes:
-      label: Impacto en la protección de main
+      label: Impact on main branch protection
       options:
-        - Sin impacto
-        - Añade un required status check
-        - Quita o renombra un required status check (avisar al equipo antes del merge)
+        - No impact
+        - Adds a required status check
+        - Removes or renames a required status check (warn the team before merging)
     validations:
       required: true
 
   - type: textarea
-    id: secretos
+    id: secrets
     attributes:
-      label: Secretos y permisos
-      description: Secretos de GitHub necesarios (solo el nombre, nunca el valor) y permisos del GITHUB_TOKEN.
-      placeholder: "- Ninguno"
+      label: Secrets and permissions
+      description: GitHub secrets needed (name only, never the value) and GITHUB_TOKEN permissions.
+      placeholder: "- None"
 
   - type: textarea
-    id: criterios
+    id: acceptance_criteria
     attributes:
-      label: Criterios de aceptación
+      label: Acceptance criteria
       value: |
-        - [ ] El workflow pasa en un PR de prueba. [CI: <job>]
-        - [ ] Un PR con un fallo provocado queda bloqueado. [Manual]
-        - [ ] Tiempo de ejecución aceptable: < 10 min. [Revisión]
-        - [ ] `docs/ci.md` actualizado. [Revisión]
+        - [ ] The workflow passes on a test PR. [CI: <job>]
+        - [ ] A PR with a deliberate failure is blocked. [Manual]
+        - [ ] Acceptable run time: < 10 min. [Review]
+        - [ ] `docs/ci.md` updated. [Review]
     validations:
       required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      value: |
+        - Depends on: #
+        - Unblocks: #

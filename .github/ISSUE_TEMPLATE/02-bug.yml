@@ -1,26 +1,26 @@
 name: Bug report
-description: Reportar un error reproducible
+description: Report a reproducible defect
 title: "[Bug]: "
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        Antes de abrir el issue, busca si ya existe un bug igual.
-        **Si es una vulnerabilidad, no abras un issue público:** sigue `SECURITY.md`.
+        Before opening the issue, check whether the same bug has already been reported.
+        **If it is a security vulnerability, do not open a public issue:** follow `SECURITY.md`.
 
   - type: textarea
-    id: descripcion
+    id: description
     attributes:
-      label: Descripción
-      description: Qué falla, en una o dos frases.
+      label: Description
+      description: What fails, in one or two sentences.
     validations:
       required: true
 
   - type: textarea
-    id: pasos
+    id: steps
     attributes:
-      label: Pasos para reproducir
+      label: Steps to reproduce
       value: |
         1.
         2.
@@ -29,78 +29,80 @@ body:
       required: true
 
   - type: textarea
-    id: esperado
+    id: expected
     attributes:
-      label: Resultado esperado
+      label: Expected result
     validations:
       required: true
 
   - type: textarea
     id: actual
     attributes:
-      label: Resultado actual
+      label: Actual result
     validations:
       required: true
 
   - type: textarea
-    id: evidencias
+    id: evidence
     attributes:
-      label: Evidencias
-      description: Logs (sin datos personales ni secretos), respuesta HTTP o traceId. Las capturas puedes pegarlas en el campo de descripción.
+      label: Evidence
+      description: Logs (without personal data or secrets), HTTP response or traceId. You can paste screenshots in the Description field.
       render: text
 
   - type: dropdown
-    id: entorno
+    id: environment
     attributes:
-      label: Entorno
+      label: Environment
       options:
         - local
         - CI
         - staging
-        - producción
+        - production
     validations:
       required: true
 
   - type: input
     id: version
     attributes:
-      label: Versión o commit
-      placeholder: v0.3.0 o SHA abc1234
+      label: Version or commit
+      placeholder: v0.3.0 or SHA abc1234
     validations:
       required: true
 
   - type: dropdown
-    id: componente
+    id: component
     attributes:
-      label: Componente
+      label: Component
       multiple: true
       options:
-        - backend
-        - frontend
-        - infra
+        - Backend API
+        - Web app
+        - Mobile app
+        - Shared packages
+        - Infrastructure (compose, Docker, CI)
     validations:
       required: true
 
   - type: input
-    id: navegador
+    id: client_environment
     attributes:
-      label: Navegador / SO
-      description: Solo si el fallo es de frontend.
+      label: Browser / device and OS
+      description: Only if the bug is in the web or mobile app. For mobile, say whether you used Expo Go or a development build.
 
   - type: dropdown
-    id: job_ci
+    id: ci_job
     attributes:
-      label: Job de CI que falla
+      label: Failing CI job
       options:
-        - No aplica
+        - Not applicable
         - lint
         - build
         - test-unit
         - test-integration
         - quality
         - smoke
+        - contract
         - pr-title
-        - test-api
         - test-e2e
         - security
         - docker
@@ -109,30 +111,30 @@ body:
       required: true
 
   - type: dropdown
-    id: gravedad
+    id: severity
     attributes:
-      label: Gravedad
+      label: Severity
       options:
-        - "Crítica: bloquea un flujo principal o pierde datos"
-        - "Alta: funcionalidad importante sin alternativa"
-        - "Media: hay alternativa"
-        - "Baja: cosmético"
+        - "Critical: blocks a main flow or loses data"
+        - "High: important functionality with no workaround"
+        - "Medium: there is a workaround"
+        - "Low: cosmetic"
     validations:
       required: true
 
   - type: input
-    id: relacionado
+    id: related
     attributes:
-      label: Issue o requisito afectado
+      label: Affected issue or requirement
       placeholder: "#12, RF09"
 
   - type: textarea
-    id: cierre
+    id: closing_criteria
     attributes:
-      label: Criterios de cierre
+      label: Closing criteria
       value: |
-        - [ ] Existe un test que reproduce el bug y falla antes del arreglo.
-        - [ ] El test pasa tras el arreglo (rama `fix/...`, commit `fix: ...`).
-        - [ ] Los jobs de CI afectados están en verde.
+        - [ ] A test reproduces the bug and fails before the fix.
+        - [ ] The test passes after the fix (branch `fix/...`, commit `fix: ...`).
+        - [ ] The affected CI jobs are green.
     validations:
       required: true

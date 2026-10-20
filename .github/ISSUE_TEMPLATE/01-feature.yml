@@ -1,52 +1,52 @@
 name: Feature request
-description: Proponer una nueva funcionalidad ligada a un requisito (RF)
+description: Propose new functionality linked to a functional requirement (RF)
 title: "[Feature]: "
 labels: ["enhancement"]
 body:
   - type: markdown
     attributes:
       value: |
-        Añade labels de área como `backend` / `frontend` según aplique, label de prioridad, y asigna el milestone del sprint actual.
+        Also add the area labels (`backend`, `frontend`, `mobile`), a `priority: *` and a `size: *` label, and set the sprint milestone.
 
   - type: textarea
-    id: descripcion
+    id: description
     attributes:
-      label: Descripción
+      label: Description
     validations:
       required: true
 
   - type: dropdown
-    id: requisito
+    id: requirement
     attributes:
-      label: Requisito (RF)
+      label: Requirement (RF)
       multiple: true
       options:
-        - RF01 Identidad y acceso
-        - RF02 Roles y permisos
-        - RF03 Registrar incidencia
-        - RF04 Localización
-        - RF05 Evidencias
-        - RF06 Consulta y seguimiento
-        - RF07 Búsqueda
-        - RF08 Mapa
-        - RF09 Validación
-        - RF10 Prioridad
-        - RF11 Asignación
-        - RF12 Ciclo de vida
-        - RF13 Colaboración
-        - RF14 Notificaciones
-        - RF15 Estadísticas
-        - RF16 Duplicados
-        - RF17 Análisis zonal
-        - RF18 Auditoría
-        - RF19 Informes
-        - RF20 Asistencia inteligente
-        - RF21 Barrio y distrito
-        - RF22 Activo urbano
-        - RF23 Contexto externo
-        - RF24 Vista contextual
-        - RF25 Correlación histórica
-        - RF26 Degradación controlada
+        - RF01 Identity and access
+        - RF02 Roles and permissions
+        - RF03 Report an incident
+        - RF04 Location
+        - RF05 Evidence
+        - RF06 Lookup and tracking
+        - RF07 Search
+        - RF08 Map
+        - RF09 Validation
+        - RF10 Priority
+        - RF11 Assignment
+        - RF12 Lifecycle
+        - RF13 Collaboration
+        - RF14 Notifications
+        - RF15 Statistics
+        - RF16 Duplicates
+        - RF17 Zone analysis
+        - RF18 Audit
+        - RF19 Reports
+        - RF20 Intelligent assistance
+        - RF21 Neighbourhood and district
+        - RF22 Urban asset
+        - RF23 External context
+        - RF24 Context view
+        - RF25 Historical correlation
+        - RF26 Graceful degradation
     validations:
       required: true
 
@@ -56,66 +56,79 @@ body:
       label: Actor
       multiple: true
       options:
-        - Ciudadano
-        - Operador municipal
-        - Técnico
-        - Administrador
-        - Analista
-        - Sistema externo
+        - Citizen
+        - Municipal operator
+        - Technician
+        - Administrator
+        - Analyst
+        - External system
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where it is implemented
+      multiple: true
+      options:
+        - Backend API
+        - Web app (operators, analysts, administrators)
+        - Mobile app (citizens, technicians)
+        - Shared packages (packages/*)
     validations:
       required: true
 
   - type: textarea
-    id: motivacion
+    id: motivation
     attributes:
-      label: Motivación
-      description: Historia de usuario.
-      placeholder: Como <actor>, quiero <acción> para <beneficio>.
+      label: Motivation
+      description: User story.
+      placeholder: As a <actor>, I want <action> so that <benefit>.
     validations:
       required: true
 
   - type: textarea
-    id: propuesta
+    id: proposal
     attributes:
-      label: Propuesta
-      description: Endpoints, pantallas y entidades del dominio implicadas.
+      label: Proposal
+      description: Endpoints, screens and domain entities involved. Say which module owns each entity.
 
   - type: textarea
-    id: alternativas
+    id: alternatives
     attributes:
-      label: Alternativas consideradas
+      label: Alternatives considered
 
   - type: textarea
-    id: criterios
+    id: acceptance_criteria
     attributes:
-      label: Criterios de aceptación
+      label: Acceptance criteria
       description: |
-        Cada criterio debe ser observable y terminar indicando cómo se verifica: `[CI: <job>]`, `[Manual: T<n>]` (caso del sub-issue [Test]) o `[Revisión]`. Ver `docs/ci.md`.
+        Each criterion must be observable and end with how it is verified: `[CI: <job>]`, `[Manual: T<n>]` (a case in the [Test] sub-issue) or `[Review]`. See `docs/ci.md`.
       value: |
-        - [ ] Criterio 1 [CI: test-unit]
-        - [ ] Criterio 2 [CI: test-integration]
-        - [ ] Criterio 3 [Manual: T1]
+        - [ ] Criterion 1 [CI: test-unit]
+        - [ ] Criterion 2 [CI: test-integration]
+        - [ ] Criterion 3 [Manual: T1]
     validations:
       required: true
 
   - type: textarea
-    id: pruebas
+    id: tests
     attributes:
-      label: Pruebas
-      description: Especificación mínima para el tester. Se detalla en un sub-issue [Test].
+      label: Tests
+      description: Minimum specification for the tester. It is detailed in a [Test] sub-issue.
       value: |
         - Unit:
-        - Integración:
-        - E2E (si hay interfaz):
+        - Integration:
+        - E2E (if there is a UI):
         - Manual:
     validations:
       required: true
 
   - type: textarea
-    id: verificacion_ci
+    id: ci_verification
     attributes:
-      label: Verificación en CI
-      description: Deja solo los jobs que deben quedar en verde en el PR que cierra este issue y márcalos cuando lo estén.
+      label: CI verification
+      description: Keep only the jobs that must be green in the PR that closes this issue, and tick them when they are.
       value: |
         - [ ] `lint`
         - [ ] `build`
@@ -123,25 +136,28 @@ body:
         - [ ] `test-integration`
         - [ ] `quality`
         - [ ] `smoke`
+        - [ ] `contract`
     validations:
       required: true
 
   - type: textarea
-    id: dependencias
+    id: dependencies
     attributes:
-      label: Dependencias
+      label: Dependencies
       value: |
-        - Depende de: #
-        - Bloquea a: #
+        - Depends on: #
+        - Blocks: #
 
   - type: textarea
-    id: documentacion
+    id: documentation
     attributes:
-      label: Documentación
+      label: Documentation
       description: |
-        Indica la documentación que acompaña a esta feature o, si no hay ninguna aún, qué documentación actual debe actualizarse, ampliarse o crearse al implementarla. Borra lo que no aplique.
+        Documentation that comes with this feature or, if there is none yet, which existing documentation must be updated, extended or created when it is implemented. Delete what does not apply.
       value: |
-        - [ ] OpenAPI (`docs/api/openapi.yml`)
-        - [ ] Modelo C4 (`docs/architecture.md`)
-        - [ ] ADR nuevo o actualizado
-        - [ ] Nuevas variables en `.env.example`
+        - [ ] OpenAPI contract (`docs/api/openapi.yml`)
+        - [ ] C4 model (`docs/architecture/workspace.dsl`)
+        - [ ] Domain model (UML)
+        - [ ] New or updated ADR
+        - [ ] User guide
+        - [ ] New variables in `.env.example`

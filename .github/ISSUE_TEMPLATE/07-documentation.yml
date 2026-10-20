@@ -1,43 +1,48 @@
 name: Documentation
-description: Crear o actualizar documentación (README, guías, OpenAPI, C4)
+description: Create or update documentation (README, guides, OpenAPI, C4, UML)
 title: "[Docs]: "
 labels: ["documentation"]
 body:
   - type: textarea
-    id: descripcion
+    id: description
     attributes:
-      label: Descripción
+      label: Description
     validations:
       required: true
 
   - type: dropdown
-    id: documento
+    id: affected_document
     attributes:
-      label: Documento afectado
+      label: Affected document
       multiple: true
       options:
         - README.md
         - CONTRIBUTING.md / SECURITY.md / CHANGELOG.md
-        - docs/architecture.md (C4)
+        - AGENTS.md
+        - docs/architecture.md and docs/architecture/workspace.dsl (C4)
+        - docs/architecture/domain-model.md (UML)
+        - docs/backend-structure.md
         - docs/development.md
         - docs/deployment.md
         - docs/testing.md
         - docs/ci.md
-        - docs/api/openapi.yml
-        - Otro (indícalo en la descripción)
+        - docs/api.md and docs/api/openapi.yml
+        - docs/user-guide/
+        - docs/process/
+        - Other (say which in the description)
     validations:
       required: true
 
   - type: input
-    id: publico
+    id: audience
     attributes:
-      label: Público destinatario
-      placeholder: Equipo de desarrollo, testers, profesorado, nuevos miembros...
+      label: Audience
+      placeholder: Developers, testers, lecturers, new team members, end users...
 
   - type: textarea
-    id: contenido
+    id: content
     attributes:
-      label: Contenido que debe incluir
+      label: Content to include
       value: |
         -
         -
@@ -45,31 +50,31 @@ body:
       required: true
 
   - type: dropdown
-    id: motivo
+    id: reason
     attributes:
-      label: Motivo
+      label: Reason
       options:
-        - Documento nuevo
-        - El comportamiento o la configuración del sistema ha cambiado
-        - La documentación actual es incorrecta o incompleta
+        - New document
+        - The behaviour or configuration of the system has changed
+        - The current documentation is wrong or incomplete
     validations:
       required: true
 
   - type: input
-    id: relacionado
+    id: related
     attributes:
-      label: PR o issue relacionado
-      description: Obligatorio si el motivo es un cambio en el sistema.
+      label: Related PR or issue
+      description: Required if the reason is a change in the system.
       placeholder: "#34"
 
   - type: textarea
-    id: criterios
+    id: acceptance_criteria
     attributes:
-      label: Criterios de aceptación
+      label: Acceptance criteria
       value: |
-        - [ ] Una persona ajena al cambio puede seguir el documento sin ayuda. [Revisión]
-        - [ ] Los comandos y ejemplos se han ejecutado y funcionan. [Manual]
-        - [ ] Los diagramas Mermaid se renderizan en GitHub. [Revisión]
-        - [ ] No contiene secretos ni datos personales. [Revisión]
+        - [ ] Someone who did not make the change can follow the document without help. [Review]
+        - [ ] The commands and examples have been run and work. [Manual]
+        - [ ] Mermaid diagrams render on GitHub. [Review]
+        - [ ] It contains no secrets or personal data. [Review]
     validations:
       required: true

@@ -1,69 +1,69 @@
 name: Test
-description: Pruebas asociadas a un issue funcional (sub-issue para testers)
+description: Tests for a functional issue (sub-issue for testers)
 title: "[Test]: "
 labels: ["testing"]
 body:
   - type: markdown
     attributes:
       value: |
-        Crea este issue como **sub-issue** del issue funcional que verifica.
-        El PR de implementación no se fusiona hasta que estas pruebas existen y pasan.
+        Create this issue as a **sub-issue** of the functional issue it verifies.
+        The implementation PR is not merged until these tests exist and pass.
 
   - type: input
-    id: issue
+    id: verified_issue
     attributes:
-      label: Issue que verifica
+      label: Issue it verifies
       placeholder: "#22"
     validations:
       required: true
 
   - type: input
-    id: requisito
+    id: requirement
     attributes:
-      label: Requisito
+      label: Requirement
       placeholder: RF03
 
   - type: dropdown
-    id: tipo
+    id: test_type
     attributes:
-      label: Tipo de prueba
+      label: Test type
       multiple: true
       options:
-        - Unitaria (test-unit)
-        - Integración con Testcontainers (test-integration)
-        - Contrato / API (test-api)
-        - E2E (test-e2e)
-        - Carga / rendimiento
-        - Resiliencia (fuente externa caída, SIGTERM, varias réplicas)
-        - Manual (aceptación, exploratoria, usabilidad)
+        - Unit (test-unit)
+        - Integration with Testcontainers (test-integration)
+        - Contract / API (contract, test-integration)
+        - End-to-end (test-e2e)
+        - Load / performance
+        - Resilience (external source down, SIGTERM, several replicas)
+        - Manual (acceptance, exploratory, usability)
     validations:
       required: true
 
   - type: textarea
-    id: casos
+    id: test_cases
     attributes:
-      label: Casos de prueba
+      label: Test cases
       description: |
-        En **Verificación** pon el job de CI que ejecuta el caso (`test-unit`, `test-integration`...) o `Manual`. Los criterios del issue funcional referencian estos IDs, p. ej. `[Manual: T5]`.
+        In **Verification**, write the CI job that runs the case (`test-unit`, `test-integration`...) or `Manual`. The criteria of the functional issue reference these IDs, e.g. `[Manual: T5]`.
       value: |
-        | ID | Escenario | Datos de entrada | Resultado esperado | Verificación |
+        | ID | Scenario | Input data | Expected result | Verification |
         |---|---|---|---|---|
-        | T1 | Caso válido |  |  |  |
-        | T2 | Caso límite |  |  |  |
-        | T3 | Caso de error |  |  |  |
-        | T4 | Permisos (rol no autorizado) |  |  |  |
+        | T1 | Valid case |  |  |  |
+        | T2 | Edge case |  |  |  |
+        | T3 | Error case |  |  |  |
+        | T4 | Permissions (unauthorised role) |  |  |  |
     validations:
       required: true
 
   - type: textarea
-    id: criterios
+    id: acceptance_criteria
     attributes:
-      label: Criterios de aceptación
+      label: Acceptance criteria
       value: |
-        - [ ] Todos los casos automatizables están automatizados.
-        - [ ] Las pruebas se ejecutan en el job de CI indicado en cada caso.
-        - [ ] No dependen de servicios externos reales ni del orden de ejecución.
-        - [ ] La cobertura del módulo no baja del umbral acordado.
-        - [ ] Los casos manuales se han ejecutado sobre el commit del PR y las evidencias están en un comentario.
+        - [ ] Every case that can be automated is automated.
+        - [ ] The tests run in the CI job named in each case.
+        - [ ] They do not depend on real external services or on execution order.
+        - [ ] Module coverage does not drop below the agreed threshold.
+        - [ ] Manual cases were run on the PR's commit and the evidence is in a comment.
     validations:
       required: true
