@@ -105,9 +105,12 @@ The ADRs in `docs/adr/` are the source of truth. Check each ADR status before re
 | 0008 | Spring Boot backend exposing a REST API, contract first with OpenAPI. |
 | 0010 | Modular monolith: one deployable, one schema, modules communicate through public APIs and events. |
 | 0011 | Docker Compose deployment and 12-factor configuration. |
+| 0012 | Redis as cache layer. |
+| 0014 | Versioned schema migrations with Flyway (plain SQL in `db/migration`, never edit a merged migration). |
 | 0015 | CI with check-only jobs and pre-commit formatting. |
+| 0016 | Self-hosted OSM base map (PMTiles rebuilt every two weeks) rendered with MapLibre. |
 
-Proposed, not accepted: 0012 (Redis cache), 0013 (evidence storage), 0014 (nginx reverse proxy). Do not implement them as if they were accepted.
+Proposed, not accepted: 0013 (evidence storage), 0017 (nginx reverse proxy). Do not implement them as if they were accepted.
 
 Kubernetes, Terraform, queues, and microservices remain extensions conditioned on a demonstrated need.
 

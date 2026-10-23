@@ -55,4 +55,4 @@ We will use **React Native with Expo** and **TypeScript** for the mobile applica
 - [ADR-0007: Client application architecture](0007-client-application-architecture.md)
 - [Expo](https://expo.dev/)
 - [EAS Build](https://docs.expo.dev/build/introduction/)
-- [MapLibre GL JS](maplibre.org/projects/gl-js/)
+- [MapLibre GL JS](https://maplibre.org/projects/gl-js/)

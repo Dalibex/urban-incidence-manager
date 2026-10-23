@@ -1,6 +1,6 @@
 # ADR-0012: Use Redis as cache layer
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision Makers:** Project Team
 - **Date:** 2026-10-06
 
