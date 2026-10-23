@@ -1,8 +1,8 @@
-# Development Guide
+# 🛠️ Development Guide
 
-This guide explains how to run the UrbanPulse source code locally and start working on the backend.
+This guide explains how to run the UrbanPulse backend locally and start working on it.
 
-## Prerequisites
+## 🐛 Prerequisites
 
 Install:
 
@@ -10,19 +10,11 @@ Install:
 - Docker Engine or Docker Desktop
 - Docker Compose v2
 - Git
-- IntelliJ IDEA (optional)
+- IntelliJ IDEA (optional, recommended)
 
 Maven does not need to be installed globally. The project includes Maven Wrapper.
 
-Verify the required tools:
-
-```bash
-java --version
-docker --version
-docker compose version
-```
-
-## How to run the Project with IntelliJ IDEA (recommended)
+## 📥 Get the Code
 
 Clone the repository and enter the backend directory:
 
@@ -31,45 +23,111 @@ git clone https://github.com/Dalibex/urban-incidence-manager.git
 cd urban-incidence-manager/urbanpulse
 ```
 
-Open IntelliJ IDEA and:
+## ⚙️ Create the Local Environment File
+
+Docker Compose reads the database settings from `urbanpulse/.env`. Without this file the variables
+are empty and PostgreSQL does not start. Create it from the versioned example:
+
+Linux or macOS:
+
+```bash
+cp .env.example .env
+```
+
+Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Replace `POSTGRES_PASSWORD` in `.env`. Never commit `.env`; only `.env.example` is versioned.
+
+PostgreSQL applies `POSTGRES_DB`, `POSTGRES_USER` and `POSTGRES_PASSWORD` only when it initializes
+an empty volume. If you change them later, see the *Reset the Local Database* section below.
+
+## 🍃 Run with IntelliJ IDEA (recommended)
 
 1. Select **Open** and choose the `urbanpulse/` directory.
 2. Import the project as a Maven project if IntelliJ does not detect it automatically.
 3. Select Java 25 as the project SDK.
-4. Make sure Docker process is running.
+4. Make sure Docker is running.
 5. Run `UrbanpulseApplication` from `src/main/java/es/uma/urbanpulse/UrbanpulseApplication.java`.
 
-IntelliJ is the recommended option because it provides integrated execution, debugging, Maven
-support, and code navigation. Spring Boot detects `docker-compose.yaml` and starts the PostgreSQL
-container automatically.
+Spring Boot detects `docker-compose.yaml`, starts PostgreSQL/PostGIS, waits until it is healthy, and
+configures the connection. Stopping the application also stops the database container it started.
 
-This is also the IDE we are using to develop this application.
+## 🍂 Run from the Terminal
 
-Stop the application using IntelliJ's stop button. Spring Boot will also stop the database container it started automatically.
+From `urbanpulse/`:
 
-## Run from the Terminal
-
-On Linux/MacOS:
+Linux or macOS:
 
 ```bash
 ./mvnw spring-boot:run
 ```
 
-On Windows PowerShell:
+Windows PowerShell:
 
 ```powershell
 ./mvnw.cmd spring-boot:run
 ```
 
-Spring Boot detects `docker-compose.yaml` and starts the PostgreSQL container automatically. The backend
-runs directly on the host.
+Stop the application with `Ctrl+C`.
 
-Stop the application with `Ctrl+C`. Spring Boot will also stop the database container it started.
+## 🚀 Running Tests
 
-## Project Structure
+From `urbanpulse/`:
+
+Linux or macOS:
+
+```bash
+./mvnw verify
+```
+
+Windows PowerShell:
+
+```powershell
+./mvnw.cmd verify
+```
+
+Docker must be running. Integration tests do not use `docker-compose.yaml`: they start their own
+PostGIS container with Testcontainers (`TestcontainersConfiguration`), so they never touch your
+local data.
+
+Test classes are picked up by name:
+
+- `*Test`: unit tests, no Docker, run by `./mvnw test`.
+- `*IT`: integration tests with the Spring context and PostGIS, run by `./mvnw verify`. Skip them
+  with `-DskipITs`.
+
+`verify` also checks formatting, coverage and SpotBugs. See the [CI guide](ci.md).
+
+## 🐧 Code Formatting
+
+Java code is formatted with google-java-format (AOSP style) through Spotless. Any local `./mvnw`
+build installs a pre-commit hook that formats the staged Java files, so commits are already
+formatted. To format by hand, if needed:
+
+```bash
+./mvnw spotless:apply
+```
+
+If the hook does not run, see the [CI setup guide](ci-setup.md).
+
+## ⚠️ Reset the Local Database
+
+`docker compose down` stops the database and keeps its data in the `postgres-data` volume. To
+delete all local data and start from an empty database:
+
+```bash
+docker compose down -v
+```
+
+## 🔙 Backend Structure
 
 ```text
 urbanpulse/
+|-- .env.example
 |-- docker-compose.yaml
 |-- pom.xml
 |-- mvnw
@@ -80,24 +138,6 @@ urbanpulse/
     `-- test/java/es/uma/urbanpulse/
 ```
 
-Application code - `src/main/java/es/uma/urbanpulse/`.
-Configuration - `src/main/resources/`.
-
-## Run Tests
-
-From the `urbanpulse/` directory:
-
-On Linux/MacOS:
-
-```bash
-./mvnw verify
-```
-
-On Windows PowerShell:
-
-```powershell
-./mvnw.cmd verify
-```
-
-Docker must be running because the application context uses the database declared in
-`docker-compose.yaml`.
+- Application code: `src/main/java/es/uma/urbanpulse/`.
+- Configuration: `src/main/resources/`.
+- Tests: `src/test/java/es/uma/urbanpulse/`.
