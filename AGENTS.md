@@ -20,7 +20,7 @@ The product includes a web client and a mobile application that consume a shared
 
 ### Current state
 
-Only the backend skeleton exists: Spring Boot application, PostgreSQL/PostGIS through Docker Compose, Spring Security with only the Actuator health endpoints open, Testcontainers integration tests, and the CI pipeline. There are no domain modules, entities, or endpoints yet, and the web and mobile clients do not exist. Do not describe any requirement below as implemented unless the code shows it.
+Only the backend skeleton exists: Spring Boot application, PostgreSQL/PostGIS through Docker Compose, Spring Security with only the Actuator health endpoints open, Testcontainers integration tests, the CI pipeline, and the database schema created by Flyway migrations (`urbanpulse/src/main/resources/db/migration`, diagram in `docs/database.drawio.svg`). There are no domain modules, JPA entities, or endpoints yet, and the web and mobile clients do not exist. Do not describe any requirement below as implemented unless the code shows it.
 
 ### Actors
 
