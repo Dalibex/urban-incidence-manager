@@ -56,8 +56,7 @@ Spotless (`validate`), Failsafe, the JaCoCo merge/report/check and SpotBugs (`ve
 to Maven phases in `pom.xml`. `./mvnw verify` therefore runs the same checks as `lint` and `test`;
 the workflow only adds flags to separate the gates into steps. Integration tests start their own
 PostGIS container through Testcontainers (`TestcontainersConfiguration`, `@ServiceConnection`) and
-never use `docker-compose.yaml`, which stays a local development tool. `ModularityTest` verifies
-the module boundaries of [ADR-0010](0010-modular-monolith.md) as a plain unit test.
+never use `docker-compose.yaml`, which stays a local development tool.
 
 ### Formatting flow
 

@@ -2,7 +2,7 @@
 
 UrbanPulse is a platform for managing urban incidents reported by citizens and enriching them with contextual data from the city of Malaga.
 
-> **Status:** Early development. The repository currently contains the Spring Boot backend skeleton and its local PostgreSQL/PostGIS infrastructure. Incident management workflows, web and mobile clients are not implemented yet.
+> **Status:** Early development. The repository currently contains the Spring Boot backend skeleton, its local PostgreSQL/PostGIS infrastructure and the versioned database schema. Incident management workflows, web and mobile clients are not implemented yet.
 
 ## 🎯 Purpose
 
@@ -17,6 +17,7 @@ The repository currently provides:
 - A Spring Boot backend built with Java 25.
 - PostgreSQL with PostGIS for relational and geospatial data.
 - Spring Data JPA and PostgreSQL connectivity.
+- The database schema of the whole data model, created by versioned Flyway migrations.
 - Docker Compose integration for local database startup.
 - Spring Security with only the Actuator health endpoints open.
 - Integration tests against PostGIS with Testcontainers.
@@ -30,6 +31,7 @@ The repository currently provides:
 - Spring Data JPA
 - Spring Security
 - PostgreSQL 18 with PostGIS 3.6
+- Flyway
 - Docker Compose
 - Testcontainers
 - GitHub Actions
@@ -120,10 +122,19 @@ urban-incidence-manager/
 `-- README.md
 ```
 
+## 🗄️ Database Schema
+
+Data model planned for the boilerplate and alpha version. Click the image to open it at full size.
+
+[![UrbanPulse database schema](docs/database.drawio.svg)](docs/database.drawio.svg)
+
+The diagram is a `.drawio.svg`: GitHub shows it as an image, and draw.io opens it as an editable diagram. Once the Flyway migrations exist ([ADR-0014](docs/adr/0014-database-migrations-flyway.md)), they are the source of truth for the schema; update this diagram in the same pull request that changes it.
+
 ## 📚 Documentation
 
 - [Development guide](docs/development.md)
 - Deployment guide **TBC**
+- [Database schema](docs/database.drawio.svg)
 - [CI guide](docs/ci.md) and [CI setup](docs/ci-setup.md)
 - [Architecture Decision Records](docs/adr/)
 - [Changelog](CHANGELOG.md)
