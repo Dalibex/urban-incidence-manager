@@ -16,7 +16,11 @@ UrbanPulse is a cloud platform for managing urban incidents. It combines citizen
 
 The **incident** is the central entity. External urban data enriches that entity and its operational context; it does not constitute an independent product. The platform assists responsible people and does not replace their decision in sensitive actions.
 
-The product includes a web client and a mobile application that consume a shared API. The teaching case starts from a simple monolith with technologies such as Spring Boot and PostgreSQL. The specific technologies and deployment must be confirmed by the team.
+The product includes a web client and a mobile application that consume a shared API. The teaching case starts from a simple monolith with Spring Boot and PostgreSQL. The accepted technologies and deployment are recorded in the ADRs (see section 4).
+
+### Current state
+
+Only the backend skeleton exists: Spring Boot application, PostgreSQL/PostGIS through Docker Compose, Spring Security with only the Actuator health endpoints open, Testcontainers integration tests, and the CI pipeline. There are no domain modules, entities, or endpoints yet, and the web and mobile clients do not exist. Do not describe any requirement below as implemented unless the code shows it.
 
 ### Actors
 
@@ -88,33 +92,41 @@ Centralize transition validation. When status and history are modified in the sa
 
 ## 4. Architecture and organization
 
-### Proposed base, pending ratification
+### Accepted decisions
 
-- Monorepo with web and mobile clients, shared API, and versioned documentation.
-- Modular monolith for the backend, organized by domain capabilities.
-- HTTP API documented with OpenAPI and design-first development.
-- PostgreSQL and versioned migrations. PostGIS only if spatial queries justify it and the team accepts it.
-- Docker Compose for development and GitHub Actions for CI.
-- React and React Native as proposals for clients; Spring Boot as a proposal for backend.
-- Kubernetes, Terraform, caches, queues, and microservices as extensions conditioned on a demonstrated need.
+The ADRs in `docs/adr/` are the source of truth. Check each ADR status before relying on it.
+
+| ADR | Decision |
+| --- | -------- |
+| 0001, 0003 | PostgreSQL as the primary database, with PostGIS for geospatial data. |
+| 0002, 0009 | Málaga open data as the primary urban data source, OpenStreetMap for map data and fallback. |
+| 0004 | Authentication strategy. |
+| 0005, 0006, 0007 | React Native (mobile), React (web), and the shared client architecture. |
+| 0008 | Spring Boot backend exposing a REST API, contract first with OpenAPI. |
+| 0010 | Modular monolith: one deployable, one schema, modules communicate through public APIs and events. |
+| 0011 | Docker Compose deployment and 12-factor configuration. |
+| 0012 | Redis as cache layer. |
+| 0014 | Versioned schema migrations with Flyway (plain SQL in `db/migration`, never edit a merged migration). |
+| 0015 | CI with check-only jobs and pre-commit formatting. |
+| 0016 | Self-hosted OSM base map (PMTiles rebuilt every two weeks) rendered with MapLibre. |
+
+Proposed, not accepted: 0013 (evidence storage), 0017 (nginx reverse proxy). Do not implement them as if they were accepted.
+
+Kubernetes, Terraform, queues, and microservices remain extensions conditioned on a demonstrated need.
 
 Do not change the stack or introduce components because they are popular. An architectural change requires an observable problem, a testable hypothesis, alternatives, and an evaluable ADR.
 
-### Indicative structure
+### Repository structure
 
-| Path                      | Purpose                                                  |
-| ------------------------- | -------------------------------------------------------- |
-| `apps/web/`               | Web client.                                              |
-| `apps/mobile/`            | Mobile client.                                           |
-| `services/api/`           | Backend.                                                 |
-| `packages/api-client/`    | Shared client, if adopted.                               |
-| `docs/api/openapi.yaml`   | API contract, if this is the agreed location.            |
-| `docs/adr/`               | Architectural decisions.                                 |
-| `docs/c4/`                | Architecture diagrams.                                   |
-| `infra/`                  | Container and deployment configuration.                  |
-| `.github/`                | Collaboration workflows and templates.                   |
+| Path                      | Purpose                                                        |
+| ------------------------- | -------------------------------------------------------------- |
+| `urbanpulse/`             | Spring Boot backend (`pom.xml`, `mvnw`, `docker-compose.yaml`). |
+| `docs/adr/`               | Architectural decisions.                                       |
+| `docs/`                   | Development and CI guides.                                     |
+| `.github/`                | CI workflows, issue and PR templates.                          |
+| `.githooks/`              | Versioned Git hooks (pre-commit formatting).                   |
 
-Respect the existing structure if it differs. Do not create empty folders or reorganize the entire repository to satisfy this proposal.
+Not created yet: web and mobile clients, shared API client, OpenAPI contract, and C4 model. Agree their location with the team when the first one is needed. Do not create empty folders to anticipate them.
 
 ### Separation of responsibilities
 
@@ -127,7 +139,7 @@ Respect the existing structure if it differs. Do not create empty folders or reo
 
 ## 5. Clean code and maintenance
 
-- Use names that express the domain and intent. Follow the existing language and conventions; if there are none, propose identifiers in English and documentation for the team in Spanish.
+- Use names that express the domain and intent. Follow the existing language and conventions: code identifiers and repository documentation are written in English.
 - Keep functions and classes cohesive. Divide by responsibility; avoid arbitrary line limits.
 - Prefer clear flows, guard clauses, and composition. Avoid unnecessary nesting and hidden side effects.
 - Apply SOLID with judgment, DRY, KISS, and YAGNI. Do not generalize from superficial similarities or build hypothetical extensions.
@@ -258,7 +270,17 @@ Especially important cases for UrbanPulse:
 
 ### Command discovery
 
-There is no code checkout associated with this document that allows development commands to be fixed. Before running or documenting commands, consult `package.json` scripts, Maven/Gradle wrappers, Compose files, and existing workflows. Use the agreed manager and versions; do not create a second lockfile or invent a global test command for the monorepo.
+Backend commands run from `urbanpulse/` with Maven Wrapper (`./mvnw.cmd` on Windows). Docker must be running for integration tests.
+
+| Command | Purpose |
+| ------- | ------- |
+| `./mvnw spring-boot:run` | Run the backend; Spring Boot starts PostGIS from `docker-compose.yaml` (needs `.env`). |
+| `./mvnw test` | Unit tests (`*Test`), no Docker. |
+| `./mvnw verify` | Unit and integration tests (`*IT`, Testcontainers), formatting, coverage, and SpotBugs. |
+| `./mvnw verify -DskipITs` | Same without integration tests. |
+| `./mvnw spotless:apply` | Format Java code (google-java-format AOSP). |
+
+The CI pipeline is described in `docs/ci.md`. When clients are added, consult their own manifests and workflows; do not create a second lockfile or invent a global test command for the monorepo.
 
 ## 12. Documentation and decisions
 

@@ -71,5 +71,4 @@ accessed through an application-level **`StorageService` interface**.
 
 - [ADR-0001: Use PostgreSQL for primary database](0001-database.md)
 - [ADR-0011: Deployment and 12-factor configuration](0011-deployment-12factor.md)
-- [ADR-0014: nginx as the single entry point](0014-reverse-proxy.md)
-- [Docker guide](../infra/docker/DOCKER.md)
+- [ADR-0017: nginx as the single entry point](0017-reverse-proxy.md)

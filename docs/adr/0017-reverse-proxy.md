@@ -1,4 +1,4 @@
-# ADR-0014: nginx as the single entry point in the Docker deployment
+# ADR-0017: nginx as the single entry point in the Docker deployment
 
 - **Status:** Proposed
 - **Decision Makers:** Project Team
@@ -73,4 +73,3 @@ explicit in `docker-compose.dev.yml`, so it does not leak into production.
 - [ADR-0006: Use React for the web application](0006-frontend-web-technology.md)
 - [ADR-0011: Deployment and 12-factor configuration](0011-deployment-12factor.md)
 - [ADR-0013: Local volume behind a StorageService interface for evidences](0013-evidence-storage.md)
-- [Docker guide](../infra/docker/DOCKER.md)

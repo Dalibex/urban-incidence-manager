@@ -1,16 +1,16 @@
-# UrbanPulse
+# 🏙️ UrbanPulse
 
 UrbanPulse is a platform for managing urban incidents reported by citizens and enriching them with contextual data from the city of Malaga.
 
 > **Status:** Early development. The repository currently contains the Spring Boot backend skeleton and its local PostgreSQL/PostGIS infrastructure. Incident management workflows, web and mobile clients are not implemented yet.
 
-## Purpose
+## 🎯 Purpose
 
 UrbanPulse aims to support the registration, classification, prioritization, tracking, analysis, and resolution of urban incidents.
 
 The platform assists municipal staff. It does not replace human decisions for sensitive actions.
 
-## Current Scope
+## 📦 Current Scope
 
 The repository currently provides:
 
@@ -18,26 +18,30 @@ The repository currently provides:
 - PostgreSQL with PostGIS for relational and geospatial data.
 - Spring Data JPA and PostgreSQL connectivity.
 - Docker Compose integration for local database startup.
+- Spring Security with only the Actuator health endpoints open.
+- Integration tests against PostGIS with Testcontainers.
+- A GitHub Actions pipeline (format, tests, coverage, static analysis and smoke test) and a pre-commit hook that formats staged Java files.
 - Maven Wrapper.
-- Basic application-context testing.
 
-## Technology Stack
+## 🧰 Technology Stack
 
 - Java 25
 - Spring Boot 4.1.1
 - Spring Data JPA
-- Spring Modulith
+- Spring Security
 - PostgreSQL 18 with PostGIS 3.6
 - Docker Compose
+- Testcontainers
+- GitHub Actions
 - Maven Wrapper
 
-## Prerequisites
+## 🐛 Prerequisites
 
 Install Java 25, Docker Engine or Docker Desktop, and Git. Maven and PostgreSQL do not need to be installed locally.
 
 When running the project from a terminal, make sure Java 25 is available in `PATH` and `JAVA_HOME` points to the Java 25 JDK.
 
-## Quick Start
+## ⚡ Quick Start
 
 Clone the repository and enter the backend directory:
 
@@ -46,7 +50,7 @@ git clone https://github.com/Dalibex/urban-incidence-manager.git
 cd urban-incidence-manager/urbanpulse
 ```
 
-### Create the local environment file
+### ⚙️ Create the local environment file
 
 Linux or macOS:
 
@@ -62,7 +66,7 @@ Copy-Item .env.example .env
 
 Replace `POSTGRES_PASSWORD` in `.env`, then start the backend.
 
-### Run the application
+### 🍂 Run the application
 
 Linux or macOS:
 
@@ -78,9 +82,9 @@ Windows PowerShell:
 
 Spring Boot detects `docker-compose.yaml`, starts PostgreSQL/PostGIS, waits until the database is healthy, and configures the connection.
 
-## Testing
+## 🚀 Testing
 
-Docker must be running before executing the application-context tests.
+Docker must be running: the integration tests start their own PostGIS container with Testcontainers.
 
 Linux or macOS:
 
@@ -94,13 +98,16 @@ Windows PowerShell:
 ./mvnw.cmd verify
 ```
 
-## Project Structure
+## 🗂️ Project Structure
 
 ```text
 urban-incidence-manager/
+|-- .githooks/
+|-- .github/
 |-- docs/
 |   |-- adr/
-|   |-- deployment.md
+|   |-- ci-setup.md
+|   |-- ci.md
 |   `-- development.md
 |-- urbanpulse/
 |   |-- docker-compose.yaml
@@ -113,16 +120,17 @@ urban-incidence-manager/
 `-- README.md
 ```
 
-## Documentation
+## 📚 Documentation
 
 - [Development guide](docs/development.md)
-- [Deployment guide](docs/deployment.md)
+- Deployment guide **TBC**
+- [CI guide](docs/ci.md) and [CI setup](docs/ci-setup.md)
 - [Architecture Decision Records](docs/adr/)
 - [Changelog](CHANGELOG.md)
 - [AI Agents Context](AGENTS.md)
 
 Architecture documents distinguish accepted decisions from proposals. Check each ADR status before treating it as implemented.
 
-## License
+## 📄 License
 
 This project is licensed under the [Apache License 2.0](LICENSE).
