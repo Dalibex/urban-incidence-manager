@@ -131,7 +131,6 @@ git commit
 | Integration | `*IT` | Failsafe | Docker (Testcontainers) | `./mvnw verify` |
 
 - Tests **never use `docker-compose.yaml`**. An `*IT` imports `TestcontainersConfiguration`, which starts a throwaway PostGIS, and Spring connects to it with `@ServiceConnection`. No `.env` or local DB is needed.
-- `ModularityTest` (unit) verifies the module boundaries (ADR-0010) on every build.
 - Coverage: `jacoco.minimum.coverage` in `pom.xml` (80 % of lines, combining unit and integration). `*Application` is excluded.
 
 ## 6. Squash merge and history
@@ -148,7 +147,7 @@ Recipes for when the project grows. General rule: **if you add or rename a job, 
 
 ### 7.1 New modules (ADR-0010)
 
-Nothing to change in the CI. `ModularityTest` verifies every package under `es.uma.urbanpulse`, and each module's tests are picked up by name (`*Test` / `*IT`). Keep the naming convention.
+Nothing to change in the CI. Each module's tests are picked up by name (`*Test` / `*IT`). Keep the naming convention.
 
 ### 7.2 Database migrations
 

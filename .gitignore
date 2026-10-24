@@ -8,6 +8,10 @@
 *.ipr
 .env
 
+# draw.io desktop temporary and backup files
+*.dtmp
+*.bkp
+
 # Front-end
 
 

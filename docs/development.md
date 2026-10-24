@@ -114,6 +114,21 @@ formatted. To format by hand, if needed:
 
 If the hook does not run, see the [CI setup guide](ci-setup.md).
 
+## 🗄️ Database Migrations
+
+The schema is created and changed only by Flyway ([ADR-0014](adr/0014-database-migrations-flyway.md)).
+Migrations are plain SQL files in `src/main/resources/db/migration` and run automatically when the
+application starts. Hibernate only validates the entities against the schema.
+
+- Name new files `V<n>__<module>_<description>.sql`, with the next free number, for example
+  `V6__incidents_add_incident_source.sql`.
+- Never edit a migration that has been merged: write a new one, even for a fix.
+- If two branches use the same number, the second one to merge renumbers its migration.
+- Update the [database schema diagram](database.drawio.svg) in the same pull request.
+
+While a migration only exists on your branch, you can still change it: reset your local database
+(see below) so Flyway applies it again from scratch.
+
 ## ⚠️ Reset the Local Database
 
 `docker compose down` stops the database and keeps its data in the `postgres-data` volume. To
@@ -135,9 +150,11 @@ urbanpulse/
 `-- src/
     |-- main/java/es/uma/urbanpulse/
     |-- main/resources/application.yaml
+    |-- main/resources/db/migration/
     `-- test/java/es/uma/urbanpulse/
 ```
 
 - Application code: `src/main/java/es/uma/urbanpulse/`.
 - Configuration: `src/main/resources/`.
+- Database migrations: `src/main/resources/db/migration/`.
 - Tests: `src/test/java/es/uma/urbanpulse/`.
