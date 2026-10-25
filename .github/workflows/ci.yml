@@ -3,8 +3,8 @@
 # Jobs:
 #   lint → repository hygiene (.env, Compose, image parity) and formatting (Spotless check)
 #   contract → the OpenAPI contract docs/api/openapi.yml is valid and follows docs/api.md (Redocly),
-#              and the generated packages/api-client types match it
-#   frontend → client workspace (ADR-0007): format, lint, type-check, test and build with pnpm
+#              and the generated frontend/packages/api-client types match it
+#   frontend → client workspace in frontend/ (ADR-0007): format, lint, type-check, test and build with pnpm
 #   test → unit (*Test) + integration (*IT, Testcontainers) tests, coverage gate and SpotBugs
 #   build → packages ONE jar per commit, smoke-tests it against PostGIS and publishes it
 
@@ -28,6 +28,8 @@ concurrency:
 env:
   # Folder that contains pom.xml and mvnw, relative to the repository root.
   BACKEND_DIR: urbanpulse
+  # Folder of the client pnpm workspace (package.json, pnpm-lock.yaml, .nvmrc), relative to the root.
+  FRONTEND_DIR: frontend
   JAVA_VERSION: "25"
   JAVA_DISTRIBUTION: temurin
   # Must match docker-compose.yaml and TestcontainersConfiguration.java (checked by lint).
@@ -101,7 +103,7 @@ jobs:
   contract:
     name: contract
     runs-on: ubuntu-latest
-    # 10 and not 5: it also installs the client workspace to regenerate packages/api-client.
+    # 10 and not 5: it also installs the client workspace to regenerate frontend/packages/api-client.
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
@@ -115,49 +117,78 @@ jobs:
             exit 1
           fi
 
-      # The TypeScript types of packages/api-client are generated from the contract (ADR-0008) and
+      # The TypeScript types of frontend/packages/api-client are generated from the contract (ADR-0008) and
       # committed. If the contract changes, they must be regenerated in the same PR.
       - name: Set up JS workspace
         uses: ./.github/actions/setup-js
+        with:
+          directory: ${{ env.FRONTEND_DIR }}
 
       - name: api-client types are up to date with the contract
+        working-directory: ${{ env.FRONTEND_DIR }}
         run: |
           pnpm generate:api
           changes=$(git status --porcelain -- packages/api-client)
           if [ -n "$changes" ]; then
-            echo "::error title=api-client::The generated types differ from the committed ones. Run pnpm generate:api from the repository root and commit the result."
+            echo "::error title=api-client::The generated types differ from the committed ones. Run pnpm generate:api from $FRONTEND_DIR/ and commit the result."
             echo "$changes"
             git --no-pager diff --stat -- packages/api-client
             exit 1
           fi
 
-  # Client workspace (ADR-0007): apps/web, apps/mobile and packages/*. Node steps live only
-  # here and in contract, never in the Java jobs.
+  # Client workspace (ADR-0007): frontend/apps/web, frontend/apps/mobile and frontend/packages/*.
+  # Node steps live only here and in contract, never in the Java jobs.
   frontend:
     name: frontend
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: ${{ env.FRONTEND_DIR }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Full history, so detect can compare with the base of the PR or the previous push.
+          fetch-depth: 0
+
+      # frontend is a required check, so it never skips itself as a job: when a PR does not touch
+      # the clients (for example a backend-only change), the steps below are skipped and the job
+      # still ends green. The rules are in the script.
+      - name: Detect client changes
+        id: detect
+        working-directory: .
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: bash .github/scripts/client_changes.sh
 
       - name: Set up JS workspace
+        if: steps.detect.outputs.clients == 'true'
         uses: ./.github/actions/setup-js
+        with:
+          directory: ${{ env.FRONTEND_DIR }}
 
       # One step per check, so the name of the red step tells you what failed.
       # GitHub Actions sets CI=true: test runners do not start in watch mode.
       - name: Formatting (Prettier)
+        if: steps.detect.outputs.clients == 'true'
         run: pnpm format:check
 
       - name: Lint (ESLint)
+        if: steps.detect.outputs.clients == 'true'
         run: pnpm lint
 
       - name: Type check (TypeScript)
+        if: steps.detect.outputs.clients == 'true'
         run: pnpm typecheck
 
       - name: Tests
+        if: steps.detect.outputs.clients == 'true'
         run: pnpm test
 
       - name: Build (web bundle and mobile export)
+        if: steps.detect.outputs.clients == 'true'
         run: pnpm build
 
   test:
