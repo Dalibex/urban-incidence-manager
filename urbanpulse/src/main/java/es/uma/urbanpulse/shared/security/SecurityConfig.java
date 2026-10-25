@@ -1,4 +1,4 @@
-package es.uma.urbanpulse.security;
+package es.uma.urbanpulse.shared.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
