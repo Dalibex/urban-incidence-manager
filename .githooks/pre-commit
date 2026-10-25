@@ -1,7 +1,8 @@
 #!/bin/sh
-# pre-commit: formats the staged Java files with Spotless (google-java-format AOSP) and
-# adds the result to the same commit, so every commit is already formatted.
-# CI (job lint) only checks; it never changes code.
+# pre-commit: formats the staged files and adds the result to the same commit, so every commit
+# is already formatted. CI (jobs lint and frontend) only checks; it never changes code.
+#   - Java (*.java): Spotless with google-java-format AOSP, through ./mvnw
+#   - Clients (*.ts, *.tsx, *.css, *.json): Prettier, through pnpm (client workspace, ADR-0007)
 #
 # Installed by any local ./mvnw build (profile install-git-hooks in pom.xml)
 # Skip it for one commit:  SKIP_FORMAT=1 git commit ...   (or git commit --no-verify)
@@ -24,68 +25,123 @@ IFS='
 '
 set -f
 
-files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.java')
-if [ -z "$files" ]; then
-    exit 0 # no Java files in this commit: nothing to format, Maven is not started
-fi
-
 # A file with staged AND unstaged changes cannot be re-staged without also committing the
 # unstaged part, so stop and let the developer decide.
-# shellcheck disable=SC2086 # word splitting on newlines is intended
-partial=$(git diff --name-only -- $files)
-if [ -n "$partial" ]; then
-    echo "pre-commit: these files have changes that are not staged:"
-    printf '%s\n' "$partial" | sed 's/^/  /'
-    echo "Formatting them would add the unstaged changes to this commit."
-    echo "Stage the whole file (git add <file>) or stash the rest (git stash --keep-index), then commit again."
-    exit 1
-fi
-
-# -DspotlessFiles takes comma-separated regular expressions matched against absolute paths.
-# Build one per staged file; [\\/] matches both / and \ so it also works on Windows.
-patterns=""
-for f in $files; do
-    escaped=$(printf '%s\n' "$f" | sed -e 's/[][\.*^$+?(){}|]/\\&/g' -e 's#/#[\\\\/]#g')
-    patterns="${patterns:+$patterns,}.*[\\\\/]$escaped"
-done
-
-count=$(printf '%s\n' "$files" | wc -l | tr -d ' ')
-echo "pre-commit: formatting $count staged Java file(s) with Spotless..."
-
-if ! out=$(cd "$BACKEND_DIR" && sh ./mvnw -q spotless:apply -DspotlessFiles="$patterns" 2>&1); then
-    # Maven could not even start: wrong or unreadable JAVA_HOME, a JDK older than 25, or a Git
-    # without cygpath (GitHub Desktop's bundled Git), which mvnw needs to convert JAVA_HOME.
-    # That is a problem of this machine, not of the code, so do not block the commit:
-    # CI (job lint) checks the formatting anyway.
-    if printf '%s\n' "$out" | grep -qE 'JAVA_HOME|release version .* not supported|UnsupportedClassVersionError|class file version|cygpath'; then
-        echo "pre-commit: WARNING - Maven could not run here, so these files were NOT formatted:"
-        printf '%s\n' "$files" | sed 's/^/  /'
-        printf '%s\n' "$out" | grep -v '^\[' | head -3 | sed 's/^/  /'
-        echo "  JAVA_HOME=${JAVA_HOME:-<not set>}"
-        echo "  The commit goes ahead; CI lint will fail if they are not formatted."
-        echo "  Fix: run ./mvnw spotless:apply from a terminal, or commit from a terminal / IntelliJ."
-        exit 0
+stop_if_partially_staged() {
+    # shellcheck disable=SC2086 # word splitting on newlines is intended
+    partial=$(git diff --name-only -- $1)
+    if [ -n "$partial" ]; then
+        echo "pre-commit: these files have changes that are not staged:"
+        printf '%s\n' "$partial" | sed 's/^/  /'
+        echo "Formatting them would add the unstaged changes to this commit."
+        echo "Stage the whole file (git add <file>) or stash the rest (git stash --keep-index), then commit again."
+        exit 1
     fi
-    # Maven ran and spotless failed: usually a staged file with a syntax error. Block.
-    echo "pre-commit: spotless:apply failed. First errors:"
-    errors=$(printf '%s\n' "$out" | grep -E '^\[ERROR\]' | head -5)
-    if [ -n "$errors" ]; then
-        printf '%s\n' "$errors" | sed 's/^/  /'
-    else
-        # Failures outside Maven's own logging (wrapper, shell, environment) have no [ERROR] lines.
-        printf '%s\n' "$out" | grep -v '^WARNING' | tail -10 | sed 's/^/  /'
-    fi
-    echo "Fix the file, or commit anyway with SKIP_FORMAT=1 git commit ... (CI lint will fail until it is formatted)."
-    exit 1
-fi
+}
 
-# shellcheck disable=SC2086
-changed=$(git diff --name-only -- $files)
-if [ -n "$changed" ]; then
-    echo "pre-commit: reformatted and added to this commit:"
-    printf '%s\n' "$changed" | sed 's/^/  /'
+# Adds back to the commit the files that the formatter changed.
+restage_formatted() {
     # shellcheck disable=SC2086
-    git add -- $changed
-fi
+    changed=$(git diff --name-only -- $1)
+    if [ -n "$changed" ]; then
+        echo "pre-commit: reformatted and added to this commit:"
+        printf '%s\n' "$changed" | sed 's/^/  /'
+        # shellcheck disable=SC2086
+        git add -- $changed
+    fi
+}
+
+format_java() {
+    files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.java')
+    if [ -z "$files" ]; then
+        return 0 # no Java files in this commit: nothing to format, Maven is not started
+    fi
+
+    stop_if_partially_staged "$files"
+
+    # -DspotlessFiles takes comma-separated regular expressions matched against absolute paths.
+    # Build one per staged file; [\\/] matches both / and \ so it also works on Windows.
+    patterns=""
+    for f in $files; do
+        escaped=$(printf '%s\n' "$f" | sed -e 's/[][\.*^$+?(){}|]/\\&/g' -e 's#/#[\\\\/]#g')
+        patterns="${patterns:+$patterns,}.*[\\\\/]$escaped"
+    done
+
+    count=$(printf '%s\n' "$files" | wc -l | tr -d ' ')
+    echo "pre-commit: formatting $count staged Java file(s) with Spotless..."
+
+    if ! out=$(cd "$BACKEND_DIR" && sh ./mvnw -q spotless:apply -DspotlessFiles="$patterns" 2>&1); then
+        # Maven could not even start: wrong or unreadable JAVA_HOME, a JDK older than 25, or a Git
+        # without cygpath (GitHub Desktop's bundled Git), which mvnw needs to convert JAVA_HOME.
+        # That is a problem of this machine, not of the code, so do not block the commit:
+        # CI (job lint) checks the formatting anyway.
+        if printf '%s\n' "$out" | grep -qE 'JAVA_HOME|release version .* not supported|UnsupportedClassVersionError|class file version|cygpath'; then
+            echo "pre-commit: WARNING - Maven could not run here, so these files were NOT formatted:"
+            printf '%s\n' "$files" | sed 's/^/  /'
+            printf '%s\n' "$out" | grep -v '^\[' | head -3 | sed 's/^/  /'
+            echo "  JAVA_HOME=${JAVA_HOME:-<not set>}"
+            echo "  The commit goes ahead; CI lint will fail if they are not formatted."
+            echo "  Fix: run ./mvnw spotless:apply from a terminal, or commit from a terminal / IntelliJ."
+            return 0
+        fi
+        # Maven ran and spotless failed: usually a staged file with a syntax error. Block.
+        echo "pre-commit: spotless:apply failed. First errors:"
+        errors=$(printf '%s\n' "$out" | grep -E '^\[ERROR\]' | head -5)
+        if [ -n "$errors" ]; then
+            printf '%s\n' "$errors" | sed 's/^/  /'
+        else
+            # Failures outside Maven's own logging (wrapper, shell, environment) have no [ERROR] lines.
+            printf '%s\n' "$out" | grep -v '^WARNING' | tail -10 | sed 's/^/  /'
+        fi
+        echo "Fix the file, or commit anyway with SKIP_FORMAT=1 git commit ... (CI lint will fail until it is formatted)."
+        exit 1
+    fi
+
+    restage_formatted "$files"
+}
+
+format_client() {
+    files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.ts' '*.tsx' '*.css' '*.json')
+    if [ -z "$files" ]; then
+        return 0 # no client files in this commit: nothing to format, pnpm is not started
+    fi
+
+    stop_if_partially_staged "$files"
+
+    count=$(printf '%s\n' "$files" | wc -l | tr -d ' ')
+    echo "pre-commit: formatting $count staged client file(s) with Prettier..."
+
+    # pnpm missing or dependencies not installed: a problem of this machine, not of the code.
+    # Same rule as Maven above: warn and let the commit go ahead; CI (job frontend) checks it.
+    if ! command -v pnpm >/dev/null 2>&1 || [ ! -d node_modules ]; then
+        echo "pre-commit: WARNING - pnpm or the client dependencies are not available, so these files were NOT formatted:"
+        printf '%s\n' "$files" | sed 's/^/  /'
+        echo "  The commit goes ahead; CI frontend will fail if they are not formatted."
+        echo "  Fix: install pnpm, run pnpm install in the repository root, then pnpm format."
+        return 0
+    fi
+
+    # --ignore-unknown: skip files Prettier has no parser for instead of failing.
+    # shellcheck disable=SC2086
+    if ! out=$(pnpm exec prettier --write --ignore-unknown -- $files 2>&1); then
+        if printf '%s\n' "$out" | grep -q 'Command "prettier" not found'; then
+            echo "pre-commit: WARNING - Prettier is not installed in the workspace, so these files were NOT formatted:"
+            printf '%s\n' "$files" | sed 's/^/  /'
+            echo "  The commit goes ahead; CI frontend will fail if they are not formatted."
+            echo "  Fix: run pnpm install in the repository root."
+            return 0
+        fi
+        # Prettier ran and failed: usually a staged file with a syntax error. Block.
+        echo "pre-commit: Prettier failed. First errors:"
+        printf '%s\n' "$out" | grep -iE 'error' | head -5 | sed 's/^/  /'
+        echo "Fix the file, or commit anyway with SKIP_FORMAT=1 git commit ... (CI frontend will fail until it is formatted)."
+        exit 1
+    fi
+
+    restage_formatted "$files"
+}
+
+format_java
+format_client
 
 exit 0
