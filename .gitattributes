@@ -1,7 +1,7 @@
 # Normalise line endings in the repository to LF (CRLF breaks formatting checks and shell scripts)
 * text=auto eol=lf
 
-/mvnw text eol=lf
+backend/mvnw text eol=lf
 .githooks/* text eol=lf
 *.sh text eol=lf
 *.cmd text eol=crlf
