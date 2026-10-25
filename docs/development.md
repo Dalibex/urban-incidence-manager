@@ -21,12 +21,12 @@ Clone the repository and enter the backend directory:
 
 ```bash
 git clone https://github.com/Dalibex/urban-incidence-manager.git
-cd urban-incidence-manager/urbanpulse
+cd urban-incidence-manager/backend
 ```
 
 ## ⚙️ Create the Local Environment File
 
-Docker Compose reads the database settings from `urbanpulse/.env`. Without this file the variables
+Docker Compose reads the database settings from `backend/.env`. Without this file the variables
 are empty and PostgreSQL does not start. Create it from the versioned example:
 
 Linux or macOS:
@@ -48,7 +48,7 @@ an empty volume. If you change them later, see the *Reset the Local Database* se
 
 ## 🍃 Run with IntelliJ IDEA (recommended)
 
-1. Select **Open** and choose the `urbanpulse/` directory.
+1. Select **Open** and choose the `backend/` directory.
 2. Import the project as a Maven project if IntelliJ does not detect it automatically.
 3. Select Java 25 as the project SDK.
 4. Make sure Docker is running.
@@ -59,7 +59,7 @@ configures the connection. Stopping the application also stops the database cont
 
 ## 🍂 Run from the Terminal
 
-From `urbanpulse/`:
+From `backend/`:
 
 Linux or macOS:
 
@@ -77,7 +77,7 @@ Stop the application with `Ctrl+C`.
 
 ## 🚀 Running Tests
 
-From `urbanpulse/`:
+From `backend/`:
 
 Linux or macOS:
 
@@ -242,7 +242,7 @@ Never edit `schema.d.ts` by hand: the `contract` CI job fails if it differs from
 ## 🔙 Backend Structure
 
 ```text
-urbanpulse/
+backend/
 |-- .env.example
 |-- docker-compose.yaml
 |-- pom.xml

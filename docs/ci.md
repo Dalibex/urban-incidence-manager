@@ -45,7 +45,7 @@ flowchart LR
 
 > **Temporary triggers:** while the CI is being tested on `boilerplate`, `branches` also includes `boilerplate` (comment `# TEMPORARY`). It is removed when moving to `main`; see [ci-setup.md section 6](ci-setup.md#6-test-on-boilerplate-before-main).
 >
-> **Folders:** `.github/`, `.githooks/` and `docs/` are in the repository root; the backend is in `urbanpulse/` (`BACKEND_DIR`) and the clients are a pnpm workspace in `frontend/` (`FRONTEND_DIR`: `apps/web`, `apps/mobile`, `packages/*`, ADR-0007).
+> **Folders:** `.github/`, `.githooks/` and `docs/` are in the repository root; the backend is in `backend/` (`BACKEND_DIR`) and the clients are a pnpm workspace in `frontend/` (`FRONTEND_DIR`: `apps/web`, `apps/mobile`, `packages/*`, ADR-0007).
 
 ### `lint` — repository hygiene and formatting
 

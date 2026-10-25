@@ -104,21 +104,21 @@ git switch -c feature/f01-delivery-spine
 ### 1.3 Local environment
 
 ```powershell
-Copy-Item urbanpulse\.env.example urbanpulse\.env
+Copy-Item backend.env.example backend.env
 ```
 
-Edit `urbanpulse/.env` and set a local database password. Never commit `.env`, never paste its contents into the AI chat, and never put real secrets in `.env.example`.
+Edit `backend/.env` and set a local database password. Never commit `.env`, never paste its contents into the AI chat, and never put real secrets in `.env.example`.
 
 Add the new variables from `guia-ia.md` section 4.10 as tasks require them. Use placeholders in `.env.example`.
 
-Spring Boot does not read `.env` by itself; Docker Compose does. When running from IntelliJ, load `urbanpulse/.env` in the run configuration of `UrbanpulseApplication`, and add `SPRING_PROFILES_ACTIVE=dev` once F01 creates profiles. If the app fails at startup after B01 with a missing `JWT_SECRET`, this is the place to look.
+Spring Boot does not read `.env` by itself; Docker Compose does. When running from IntelliJ, load `backend/.env` in the run configuration of `UrbanpulseApplication`, and add `SPRING_PROFILES_ACTIVE=dev` once F01 creates profiles. If the app fails at startup after B01 with a missing `JWT_SECRET`, this is the place to look.
 
 ### 1.4 Baseline verification
 
 Docker must be running.
 
 ```powershell
-cd urbanpulse
+cd backend
 .\mvnw.cmd verify
 ```
 
@@ -158,7 +158,7 @@ Where to record them: D0, D2, D4, D10 and D11 change ADRs or the architecture, s
 | ID | Decision | Recommended default | Approve before |
 |---|---|---|---|
 | D0 | Module rules after removing Spring Modulith | Amend ADR-0010: keep package-by-feature modules and transaction/event rules; drop Modulith annotations/tests; allow the JPA relationships in the class diagram | F01 |
-| D1 | Repository layout | Keep `urbanpulse/`; add `apps/*` and `packages/*` | F01/C01 |
+| D1 | Repository layout | Superseded by #17: backend in `backend/`, clients in `frontend/` (ADR-0007 amendment) | F01/C01 |
 | D2 | Status matrix | `guia-ia.md` section 4.7; `REJECTED` and `CLOSED` terminal | B04 |
 | D3 | Roles | One primary role per user; `ADMIN` includes operator actions | B01 |
 | D4 | Token transport | Access in memory; web refresh HttpOnly cookie; mobile SecureStore | B01 |
@@ -174,7 +174,7 @@ Where to record them: D0, D2, D4, D10 and D11 change ADRs or the architecture, s
 ### 2.1 What each decision means
 
 - **D0:** On 2026-10-20 (`6a2c356`) the team removed Spring Modulith and `ModularityTest` because enforcing boundaries would drop relationships the class diagram already has. ADR-0010 still says the opposite, and the AI reads ADRs as rules: until it is amended, every session will be confused or will reintroduce Modulith. Decide explicitly what stays (package-by-feature modules, atomic work in one transaction, events only after commit) and what goes (annotations, boundary test, ban on cross-module JPA relationships). Note the trade-off: nothing in the build checks boundaries any more, so reviewers must.
-- **D1:** Moving the backend to `services/api` costs time and breaks CI paths. Keep it in `urbanpulse/`. Add web/mobile/shared packages around it.
+- **D1:** Superseded by #17. The original choice was to keep the backend in `backend/` to avoid breaking CI paths; the team later moved it to `backend/`, next to the client workspace in `frontend/`.
 - **D2:** Without an approved matrix, the AI will invent transitions. Decide now. The recommended matrix forbids skipping states and makes `REJECTED`/`CLOSED` terminal. Also answer the six open points listed after the matrix in `guia-ia.md` section 4.7 (department-only assignment, reassigning while in progress, when the assignment ends, reopened → closed, when priority can be set, automatic closing).
 - **D3:** One role per user is enough for the demo. Admin can do operator actions. Multi-role support is P1. Also fix the role names: ADR-0004 says `user` where the guides say `CITIZEN`; pick one and use it everywhere.
 - **D4:** Do not store refresh tokens in localStorage. Web uses an HttpOnly cookie; mobile uses SecureStore. Access tokens stay in memory. ADR-0004 justified JWT precisely by not depending on browser cookies, so the web cookie is an amendment to ADR-0004, not a detail.
@@ -366,7 +366,7 @@ Use section 1. Do not give P00 to the AI unless you want a read-only environment
 ```text
 Read AGENTS.md, sections 0–5 of docs/guias/guia-ia.md, task card F01, the D0 and D10 decision records, and the current backend. Execute only F01: the delivery spine. Do not implement auth, incidents, attachments, clients, Docker, Redis, or AI.
 
-Follow approved decisions D0 (no Spring Modulith; it was removed in 6a2c356), D1 (keep urbanpulse/; apps/packages come later) and D10 (Flyway via spring-boot-starter-flyway). Add the backend dependencies, profiles, Flyway V1, RFC 9457 error handling, pagination/clock/correlation support in package shared, the OpenAPI skeleton and a pinned Redocly lint step in the lint job. Do not create empty module packages, domain tables or endpoints. Do not add Springdoc unless I approve it. Do not change the existing security behavior beyond what F01 needs. The jar must still pass the CI smoke test. Run the F01 verification commands and report actual results. Do not commit or push.
+Follow approved decisions D0 (no Spring Modulith; it was removed in 6a2c356), D1 (superseded by #17: backend in backend/, clients in frontend/) and D10 (Flyway via spring-boot-starter-flyway). Add the backend dependencies, profiles, Flyway V1, RFC 9457 error handling, pagination/clock/correlation support in package shared, the OpenAPI skeleton and a pinned Redocly lint step in the lint job. Do not create empty module packages, domain tables or endpoints. Do not add Springdoc unless I approve it. Do not change the existing security behavior beyond what F01 needs. The jar must still pass the CI smoke test. Run the F01 verification commands and report actual results. Do not commit or push.
 ```
 
 **Inspect:**
@@ -383,7 +383,7 @@ Follow approved decisions D0 (no Spring Modulith; it was removed in 6a2c356), D1
 **Verify:**
 
 ```powershell
-cd urbanpulse
+cd backend
 .\mvnw.cmd spotless:apply
 .\mvnw.cmd verify
 ```
@@ -427,7 +427,7 @@ Replace HTTP Basic with JWT authentication. Implement users, refresh token rotat
 **Verify:**
 
 ```powershell
-cd urbanpulse
+cd backend
 .\mvnw.cmd spotless:apply
 .\mvnw.cmd verify
 ```
@@ -1290,14 +1290,14 @@ Documentation-only task. Read AGENTS.md, .github/adr-template.md, all files in d
 Backend:
 
 ```powershell
-cd urbanpulse
+cd backend
 .\mvnw.cmd spotless:apply
 .\mvnw.cmd verify
 .\mvnw.cmd spring-boot:run
 ```
 
 ```bash
-cd urbanpulse
+cd backend
 ./mvnw spotless:apply
 ./mvnw verify
 ./mvnw spring-boot:run
