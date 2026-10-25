@@ -16,8 +16,9 @@ How should the client code be organized to share what is common?
 
 We will use a **monorepo with two applications and shared packages**.
 
-- **Structure:** `apps/web` and `apps/mobile` (see [ADR-0005](0005-mobile-application-technology.md)
-  and [ADR-0006](0006-frontend-web-technology.md)), plus `packages/*` for the shared code.
+- **Structure:** `frontend/apps/web` and `frontend/apps/mobile` (see
+  [ADR-0005](0005-mobile-application-technology.md) and [ADR-0006](0006-frontend-web-technology.md)),
+  plus `frontend/packages/*` for the shared code (see the amendment below).
 - **Shared packages:**
 
   - `domain`: entities, enums, business rules and validation schemas.
@@ -28,6 +29,28 @@ We will use a **monorepo with two applications and shared packages**.
   is accessed through small interfaces defined in the shared packages.
 - **Tooling:** pnpm workspaces and TypeScript project references, so shared packages are typed and
   consumed as source.
+
+### Amendment (2026-10-26): workspace in `frontend/`
+
+The client workspace lives in its own `frontend/` folder, as the backend lives in `urbanpulse/`, so
+the repository root only holds what is shared (documentation, CI, hooks, the API contract):
+
+```text
+frontend/
+├── apps/web/  apps/mobile/
+├── packages/domain/  packages/api-client/  packages/ui/
+├── package.json        (root scripts, packageManager)
+├── pnpm-workspace.yaml
+├── pnpm-lock.yaml
+└── .nvmrc
+```
+
+pnpm commands run from `frontend/`. The CI reads the workspace location from `FRONTEND_DIR` in
+`ci.yml`, and the pre-commit hook from the variable of the same name.
+
+Shared packages are consumed as source through their `exports` field, and each package and app is
+type-checked on its own (`pnpm typecheck`). TypeScript project references are not used yet; they
+can be added if type-checking the workspace becomes slow.
 
 ## Considered Options
 

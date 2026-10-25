@@ -2,7 +2,7 @@
 
 UrbanPulse is a platform for managing urban incidents reported by citizens and enriching them with contextual data from the city of Malaga.
 
-> **Status:** Early development. The repository currently contains the Spring Boot backend skeleton, its local PostgreSQL/PostGIS infrastructure and the versioned database schema. Incident management workflows, web and mobile clients are not implemented yet.
+> **Status:** Early development. The repository currently contains the Spring Boot backend skeleton, its local PostgreSQL/PostGIS infrastructure, the versioned database schema, the API contract and the skeleton of the web and mobile clients. Incident management workflows are not implemented yet.
 
 ## 🎯 Purpose
 
@@ -21,8 +21,9 @@ The repository currently provides:
 - Docker Compose integration for local database startup.
 - Spring Security with only the Actuator health endpoints open.
 - Integration tests against PostGIS with Testcontainers.
-- A GitHub Actions pipeline (format, tests, coverage, static analysis and smoke test) and a pre-commit hook that formats staged Java files.
+- A GitHub Actions pipeline (format, tests, coverage, static analysis and smoke test) and a pre-commit hook that formats staged Java and client files.
 - Maven Wrapper.
+- A pnpm workspace in `frontend/` with the web app (React + Vite), the mobile app (React Native + Expo) and their shared packages, including the API client generated from the OpenAPI contract.
 
 ## 🧰 Technology Stack
 
@@ -36,10 +37,13 @@ The repository currently provides:
 - Testcontainers
 - GitHub Actions
 - Maven Wrapper
+- TypeScript, React and Vite (web)
+- React Native and Expo (mobile)
+- Node.js 24 and pnpm workspaces
 
 ## 🐛 Prerequisites
 
-Install Java 25, Docker Engine or Docker Desktop, and Git. Maven and PostgreSQL do not need to be installed locally.
+Install Java 25, Docker Engine or Docker Desktop, and Git. Maven and PostgreSQL do not need to be installed locally. To work on the web or mobile clients, also install Node.js 24; pnpm is provided by Corepack (see the [development guide](docs/development.md)).
 
 When running the project from a terminal, make sure Java 25 is available in `PATH` and `JAVA_HOME` points to the Java 25 JDK.
 
@@ -108,9 +112,20 @@ urban-incidence-manager/
 |-- .github/
 |-- docs/
 |   |-- adr/
+|   |-- api/
 |   |-- ci-setup.md
 |   |-- ci.md
 |   `-- development.md
+|-- frontend/
+|   |-- apps/
+|   |   |-- web/
+|   |   `-- mobile/
+|   |-- packages/
+|   |   |-- api-client/
+|   |   |-- domain/
+|   |   `-- ui/
+|   |-- package.json
+|   `-- pnpm-workspace.yaml
 |-- urbanpulse/
 |   |-- docker-compose.yaml
 |   |-- pom.xml

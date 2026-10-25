@@ -74,7 +74,7 @@ body:
         - Backend API
         - Web app (operators, analysts, administrators)
         - Mobile app (citizens, technicians)
-        - Shared packages (packages/*)
+        - Shared packages (frontend/packages/*)
     validations:
       required: true
 
