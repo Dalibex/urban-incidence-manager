@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Decision Makers:** Project Team
-- **Date:** 2026-20-10
+- **Date:** 2026-25-10
 
 ## Context
 
@@ -12,39 +12,54 @@ introduzca un problema observable, una hipótesis comprobable y una decisión ar
 pueda documentarse y evaluarse." The design guideline also states that new components are only
 added for an observable problem with a testable hypothesis.
 
-The "simple monolith" the team is used to is Spring Boot plus a database, deployed as one unit and
+The monolith architecture the team is used to is Spring Boot plus a database, deployed as one unit and
 organised **by layer** (`controller`, `service`, `repository`, `entity`). This is a widely used and
-perfectly valid approach, but the separation is only a visual aid: everything is `public`.
+perfectly valid approach, but the separation is only a visual aid.
 
-At the other extreme, a distributed system (microservices) runs each service in its own process,
-so communication, synchronisation and transactions all have to be handled explicitly. That cost is
-disproportionate for the size of UrbanPulse.
-
-The first version of this ADR listed six modules, and the C4 model listed a different set of
-components. Code, ADR and C4 must use the same list so that each component in the diagram is 
-a package in the code.
+A distributed system (microservices) runs each service in its own process,
+so communication, synchronisation and transactions all have to be handled explicitly. 
 
 Which architectural style should the system adopt initially, and which modules does it have?
 
 ## Decision
 
 We will build a **single deployable modular monolith**: one Spring Boot application
-([ADR-0008](0008-backend.md)) with explicitly bounded internal modules.
+([ADR-0008](0008-backend.md)).
 
 ### Modules
 
 Each module is a package `es.uma.urbanpulse.<module>` and a component in the C4 model
-(`docs/architecture/workspace.dsl`).
+(`docs/architecture/workspace.dsl`). The backend is a single Spring Boot application split 
+into the following modules.
+
+
+| Module | Package | Responsibility 
+|---|---|---|
+| Identity | `identity` | Users, roles and permissions; sign-up, login, JWT and refresh tokens; Spring Security configuration applied to every request (ADR-0004); audit log. |
+| Incidents | `incidents` | The incident as the central entity: reporting, location, categories, priority, lifecycle with allowed transitions, audited status history, assignments, comments and evidence metadata (binaries through `StorageService`, ADR-0013). |
+| Urban context | `urbancontext` | External data: adapters for Open Data Málaga and OpenStreetMap (ADR-0009), Open-Meteo and TomTom (ADR-0018); loading of reference data, geocoding and asynchronous enrichment of incidents with timeouts and graceful degradation. |
+| Geospatial | `geospatial` | Location and territory: districts, neighbourhoods, urban assets and spatial queries over local data (PostGIS, ADR-0003). |
+| Notifications | `notifications` | Notifications derived from incident events and their delivery status; email through Brevo and SMS through Twilio, behind one sender per channel (ADR-0019). |
+| Analytics | `analytics` | Read-only indicators, zone analysis and reports. |
+
+The first version of this ADR listed a set of modules, and the C4 model listed a different set of
+components. Code, ADR and C4 must use the same list so that each component in the diagram is 
+a package in the code.
+
+Note that assisted classification with an LLM is
+**not a module yet**. It appears in the C4 model only as a **future** external system. It becomes a
+module, and is added to this table, once and only once its own ADR is created and accepted if the 
+project ends in that direction.
 
 ### Module structure
  Example for `incidents`:
 
   ```
   es.uma.urbanpulse.incidents
-  ├── IncidentSummary          (record)
   ├── controller/IncidentController
-  ├── dto/IncidentResponse
-  ├── entity/Incident, StatusChange
+  ├── dto/IncidentSummary  (record)
+  ├── dto/IncidentRequest
+  ├── entity/Incident, StatusChange, ...
   ├── mapper/IncidentMapper
   ├── repository/IncidentRepository
   └── service/DefaultIncidentService
@@ -91,4 +106,4 @@ already knows, now inside each module, so the cost of adoption is low.
 - [ADR-0008: Use Spring Boot for the backend](0008-backend.md)
 - [ADR-0009: Use opendata de Málaga as primary urban data source](0009-urban-data-source.md)
 - [ADR-0011: Deployment and 12-factor configuration](0011-deployment-12factor.md)
-- C4 model: `docs/architecture/workspace.dsl` (component view "Componentes")
+- C4 model: `docs/architecture/workspace.dsl`

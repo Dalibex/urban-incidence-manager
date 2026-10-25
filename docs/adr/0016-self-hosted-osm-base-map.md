@@ -10,7 +10,7 @@ RF08 requires showing incidents and urban layers on a map, on the web app (staff
 mobile app (citizens and technicians). [ADR-0002](0002-open-street-map.md) chose OpenStreetMap as
 the map data source to avoid API keys and vendor lock-in.
 
-The current plan does not hold up for the mobile app (open decision D3, UP-117):
+The current plan does not hold up for the mobile app:
 
 - **`react-native-maps`** needs a Google Maps API key on Android to publish the app, which
   contradicts ADR-0002 and requires a Google account with billing.
@@ -25,7 +25,7 @@ At the same time, the base map does not need to be live. The data that changes o
 (incidents, assets, urban context) comes from our own API and is drawn on top of the base map.
 Streets, buildings and place names in the Málaga area change slowly.
 
-**Question:** How can the web and mobile apps show an OSM base map without an API key, without
+How can the web and mobile apps show an OSM base map without an API key, without
 depending on the public OSM tile servers, and with data that stays reasonably up to date?
 
 ## Decision
@@ -40,7 +40,7 @@ ourselves**, with MapLibre as the map renderer on web and mobile.
   (`malaga.pmtiles`, zoom 0–14). No PostGIS import and no tile-rendering server are needed.
 - **Refresh every two weeks.** A one-off admin process (Twelve-Factor XII), a Compose service
   `tiles-builder` under a `tiles` profile, downloads the extract and rebuilds the file. It is
-  triggered every 14 days by the scheduler chosen in UP-147 (D7); until then, a host cron entry
+  triggered every 14 days; until then, a host cron entry
   runs `docker compose --profile tiles run --rm tiles-builder`. The job can also be run by hand.
 - **Safe replacement.** The new file is written to a temporary name and renamed only when the
   build succeeds and passes a basic check (`pmtiles verify`, minimum size). If anything fails,
@@ -50,8 +50,7 @@ ourselves**, with MapLibre as the map renderer on web and mobile.
   named volume at `/tiles/`, with HTTP range requests and cache headers.
   The map style (an OpenMapTiles-compatible style such as OSM Bright or Positron), its fonts
   (glyphs) and its sprites are served from the same place, so the style references no external
-  host that could ask for a key. When the evidence storage of UP-116 exists, the file may move
-  there by changing only the configured URL.
+  host that could ask for a key.
 - **Clients.** The style URL comes from configuration (`VITE_MAP_STYLE_URL`,
   `EXPO_PUBLIC_MAP_STYLE_URL`):
   - Mobile: `@maplibre/maplibre-react-native` with its Expo config plugin, reading the PMTiles
@@ -61,7 +60,7 @@ ourselves**, with MapLibre as the map renderer on web and mobile.
     same tiles and style.
 - **Attribution.** Both apps show "© OpenMapTiles © OpenStreetMap contributors" on the map, as
   required by the ODbL licence.
-- **Out of scope.** Geocoding and reverse geocoding (Nominatim, ADR-0002, UP-051) and the urban
+- **Out of scope.** Geocoding and reverse geocoding (Nominatim, ADR-0002) and the urban
   layers drawn on top of the base map (RF08, RF22) are not covered by this ADR.
 
 **Drivers:**
@@ -77,8 +76,6 @@ ourselves**, with MapLibre as the map renderer on web and mobile.
 - If we serve our own PMTiles file rebuilt every two weeks, both apps can show the base map with
   no API key, with data at most two weeks old, and with performance as good as a hosted
   provider.
-- Metrics: smoothness of the UP-117 prototype (100 markers, Android and iOS); size of
-  `malaga.pmtiles`; build time; age of the served file.
 - Thresholds: smooth on a mid-range phone; file under 200 MB; build under 15 minutes on the
   deployment VM; served file never older than 21 days (one missed run is tolerated).
 - Review: Sprint 3 retrospective. Revert to a hosted provider if the build cannot run reliably on
@@ -117,12 +114,11 @@ PMTiles file is the simplest way to self-host it.
   - The team owns a scheduled job, a style, fonts and sprites that need maintenance.
   - The build needs RAM and disk on the VM for a few minutes every two weeks.
   - The mobile app needs a development build instead of Expo Go.
-  - The web map loads the self-hosted tiles instead of public OSM tiles; UP-052 must be updated.
+  - The web map loads the self-hosted tiles instead of public OSM tiles.
   - Only the Málaga area is covered; the map is empty outside the bounding box.
 
 ## Links Related
 
-- UP-117 (mobile map component without an API key), open decision D3
 - [ADR-0002](0002-open-street-map.md) (OpenStreetMap for map data)
 - [ADR-0005](0005-mobile-application-technology.md) (React Native for the mobile app)
 - [ADR-0006](0006-frontend-web-technology.md) (React for the web app)

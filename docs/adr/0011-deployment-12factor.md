@@ -108,5 +108,4 @@ requirements demand.
 - [ADR-0005: Use React Native for the mobile application](0005-mobile-application-technology.md)
 - [ADR-0008: Use Spring Boot for the backend](0008-backend.md)
 - [ADR-0010: Start with a modular monolith](0010-modular-monolith.md)
-- `compose.yaml`, `compose.dev.yaml`, `.env.example`
-- C4 model: `docs/architecture/workspace.dsl` (deployment view "Despliegue")
+- C4 model: `docs/architecture/workspace.dsl` (deployment view)
