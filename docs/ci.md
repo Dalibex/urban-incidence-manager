@@ -17,32 +17,34 @@ Four rules drive the whole design:
 
 ```mermaid
 flowchart LR
-    E[You edit code] --> C["git commit<br/>(hook: spotless:apply<br/>on the staged .java files)"]
+    E[You edit code] --> C["git commit<br/>(hook: Spotless on staged .java,<br/>Prettier on staged client files)"]
     C --> P[git push]
     P --> PR[Pull Request]
     PR --> L[lint]
     PR --> K[contract]
+    PR --> F[frontend]
     PR --> T[test]
     PR --> B[build]
     PR --> N[pr-title]
-    L & K & T & B & N --> M["Squash merge<br/>1 commit on main =<br/>PR title"]
+    L & K & F & T & B & N --> M["Squash merge<br/>1 commit on main =<br/>PR title"]
     M --> CI2[CI on main]
 ```
 
-`lint`, `contract`, `test` and `build` run **in parallel**. A new push to the same PR cancels the run in progress.
+`lint`, `contract`, `frontend`, `test` and `build` run **in parallel**. A new push to the same PR cancels the run in progress.
 
 ## 3. Workflows and jobs
 
 | File | When | Jobs |
 |---|---|---|
-| `.github/workflows/ci.yml` | PR to `main`, push to `main`, manual (*Run workflow*) | `lint`, `contract`, `test`, `build` |
+| `.github/workflows/ci.yml` | PR to `main`, push to `main`, manual (*Run workflow*) | `lint`, `contract`, `frontend`, `test`, `build` |
 | `.github/workflows/pr-title.yml` | When a PR to `main` is opened, edited or updated | `pr-title` |
 | `.github/scripts/ci_summary.py` | Called by `test` | Test and coverage tables in the job summary |
-| `.githooks/pre-commit` | On every local `git commit` | Formats the `.java` files in the commit |
+| `.github/actions/setup-js/action.yml` | Called by `frontend` and `contract` | pnpm (from `packageManager`), Node (from `.nvmrc`), pnpm store cache and `pnpm install --frozen-lockfile` |
+| `.githooks/pre-commit` | On every local `git commit` | Formats the `.java` and client files in the commit |
 
 > **Temporary triggers:** while the CI is being tested on `boilerplate`, `branches` also includes `boilerplate` (comment `# TEMPORARY`). It is removed when moving to `main`; see [ci-setup.md section 6](ci-setup.md#6-test-on-boilerplate-before-main).
 >
-> **Folders:** `.github/`, `.githooks/` and `docs/` are in the repository root; the backend is in `urbanpulse/` (`BACKEND_DIR`).
+> **Folders:** `.github/`, `.githooks/` and `docs/` are in the repository root; the backend is in `urbanpulse/` (`BACKEND_DIR`) and the clients are a pnpm workspace in the root (`apps/web`, `apps/mobile`, `packages/*`, ADR-0007).
 
 ### `lint` — repository hygiene and formatting
 
@@ -60,10 +62,39 @@ flowchart LR
 | Step | Fails if… | Fix |
 |---|---|---|
 | OpenAPI contract is valid (Redocly) | `docs/api/openapi.yml` is not valid OpenAPI 3.1, or breaks a rule of `redocly.yaml`: missing or duplicated `operationId`, a tag that is not a module, more than one tag, a 4xx response that is not `application/problem+json`, a path that is not kebab-case | Fix the contract following [api.md](api.md) |
+| Set up JS workspace | `pnpm install --frozen-lockfile` fails: `package.json` and `pnpm-lock.yaml` disagree | `pnpm install` locally and commit `pnpm-lock.yaml` |
+| api-client types are up to date with the contract | `pnpm generate:api` changes something in `packages/api-client`: the contract changed but the generated types were not regenerated and committed | `pnpm generate:api`, commit the result, push |
 
-It only needs Node (preinstalled on the runner) and checks the contract, not the Java code. The Redocly version is `REDOCLY_CLI_VERSION` in `ci.yml`.
+It checks the contract and the types generated from it, not the Java code. The Redocly version is `REDOCLY_CLI_VERSION` in `ci.yml`.
 
-**Local equivalent:** `npx @redocly/cli@2.71.0 lint` from the repository root.
+**Local equivalent** (from the repository root): `npx @redocly/cli@2.71.0 lint`, then `pnpm generate:api` and `git status packages/api-client` (nothing must change).
+
+### `frontend` — client workspace
+
+Checks the web and mobile clients and the shared packages (ADR-0007). Node only runs here and in `contract`; the Java jobs never install Node, and this job never starts Maven.
+
+| Step | Fails if… | Fix |
+|---|---|---|
+| Set up JS workspace | `package.json` and `pnpm-lock.yaml` disagree, or `.nvmrc` / `packageManager` are missing | `pnpm install` locally and commit `pnpm-lock.yaml` |
+| Formatting (Prettier) | A client file is not formatted | `pnpm format`, commit and push (the hook does it on commit) |
+| Lint (ESLint) | An ESLint error in an app or package | `pnpm lint`, fix the reported lines |
+| Type check (TypeScript) | A type error, often a shared package change that breaks an app | `pnpm typecheck` |
+| Tests | A failing test in an app or package | `pnpm test` |
+| Build (web bundle and mobile export) | The web Vite build or the mobile Expo export fails | `pnpm build` |
+
+One step per check, so the name of the red step tells you what failed. GitHub Actions sets `CI=true`, so test runners never start in watch mode.
+
+**What the client workspace must provide** (the job relies on it):
+
+| Item | Purpose |
+|---|---|
+| `packageManager` in the root `package.json` (e.g. `pnpm@10.x.y`) | pnpm version for CI and Corepack |
+| `.nvmrc` in the root | Node version for CI and `nvm use` |
+| `pnpm-lock.yaml` committed | Frozen install and cache key |
+| Root scripts `format`, `format:check`, `lint`, `typecheck`, `test`, `build` | The checks above, over every app and package |
+| Root script `generate:api` | Regenerates `packages/api-client` from `docs/api/openapi.yml` (used by `contract`) |
+
+**Local equivalent** (from the repository root): `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build`.
 
 ### `test` — tests, coverage and static analysis
 
@@ -106,10 +137,14 @@ It matters because, with squash merge, **the PR title is the commit message on `
 ```
 git commit
   └─ .githooks/pre-commit
-       ├─ any .java in the commit?  no → exit (Maven is not started)
-       ├─ any .java with unstaged changes?  yes → stop and explain what to do
-       ├─ ./mvnw spotless:apply  -DspotlessFiles=<only those files>
-       └─ git add the ones that changed → they go in the SAME commit
+       ├─ Java: any .java in the commit?  no → skip (Maven is not started)
+       │    ├─ any of them with unstaged changes?  yes → stop and explain what to do
+       │    ├─ ./mvnw spotless:apply  -DspotlessFiles=<only those files>
+       │    └─ git add the ones that changed → they go in the SAME commit
+       └─ Clients: any .ts, .tsx, .css or .json in the commit?  no → skip (pnpm is not started)
+            ├─ any of them with unstaged changes?  yes → stop and explain what to do
+            ├─ pnpm exec prettier --write <only those files>
+            └─ git add the ones that changed → they go in the SAME commit
 ```
 
 - **It creates no extra commits** and rewrites no history: it formats before the commit exists.
@@ -117,6 +152,7 @@ git commit
 - It takes a few seconds (Maven startup) only when the commit includes `.java` files.
 - **Skip it once:** `SKIP_FORMAT=1 git commit …` or `git commit --no-verify`. `lint` will catch it.
 - **If Maven cannot start** (e.g. `JAVA_HOME` pointing to an old JDK, or GitHub Desktop's Git not understanding the JDK path), the hook **does not block**: it warns that it did not format, shows the cause and lets the commit through. `lint` will catch it. If the failure comes from Spotless (a `.java` with a syntax error), it does block and shows the first lines of the error.
+- **Same rule for the clients:** if `pnpm` is not installed or `pnpm install` was never run, the hook warns and lets the commit through, and `frontend` will catch it. A client file with a syntax error blocks the commit.
 - **Execute permission:** the file must be in Git as `100755` (`git ls-files --stage .githooks/pre-commit`). On Windows it is set with `git update-index --chmod=+x .githooks/pre-commit`; without it, Git silently ignores the hook on Linux/macOS.
 - **JDK:** the hook uses the `JAVA_HOME` of the process that runs `git commit`. Set JDK 25 as a **user** variable (see [ci-setup.md section 2](ci-setup.md#2-the-hook-in-every-clone)).
 
@@ -129,6 +165,7 @@ git commit
 | `SKIP_FORMAT=1` / `--no-verify` | Same as above |
 | IntelliJ with *Run Git hooks* turned off | Turn it on in the commit window |
 | Maven could not start when committing (old `JAVA_HOME`, GitHub Desktop) | `./mvnw spotless:apply`, commit and push; and fix `JAVA_HOME` |
+| `frontend` fails on Prettier: pnpm or `node_modules` missing when committing | `pnpm install`, `pnpm format`, commit and push |
 
 **To make the IDE write formatted code from the start** (optional, avoids diffs when committing):
 - `.editorconfig` (already in the repo) sets 4-space indentation, LF, no trailing spaces and 100 columns. IntelliJ reads it on its own; in VS Code, install the *EditorConfig* extension.
@@ -222,7 +259,7 @@ Then, in the ruleset, replace `test` with `test-unit`, `test-integration` and `q
 ### 7.6 Caching
 
 - **Maven dependencies:** already on (`cache: maven` in `setup-java`, keyed on the hash of `pom.xml`). Nothing to do.
-- **Frontend:** `actions/setup-node` with `cache: npm` (or `pnpm`) and `cache-dependency-path` pointing to the lockfile.
+- **Frontend:** already on: `.github/actions/setup-js` caches the pnpm store, keyed on the hash of `pnpm-lock.yaml`.
 - **Testcontainers Docker images:** GitHub runners already ship Docker and pull the image in a few seconds. Caching them is not worth it unless you hit Docker Hub limits.
 
 ### 7.7 Changing the Java version
@@ -238,7 +275,14 @@ Then, in the ruleset, replace `test` with `test-unit`, `test-integration` and `q
 ./mvnw verify          # lint + test, same as the CI (needs Docker)
 ```
 
-If it passes locally, `lint` and `test` pass in the CI. The only thing it does not cover is the `build` smoke test (starting the jar), which can be reproduced:
+For the clients and the contract, from the repository root:
+
+```bash
+pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build   # frontend
+npx @redocly/cli@2.71.0 lint && pnpm generate:api                             # contract (then git status: nothing changed)
+```
+
+If they pass locally, `lint`, `contract`, `frontend` and `test` pass in the CI. The only thing they do not cover is the `build` smoke test (starting the jar), which can be reproduced:
 
 ```bash
 docker compose up -d

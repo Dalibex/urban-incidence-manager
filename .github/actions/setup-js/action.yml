@@ -1,0 +1,26 @@
+# Sets up the client workspace (ADR-0007) for a CI job: pnpm, Node, dependency cache and install.
+# Used by the `frontend` and `contract` jobs in ci.yml. Versions are not written here:
+#   - pnpm comes from "packageManager" in the root package.json
+#   - Node comes from .nvmrc
+# so the CI uses exactly what the developers use locally.
+name: Set up JS workspace
+description: pnpm from packageManager, Node from .nvmrc, pnpm store cache and a frozen install.
+
+runs:
+  using: composite
+  steps:
+    - name: Set up pnpm (version from packageManager in package.json)
+      uses: pnpm/action-setup@v6
+
+    - name: Set up Node (version from .nvmrc) with pnpm store cache
+      uses: actions/setup-node@v7
+      with:
+        node-version-file: .nvmrc
+        cache: pnpm
+        cache-dependency-path: pnpm-lock.yaml
+
+    # --frozen-lockfile fails if package.json and pnpm-lock.yaml disagree, instead of
+    # silently updating the lockfile: the CI installs exactly what is committed.
+    - name: Install dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile

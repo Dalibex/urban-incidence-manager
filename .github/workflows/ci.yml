@@ -2,7 +2,9 @@
 #
 # Jobs:
 #   lint → repository hygiene (.env, Compose, image parity) and formatting (Spotless check)
-#   contract → the OpenAPI contract docs/api/openapi.yml is valid and follows docs/api.md (Redocly)
+#   contract → the OpenAPI contract docs/api/openapi.yml is valid and follows docs/api.md (Redocly),
+#              and the generated packages/api-client types match it
+#   frontend → client workspace (ADR-0007): format, lint, type-check, test and build with pnpm
 #   test → unit (*Test) + integration (*IT, Testcontainers) tests, coverage gate and SpotBugs
 #   build → packages ONE jar per commit, smoke-tests it against PostGIS and publishes it
 
@@ -99,7 +101,8 @@ jobs:
   contract:
     name: contract
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # 10 and not 5: it also installs the client workspace to regenerate packages/api-client.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
 
@@ -111,6 +114,51 @@ jobs:
             echo "::error file=docs/api/openapi.yml,title=OpenAPI contract::The contract is not valid. Run npx @redocly/cli@$REDOCLY_CLI_VERSION lint from the repository root (docs/api.md, section 4)."
             exit 1
           fi
+
+      # The TypeScript types of packages/api-client are generated from the contract (ADR-0008) and
+      # committed. If the contract changes, they must be regenerated in the same PR.
+      - name: Set up JS workspace
+        uses: ./.github/actions/setup-js
+
+      - name: api-client types are up to date with the contract
+        run: |
+          pnpm generate:api
+          changes=$(git status --porcelain -- packages/api-client)
+          if [ -n "$changes" ]; then
+            echo "::error title=api-client::The generated types differ from the committed ones. Run pnpm generate:api from the repository root and commit the result."
+            echo "$changes"
+            git --no-pager diff --stat -- packages/api-client
+            exit 1
+          fi
+
+  # Client workspace (ADR-0007): apps/web, apps/mobile and packages/*. Node steps live only
+  # here and in contract, never in the Java jobs.
+  frontend:
+    name: frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up JS workspace
+        uses: ./.github/actions/setup-js
+
+      # One step per check, so the name of the red step tells you what failed.
+      # GitHub Actions sets CI=true: test runners do not start in watch mode.
+      - name: Formatting (Prettier)
+        run: pnpm format:check
+
+      - name: Lint (ESLint)
+        run: pnpm lint
+
+      - name: Type check (TypeScript)
+        run: pnpm typecheck
+
+      - name: Tests
+        run: pnpm test
+
+      - name: Build (web bundle and mobile export)
+        run: pnpm build
 
   test:
     name: test
