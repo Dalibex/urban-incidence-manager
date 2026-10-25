@@ -11,7 +11,7 @@
 set -eu
 
 # Folder with pom.xml and mvnw, relative to the repository root (same as BACKEND_DIR in ci.yml).
-BACKEND_DIR="urbanpulse"
+BACKEND_DIR="backend"
 # Folder of the client pnpm workspace, relative to the repository root (same as FRONTEND_DIR in ci.yml).
 FRONTEND_DIR="frontend"
 

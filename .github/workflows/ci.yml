@@ -27,7 +27,7 @@ concurrency:
 
 env:
   # Folder that contains pom.xml and mvnw, relative to the repository root.
-  BACKEND_DIR: urbanpulse
+  BACKEND_DIR: backend
   # Folder of the client pnpm workspace (package.json, pnpm-lock.yaml, .nvmrc), relative to the root.
   FRONTEND_DIR: frontend
   JAVA_VERSION: "25"
