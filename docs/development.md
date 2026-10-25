@@ -1,6 +1,6 @@
 # 🛠️ Development Guide
 
-This guide explains how to run the UrbanPulse backend locally and start working on it.
+This guide explains how to run the UrbanPulse backend and clients locally and start working on them.
 
 ## 🐛 Prerequisites
 
@@ -10,6 +10,7 @@ Install:
 - Docker Engine or Docker Desktop
 - Docker Compose v2
 - Git
+- Node.js 24 and pnpm, for the web and mobile clients (see the *Client Workspace* section)
 - IntelliJ IDEA (optional, recommended)
 
 Maven does not need to be installed globally. The project includes Maven Wrapper.
@@ -137,6 +138,106 @@ delete all local data and start from an empty database:
 ```bash
 docker compose down -v
 ```
+
+## 📱 Client Workspace
+
+The web and mobile clients live in a pnpm workspace in `frontend/` ([ADR-0007](adr/0007-client-application-architecture.md)):
+
+```text
+frontend/
+|-- apps/
+|   |-- web/           React + Vite (ADR-0006): operators, technicians, analysts, administrators
+|   `-- mobile/        React Native + Expo (ADR-0005): citizens
+|-- packages/
+|   |-- domain/        Domain types shared by both apps
+|   |-- ui/            Design tokens and platform-agnostic presentation helpers
+|   `-- api-client/    Typed client generated from docs/api/openapi.yml
+|-- package.json       Workspace scripts and the pnpm version (packageManager)
+|-- pnpm-workspace.yaml
+`-- .nvmrc             Node version
+```
+
+Apps import the shared packages by name (`@urbanpulse/domain`, `@urbanpulse/ui`,
+`@urbanpulse/api-client`), as source: there is no separate build step for the packages.
+
+### Setup
+
+Use the Node version in `.nvmrc` (24) and the pnpm version in `packageManager`. Corepack, which
+ships with Node, installs that exact pnpm version:
+
+```bash
+corepack enable
+```
+
+Then, from `frontend/`:
+
+```bash
+cd frontend
+```
+
+```bash
+pnpm install
+```
+
+Always use `pnpm`, never `npm install` or `yarn`: only `pnpm-lock.yaml` is versioned.
+
+### Run the apps
+
+From `frontend/`:
+
+```bash
+pnpm dev:web
+```
+
+The web app opens at `http://localhost:5173`.
+
+```bash
+pnpm dev:mobile
+```
+
+Expo prints a QR code. Scan it with the **Expo Go** app (Android or iOS) on a phone in the same
+network, or press `a` / `i` to open an Android emulator or iOS simulator. If the phone cannot
+connect (firewall, isolated Wi-Fi), run `pnpm dev:mobile --tunnel`. The mobile app only targets
+Android and iOS (`platforms` in `app.json`); the browser client is `apps/web`. A phone or emulator
+cannot reach the backend through `localhost`: when the apps call the API, configure its URL with
+the address of your machine in the local network.
+
+### Checks
+
+The same checks as the `frontend` CI job, from `frontend/`:
+
+```bash
+pnpm format:check
+```
+
+```bash
+pnpm lint
+```
+
+```bash
+pnpm typecheck
+```
+
+```bash
+pnpm test
+```
+
+```bash
+pnpm build
+```
+
+`pnpm format` fixes the formatting; the pre-commit hook also formats the staged client files.
+
+### API client
+
+`frontend/packages/api-client/src/schema.d.ts` is generated from the contract. After changing
+`docs/api/openapi.yml`, regenerate it from `frontend/` and commit the result in the same pull request:
+
+```bash
+pnpm generate:api
+```
+
+Never edit `schema.d.ts` by hand: the `contract` CI job fails if it differs from the contract.
 
 ## 🔙 Backend Structure
 

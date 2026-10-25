@@ -39,12 +39,13 @@ flowchart LR
 | `.github/workflows/ci.yml` | PR to `main`, push to `main`, manual (*Run workflow*) | `lint`, `contract`, `frontend`, `test`, `build` |
 | `.github/workflows/pr-title.yml` | When a PR to `main` is opened, edited or updated | `pr-title` |
 | `.github/scripts/ci_summary.py` | Called by `test` | Test and coverage tables in the job summary |
-| `.github/actions/setup-js/action.yml` | Called by `frontend` and `contract` | pnpm (from `packageManager`), Node (from `.nvmrc`), pnpm store cache and `pnpm install --frozen-lockfile` |
+| `.github/scripts/client_changes.sh` | Called by `frontend` | Decides whether the PR or push changed the clients, so the client checks run or are skipped |
+| `.github/actions/setup-js/action.yml` | Called by `frontend` and `contract` | pnpm (from `packageManager` in `frontend/package.json`), Node (from `frontend/.nvmrc`), pnpm store cache and `pnpm install --frozen-lockfile` in `frontend/` |
 | `.githooks/pre-commit` | On every local `git commit` | Formats the `.java` and client files in the commit |
 
 > **Temporary triggers:** while the CI is being tested on `boilerplate`, `branches` also includes `boilerplate` (comment `# TEMPORARY`). It is removed when moving to `main`; see [ci-setup.md section 6](ci-setup.md#6-test-on-boilerplate-before-main).
 >
-> **Folders:** `.github/`, `.githooks/` and `docs/` are in the repository root; the backend is in `urbanpulse/` (`BACKEND_DIR`) and the clients are a pnpm workspace in the root (`apps/web`, `apps/mobile`, `packages/*`, ADR-0007).
+> **Folders:** `.github/`, `.githooks/` and `docs/` are in the repository root; the backend is in `urbanpulse/` (`BACKEND_DIR`) and the clients are a pnpm workspace in `frontend/` (`FRONTEND_DIR`: `apps/web`, `apps/mobile`, `packages/*`, ADR-0007).
 
 ### `lint` — repository hygiene and formatting
 
@@ -62,20 +63,23 @@ flowchart LR
 | Step | Fails if… | Fix |
 |---|---|---|
 | OpenAPI contract is valid (Redocly) | `docs/api/openapi.yml` is not valid OpenAPI 3.1, or breaks a rule of `redocly.yaml`: missing or duplicated `operationId`, a tag that is not a module, more than one tag, a 4xx response that is not `application/problem+json`, a path that is not kebab-case | Fix the contract following [api.md](api.md) |
-| Set up JS workspace | `pnpm install --frozen-lockfile` fails: `package.json` and `pnpm-lock.yaml` disagree | `pnpm install` locally and commit `pnpm-lock.yaml` |
-| api-client types are up to date with the contract | `pnpm generate:api` changes something in `packages/api-client`: the contract changed but the generated types were not regenerated and committed | `pnpm generate:api`, commit the result, push |
+| Set up JS workspace | `pnpm install --frozen-lockfile` fails: `frontend/package.json` and `frontend/pnpm-lock.yaml` disagree | `pnpm install` in `frontend/` and commit `pnpm-lock.yaml` |
+| api-client types are up to date with the contract | `pnpm generate:api` changes something in `frontend/packages/api-client`: the contract changed but the generated types were not regenerated and committed | `pnpm generate:api` in `frontend/`, commit the result, push |
 
 It checks the contract and the types generated from it, not the Java code. The Redocly version is `REDOCLY_CLI_VERSION` in `ci.yml`.
 
-**Local equivalent** (from the repository root): `npx @redocly/cli@2.71.0 lint`, then `pnpm generate:api` and `git status packages/api-client` (nothing must change).
+**Local equivalent:** `npx @redocly/cli@2.71.0 lint` from the repository root, then `pnpm generate:api` and `git status packages/api-client` from `frontend/` (nothing must change).
 
 ### `frontend` — client workspace
 
 Checks the web and mobile clients and the shared packages (ADR-0007). Node only runs here and in `contract`; the Java jobs never install Node, and this job never starts Maven.
 
+**Only when the clients change.** The first step, *Detect client changes* (`.github/scripts/client_changes.sh`), compares the PR with its base (or a push with the previous commit) and runs the checks only if something changed under `frontend/`, `docs/api/` (the contract the `api-client` types come from), `ci.yml` or `.github/actions/setup-js/`. Otherwise every other step is skipped and the job still ends **green**, because `frontend` is a required check: a backend-only PR does not install pnpm or build the apps. A manual run, the first push of a branch or a missing base commit always run the checks. The decision is written in the job summary.
+
 | Step | Fails if… | Fix |
 |---|---|---|
-| Set up JS workspace | `package.json` and `pnpm-lock.yaml` disagree, or `.nvmrc` / `packageManager` are missing | `pnpm install` locally and commit `pnpm-lock.yaml` |
+| Detect client changes | Never fails on its own; it decides whether the next steps run | If the checks were skipped but should have run, add the path to `client_paths` in the script |
+| Set up JS workspace | `frontend/package.json` and `frontend/pnpm-lock.yaml` disagree, or `.nvmrc` / `packageManager` are missing | `pnpm install` in `frontend/` and commit `pnpm-lock.yaml` |
 | Formatting (Prettier) | A client file is not formatted | `pnpm format`, commit and push (the hook does it on commit) |
 | Lint (ESLint) | An ESLint error in an app or package | `pnpm lint`, fix the reported lines |
 | Type check (TypeScript) | A type error, often a shared package change that breaks an app | `pnpm typecheck` |
@@ -88,13 +92,13 @@ One step per check, so the name of the red step tells you what failed. GitHub Ac
 
 | Item | Purpose |
 |---|---|
-| `packageManager` in the root `package.json` (e.g. `pnpm@10.x.y`) | pnpm version for CI and Corepack |
-| `.nvmrc` in the root | Node version for CI and `nvm use` |
-| `pnpm-lock.yaml` committed | Frozen install and cache key |
-| Root scripts `format`, `format:check`, `lint`, `typecheck`, `test`, `build` | The checks above, over every app and package |
-| Root script `generate:api` | Regenerates `packages/api-client` from `docs/api/openapi.yml` (used by `contract`) |
+| `packageManager` in `frontend/package.json` (e.g. `pnpm@12.x.y`) | pnpm version for CI and Corepack |
+| `frontend/.nvmrc` | Node version for CI and `nvm use` |
+| `frontend/pnpm-lock.yaml` committed | Frozen install and cache key |
+| Scripts `format`, `format:check`, `lint`, `typecheck`, `test`, `build` in `frontend/package.json` | The checks above, over every app and package |
+| Script `generate:api` in `frontend/package.json` | Regenerates `frontend/packages/api-client` from `docs/api/openapi.yml` (used by `contract`) |
 
-**Local equivalent** (from the repository root): `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build`.
+**Local equivalent** (from `frontend/`): `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build`.
 
 ### `test` — tests, coverage and static analysis
 
@@ -141,9 +145,9 @@ git commit
        │    ├─ any of them with unstaged changes?  yes → stop and explain what to do
        │    ├─ ./mvnw spotless:apply  -DspotlessFiles=<only those files>
        │    └─ git add the ones that changed → they go in the SAME commit
-       └─ Clients: any .ts, .tsx, .css or .json in the commit?  no → skip (pnpm is not started)
+       └─ Clients: any TS, JS, CSS, JSON, YAML or HTML under frontend/?  no → skip (pnpm is not started)
             ├─ any of them with unstaged changes?  yes → stop and explain what to do
-            ├─ pnpm exec prettier --write <only those files>
+            ├─ pnpm exec prettier --write <only those files>   (from frontend/)
             └─ git add the ones that changed → they go in the SAME commit
 ```
 
@@ -165,7 +169,7 @@ git commit
 | `SKIP_FORMAT=1` / `--no-verify` | Same as above |
 | IntelliJ with *Run Git hooks* turned off | Turn it on in the commit window |
 | Maven could not start when committing (old `JAVA_HOME`, GitHub Desktop) | `./mvnw spotless:apply`, commit and push; and fix `JAVA_HOME` |
-| `frontend` fails on Prettier: pnpm or `node_modules` missing when committing | `pnpm install`, `pnpm format`, commit and push |
+| `frontend` fails on Prettier: pnpm or `frontend/node_modules` missing when committing | `pnpm install` and `pnpm format` in `frontend/`, commit and push |
 
 **To make the IDE write formatted code from the start** (optional, avoids diffs when committing):
 - `.editorconfig` (already in the repo) sets 4-space indentation, LF, no trailing spaces and 100 columns. IntelliJ reads it on its own; in VS Code, install the *EditorConfig* extension.
@@ -259,7 +263,7 @@ Then, in the ruleset, replace `test` with `test-unit`, `test-integration` and `q
 ### 7.6 Caching
 
 - **Maven dependencies:** already on (`cache: maven` in `setup-java`, keyed on the hash of `pom.xml`). Nothing to do.
-- **Frontend:** already on: `.github/actions/setup-js` caches the pnpm store, keyed on the hash of `pnpm-lock.yaml`.
+- **Frontend:** already on: `.github/actions/setup-js` caches the pnpm store, keyed on the hash of `frontend/pnpm-lock.yaml`.
 - **Testcontainers Docker images:** GitHub runners already ship Docker and pull the image in a few seconds. Caching them is not worth it unless you hit Docker Hub limits.
 
 ### 7.7 Changing the Java version
@@ -275,11 +279,11 @@ Then, in the ruleset, replace `test` with `test-unit`, `test-integration` and `q
 ./mvnw verify          # lint + test, same as the CI (needs Docker)
 ```
 
-For the clients and the contract, from the repository root:
+For the clients and the contract (Redocly from the repository root, pnpm from `frontend/`):
 
 ```bash
-pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build   # frontend
-npx @redocly/cli@2.71.0 lint && pnpm generate:api                             # contract (then git status: nothing changed)
+cd frontend && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build   # frontend
+npx @redocly/cli@2.71.0 lint && cd frontend && pnpm generate:api                             # contract (then git status: nothing changed)
 ```
 
 If they pass locally, `lint`, `contract`, `frontend` and `test` pass in the CI. The only thing they do not cover is the `build` smoke test (starting the jar), which can be reproduced:

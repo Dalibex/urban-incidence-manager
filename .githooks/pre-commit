@@ -2,7 +2,7 @@
 # pre-commit: formats the staged files and adds the result to the same commit, so every commit
 # is already formatted. CI (jobs lint and frontend) only checks; it never changes code.
 #   - Java (*.java): Spotless with google-java-format AOSP, through ./mvnw
-#   - Clients (*.ts, *.tsx, *.css, *.json): Prettier, through pnpm (client workspace, ADR-0007)
+#   - Clients (TypeScript, JavaScript, CSS, JSON, YAML and HTML under frontend/): Prettier, through pnpm (ADR-0007)
 #
 # Installed by any local ./mvnw build (profile install-git-hooks in pom.xml)
 # Skip it for one commit:  SKIP_FORMAT=1 git commit ...   (or git commit --no-verify)
@@ -12,6 +12,8 @@ set -eu
 
 # Folder with pom.xml and mvnw, relative to the repository root (same as BACKEND_DIR in ci.yml).
 BACKEND_DIR="urbanpulse"
+# Folder of the client pnpm workspace, relative to the repository root (same as FRONTEND_DIR in ci.yml).
+FRONTEND_DIR="frontend"
 
 if [ "${SKIP_FORMAT:-0}" = "1" ]; then
     echo "pre-commit: SKIP_FORMAT=1, formatting skipped (CI will still check it)."
@@ -101,10 +103,17 @@ format_java() {
 }
 
 format_client() {
-    files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.ts' '*.tsx' '*.css' '*.json')
+    # Without glob magic, * in a pathspec also matches /, so these cover every subfolder.
+    # Same file types that `pnpm format:check` checks in the frontend CI job.
+    files=$(git diff --cached --name-only --diff-filter=ACMR -- \
+        "$FRONTEND_DIR/*.ts" "$FRONTEND_DIR/*.tsx" "$FRONTEND_DIR/*.js" "$FRONTEND_DIR/*.mjs" \
+        "$FRONTEND_DIR/*.cjs" "$FRONTEND_DIR/*.css" "$FRONTEND_DIR/*.json" \
+        "$FRONTEND_DIR/*.yaml" "$FRONTEND_DIR/*.yml" "$FRONTEND_DIR/*.html")
     if [ -z "$files" ]; then
         return 0 # no client files in this commit: nothing to format, pnpm is not started
     fi
+    # Prettier runs inside the workspace, so it gets the paths relative to it.
+    workspace_files=$(printf '%s\n' "$files" | sed "s#^$FRONTEND_DIR/##")
 
     stop_if_partially_staged "$files"
 
@@ -113,22 +122,22 @@ format_client() {
 
     # pnpm missing or dependencies not installed: a problem of this machine, not of the code.
     # Same rule as Maven above: warn and let the commit go ahead; CI (job frontend) checks it.
-    if ! command -v pnpm >/dev/null 2>&1 || [ ! -d node_modules ]; then
+    if ! command -v pnpm >/dev/null 2>&1 || [ ! -d "$FRONTEND_DIR/node_modules" ]; then
         echo "pre-commit: WARNING - pnpm or the client dependencies are not available, so these files were NOT formatted:"
         printf '%s\n' "$files" | sed 's/^/  /'
         echo "  The commit goes ahead; CI frontend will fail if they are not formatted."
-        echo "  Fix: install pnpm, run pnpm install in the repository root, then pnpm format."
+        echo "  Fix: install pnpm, run pnpm install in $FRONTEND_DIR/, then pnpm format."
         return 0
     fi
 
     # --ignore-unknown: skip files Prettier has no parser for instead of failing.
     # shellcheck disable=SC2086
-    if ! out=$(pnpm exec prettier --write --ignore-unknown -- $files 2>&1); then
+    if ! out=$(cd "$FRONTEND_DIR" && pnpm exec prettier --write --ignore-unknown -- $workspace_files 2>&1); then
         if printf '%s\n' "$out" | grep -q 'Command "prettier" not found'; then
             echo "pre-commit: WARNING - Prettier is not installed in the workspace, so these files were NOT formatted:"
             printf '%s\n' "$files" | sed 's/^/  /'
             echo "  The commit goes ahead; CI frontend will fail if they are not formatted."
-            echo "  Fix: run pnpm install in the repository root."
+            echo "  Fix: run pnpm install in $FRONTEND_DIR/."
             return 0
         fi
         # Prettier ran and failed: usually a staged file with a syntax error. Block.

@@ -20,7 +20,7 @@ The product includes a web client and a mobile application that consume a shared
 
 ### Current state
 
-Only the backend skeleton exists: Spring Boot application, PostgreSQL/PostGIS through Docker Compose, Spring Security with only the Actuator health endpoints and the API documentation open, the OpenAPI contract skeleton (`docs/api/openapi.yml`, common parts only, no endpoints), Testcontainers integration tests, the CI pipeline, and the database schema created by Flyway migrations (`urbanpulse/src/main/resources/db/migration`, diagram in `docs/database.drawio.svg`). There are no domain modules, JPA entities, or endpoints yet, and the web and mobile clients do not exist. Do not describe any requirement below as implemented unless the code shows it.
+Only the backend skeleton exists: Spring Boot application, PostgreSQL/PostGIS through Docker Compose, Spring Security with only the Actuator health endpoints and the API documentation open, the OpenAPI contract skeleton (`docs/api/openapi.yml`, common parts only, no endpoints), Testcontainers integration tests, the CI pipeline, and the database schema created by Flyway migrations (`urbanpulse/src/main/resources/db/migration`, diagram in `docs/database.drawio.svg`). The client workspace skeleton exists in `frontend/` (`apps/web`, `apps/mobile`, `packages/domain`, `packages/ui`, `packages/api-client`) with a start screen only. There are no JPA entities, endpoints, or client features yet. Do not describe any requirement below as implemented unless the code shows it.
 
 ### Actors
 
@@ -126,8 +126,12 @@ Do not change the stack or introduce components because they are popular. An arc
 | `docs/`                   | Development and CI guides.                                     |
 | `.github/`                | CI workflows, issue and PR templates.                          |
 | `.githooks/`              | Versioned Git hooks (pre-commit formatting).                   |
+| `frontend/`               | Client pnpm workspace (ADR-0007): `package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`, `.nvmrc`. |
+| `frontend/apps/web/`      | Web client: React + Vite (ADR-0006).                           |
+| `frontend/apps/mobile/`   | Mobile client: React Native + Expo (ADR-0005).                 |
+| `frontend/packages/`      | Shared client packages: `domain`, `ui`, `api-client` (ADR-0007). |
 
-Not created yet: web and mobile clients, shared API client, and C4 model. Agree their location with the team when the first one is needed. Do not create empty folders to anticipate them.
+The repository root only holds what is shared (documentation, CI, hooks, the API contract). Do not create empty folders to anticipate future modules.
 
 ### Separation of responsibilities
 
@@ -281,7 +285,16 @@ Backend commands run from `urbanpulse/` with Maven Wrapper (`./mvnw.cmd` on Wind
 | `./mvnw verify -DskipITs` | Same without integration tests. |
 | `./mvnw spotless:apply` | Format Java code (google-java-format AOSP). |
 
-The CI pipeline is described in `docs/ci.md`. When clients are added, consult their own manifests and workflows; do not create a second lockfile or invent a global test command for the monorepo.
+Client commands run from `frontend/` with pnpm (Node from `frontend/.nvmrc`, pnpm from `packageManager`):
+
+| Command | Purpose |
+| ------- | ------- |
+| `pnpm install` | Install every app and package. Never use npm or yarn: only `pnpm-lock.yaml` is versioned. |
+| `pnpm dev:web` / `pnpm dev:mobile` | Run the web app (Vite) or the mobile app (Expo). |
+| `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` | The checks of the `frontend` CI job. `pnpm format` fixes formatting. |
+| `pnpm generate:api` | Regenerate `frontend/packages/api-client` after changing `docs/api/openapi.yml`. |
+
+The CI pipeline is described in `docs/ci.md`.
 
 ## 12. Documentation and decisions
 
