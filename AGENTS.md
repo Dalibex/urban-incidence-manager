@@ -20,7 +20,7 @@ The product includes a web client and a mobile application that consume a shared
 
 ### Current state
 
-Only the backend skeleton exists: Spring Boot application, PostgreSQL/PostGIS through Docker Compose, Spring Security with only the Actuator health endpoints open, Testcontainers integration tests, the CI pipeline, and the database schema created by Flyway migrations (`urbanpulse/src/main/resources/db/migration`, diagram in `docs/database.drawio.svg`). There are no domain modules, JPA entities, or endpoints yet, and the web and mobile clients do not exist. Do not describe any requirement below as implemented unless the code shows it.
+Only the backend skeleton exists: Spring Boot application, PostgreSQL/PostGIS through Docker Compose, Spring Security with only the Actuator health endpoints and the API documentation open, the OpenAPI contract skeleton (`docs/api/openapi.yml`, common parts only, no endpoints), Testcontainers integration tests, the CI pipeline, and the database schema created by Flyway migrations (`urbanpulse/src/main/resources/db/migration`, diagram in `docs/database.drawio.svg`). There are no domain modules, JPA entities, or endpoints yet, and the web and mobile clients do not exist. Do not describe any requirement below as implemented unless the code shows it.
 
 ### Actors
 
@@ -122,11 +122,12 @@ Do not change the stack or introduce components because they are popular. An arc
 | ------------------------- | -------------------------------------------------------------- |
 | `urbanpulse/`             | Spring Boot backend (`pom.xml`, `mvnw`, `docker-compose.yaml`). |
 | `docs/adr/`               | Architectural decisions.                                       |
+| `docs/api/openapi.yml`    | OpenAPI 3.1 contract, source of truth of the API (`docs/api.md`). |
 | `docs/`                   | Development and CI guides.                                     |
 | `.github/`                | CI workflows, issue and PR templates.                          |
 | `.githooks/`              | Versioned Git hooks (pre-commit formatting).                   |
 
-Not created yet: web and mobile clients, shared API client, OpenAPI contract, and C4 model. Agree their location with the team when the first one is needed. Do not create empty folders to anticipate them.
+Not created yet: web and mobile clients, shared API client, and C4 model. Agree their location with the team when the first one is needed. Do not create empty folders to anticipate them.
 
 ### Separation of responsibilities
 
@@ -154,7 +155,7 @@ Not created yet: web and mobile clients, shared API client, OpenAPI contract, an
 
 ## 6. Backend, API, and persistence
 
-- Consult and update the OpenAPI contract when changing public behavior. Describe inputs, DTOs, errors, permissions, examples, and responses.
+- Consult and update the OpenAPI contract (`docs/api/openapi.yml`) when changing public behavior, following the conventions of `docs/api.md`. Describe inputs, DTOs, errors, permissions, examples, and responses. Validate it with `npx @redocly/cli@2.71.0 lint` (the `contract` CI job).
 - Use coherent resources, HTTP methods, and status codes. Define pagination, limits, and filters for listings; avoid queries without a default limit.
 - Separate public DTOs from persistent entities. Do not expose internal fields, hashes, full relationships, or unrelated data through accidental serialization.
 - Validate inputs and business rules on the server. Client validation improves the experience, but does not protect the API.
