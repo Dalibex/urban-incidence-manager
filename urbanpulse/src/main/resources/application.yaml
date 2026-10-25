@@ -6,3 +6,13 @@ spring:
     show-sql: true
     hibernate:
       ddl-auto: validate
+
+# OpenAPI documentation (ADR-0008, docs/api.md). Swagger UI renders the contract docs/api/openapi.yml,
+# copied into the jar at build time; /v3/api-docs is generated from the controllers.
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  paths-to-match: /api/**
+  swagger-ui:
+    path: /swagger-ui.html
+    url: /openapi.yml
