@@ -1,0 +1,18 @@
+{
+  "name": "@urbanpulse/domain",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Domain types and rules shared by the web and mobile apps (ADR-0007).",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.5"
+  }
+}
