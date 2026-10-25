@@ -1,0 +1,226 @@
+# UrbanPulse REST API contract (ADR-0008, contract first).
+#
+# This file is the source of truth for the API: the backend implements it and the clients generate
+# their types from it. It only holds the common parts; each feature adds its own paths, schemas and
+# tags in the same PR that implements them. How to do it: docs/api.md.
+openapi: 3.1.0
+
+info:
+  title: UrbanPulse API
+  version: 0.1.0
+  summary: Cloud platform for the intelligent management of urban incidents.
+  description: |
+    REST API shared by the UrbanPulse web and mobile clients.
+
+    - **Authentication:** every operation requires a JWT access token in the
+      `Authorization: Bearer <token>` header (ADR-0004). Public operations opt out explicitly
+      with `security: []`.
+    - **Errors:** every error is returned as `application/problem+json`
+      ([RFC 9457](https://www.rfc-editor.org/rfc/rfc9457)) with the `Problem` schema.
+    - **Formats:** JSON with `camelCase` properties, instants in UTC (ISO 8601) and coordinates in
+      WGS 84 (EPSG:4326), always as separate `latitude` and `longitude` properties.
+
+    Conventions and the steps to add an endpoint are in `docs/api.md`.
+  license:
+    name: Apache 2.0
+    identifier: Apache-2.0
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local backend (./mvnw spring-boot:run or the development compose)
+  - url: /api/v1
+    description: Same origin as the page showing the docs (Swagger UI served by the backend or a reverse proxy)
+  # Staging is added here when the environment exists.
+
+# Applied to every operation. A public operation (login, sign-up, refresh) overrides it with
+# `security: []`.
+security:
+  - bearerAuth: []
+
+# One tag per backend module (ADR-0010). Every operation has exactly one of these tags, the one of
+# the module that implements it. `shared` is not a module and has no tag.
+tags:
+  - name: identity
+    description: Users, roles and permissions; sign-up, login and token refresh; audit log.
+  - name: incidents
+    description: >-
+      Incident reporting, categories, priority, lifecycle and status history, assignments,
+      comments and evidence.
+  - name: geospatial
+    description: Districts, neighbourhoods, urban assets and spatial queries.
+  - name: urbancontext
+    description: >-
+      External urban context (Open Data Málaga, OpenStreetMap, weather and traffic) and the
+      enrichment of incidents.
+  - name: notifications
+    description: Notifications created on incident changes and their delivery status.
+  - name: analytics
+    description: Read-only indicators, zone analysis and reports.
+
+# No feature endpoints yet: each feature adds its paths here (docs/api.md).
+paths: {}
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >-
+        Short-lived JWT access token (about 15 minutes) issued by the API and renewed with a
+        rotating refresh token (ADR-0004).
+
+  schemas:
+    Problem:
+      type: object
+      description: >-
+        Error body for every 4xx and 5xx response (RFC 9457 Problem Details). Clients must not
+        parse `detail`, which is for humans; they branch on `status` and `type`.
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+          description: >-
+            Identifies the kind of problem. `about:blank` when the HTTP status says it all.
+          default: about:blank
+          examples: [about:blank]
+        title:
+          type: string
+          description: Short, human-readable summary of the kind of problem.
+          examples: [Not Found]
+        status:
+          type: integer
+          format: int32
+          minimum: 400
+          maximum: 599
+          description: HTTP status code, repeated in the body.
+          examples: [404]
+        detail:
+          type: string
+          description: >-
+            Explanation of this occurrence. Never contains stack traces, SQL or personal data.
+          examples: [Incident 3f1c2a9e-7b4d-4c1a-9e2f-5d6b7a8c9d0e does not exist.]
+        instance:
+          type: string
+          format: uri-reference
+          description: Request path where the problem happened.
+          examples: [/api/v1/incidents/3f1c2a9e-7b4d-4c1a-9e2f-5d6b7a8c9d0e]
+        traceId:
+          type: string
+          description: >-
+            Correlation identifier of the request, also written to the logs, so a report from a
+            user can be matched with the server side.
+          examples: [4bf92f3577b34da6a3ce929d0e0e4736]
+        errors:
+          type: array
+          description: Only in `400` responses caused by invalid input, one item per invalid field.
+          items:
+            $ref: "#/components/schemas/FieldError"
+
+    FieldError:
+      type: object
+      description: One invalid field of the request.
+      required: [field, message]
+      properties:
+        field:
+          type: string
+          description: Path of the invalid property in the request body, or name of the parameter.
+          examples: [location.latitude]
+        message:
+          type: string
+          description: Why the value is not valid.
+          examples: [must be between -90 and 90]
+
+  responses:
+    BadRequest:
+      description: >-
+        The request is malformed or does not pass validation. `errors` lists the invalid fields.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: about:blank
+            title: Bad Request
+            status: 400
+            detail: The request has 1 invalid field.
+            instance: /api/v1/incidents
+            traceId: 4bf92f3577b34da6a3ce929d0e0e4736
+            errors:
+              - field: location.latitude
+                message: must be between -90 and 90
+
+    Unauthorized:
+      description: The access token is missing, invalid or expired.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: about:blank
+            title: Unauthorized
+            status: 401
+            detail: The access token has expired.
+            instance: /api/v1/incidents
+            traceId: 4bf92f3577b34da6a3ce929d0e0e4736
+
+    Forbidden:
+      description: >-
+        The user is authenticated but their role or relationship with the resource does not allow
+        this action.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: about:blank
+            title: Forbidden
+            status: 403
+            detail: You are not allowed to perform this action.
+            instance: /api/v1/incidents/3f1c2a9e-7b4d-4c1a-9e2f-5d6b7a8c9d0e
+            traceId: 4bf92f3577b34da6a3ce929d0e0e4736
+
+    NotFound:
+      description: The resource does not exist or the user is not allowed to know that it exists.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: about:blank
+            title: Not Found
+            status: 404
+            detail: Incident 3f1c2a9e-7b4d-4c1a-9e2f-5d6b7a8c9d0e does not exist.
+            instance: /api/v1/incidents/3f1c2a9e-7b4d-4c1a-9e2f-5d6b7a8c9d0e
+            traceId: 4bf92f3577b34da6a3ce929d0e0e4736
+
+    Conflict:
+      description: >-
+        The request conflicts with the current state of the resource, for example a status
+        transition that is not allowed or a duplicated unique value.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: about:blank
+            title: Conflict
+            status: 409
+            detail: A user with this email already exists.
+            instance: /api/v1/auth/sign-up
+            traceId: 4bf92f3577b34da6a3ce929d0e0e4736
+
+    InternalServerError:
+      description: Unexpected error. The body never reveals internal details; use `traceId`.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: about:blank
+            title: Internal Server Error
+            status: 500
+            detail: An unexpected error occurred.
+            instance: /api/v1/incidents
+            traceId: 4bf92f3577b34da6a3ce929d0e0e4736

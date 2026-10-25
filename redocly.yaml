@@ -1,0 +1,24 @@
+# Redocly CLI configuration: validation of the OpenAPI contract (docs/api/openapi.yml).
+# Used by the `contract` CI job and locally with: npx @redocly/cli@2.71.0 lint
+# Conventions behind these rules: docs/api.md.
+apis:
+  urbanpulse:
+    root: docs/api/openapi.yml
+
+extends:
+  - recommended
+
+rules:
+  # Conventions of docs/api.md turned into errors, so a PR that breaks them turns `contract` red.
+  operation-operationId: error
+  operation-operationId-unique: error
+  operation-tag-defined: error # only the module tags declared at the top of the contract
+  operation-singular-tag: error # one module per operation
+  operation-4xx-response: error
+  operation-4xx-problem-details-rfc7807: error # 4xx bodies are application/problem+json
+  paths-kebab-case: error
+  # The local server is intentionally http://localhost.
+  no-server-example.com: off
+  # The skeleton declares the shared error responses before any endpoint uses them.
+  # Set it back to `warn` once the first feature endpoints are in the contract.
+  no-unused-components: off

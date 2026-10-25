@@ -45,6 +45,11 @@
 		<jacoco.minimum.coverage>0.80</jacoco.minimum.coverage> <!-- 80% minimum coverage -->
 		<jacoco.report.format>HTML</jacoco.report.format>
 		<spotbugs-plugin.version>4.10.4.1</spotbugs-plugin.version>
+
+		<!-- OpenAPI documentation (ADR-0008). springdoc 3.x is the line for Spring Boot 4 -->
+		<springdoc.version>3.0.3</springdoc.version>
+		<!-- Contract first: the source of truth lives outside the backend folder (docs/api.md) -->
+		<openapi.contract.dir>${project.basedir}/../docs/api</openapi.contract.dir>
 	</properties>
 
 	<dependencies>
@@ -52,6 +57,14 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc</artifactId>
+		</dependency>
+
+		<!-- OpenAPI: Swagger UI at /swagger-ui.html rendering the contract docs/api/openapi.yml,
+			and /v3/api-docs with what the controllers really expose (docs/api.md, section 5) -->
+		<dependency>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+			<version>${springdoc.version}</version>
 		</dependency>
 
 		<!-- Lombok: reduces boilerplate code with annotations (getters, setters, constructors, etc.) -->
@@ -106,11 +119,6 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-flyway-test</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-session-jdbc-test</artifactId>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
@@ -177,6 +185,33 @@
 						<goals>
 							<goal>build-info</goal>
 						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!-- Copies the OpenAPI contract into the jar as /static/openapi.yml, so Swagger UI shows
+				the contract of the same commit (docs/api.md, section 5). -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-resources-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>copy-openapi-contract</id>
+						<phase>process-resources</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${project.build.outputDirectory}/static</outputDirectory>
+							<resources>
+								<resource>
+									<directory>${openapi.contract.dir}</directory>
+									<includes>
+										<include>openapi.yml</include>
+									</includes>
+								</resource>
+							</resources>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>

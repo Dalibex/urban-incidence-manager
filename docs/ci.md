@@ -21,20 +21,21 @@ flowchart LR
     C --> P[git push]
     P --> PR[Pull Request]
     PR --> L[lint]
+    PR --> K[contract]
     PR --> T[test]
     PR --> B[build]
     PR --> N[pr-title]
-    L & T & B & N --> M["Squash merge<br/>1 commit on main =<br/>PR title"]
+    L & K & T & B & N --> M["Squash merge<br/>1 commit on main =<br/>PR title"]
     M --> CI2[CI on main]
 ```
 
-`lint`, `test` and `build` run **in parallel**. A new push to the same PR cancels the run in progress.
+`lint`, `contract`, `test` and `build` run **in parallel**. A new push to the same PR cancels the run in progress.
 
 ## 3. Workflows and jobs
 
 | File | When | Jobs |
 |---|---|---|
-| `.github/workflows/ci.yml` | PR to `main`, push to `main`, manual (*Run workflow*) | `lint`, `test`, `build` |
+| `.github/workflows/ci.yml` | PR to `main`, push to `main`, manual (*Run workflow*) | `lint`, `contract`, `test`, `build` |
 | `.github/workflows/pr-title.yml` | When a PR to `main` is opened, edited or updated | `pr-title` |
 | `.github/scripts/ci_summary.py` | Called by `test` | Test and coverage tables in the job summary |
 | `.githooks/pre-commit` | On every local `git commit` | Formats the `.java` files in the commit |
@@ -53,6 +54,16 @@ flowchart LR
 | Formatting (Spotless) | Some file is not formatted | `./mvnw spotless:apply`, commit and push |
 
 **Local equivalent:** `./mvnw spotless:check` (or any `./mvnw verify`, which includes it in `validate`).
+
+### `contract` — OpenAPI contract
+
+| Step | Fails if… | Fix |
+|---|---|---|
+| OpenAPI contract is valid (Redocly) | `docs/api/openapi.yml` is not valid OpenAPI 3.1, or breaks a rule of `redocly.yaml`: missing or duplicated `operationId`, a tag that is not a module, more than one tag, a 4xx response that is not `application/problem+json`, a path that is not kebab-case | Fix the contract following [api.md](api.md) |
+
+It only needs Node (preinstalled on the runner) and checks the contract, not the Java code. The Redocly version is `REDOCLY_CLI_VERSION` in `ci.yml`.
+
+**Local equivalent:** `npx @redocly/cli@2.71.0 lint` from the repository root.
 
 ### `test` — tests, coverage and static analysis
 

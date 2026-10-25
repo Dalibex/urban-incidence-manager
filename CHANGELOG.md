@@ -9,6 +9,8 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- OpenAPI 3.1 contract skeleton in `docs/api/openapi.yml`: servers, global `bearerAuth` (JWT), RFC 9457 `Problem` schema, reusable 400/401/403/404/409/500 responses and one tag per module; conventions in `docs/api.md`; Swagger UI with springdoc and `contract` CI job (#13).
+
 ### Changed
 
 ### Fixed
