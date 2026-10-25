@@ -131,7 +131,7 @@ In **Settings → Rules → Rulesets → New ruleset → New branch ruleset**:
 | Restrict deletions | ✅ |
 | Require linear history | ✅ (fits with squash) |
 | Require a pull request before merging | ✅ · *Required approvals*: 1 · *Allowed merge methods*: **Squash** |
-| Require status checks to pass | ✅ · add `lint`, `test`, `build`, `pr-title` (source: GitHub Actions) |
+| Require status checks to pass | ✅ · add `lint`, `contract`, `test`, `build`, `pr-title` (source: GitHub Actions) |
 | Block force pushes | ✅ |
 
 
