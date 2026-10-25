@@ -138,6 +138,8 @@ The diagram is a `.drawio.svg`: GitHub shows it as an image, and draw.io opens i
 - [CI guide](docs/ci.md) and [CI setup](docs/ci-setup.md)
 - [Architecture Decision Records](docs/adr/)
 - [Changelog](CHANGELOG.md)
+- [Contributing guide](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
 - [AI Agents Context](AGENTS.md)
 
 Architecture documents distinguish accepted decisions from proposals. Check each ADR status before treating it as implemented.
