@@ -15,11 +15,9 @@ Select the relevant option:
 
 ## Related Issue
 
-Reference the related issue, if applicable.
+Write it as plain text, not inside a code block, so GitHub links and closes the issue.
 
-```text
 Closes #XX
-```
 
 ## Changes Made
 
