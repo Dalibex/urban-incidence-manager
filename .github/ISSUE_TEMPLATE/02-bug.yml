@@ -102,6 +102,8 @@ body:
         - quality
         - smoke
         - contract
+        - frontend
+        - test
         - pr-title
         - test-e2e
         - security
