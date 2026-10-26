@@ -13,7 +13,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
-## [0.0.1] - YYYY-MM-DD
+## [0.0.1] - 2026-10-26
 
 Application skeleton built on the `boilerplate` branch.
 

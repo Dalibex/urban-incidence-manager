@@ -165,7 +165,7 @@ How it works:
 
 **Notifications.** You see success as a green ✔ in the PR's *Checks* tab. In *Settings → Notifications → System → Actions*, GitHub has the option *Send notifications for failed workflows only*: by default it only notifies about failures. Uncheck it if you also want a notification when everything passes.
 
-**Moving to `main`.** Those three lines were removed in the last PR to `boilerplate` (#27). From then on only PRs to `main` run the checks, starting with the `boilerplate` → `main` PR. After the merge, create the `main` ruleset from section 4: the checks will have run by then and will show up in the search.
+**Moving to `main`.** Those three lines were removed in #28, before the merge. From then on only PRs to `main` run the checks, starting with the `boilerplate` → `main` PR. After the merge, create the `main` ruleset from section 4: the checks will have run by then and will show up in the search.
 
 ## 6. Common errors during rollout
 

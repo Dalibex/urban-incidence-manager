@@ -72,8 +72,8 @@ body:
       multiple: true
       options:
         - Backend API
-        - Web app (operators, analysts, administrators)
-        - Mobile app (citizens, technicians)
+        - Web app (operators, technicians, analysts, administrators)
+        - Mobile app (citizens)
         - Shared packages (frontend/packages/*)
     validations:
       required: true
