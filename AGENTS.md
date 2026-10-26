@@ -20,7 +20,7 @@ The product includes a web client and a mobile application that consume a shared
 
 ### Current state
 
-Only the backend skeleton exists: Spring Boot application, PostgreSQL/PostGIS through Docker Compose, Spring Security with only the Actuator health endpoints and the API documentation open, the OpenAPI contract skeleton (`docs/api/openapi.yml`, common parts only, no endpoints), Testcontainers integration tests, the CI pipeline, and the database schema created by Flyway migrations (`backend/src/main/resources/db/migration`, diagram in `docs/database.drawio.svg`). The client workspace skeleton exists in `frontend/` (`apps/web`, `apps/mobile`, `packages/domain`, `packages/ui`, `packages/api-client`) with a start screen only. There are no JPA entities, endpoints, or client features yet. Do not describe any requirement below as implemented unless the code shows it.
+Only the backend skeleton exists: Spring Boot application, PostgreSQL/PostGIS through Docker Compose, Spring Security with only the Actuator health endpoints and the API documentation open, the OpenAPI contract skeleton (`docs/api/openapi.yml`, common parts only, no endpoints), Testcontainers integration tests, the CI pipeline, and the database schema created by Flyway migrations (`backend/src/main/resources/db/migration`, diagram in `docs/database.drawio.svg`). The packages of the six ADR-0010 modules (`identity`, `incidents`, `urbancontext`, `geospatial`, `notifications`, `analytics`) exist under `es.uma.urbanpulse` with only their `package-info.java`; `shared` holds the cross-cutting configuration, currently `shared.security` with the Spring Security configuration. The client workspace skeleton exists in `frontend/` (`apps/web`, `apps/mobile`, `packages/domain`, `packages/ui`, `packages/api-client`) with a start screen only. There are no JPA entities, endpoints, or client features yet. Do not describe any requirement below as implemented unless the code shows it.
 
 ### Actors
 
@@ -103,14 +103,14 @@ The ADRs in `docs/adr/` are the source of truth. Check each ADR status before re
 | 0004 | Authentication strategy. |
 | 0005, 0006, 0007 | React Native (mobile), React (web), and the shared client architecture. |
 | 0008 | Spring Boot backend exposing a REST API, contract first with OpenAPI. |
-| 0010 | Modular monolith: one deployable, one schema, modules communicate through public APIs and events. |
+| 0010 | Modular monolith: one deployable, one schema, modules are packages that organize the code by feature, with no application events between them. |
 | 0011 | Docker Compose deployment and 12-factor configuration. |
 | 0012 | Redis as cache layer. |
 | 0014 | Versioned schema migrations with Flyway (plain SQL in `db/migration`, never edit a merged migration). |
 | 0015 | CI with check-only jobs and pre-commit formatting. |
 | 0016 | Self-hosted OSM base map (PMTiles rebuilt every two weeks) rendered with MapLibre. |
 
-Proposed, not accepted: 0013 (evidence storage), 0017 (nginx reverse proxy). Do not implement them as if they were accepted.
+Proposed, not accepted: 0013 (evidence storage), 0017 (nginx reverse proxy), 0018 (Open-Meteo and TomTom as weather and traffic providers), 0019 (Brevo and Twilio as notification delivery providers). Do not implement them as if they were accepted.
 
 Kubernetes, Terraform, queues, and microservices remain extensions conditioned on a demonstrated need.
 
@@ -139,7 +139,7 @@ The repository root only holds what is shared (documentation, CI, hooks, the API
 - Application services coordinate use cases, authorization, and transactions.
 - The domain expresses rules and invariants without unnecessarily depending on HTTP, external providers, or interface components.
 - Repositories and adapters encapsulate persistence and integrations.
-- Modules communicate through explicit boundaries; avoid unrestricted access to internal details of another module.
+- Modules only organize the code (ADR-0010): any class may use the services and entities of another module, and modules do not communicate through application events. Keep each module's own layers (controller, service, repository, entity, dto, mapper) inside its package.
 - Do not impose a full hexagonal architecture or one interface per class. Introduce abstractions when they represent a real boundary, a necessary variation, or enable useful tests.
 
 ## 5. Clean code and maintenance
