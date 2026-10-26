@@ -35,12 +35,17 @@ into the following modules.
 
 | Module | Package | Responsibility 
 |---|---|---|
-| Identity | `identity` | Users, roles and permissions; sign-up, login, JWT and refresh tokens; Spring Security configuration applied to every request (ADR-0004); audit log. |
+| Identity | `identity` | Users, roles and permissions; sign-up, login, JWT and refresh tokens (ADR-0004); audit log. |
 | Incidents | `incidents` | The incident as the central entity: reporting, location, categories, priority, lifecycle with allowed transitions, audited status history, assignments, comments and evidence metadata (binaries through `StorageService`, ADR-0013). |
 | Urban context | `urbancontext` | External data: adapters for Open Data Málaga and OpenStreetMap (ADR-0009), Open-Meteo and TomTom (ADR-0018); loading of reference data, geocoding and asynchronous enrichment of incidents with timeouts and graceful degradation. |
 | Geospatial | `geospatial` | Location and territory: districts, neighbourhoods, urban assets and spatial queries over local data (PostGIS, ADR-0003). |
 | Notifications | `notifications` | Notifications derived from incident events and their delivery status; email through Brevo and SMS through Twilio, behind one sender per channel (ADR-0019). |
 | Analytics | `analytics` | Read-only indicators, zone analysis and reports. |
+
+Besides the modules there is one **`shared`** package (`es.uma.urbanpulse.shared`) for
+cross-cutting configuration. It is **not a module**: it has no business logic, owns no tables and is
+not a component of the C4 model. Today it holds `shared.security`, the Spring Security filter chain
+(`SecurityConfig`) applied to every request.
 
 The first version of this ADR listed a set of modules, and the C4 model listed a different set of
 components. Code, ADR and C4 must use the same list so that each component in the diagram is 
@@ -65,15 +70,27 @@ project ends in that direction.
   └── service/DefaultIncidentService
   ```
 
-- **No layer components.** Controllers, services and repositories are not components of their own; Each module owns its layers and keeps the usual MVC-style separation
-  (controller / service / repository / entity / dto / mapper) inside its internal sub-packages.
+- **No layer components.** Controllers, services and repositories are not components of their own;
+  each module owns its layers and keeps the usual MVC-style separation (controller / service /
+  repository / entity / dto / mapper) inside its internal sub-packages.
+- **`client/` for external systems.** A module that calls an external system (for example
+  `urbancontext` with Open Data Málaga or Open-Meteo, `notifications` with Brevo) puts those
+  adapters in a `client/` sub-package.
+- **Every package has a `package-info.java`** that says what it does and which tables it owns.
 - **One database, one schema**, owned by the application and shared by all modules.
+
+### Rules between modules
+
+- Modules are packages **for organisation only**. There are no enforced boundaries: every class is
+  public, and any class may use the services or entities of another module.
+- Modules call each other directly. There are **no application events** between modules.
+- Entities keep the JPA relations of the schema, also across modules.
 
 
 ## Considered Options
 
 - **Modular monolith (package by feature)** — One deployable, real
-  transactions, with implicit internal mainly to order the arquitecture.
+  transactions, with packages per module mainly to organise the architecture.
 - **Microservices from day one** — Independent scaling and deployment, but network calls replace
   transactions, every cross-cutting feature needs distributed coordination, and there is no
   observable problem yet that would justify it.
@@ -85,7 +102,8 @@ already knows, now inside each module, so the cost of adoption is low.
 ## Consequences
 
 - **Positives:**
-  - One process to deploy, test and debug; local development is a single application is faster and simpler
+  - One process to deploy, test and debug; local development runs a single application, which is
+    faster and simpler
     ([ADR-0011](0011-deployment-12factor.md)).
   - ACID transactions across incidents, assignments, status changes and audit records without
     distributed sagas.
