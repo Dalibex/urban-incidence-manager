@@ -32,9 +32,8 @@ opens a pull request, another team member approves it and the reviewer merges it
 6. The reviewer approves and merges with **Squash and merge**.
 7. Move the cards to **Done**.
 
-> While the application skeleton is being built, `boilerplate` acts as the integration branch: branch
-> from it and target it instead of `main`. Once it is merged into `main`, `main` is the only
-> long-lived branch.
+`main` is the only long-lived branch. The application skeleton was built on a separate
+`boilerplate` branch and merged into `main` as version `0.0.1`.
 
 ## Issues
 
@@ -162,9 +161,6 @@ From the first release on `main`, every pull request that adds a feature, fixes 
 behavior adds a short entry to [`CHANGELOG.md`](CHANGELOG.md), under `[Unreleased]`, in the same pull
 request. Use the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) sections (`Added`, `Changed`,
 `Fixed`, `Removed`) and link the issue or pull request.
-
-While the application skeleton is built on `boilerplate`, the changelog is not updated. Its first
-version, `[0.0.1]`, is written when `boilerplate` is merged into `main`.
 
 ## Architecture decisions
 

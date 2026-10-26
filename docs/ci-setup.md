@@ -4,7 +4,7 @@ Step-by-step guide to get the CI, the formatting hook and squash merge running. 
 
 ## 0. Before you start
 
-- The repository is on GitHub. `main` is the default branch and, while the CI is being tested, the integration branch is `boilerplate`.
+- The repository is on GitHub. `main` is the default branch and the only integration branch. While the CI was rolled out, the integration branch was `boilerplate` (section 5).
 - The repository is `urban-incidence-manager` and the backend lives in the **`backend/`** subfolder (that is where `pom.xml` and `mvnw` are). `.github/`, `.githooks/` goes in the repository **root**. That is why `BACKEND_DIR` is `backend` in `.github/workflows/ci.yml` and in `.githooks/pre-commit`. If the backend is moved, change the path in those two places.
 - **JDK 25** installed and visible as `JAVA_HOME`. It is the one the CI uses (`JAVA_VERSION`) and the one `java.version` in `pom.xml` asks for. With any other JDK (17, 27…) the build fails.
 - Docker running. It is used by the integration tests (Testcontainers) and by `docker compose` for local development.
@@ -32,7 +32,7 @@ Maven commands are run **inside `backend/`**; `git add` commands with paths, fro
 | 6 | `test: add modularity test` | `ModularityTest` (ADR-0010) | `./mvnw test` |
 | 7 | `ci: add pre-commit hook to format staged java files` | `.githooks/pre-commit` with `BACKEND_DIR="backend"` and execute permission | `git ls-files --stage .githooks/pre-commit` starts with `100755`; a commit with a badly formatted `.java` comes out formatted |
 | 8 | `ci: add lint job` | `ci.yml` with the `lint` job | `actionlint` with no warnings |
-| 9 | `ci: do not block commits when maven cannot start in the pre-commit hook` | The hook warns and lets the commit through if Maven cannot start (JAVA_HOME) | See §7 |
+| 9 | `ci: do not block commits when maven cannot start in the pre-commit hook` | The hook warns and lets the commit through if Maven cannot start (JAVA_HOME) | See §6 |
 | 10 | `ci: add job summary script for tests and coverage` | `.github/scripts/ci_summary.py` | — |
 | 11 | `build: run coverage merge on verify` | `merge-coverage` goes from `<phase>none</phase>` to `verify` | `./mvnw clean verify` creates `target/jacoco-merged.exec` and `target/site/jacoco-merged/jacoco.csv` |
 | 12 | `ci: add test job with coverage and static analysis gates` | `test` job | `actionlint` |
@@ -40,7 +40,7 @@ Maven commands are run **inside `backend/`**; `git add` commands with paths, fro
 | 14 | `ci: add build job with smoke test` | `build` job | Manual smoke test (section 1.1) |
 | 15 | `ci: validate pull request titles` | `pr-title.yml` | `actionlint` |
 | 16 | `docs: add ci guide and setup instructions` | `ci.md` and `ci-setup.md` | — |
-| 17 | `ci: temporarily run workflows on boilerplate` | `boilerplate` in the triggers (see section 6) | Opening the PR runs the checks |
+| 17 | `ci: temporarily run workflows on boilerplate` | `boilerplate` in the triggers (see section 5) | Opening the PR runs the checks |
 
 Before opening the PR, run locally the same things the CI will run:
 
@@ -75,7 +75,7 @@ If it answers `401`, the `SecurityConfig` that opens `/actuator/health/**` is mi
 
 Open a Pull Request to `boilerplate` (later, to `main`) with the title `ci: add CI pipeline and pre-commit formatting` and `Closes #<issue>` in the description. In the **Checks** tab you should see `lint`, `test`, `build` and `pr-title`.
 
-> If `./mvnw verify` or any job fails in this first PR, see [ci.md section 8](ci.md#8-how-to-make-sure-the-ci-works-and-does-not-fail-for-silly-reasons) and the table in section 7 of this guide.
+> If `./mvnw verify` or any job fails in this first PR, see [ci.md section 8](ci.md#8-how-to-make-sure-the-ci-works-and-does-not-fail-for-silly-reasons) and the table in section 6 of this guide.
 
 ## 2. The hook in every clone
 
@@ -116,6 +116,8 @@ In **Settings → General → Pull Requests**:
 Result: each PR enters `main` as **a single commit** whose message is the PR title. That title has already been validated by `pr-title`. The intermediate commits on the branch (`wip`, `fix typo`, `style: …`) do not reach `main`.
 
 > **Exception for the rollout PR to `boilerplate`:** with squash only, the 17 commits from section 1 would become one. For that PR, temporarily turn on **Allow rebase merging**, merge with *Rebase and merge* and turn it off again. That way `boilerplate` keeps the history of each step.
+>
+> **Exception for the `boilerplate` → `main` PR:** it is merged with a **merge commit**, so every commit and author of the skeleton reaches `main`. Temporarily turn on **Allow merge commits**, merge with *Create a merge commit* and turn it off again, before creating the ruleset from section 4 (its linear history rule would block that merge).
 
 ## 4. Protect `main` with a ruleset
 
@@ -137,7 +139,7 @@ In **Settings → Rules → Rulesets → New ruleset → New branch ruleset**:
 
 ## 5. Test on `boilerplate` before `main`
 
-While the CI is not on `main`, `ci.yml` and `pr-title.yml` only listen to `main`, and a PR to `boilerplate` would run nothing. Commit 17 from section 1 does one thing: it adds `boilerplate` to the trigger branches, with a `# TEMPORARY` comment.
+While the skeleton was built on `boilerplate`, `ci.yml` and `pr-title.yml` only listened to `main`, so a PR to `boilerplate` would run nothing. Commit 17 from section 1 did one thing: it added `boilerplate` to the trigger branches, with a `# TEMPORARY` comment.
 
 ```yaml
 # ci.yml
@@ -163,7 +165,7 @@ How it works:
 
 **Notifications.** You see success as a green ✔ in the PR's *Checks* tab. In *Settings → Notifications → System → Actions*, GitHub has the option *Send notifications for failed workflows only*: by default it only notifies about failures. Uncheck it if you also want a notification when everything passes.
 
-**Moving to `main`.** When `boilerplate` is merged into `main`, make a PR with the commit `ci: run workflows only on main`, which removes `boilerplate` from those three lines. That PR does go with squash (section 3). After that, create the `main` ruleset from section 4: the checks will have run by then and will show up in the search.
+**Moving to `main`.** Those three lines were removed in the last PR to `boilerplate` (#27). From then on only PRs to `main` run the checks, starting with the `boilerplate` → `main` PR. After the merge, create the `main` ruleset from section 4: the checks will have run by then and will show up in the search.
 
 ## 6. Common errors during rollout
 

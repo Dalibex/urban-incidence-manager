@@ -43,8 +43,6 @@ flowchart LR
 | `.github/actions/setup-js/action.yml` | Called by `frontend` and `contract` | pnpm (from `packageManager` in `frontend/package.json`), Node (from `frontend/.nvmrc`), pnpm store cache and `pnpm install --frozen-lockfile` in `frontend/` |
 | `.githooks/pre-commit` | On every local `git commit` | Formats the `.java` and client files in the commit |
 
-> **Temporary triggers:** while the CI is being tested on `boilerplate`, `branches` also includes `boilerplate` (comment `# TEMPORARY`). It is removed when moving to `main`; see [ci-setup.md section 6](ci-setup.md#6-test-on-boilerplate-before-main).
->
 > **Folders:** `.github/`, `.githooks/` and `docs/` are in the repository root; the backend is in `backend/` (`BACKEND_DIR`) and the clients are a pnpm workspace in `frontend/` (`FRONTEND_DIR`: `apps/web`, `apps/mobile`, `packages/*`, ADR-0007).
 
 ### `lint` — repository hygiene and formatting

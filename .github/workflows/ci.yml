@@ -12,9 +12,9 @@ name: CI
 
 on:
   push:
-    branches: [main, boilerplate] # TEMPORARY: remove boilerplate before merging into main
+    branches: [main]
   pull_request:
-    branches: [main, boilerplate] # TEMPORARY: remove boilerplate before merging into main
+    branches: [main]
   workflow_dispatch:
 
 permissions:

@@ -3,7 +3,9 @@ spring:
     name: urbanpulse
   jpa:
     open-in-view: false
-    show-sql: true
+    # SQL is not logged by default (it would also be logged in production). To see it locally,
+    # set SPRING_JPA_SHOW_SQL=true in the run configuration.
+    show-sql: false
     hibernate:
       ddl-auto: validate
 

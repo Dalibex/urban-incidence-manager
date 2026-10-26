@@ -137,6 +137,9 @@ body:
         - [ ] `quality`
         - [ ] `smoke`
         - [ ] `contract`
+        - [ ] `frontend`
+        - [ ] `test`
+        - [ ] `pr-title`
     validations:
       required: true
 
