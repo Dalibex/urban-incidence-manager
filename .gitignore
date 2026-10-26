@@ -42,7 +42,8 @@ frontend/apps/mobile/ios/
 frontend/apps/mobile/android/
 
 # Back-end
-
+# Maven build output, wherever it is created (not only under backend/).
+target/
 
 # Compiled class file
 *.class
