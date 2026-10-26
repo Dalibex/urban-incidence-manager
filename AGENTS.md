@@ -260,7 +260,7 @@ Especially important cases for UrbanPulse:
 - Follow GitHub Flow and the team workflow in `CONTRIBUTING.md` when the assignment includes Git work: small branches, PR linked to the issue, squash merge, and stable main.
 - Use the agreed prefixes, `<type>/<issue>-<slug>`, for example `feature/42-incident-registration` or `fix/57-incident-authorization`.
 - Use Conventional Commits when commits are requested: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `ci:`, or `chore:`.
-- From the first release on `main`, record each delivered feature and fix in `CHANGELOG.md`, in the same PR that introduces it (not at the end of the milestone). The changelog is not updated while the skeleton is built on `boilerplate`. Use a brief entry, Keep a Changelog format (`Added`/`Fixed`/`Changed`/`Removed`, version and date), linked to the issue or PR when one exists.
+- Record each delivered feature and fix in `CHANGELOG.md`, under `[Unreleased]`, in the same PR that introduces it (not at the end of the milestone). Use a brief entry, Keep a Changelog format (`Added`/`Fixed`/`Changed`/`Removed`, version and date), linked to the issue or PR when one exists.
 - Do not overwrite others' changes or include generated files, secrets, or changes unrelated to the task.
 - Keep implementation, tests, and contract synchronized. Do not disable validations or controls to make CI pass.
 - Creating commits, publishing branches, merging PRs, or deploying must be within the authorized scope of the assignment.
