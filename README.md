@@ -19,7 +19,8 @@ The repository currently provides:
 - Spring Data JPA and PostgreSQL connectivity.
 - The database schema of the whole data model, created by versioned Flyway migrations.
 - Docker Compose integration for local database startup.
-- Spring Security with only the Actuator health endpoints open.
+- The OpenAPI 3.1 contract (`docs/api/openapi.yml`), served by the backend with Swagger UI.
+- Spring Security with only the Actuator health endpoints and the API documentation open.
 - Integration tests against PostGIS with Testcontainers.
 - A GitHub Actions pipeline (format, tests, coverage, static analysis and smoke test) and a pre-commit hook that formats staged Java and client files.
 - Maven Wrapper.
@@ -139,16 +140,18 @@ urban-incidence-manager/
 
 ## 🗄️ Database Schema
 
-Data model planned for the boilerplate and alpha version. Click the image to open it at full size.
+Data model created by the Flyway migrations. Click the image to open it at full size.
 
 [![UrbanPulse database schema](docs/database.drawio.svg)](docs/database.drawio.svg)
 
-The diagram is a `.drawio.svg`: GitHub shows it as an image, and draw.io opens it as an editable diagram. Once the Flyway migrations exist ([ADR-0014](docs/adr/0014-database-migrations-flyway.md)), they are the source of truth for the schema; update this diagram in the same pull request that changes it.
+The diagram is a `.drawio.svg`: GitHub shows it as an image, and draw.io opens it as an editable diagram. The Flyway migrations in `backend/src/main/resources/db/migration` ([ADR-0014](docs/adr/0014-database-migrations-flyway.md)) are the source of truth for the schema; if the diagram and the migrations disagree, the migrations are right. Update this diagram in the same pull request that changes the schema.
 
 ## 📚 Documentation
 
 - [Development guide](docs/development.md)
 - Deployment guide **TBC**
+- [API guide](docs/api.md) and [OpenAPI contract](docs/api/openapi.yml)
+- [C4 architecture model](docs/architecture/)
 - [Database schema](docs/database.drawio.svg)
 - [CI guide](docs/ci.md) and [CI setup](docs/ci-setup.md)
 - [Architecture Decision Records](docs/adr/)
