@@ -128,9 +128,9 @@ Do not silently "fix" a document by changing its meaning. Record the discrepancy
 
 | Area | Actual state |
 |---|---|
-| Backend | `urbanpulse/`, Spring Boot 4.1.1, Java 25, Maven Wrapper |
+| Backend | `backend/`, Spring Boot 4.1.1, Java 25, Maven Wrapper |
 | Architecture | Spring Modulith and `ModularityTest` were **removed** in `6a2c356` (2026-10-20). Only package `security` exists; no domain modules; no build check of module boundaries |
-| Database | PostgreSQL 18 + PostGIS 3.6 via `urbanpulse/docker-compose.yaml`; JPA `ddl-auto: validate`; no `hibernate-spatial` |
+| Database | PostgreSQL 18 + PostGIS 3.6 via `backend/docker-compose.yaml`; JPA `ddl-auto: validate`; no `hibernate-spatial` |
 | Migrations | None. No migration tool is decided (no ADR) and there is no Flyway dependency yet (decision D10) |
 | Security | `SecurityConfig` permits `/actuator/health/**` and uses HTTP Basic for everything else |
 | Roles | ADR-0004 names them `user`, `admin`, `technician`, `operator`, `analyst` (`user` = citizen) |
@@ -146,7 +146,7 @@ Do not silently "fix" a document by changing its meaning. Record the discrepancy
 | Quality gates | Spotless AOSP (pre-commit hook in `.githooks/`), SpotBugs, JaCoCo line coverage `0.80` |
 | Branch state | Current branch `boilerplate`; `main` is behind it. Both workflows trigger on `boilerplate` with a `TEMPORARY: remove boilerplate before merging into main` comment |
 | Client split | `.github/ISSUE_TEMPLATE/01-feature.yml` says web = operators, analysts, administrators; mobile = citizens, technicians (decision D11) |
-| Local secrets | `urbanpulse/.env` exists locally and is ignored; only `.env.example` is versioned |
+| Local secrets | `backend/.env` exists locally and is ignored; only `.env.example` is versioned |
 
 ### 1.3 Document status
 
@@ -177,7 +177,7 @@ Do not pretend these files exist:
 - `docs/infra/docker/DOCKER.md` is referenced by ADR-0013/0014 but is missing.
 - The issue template mentions `docs/api/openapi.yml`; this guide standardizes on `docs/api/openapi.yaml`.
 - The issue template and `docs/ci.md` mention job names such as `test-unit`, `test-integration`, `quality`, and `smoke`; the actual workflow jobs are `lint`, `test`, and `build`.
-- ADR-0011 refers to `compose.yaml`, `compose.dev.yaml`, and `backend/Dockerfile`; the repository currently has `urbanpulse/docker-compose.yaml` and no backend image.
+- ADR-0011 refers to `compose.yaml`, `compose.dev.yaml`, and `backend/Dockerfile`; the repository currently has `backend/docker-compose.yaml` and no backend image.
 - `README.md` describes a backend skeleton; that is accurate today but will become stale as the delivery progresses. It also still lists Spring Modulith in the stack.
 - Spring Modulith/`ModularityTest` is still described in ADR-0010, ADR-0015, `docs/ci.md` (section 7.1 and the test list) and `docs/ci-setup.md`, although `6a2c356` removed both.
 - `CHANGELOG.md` uses `Added`/`Modified`/`Fixed`; `AGENTS.md` asks for `Added`/`Fixed`/`Changed`/`Removed`.
@@ -290,7 +290,7 @@ If the delivery is still at risk, the human must explicitly approve any further 
 - No network calls between modules. Direct calls, dependency inversion, or in-process events only.
 - Events are for side effects after commit (enrichment, notifications, statistics). Without Modulith use plain Spring: `ApplicationEventPublisher` plus `@TransactionalEventListener(phase = AFTER_COMMIT)` and `@Async` on a bounded executor. There is no event publication registry: an event can be lost if the process stops after the commit, so every consumer needs a recovery path (for enrichment: context stays `PENDING` and an operator can refresh it). Do not use events for anything that must be atomic with the incident write.
 - Do not introduce Redis, Kafka, a broker, Kubernetes, Terraform, microservices, or a second database without an accepted ADR and an observable problem.
-- Do not move or rewrite the backend to satisfy an indicative folder layout. Keep `urbanpulse/` and add `apps/` and `packages/` around it.
+- Do not move or rewrite the backend to satisfy an indicative folder layout. The backend lives in `backend/` and the clients in `frontend/` (D1, superseded by #17).
 
 ### 3.3 API and security
 
@@ -359,7 +359,7 @@ If the delivery is still at risk, the human must explicitly approve any further 
 
 ```text
 urban-incidence-manager/
-|-- urbanpulse/                 existing backend; do not move
+|-- backend/                    existing backend (moved from backend/ by #17)
 |   |-- pom.xml
 |   |-- docker-compose.yaml     local database only
 |   |-- src/main/java/es/uma/urbanpulse/
@@ -385,7 +385,7 @@ urban-incidence-manager/
 `-- .npmrc
 ```
 
-The backend stays in `urbanpulse/`. Adding `apps/` and `packages/` is consistent with ADR-0007; moving the backend is not worth the risk in this delivery.
+D1 is superseded by #17: the backend lives in `backend/` and the clients in `frontend/` (ADR-0007 amendment). The README shows the current layout.
 
 ### 4.2 Backend modules
 
@@ -610,7 +610,7 @@ P1 adds district/asset resolution with OpenData Málaga primary and OSM fallback
 
 ### 4.10 Environment variables
 
-Add these to `urbanpulse/.env.example` and/or root `.env.example` as the task requires. Never commit real values.
+Add these to `backend/.env.example` and/or root `.env.example` as the task requires. Never commit real values.
 
 | Variable | Used by | Purpose |
 |---|---|---|
@@ -676,7 +676,7 @@ Where approvals are recorded:
 | ID | Decision | Recommended default | Needed before |
 |---|---|---|---|
 | D0 | Module rules after removing Spring Modulith (`6a2c356`) | Amend ADR-0010: keep package-by-feature modules and the transaction/event rules; drop `@ApplicationModule`, `ModularityTest`, `DocumentationTest`; allow the JPA relationships defined in the class diagram; IDs elsewhere; boundaries checked in review | F01 |
-| D1 | Repository layout | Keep `urbanpulse/`; add `apps/*` and `packages/*` | F01/C01 |
+| D1 | Repository layout | Superseded by #17: backend in `backend/`, clients in `frontend/` (ADR-0007 amendment) | F01/C01 |
 | D2 | Status matrix | Section 4.7; `REJECTED` and `CLOSED` terminal | B04 |
 | D3 | Roles | One primary role per user; `ADMIN` includes operator actions | B01 |
 | D4 | Token transport | Access in memory; web refresh cookie; mobile SecureStore | B01 |
@@ -782,8 +782,8 @@ Each card is a separate unit of work. Do not execute two cards in one session.
 **Checklist:**
 
 - Install Java 25, Docker Desktop/Engine, Git, Node 22 LTS, pnpm via Corepack, and an Expo-capable environment.
-- Start Docker. Copy `urbanpulse/.env.example` to `urbanpulse/.env`; set a local password.
-- Run `./mvnw.cmd verify` in `urbanpulse/` (Windows) or `./mvnw verify` (Linux/macOS). Record the result.
+- Start Docker. Copy `backend/.env.example` to `backend/.env`; set a local password.
+- Run `./mvnw.cmd verify` in `backend/` (Windows) or `./mvnw verify` (Linux/macOS). Record the result.
 - If `main` is behind `boilerplate`, open a PR from `boilerplate` to `main`. **In that PR, before merging**, remove `boilerplate` from the triggers of `ci.yml` and `pr-title.yml`, as their `TEMPORARY` comments say. Let CI pass, and squash merge. Do not develop directly on `boilerplate`.
 - Documentation-only PR (`docs: ...`), AI-assisted if wanted: add `docs/guias/guia-ia.md` and `docs/guias/guia-persona.md`; add the class diagram (D12); draft the decision records for D0, D2, D4, D10 and D11 as ADRs/amendments with status `Proposed`; remove the stale Modulith/`ModularityTest` references from `README.md`, `docs/ci.md`, `docs/ci-setup.md` and ADR-0015 (the ADR-0010 change goes through D0). The team accepts the ADRs; the AI never sets `Accepted`.
 - Create a branch from updated `main`: `feature/f01-delivery-spine`.
@@ -801,7 +801,7 @@ Each card is a separate unit of work. Do not execute two cards in one session.
 
 **Priority:** P0. **RF:** foundation. **Depends on:** P00. **Timebox:** 3 h.
 
-**Read first:** `AGENTS.md` sections 3–6 and 9; ADR-0008, ADR-0010 (with the D0 amendment), ADR-0011, ADR-0015, the D10 decision record; `docs/ci.md` (the `build` smoke test); `urbanpulse/pom.xml`; `application.yaml`; `SecurityConfig`; `TestcontainersConfiguration`; `UrbanpulseApplicationIT`.
+**Read first:** `AGENTS.md` sections 3–6 and 9; ADR-0008, ADR-0010 (with the D0 amendment), ADR-0011, ADR-0015, the D10 decision record; `docs/ci.md` (the `build` smoke test); `backend/pom.xml`; `application.yaml`; `SecurityConfig`; `TestcontainersConfiguration`; `UrbanpulseApplicationIT`.
 
 **Goal:** make the backend ready for feature work without implementing a feature.
 
@@ -847,7 +847,7 @@ Each card is a separate unit of work. Do not execute two cards in one session.
 **Verification:**
 
 ```powershell
-cd urbanpulse
+cd backend
 ./mvnw.cmd spotless:apply
 ./mvnw.cmd verify
 ```
@@ -916,7 +916,7 @@ npx @redocly/cli@<pinned version> lint docs/api/openapi.yaml
 **Verification:**
 
 ```powershell
-cd urbanpulse
+cd backend
 ./mvnw.cmd spotless:apply
 ./mvnw.cmd verify
 ```
@@ -972,7 +972,7 @@ Manual: register, login, call `/users/me`, refresh, logout, reuse the old refres
 **Verification:**
 
 ```powershell
-cd urbanpulse
+cd backend
 ./mvnw.cmd spotless:apply
 ./mvnw.cmd verify
 ```
@@ -1028,7 +1028,7 @@ Manual: create with/without category via HTTP, query the row with `ST_X`/`ST_Y`,
 **Verification:**
 
 ```powershell
-cd urbanpulse
+cd backend
 ./mvnw.cmd spotless:apply
 ./mvnw.cmd verify
 ```
@@ -1092,7 +1092,7 @@ Manual: upload a valid image, a PDF, a renamed text file, and a file over the li
 **Verification:**
 
 ```powershell
-cd urbanpulse
+cd backend
 ./mvnw.cmd spotless:apply
 ./mvnw.cmd verify
 ```
@@ -1148,7 +1148,7 @@ Manual: validate, set priority, reject another incident, attempt an illegal tran
 **Verification:**
 
 ```powershell
-cd urbanpulse
+cd backend
 ./mvnw.cmd spotless:apply
 ./mvnw.cmd verify
 ```
@@ -1200,7 +1200,7 @@ Manual: assign, reassign, unassign, start as the wrong technician, and read comm
 **Verification:**
 
 ```powershell
-cd urbanpulse
+cd backend
 ./mvnw.cmd spotless:apply
 ./mvnw.cmd verify
 ```
@@ -1258,7 +1258,7 @@ Manual: seed data, call filters and bbox, compare with known points.
 **Verification:**
 
 ```powershell
-cd urbanpulse
+cd backend
 ./mvnw.cmd spotless:apply
 ./mvnw.cmd verify
 ```
@@ -1604,7 +1604,7 @@ pnpm -r test
 
 **Goal:** package the system reproducibly, only if P0 is green or the rubric requires it.
 
-**In scope:** `urbanpulse/Dockerfile` multi-stage, non-root; `apps/web/Dockerfile`; `infra/nginx/default.conf` serving the SPA and proxying `/api/`; root `compose.yaml` with db/backend/web; internal network; only nginx published; healthchecks; evidence volume; env placeholders; docs.
+**In scope:** `backend/Dockerfile` multi-stage, non-root; `apps/web/Dockerfile`; `infra/nginx/default.conf` serving the SPA and proxying `/api/`; root `compose.yaml` with db/backend/web; internal network; only nginx published; healthchecks; evidence volume; env placeholders; docs.
 
 **Out of scope:** TLS, Kubernetes, Terraform, Redis (unless accepted), mobile in Compose, production secrets.
 

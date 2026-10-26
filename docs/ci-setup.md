@@ -5,10 +5,10 @@ Step-by-step guide to get the CI, the formatting hook and squash merge running. 
 ## 0. Before you start
 
 - The repository is on GitHub. `main` is the default branch and, while the CI is being tested, the integration branch is `boilerplate`.
-- The repository is `urban-incidence-manager` and the backend lives in the **`urbanpulse/`** subfolder (that is where `pom.xml` and `mvnw` are). `.github/`, `.githooks/` goes in the repository **root**. That is why `BACKEND_DIR` is `urbanpulse` in `.github/workflows/ci.yml` and in `.githooks/pre-commit`. If the backend is moved, change the path in those two places.
+- The repository is `urban-incidence-manager` and the backend lives in the **`backend/`** subfolder (that is where `pom.xml` and `mvnw` are). `.github/`, `.githooks/` goes in the repository **root**. That is why `BACKEND_DIR` is `backend` in `.github/workflows/ci.yml` and in `.githooks/pre-commit`. If the backend is moved, change the path in those two places.
 - **JDK 25** installed and visible as `JAVA_HOME`. It is the one the CI uses (`JAVA_VERSION`) and the one `java.version` in `pom.xml` asks for. With any other JDK (17, 27…) the build fails.
 - Docker running. It is used by the integration tests (Testcontainers) and by `docker compose` for local development.
-- `docker-compose.yaml` and `.env.example` in `urbanpulse/`. The `lint` job looks for those exact names.
+- `docker-compose.yaml` and `.env.example` in `backend/`. The `lint` job looks for those exact names.
 - On Windows, read the tricks in section 2 before you start.
 
 ## 1. Step-by-step rollout (the flow that was followed)
@@ -20,7 +20,7 @@ git switch boilerplate && git pull
 git switch -c ci/pipeline
 ```
 
-Maven commands are run **inside `urbanpulse/`**; `git add` commands with paths, from the repository root.
+Maven commands are run **inside `backend/`**; `git add` commands with paths, from the repository root.
 
 | # | Commit | What it contains | How to check it |
 |---|---|---|---|
@@ -30,7 +30,7 @@ Maven commands are run **inside `urbanpulse/`**; `git add` commands with paths, 
 | 4 | `style: apply google-java-format and remove placeholder` | Result of `./mvnw spotless:apply` and removal of `HelloWorld` | `./mvnw validate` → `BUILD SUCCESS` |
 | 5 | `test: run integration tests against Testcontainers postgis` | `TestcontainersConfiguration` and `UrbanpulseApplicationTests` → `UrbanpulseApplicationIT` (`git mv`) | `./mvnw verify` with Docker: Failsafe runs the `*IT` |
 | 6 | `test: add modularity test` | `ModularityTest` (ADR-0010) | `./mvnw test` |
-| 7 | `ci: add pre-commit hook to format staged java files` | `.githooks/pre-commit` with `BACKEND_DIR="urbanpulse"` and execute permission | `git ls-files --stage .githooks/pre-commit` starts with `100755`; a commit with a badly formatted `.java` comes out formatted |
+| 7 | `ci: add pre-commit hook to format staged java files` | `.githooks/pre-commit` with `BACKEND_DIR="backend"` and execute permission | `git ls-files --stage .githooks/pre-commit` starts with `100755`; a commit with a badly formatted `.java` comes out formatted |
 | 8 | `ci: add lint job` | `ci.yml` with the `lint` job | `actionlint` with no warnings |
 | 9 | `ci: do not block commits when maven cannot start in the pre-commit hook` | The hook warns and lets the commit through if Maven cannot start (JAVA_HOME) | See §7 |
 | 10 | `ci: add job summary script for tests and coverage` | `.github/scripts/ci_summary.py` | — |
@@ -175,7 +175,7 @@ These are the ones that came up while setting up the CI in this repository.
 | `BUILD FAILURE` in `spotless:check` on `validate` | Initializr files with tabs | `./mvnw spotless:apply` and a `style:` commit |
 | `ExceptionInInitializerError: com.sun.tools.javac.tree.EndPosTable` | Maven runs with a JDK newer (27) than what Lombok supports | `./mvnw -v` must say 25; set `JAVA_HOME` (§2). There is no need to touch the Lombok version |
 | `release version 25 not supported` | Maven runs with JDK 17 (old system `JAVA_HOME`) | A **user** variable with JDK 25 and restart the programs |
-| Hook: `sh: ./mvnw: No such file or directory` | `BACKEND_DIR="."` but `mvnw` is in `urbanpulse/` | `BACKEND_DIR="urbanpulse"` in `.githooks/pre-commit` |
+| Hook: `sh: ./mvnw: No such file or directory` | `BACKEND_DIR="."` but `mvnw` is in `backend/` | `BACKEND_DIR="backend"` in `.githooks/pre-commit` |
 | `git ls-files --stage` shows `100644` | Windows does not store the permission | `git update-index --chmod=+x .githooks/pre-commit` and `git commit --amend --no-edit` |
 | GitHub Desktop: `The JAVA_HOME environment variable is not defined correctly` / `cd: /home/...: No such file` | GitHub Desktop's bundled Git mangles the `JAVA_HOME` path | The current hook warns and lets the commit through. To format: `./mvnw spotless:apply` or commit from the terminal/IntelliJ |
 | `Skipping JaCoCo execution due to missing execution data file ...jacoco-merged.exec` | `merge-coverage` was still on `<phase>none</phase>` | Change it to `verify` and run `./mvnw clean verify` |

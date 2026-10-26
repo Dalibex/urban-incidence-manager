@@ -32,7 +32,7 @@ We will use a **monorepo with two applications and shared packages**.
 
 ### Amendment (2026-10-26): workspace in `frontend/`
 
-The client workspace lives in its own `frontend/` folder, as the backend lives in `urbanpulse/`, so
+The client workspace lives in its own `frontend/` folder, as the backend lives in `backend/`, so
 the repository root only holds what is shared (documentation, CI, hooks, the API contract):
 
 ```text

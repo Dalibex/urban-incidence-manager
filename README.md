@@ -53,7 +53,7 @@ Clone the repository and enter the backend directory:
 
 ```bash
 git clone https://github.com/Dalibex/urban-incidence-manager.git
-cd urban-incidence-manager/urbanpulse
+cd urban-incidence-manager/backend
 ```
 
 ### ⚙️ Create the local environment file
@@ -110,6 +110,12 @@ Windows PowerShell:
 urban-incidence-manager/
 |-- .githooks/
 |-- .github/
+|-- backend/
+|   |-- docker-compose.yaml
+|   |-- pom.xml
+|   |-- mvnw
+|   |-- mvnw.cmd
+|   `-- src/
 |-- docs/
 |   |-- adr/
 |   |-- api/
@@ -126,12 +132,6 @@ urban-incidence-manager/
 |   |   `-- ui/
 |   |-- package.json
 |   `-- pnpm-workspace.yaml
-|-- urbanpulse/
-|   |-- docker-compose.yaml
-|   |-- pom.xml
-|   |-- mvnw
-|   |-- mvnw.cmd
-|   `-- src/
 |-- AGENTS.md
 |-- CHANGELOG.md
 `-- README.md

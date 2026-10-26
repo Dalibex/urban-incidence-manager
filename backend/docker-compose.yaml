@@ -1,4 +1,7 @@
 # Docker Compose configuration file
+# Fixed project name: without it Compose uses the folder name, so moving the folder would create a
+# new container and an empty database volume.
+name: urbanpulse
 services:
   postgres:
     # This service is used to run a Postgres database with PostGIS extension for spatial data support.

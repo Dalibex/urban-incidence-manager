@@ -20,7 +20,7 @@ The product includes a web client and a mobile application that consume a shared
 
 ### Current state
 
-Only the backend skeleton exists: Spring Boot application, PostgreSQL/PostGIS through Docker Compose, Spring Security with only the Actuator health endpoints and the API documentation open, the OpenAPI contract skeleton (`docs/api/openapi.yml`, common parts only, no endpoints), Testcontainers integration tests, the CI pipeline, and the database schema created by Flyway migrations (`urbanpulse/src/main/resources/db/migration`, diagram in `docs/database.drawio.svg`). The client workspace skeleton exists in `frontend/` (`apps/web`, `apps/mobile`, `packages/domain`, `packages/ui`, `packages/api-client`) with a start screen only. There are no JPA entities, endpoints, or client features yet. Do not describe any requirement below as implemented unless the code shows it.
+Only the backend skeleton exists: Spring Boot application, PostgreSQL/PostGIS through Docker Compose, Spring Security with only the Actuator health endpoints and the API documentation open, the OpenAPI contract skeleton (`docs/api/openapi.yml`, common parts only, no endpoints), Testcontainers integration tests, the CI pipeline, and the database schema created by Flyway migrations (`backend/src/main/resources/db/migration`, diagram in `docs/database.drawio.svg`). The client workspace skeleton exists in `frontend/` (`apps/web`, `apps/mobile`, `packages/domain`, `packages/ui`, `packages/api-client`) with a start screen only. There are no JPA entities, endpoints, or client features yet. Do not describe any requirement below as implemented unless the code shows it.
 
 ### Actors
 
@@ -120,7 +120,7 @@ Do not change the stack or introduce components because they are popular. An arc
 
 | Path                      | Purpose                                                        |
 | ------------------------- | -------------------------------------------------------------- |
-| `urbanpulse/`             | Spring Boot backend (`pom.xml`, `mvnw`, `docker-compose.yaml`). |
+| `backend/`                | Spring Boot backend (`pom.xml`, `mvnw`, `docker-compose.yaml`). |
 | `docs/adr/`               | Architectural decisions.                                       |
 | `docs/api/openapi.yml`    | OpenAPI 3.1 contract, source of truth of the API (`docs/api.md`). |
 | `docs/`                   | Development and CI guides.                                     |
@@ -275,7 +275,7 @@ Especially important cases for UrbanPulse:
 
 ### Command discovery
 
-Backend commands run from `urbanpulse/` with Maven Wrapper (`./mvnw.cmd` on Windows). Docker must be running for integration tests.
+Backend commands run from `backend/` with Maven Wrapper (`./mvnw.cmd` on Windows). Docker must be running for integration tests.
 
 | Command | Purpose |
 | ------- | ------- |
