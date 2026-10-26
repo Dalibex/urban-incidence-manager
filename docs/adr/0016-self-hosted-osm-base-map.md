@@ -7,7 +7,7 @@
 ## Context
 
 RF08 requires showing incidents and urban layers on a map, on the web app (staff) and on the
-mobile app (citizens and technicians). [ADR-0002](0002-open-street-map.md) chose OpenStreetMap as
+mobile app (citizens). [ADR-0002](0002-open-street-map.md) chose OpenStreetMap as
 the map data source to avoid API keys and vendor lock-in.
 
 The current plan does not hold up for the mobile app:
