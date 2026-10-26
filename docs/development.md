@@ -250,10 +250,27 @@ backend/
 |-- mvnw.cmd
 `-- src/
     |-- main/java/es/uma/urbanpulse/
+    |   |-- UrbanpulseApplication.java
+    |   |-- identity/        users, roles, login, JWT and refresh tokens, audit log
+    |   |-- incidents/       incidents, location, categories, assignments, comments, attachments
+    |   |-- urbancontext/    external data (Open Data Málaga, OSM, Open-Meteo, TomTom), enrichment
+    |   |-- geospatial/      districts, neighbourhoods, urban assets, spatial queries (PostGIS)
+    |   |-- notifications/   notifications and their delivery (Brevo, Twilio)
+    |   |-- analytics/       read-only indicators and reports
+    |   `-- shared/          cross-cutting configuration, not a module
+    |       `-- security/    SecurityConfig (Spring Security filter chain)
     |-- main/resources/application.yaml
     |-- main/resources/db/migration/
     `-- test/java/es/uma/urbanpulse/
 ```
+
+Each module follows the same plain MVC layout: `controller/`, `dto/`, `entity/`, `mapper/`,
+`repository/`, `service/`, plus `client/` when it calls an external system.
+
+Modules are packages for organisation only ([ADR-0010](adr/0010-modular-monolith.md)). Any class may
+use another module's services or entities.
+
+Every package has a `package-info.java` that says what it does and which tables it owns.
 
 - Application code: `src/main/java/es/uma/urbanpulse/`.
 - Configuration: `src/main/resources/`.
