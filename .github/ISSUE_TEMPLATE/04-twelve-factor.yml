@@ -1,0 +1,78 @@
+name: 12-Factor
+description: Implement or verify one of the twelve factors
+title: "[12F-]: "
+labels: ["12-factor"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Complete the title with the Roman numeral and the name of the factor.
+        Example: `[12F-III]: Config — configuration outside the code`
+
+  - type: dropdown
+    id: factor
+    attributes:
+      label: Factor
+      options:
+        - I. Codebase
+        - II. Dependencies
+        - III. Config
+        - IV. Backing services
+        - V. Build, release, run
+        - VI. Processes
+        - VII. Port binding
+        - VIII. Concurrency
+        - IX. Disposability
+        - X. Dev/prod parity
+        - XI. Logs
+        - XII. Admin processes
+    validations:
+      required: true
+
+  - type: textarea
+    id: bad_practice
+    attributes:
+      label: Bad practice to avoid
+      description: A concrete example in UrbanPulse.
+
+  - type: textarea
+    id: target_state
+    attributes:
+      label: Target state
+      description: What it must look like when done.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance criteria
+      description: |
+        Each criterion ends with how it is verified: `[CI: <job>]`, `[Manual: T<n>]` or `[Review]`. See `docs/ci.md`.
+      value: |
+        - [ ] Criterion 1 [CI: smoke]
+        - [ ] Criterion 2 [CI: test-integration]
+        - [ ] Criterion 3 [Review]
+    validations:
+      required: true
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: How it is verified
+      description: |
+        Every factor must be checkable automatically or in a reproducible way. Examples: start the app with PORT=9090; run the build without cache; send SIGTERM while a request is in progress; start two replicas.
+      value: |
+        - CI job:
+        - Test:
+    validations:
+      required: true
+
+  - type: textarea
+    id: documentation
+    attributes:
+      label: Documentation
+      value: |
+        - [ ] `docs/development.md` or `docs/deployment.md` updated
+        - [ ] `.env.example` updated (if there are new variables)
+        - [ ] 12-factor traceability annex updated

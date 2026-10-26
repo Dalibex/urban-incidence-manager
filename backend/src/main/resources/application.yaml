@@ -1,0 +1,20 @@
+spring:
+  application:
+    name: urbanpulse
+  jpa:
+    open-in-view: false
+    # SQL is not logged by default (it would also be logged in production). To see it locally,
+    # set SPRING_JPA_SHOW_SQL=true in the run configuration.
+    show-sql: false
+    hibernate:
+      ddl-auto: validate
+
+# OpenAPI documentation (ADR-0008, docs/api.md). Swagger UI renders the contract docs/api/openapi.yml,
+# copied into the jar at build time; /v3/api-docs is generated from the controllers.
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  paths-to-match: /api/**
+  swagger-ui:
+    path: /swagger-ui.html
+    url: /openapi.yml

@@ -1,0 +1,441 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>4.1.1</version>
+		<relativePath/> <!-- lookup parent from repository -->
+	</parent>
+
+	<groupId>es.uma</groupId>
+	<artifactId>urbanpulse</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<name/>
+	<description/>
+	<url/>
+	<licenses>
+		<license/>
+	</licenses>
+	<developers>
+		<developer/>
+	</developers>
+	<scm>
+		<connection/>
+		<developerConnection/>
+		<tag/>
+		<url/>
+	</scm>
+	<properties>
+		<!-- Java version used to compile and run the application -->
+		<java.version>25</java.version>
+		<!-- Properties for CI pipeline -->
+		<!-- Spotless plugin version used to format the code (Linting) -->
+		<spotless.version>3.10.3</spotless.version>
+		<!-- Google Java Format version used to format the code (Linting) -->
+		<google-java-format.version>1.35.0</google-java-format.version>
+		<!-- Exec Maven Plugin version used to run git commands to install the pre-commit hook -->
+		<exec-maven-plugin.version>3.1.0</exec-maven-plugin.version>
+
+		<!-- Testing -DskipUTs=true skips unit tests (*Test) and keeps integration tests (*IT) -->
+		<skipUTs>false</skipUTs>
+		<jacoco.version>0.8.15</jacoco.version>
+		<jacoco.minimum.coverage>0.80</jacoco.minimum.coverage> <!-- 80% minimum coverage -->
+		<jacoco.report.format>HTML</jacoco.report.format>
+		<spotbugs-plugin.version>4.10.4.1</spotbugs-plugin.version>
+
+		<!-- OpenAPI documentation (ADR-0008). springdoc 3.x is the line for Spring Boot 4 -->
+		<springdoc.version>3.0.3</springdoc.version>
+		<!-- Contract first: the source of truth lives outside the backend folder (docs/api.md) -->
+		<openapi.contract.dir>${project.basedir}/../docs/api</openapi.contract.dir>
+	</properties>
+
+	<dependencies>
+		<!-- API REST -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webmvc</artifactId>
+		</dependency>
+
+		<!-- OpenAPI: Swagger UI at /swagger-ui.html rendering the contract docs/api/openapi.yml,
+			and /v3/api-docs with what the controllers really expose (docs/api.md, section 5) -->
+		<dependency>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+			<version>${springdoc.version}</version>
+		</dependency>
+
+		<!-- Lombok: reduces boilerplate code with annotations (getters, setters, constructors, etc.) -->
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<version>${lombok.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- Spring Boot Actuator: provides production-ready features such as monitoring and metrics -->
+		<!-- CI pipeline job smoke for /actuator/health -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+
+
+		<!-- Docker support -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-docker-compose</artifactId>
+			<scope>runtime</scope>
+			<optional>true</optional>
+		</dependency>
+
+		<!-- Database support: PostgreSQL Driver -->
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+
+		<!-- Database support to open connections and manage transactions with JPA -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+
+		<!-- Versioned schema migrations (ADR-0014). Spring Boot 4 needs the starter:
+			flyway-core alone no longer triggers auto-configuration. Versions are managed by the parent. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-flyway</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-database-postgresql</artifactId>
+		</dependency>
+
+		<!-- Testing dependencies -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-flyway-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webmvc-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<!-- Testcontainers: integration tests (*IT) start their own PostGIS container.
+			Same image as docker-compose.yaml and POSTGRES_IMAGE in ci.yml
+			Versions are managed by the Spring Boot parent. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-testcontainers</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers-postgresql</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- Security dependencies for JWT Authentication -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>io.jsonwebtoken</groupId>
+			<artifactId>jjwt-api</artifactId>
+			<version>0.12.7</version>
+		</dependency>
+		<dependency>
+			<groupId>io.jsonwebtoken</groupId>
+			<artifactId>jjwt-impl</artifactId>
+			<version>0.12.7</version>
+			<scope>runtime</scope>
+		</dependency>
+		<dependency>
+			<groupId>io.jsonwebtoken</groupId>
+			<artifactId>jjwt-jackson</artifactId>
+			<version>0.12.7</version>
+			<scope>runtime</scope>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+				<executions>
+					<!-- Generates META-INF/build-info.properties: the version that is returned by /api/v1/status -->
+					<execution>
+						<goals>
+							<goal>build-info</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!-- Copies the OpenAPI contract into the jar as /static/openapi.yml, so Swagger UI shows
+				the contract of the same commit (docs/api.md, section 5). -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-resources-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>copy-openapi-contract</id>
+						<phase>process-resources</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${project.build.outputDirectory}/static</outputDirectory>
+							<resources>
+								<resource>
+									<directory>${openapi.contract.dir}</directory>
+									<includes>
+										<include>openapi.yml</include>
+									</includes>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!-- Up to Java 22, javac looked for processors on the classpath even when
+			nobody asked it to. From Java 23, if you do not configure it, they do not run.
+			We need to explicitly add it -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<configuration>
+					<annotationProcessorPaths>
+						<path>
+							<groupId>org.projectlombok</groupId>
+							<artifactId>lombok</artifactId>
+						</path>
+					</annotationProcessorPaths>
+				</configuration>
+			</plugin>
+
+						<!-- Unit tests (*Test, *Tests): no Docker, no database. Run by ./mvnw test -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<skip>${skipUTs}</skip>
+				</configuration>
+			</plugin>
+
+			<!-- Integration tests (*IT): Spring context + PostGIS in Testcontainers (needs Docker).
+				Run by ./mvnw verify. Skip them with -DskipITs -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-failsafe-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>integration-test</goal>
+							<goal>verify</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!-- SpotBugs plugin for static code analysis -->
+			<!-- Fails on verify (job test in CI). Skip it with -Dspotbugs.skip=true -->
+			<plugin>
+				<groupId>com.github.spotbugs</groupId>
+				<artifactId>spotbugs-maven-plugin</artifactId>
+				<version>${spotbugs-plugin.version}</version>
+				<configuration>
+					<effort>Max</effort>
+					<threshold>Medium</threshold>
+				</configuration>
+								<executions>
+					<execution>
+						<id>spotbugs-check</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!-- google-java-format plugin for code formatting
+				- The pre-commit hook (.githooks/pre-commit) runs spotless:apply on the staged files.
+				- check is bound to validate: any local build and the CI job lint fail if a file
+				  is not formatted. Fix it with ./mvnw spotless:apply.
+				- Skip the check in a local build with -Dspotless.check.skip=true -->
+			<plugin>
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
+				<version>${spotless.version}</version>
+				<configuration>
+					<java>
+						<!-- Pinned version: the hook, the IDE plugin and CI must format the same way -->
+						<googleJavaFormat>
+							<version>${google-java-format.version}</version>
+							<style>AOSP</style>
+						</googleJavaFormat>
+						<removeUnusedImports/>
+					</java>
+				</configuration>
+				<!-- This block below must be checked, as it makes build from console fail -->
+				<executions>
+					<execution>
+						<id>spotless-check</id>
+						<phase>validate</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!-- JaCoCo plugin for code coverage -->
+			<!-- merge, report and check coverage are executed in the CI pipeline: job quality-->
+			<!-- Unit (jacoco.exec) and integration (jacoco-it.exec) data are merged, reported in
+				target/site/jacoco-merged and checked against jacoco.minimum.coverage on verify
+				(job test in CI). Without execution data (e.g. -DskipTests) they are skipped. -->
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>${jacoco.version}</version>
+				<configuration>
+					<excludes>
+						<exclude>**/*Application.class</exclude>
+					</excludes>
+				</configuration>
+				<executions>
+					<execution>
+						<id>agent-unit</id>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>agent-it</id>
+						<goals>
+							<goal>prepare-agent-integration</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>merge-coverage</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>merge</goal>
+						</goals>
+						<configuration>
+							<fileSets>
+								<fileSet>
+									<directory>${project.build.directory}</directory>
+									<includes>
+                                        <include>jacoco.exec</include>
+                                        <include>jacoco-it.exec</include>
+									</includes>
+								</fileSet>
+							</fileSets>
+							<destFile>${project.build.directory}/jacoco-merged.exec</destFile>
+						</configuration>
+					</execution>
+					<execution>
+						<id>report-coverage</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+						<configuration>
+							<dataFile>${project.build.directory}/jacoco-merged.exec</dataFile>
+							<outputDirectory>${project.reporting.outputDirectory}/jacoco-merged</outputDirectory>
+						</configuration>
+					</execution>
+					<execution>
+						<id>check-coverage</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+						<configuration>
+							<dataFile>${project.build.directory}/jacoco-merged.exec</dataFile>
+							<rules>
+								<rule>
+									<element>BUNDLE</element>
+									<limits>
+										<limit>
+											<counter>LINE</counter>
+											<value>COVEREDRATIO</value>
+											<minimum>${jacoco.minimum.coverage}</minimum>
+										</limit>
+									</limits>
+								</rule>
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+		</plugins>
+	</build>
+
+	<profiles>
+		<!-- Points git to the versioned hooks in .githooks on any local build
+			(./mvnw test, verify, package...). Not active in CI (GitHub Actions sets CI=true).
+			Exit code 128 = not a git repository (e.g. a downloaded zip): ignored. -->
+		<profile>
+			<id>install-git-hooks</id>
+			<activation>
+				<property>
+					<name>!env.CI</name>
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>exec-maven-plugin</artifactId>
+						<version>${exec-maven-plugin.version}</version>
+						<executions>
+							<execution>
+								<id>install-git-hooks</id>
+								<phase>initialize</phase>
+								<goals>
+									<goal>exec</goal>
+								</goals>
+								<configuration>
+									<executable>git</executable>
+									<arguments>
+										<argument>config</argument>
+										<argument>core.hooksPath</argument>
+										<argument>.githooks</argument>
+									</arguments>
+									<successCodes>
+										<successCode>0</successCode>
+										<successCode>128</successCode>
+									</successCodes>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+
+
+</project>

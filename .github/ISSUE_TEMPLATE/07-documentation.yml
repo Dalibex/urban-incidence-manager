@@ -1,0 +1,80 @@
+name: Documentation
+description: Create or update documentation (README, guides, OpenAPI, C4, UML)
+title: "[Docs]: "
+labels: ["documentation"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+    validations:
+      required: true
+
+  - type: dropdown
+    id: affected_document
+    attributes:
+      label: Affected document
+      multiple: true
+      options:
+        - README.md
+        - CONTRIBUTING.md / SECURITY.md / CHANGELOG.md
+        - AGENTS.md
+        - docs/architecture.md and docs/architecture/workspace.dsl (C4)
+        - docs/architecture/domain-model.md (UML)
+        - docs/backend-structure.md
+        - docs/development.md
+        - docs/deployment.md
+        - docs/testing.md
+        - docs/ci.md
+        - docs/api.md and docs/api/openapi.yml
+        - docs/user-guide/
+        - docs/process/
+        - Other (say which in the description)
+    validations:
+      required: true
+
+  - type: input
+    id: audience
+    attributes:
+      label: Audience
+      placeholder: Developers, testers, lecturers, new team members, end users...
+
+  - type: textarea
+    id: content
+    attributes:
+      label: Content to include
+      value: |
+        -
+        -
+    validations:
+      required: true
+
+  - type: dropdown
+    id: reason
+    attributes:
+      label: Reason
+      options:
+        - New document
+        - The behaviour or configuration of the system has changed
+        - The current documentation is wrong or incomplete
+    validations:
+      required: true
+
+  - type: input
+    id: related
+    attributes:
+      label: Related PR or issue
+      description: Required if the reason is a change in the system.
+      placeholder: "#34"
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance criteria
+      value: |
+        - [ ] Someone who did not make the change can follow the document without help. [Review]
+        - [ ] The commands and examples have been run and work. [Manual]
+        - [ ] Mermaid diagrams render on GitHub. [Review]
+        - [ ] It contains no secrets or personal data. [Review]
+    validations:
+      required: true

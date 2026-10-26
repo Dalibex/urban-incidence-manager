@@ -1,0 +1,10 @@
+# Client workspace (ADR-0007): two apps and the packages they share.
+packages:
+  - apps/*
+  - packages/*
+
+# openapi-typescript declares TypeScript ^5 as a peer; it works with the 6.0 line that Expo SDK 58
+# requires, so the warning is silenced instead of keeping two TypeScript versions.
+peerDependencyRules:
+  allowedVersions:
+    openapi-typescript>typescript: '6'

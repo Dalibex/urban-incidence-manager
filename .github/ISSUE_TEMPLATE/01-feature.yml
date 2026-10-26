@@ -1,0 +1,166 @@
+name: Feature request
+description: Propose new functionality linked to a functional requirement (RF)
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Also add the area labels (`backend`, `frontend`, `mobile`), a `priority: *` and a `size: *` label, and set the sprint milestone.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+    validations:
+      required: true
+
+  - type: dropdown
+    id: requirement
+    attributes:
+      label: Requirement (RF)
+      multiple: true
+      options:
+        - RF01 Identity and access
+        - RF02 Roles and permissions
+        - RF03 Report an incident
+        - RF04 Location
+        - RF05 Evidence
+        - RF06 Lookup and tracking
+        - RF07 Search
+        - RF08 Map
+        - RF09 Validation
+        - RF10 Priority
+        - RF11 Assignment
+        - RF12 Lifecycle
+        - RF13 Collaboration
+        - RF14 Notifications
+        - RF15 Statistics
+        - RF16 Duplicates
+        - RF17 Zone analysis
+        - RF18 Audit
+        - RF19 Reports
+        - RF20 Intelligent assistance
+        - RF21 Neighbourhood and district
+        - RF22 Urban asset
+        - RF23 External context
+        - RF24 Context view
+        - RF25 Historical correlation
+        - RF26 Graceful degradation
+    validations:
+      required: true
+
+  - type: dropdown
+    id: actor
+    attributes:
+      label: Actor
+      multiple: true
+      options:
+        - Citizen
+        - Municipal operator
+        - Technician
+        - Administrator
+        - Analyst
+        - External system
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where it is implemented
+      multiple: true
+      options:
+        - Backend API
+        - Web app (operators, technicians, analysts, administrators)
+        - Mobile app (citizens)
+        - Shared packages (frontend/packages/*)
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: User story.
+      placeholder: As a <actor>, I want <action> so that <benefit>.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: Endpoints, screens and domain entities involved. Say which module owns each entity.
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance criteria
+      description: |
+        Each criterion must be observable and end with how it is verified: `[CI: <job>]`, `[Manual: T<n>]` (a case in the [Test] sub-issue) or `[Review]`. See `docs/ci.md`.
+      value: |
+        - [ ] Criterion 1 [CI: test-unit]
+        - [ ] Criterion 2 [CI: test-integration]
+        - [ ] Criterion 3 [Manual: T1]
+    validations:
+      required: true
+
+  - type: textarea
+    id: tests
+    attributes:
+      label: Tests
+      description: Minimum specification for the tester. It is detailed in a [Test] sub-issue.
+      value: |
+        - Unit:
+        - Integration:
+        - E2E (if there is a UI):
+        - Manual:
+    validations:
+      required: true
+
+  - type: textarea
+    id: ci_verification
+    attributes:
+      label: CI verification
+      description: Keep only the jobs that must be green in the PR that closes this issue, and tick them when they are.
+      value: |
+        - [ ] `lint`
+        - [ ] `build`
+        - [ ] `test-unit`
+        - [ ] `test-integration`
+        - [ ] `quality`
+        - [ ] `smoke`
+        - [ ] `contract`
+        - [ ] `frontend`
+        - [ ] `test`
+        - [ ] `pr-title`
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      value: |
+        - Depends on: #
+        - Blocks: #
+
+  - type: textarea
+    id: documentation
+    attributes:
+      label: Documentation
+      description: |
+        Documentation that comes with this feature or, if there is none yet, which existing documentation must be updated, extended or created when it is implemented. Delete what does not apply.
+      value: |
+        - [ ] OpenAPI contract (`docs/api/openapi.yml`)
+        - [ ] C4 model (`docs/architecture/workspace.dsl`)
+        - [ ] Domain model (UML)
+        - [ ] New or updated ADR
+        - [ ] User guide
+        - [ ] New variables in `.env.example`

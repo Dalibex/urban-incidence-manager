@@ -1,0 +1,64 @@
+name: Task
+description: Technical work with no new user-facing functionality (configuration, ingestion, refactoring, maintenance)
+title: "[Task]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Add the area label: `infra`, `backend`, `frontend`, `mobile`, `data-integration`, `ai-ml`...
+        If the task implements one of the twelve factors, use the **12-Factor** form instead.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Why it is needed now. Which problem it prevents or which issue it unblocks.
+    validations:
+      required: true
+
+  - type: textarea
+    id: planned_steps
+    attributes:
+      label: Planned steps
+      value: |
+        1.
+        2.
+        3.
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance criteria
+      description: |
+        Each criterion ends with how it is verified: `[CI: <job>]`, `[Manual: T<n>]` or `[Review]`. See `docs/ci.md`.
+      value: |
+        - [ ] Criterion 1 [CI: build]
+        - [ ] Criterion 2 [Review]
+    validations:
+      required: true
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification
+      description: How we check that it is done.
+      value: |
+        - CI job:
+        - Manual check:
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      value: |
+        - Depends on: #
+        - Unblocks: #

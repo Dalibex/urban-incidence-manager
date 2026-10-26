@@ -1,0 +1,142 @@
+name: Bug report
+description: Report a reproducible defect
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before opening the issue, check whether the same bug has already been reported.
+        **If it is a security vulnerability, do not open a public issue:** follow `SECURITY.md`.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What fails, in one or two sentences.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Logs (without personal data or secrets), HTTP response or traceId. You can paste screenshots in the Description field.
+      render: text
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - local
+        - CI
+        - staging
+        - production
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: v0.3.0 or SHA abc1234
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      multiple: true
+      options:
+        - Backend API
+        - Web app
+        - Mobile app
+        - Shared packages
+        - Infrastructure (compose, Docker, CI)
+    validations:
+      required: true
+
+  - type: input
+    id: client_environment
+    attributes:
+      label: Browser / device and OS
+      description: Only if the bug is in the web or mobile app. For mobile, say whether you used Expo Go or a development build.
+
+  - type: dropdown
+    id: ci_job
+    attributes:
+      label: Failing CI job
+      options:
+        - Not applicable
+        - lint
+        - build
+        - test-unit
+        - test-integration
+        - quality
+        - smoke
+        - contract
+        - frontend
+        - test
+        - pr-title
+        - test-e2e
+        - security
+        - docker
+        - deploy-staging
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - "Critical: blocks a main flow or loses data"
+        - "High: important functionality with no workaround"
+        - "Medium: there is a workaround"
+        - "Low: cosmetic"
+    validations:
+      required: true
+
+  - type: input
+    id: related
+    attributes:
+      label: Affected issue or requirement
+      placeholder: "#12, RF09"
+
+  - type: textarea
+    id: closing_criteria
+    attributes:
+      label: Closing criteria
+      value: |
+        - [ ] A test reproduces the bug and fails before the fix.
+        - [ ] The test passes after the fix (branch `fix/...`, commit `fix: ...`).
+        - [ ] The affected CI jobs are green.
+    validations:
+      required: true

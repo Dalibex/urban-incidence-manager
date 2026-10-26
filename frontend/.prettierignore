@@ -1,0 +1,8 @@
+pnpm-lock.yaml
+*.md
+
+# Generated or build output.
+packages/api-client/src/schema.d.ts
+**/dist/
+**/coverage/
+**/.expo/

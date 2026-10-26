@@ -1,0 +1,87 @@
+name: ADR
+description: Propose and document an architecture decision
+title: "[ADR]: ADR-XXXX "
+labels: ["adr", "architecture", "documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The deliverable is the file `docs/adr/XXXX-short-title.md`, using the next free number.
+        Project rule: a new component is only added when there is an **observable problem**, a **testable hypothesis** and a **documented, measurable decision**.
+
+  - type: textarea
+    id: observable_problem
+    attributes:
+      label: Observable problem
+      description: What has been measured or detected. Data, metrics, incidents.
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Requirements (RF), quality attributes and constraints involved. Related ADRs.
+    validations:
+      required: true
+
+  - type: textarea
+    id: hypothesis
+    attributes:
+      label: Hypothesis
+      placeholder: If we adopt X, then metric Y improves from A to B.
+    validations:
+      required: true
+
+  - type: textarea
+    id: options
+    attributes:
+      label: Options considered
+      value: |
+        | Option | Pros | Cons |
+        |---|---|---|
+        | A. |  |  |
+        | B. |  |  |
+        | C. Keep the current situation |  |  |
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed_decision
+    attributes:
+      label: Proposed decision
+
+  - type: textarea
+    id: consequences
+    attributes:
+      label: Consequences
+      value: |
+        ### Positive
+        -
+
+        ### Negative
+        -
+
+  - type: textarea
+    id: evaluation
+    attributes:
+      label: How it will be evaluated
+      description: Metric, threshold and review date. Which result would make us revert the decision.
+      value: |
+        - Metric:
+        - Threshold:
+        - Review date:
+    validations:
+      required: true
+
+  - type: textarea
+    id: closing_criteria
+    attributes:
+      label: Closing criteria
+      value: |
+        - [ ] `docs/adr/XXXX-*.md` created with a status (Proposed / Accepted / Rejected / Superseded).
+        - [ ] C4 model updated if a container or component changes.
+        - [ ] Reviewed by at least two team members.
+        - [ ] Follow-up implementation issues created and linked.
+    validations:
+      required: true

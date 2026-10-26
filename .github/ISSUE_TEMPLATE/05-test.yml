@@ -1,0 +1,69 @@
+name: Test
+description: Tests for a functional issue (sub-issue for testers)
+title: "[Test]: "
+labels: ["testing"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Create this issue as a **sub-issue** of the functional issue it verifies.
+        The implementation PR is not merged until these tests exist and pass.
+
+  - type: input
+    id: verified_issue
+    attributes:
+      label: Issue it verifies
+      placeholder: "#22"
+    validations:
+      required: true
+
+  - type: input
+    id: requirement
+    attributes:
+      label: Requirement
+      placeholder: RF03
+
+  - type: dropdown
+    id: test_type
+    attributes:
+      label: Test type
+      multiple: true
+      options:
+        - Unit (test-unit)
+        - Integration with Testcontainers (test-integration)
+        - Contract / API (contract, test-integration)
+        - End-to-end (test-e2e)
+        - Load / performance
+        - Resilience (external source down, SIGTERM, several replicas)
+        - Manual (acceptance, exploratory, usability)
+    validations:
+      required: true
+
+  - type: textarea
+    id: test_cases
+    attributes:
+      label: Test cases
+      description: |
+        In **Verification**, write the CI job that runs the case (`test-unit`, `test-integration`...) or `Manual`. The criteria of the functional issue reference these IDs, e.g. `[Manual: T5]`.
+      value: |
+        | ID | Scenario | Input data | Expected result | Verification |
+        |---|---|---|---|---|
+        | T1 | Valid case |  |  |  |
+        | T2 | Edge case |  |  |  |
+        | T3 | Error case |  |  |  |
+        | T4 | Permissions (unauthorised role) |  |  |  |
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance criteria
+      value: |
+        - [ ] Every case that can be automated is automated.
+        - [ ] The tests run in the CI job named in each case.
+        - [ ] They do not depend on real external services or on execution order.
+        - [ ] Module coverage does not drop below the agreed threshold.
+        - [ ] Manual cases were run on the PR's commit and the evidence is in a comment.
+    validations:
+      required: true

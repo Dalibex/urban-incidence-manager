@@ -1,0 +1,352 @@
+# Continuous integration for UrbanPulse.
+#
+# Jobs:
+#   lint → repository hygiene (.env, Compose, image parity) and formatting (Spotless check)
+#   contract → the OpenAPI contract docs/api/openapi.yml is valid and follows docs/api.md (Redocly),
+#              and the generated frontend/packages/api-client types match it
+#   frontend → client workspace in frontend/ (ADR-0007): format, lint, type-check, test and build with pnpm
+#   test → unit (*Test) + integration (*IT, Testcontainers) tests, coverage gate and SpotBugs
+#   build → packages ONE jar per commit, smoke-tests it against PostGIS and publishes it
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to a PR cancels the run still in progress for that PR. Runs on main are never cancelled.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Folder that contains pom.xml and mvnw, relative to the repository root.
+  BACKEND_DIR: backend
+  # Folder of the client pnpm workspace (package.json, pnpm-lock.yaml, .nvmrc), relative to the root.
+  FRONTEND_DIR: frontend
+  JAVA_VERSION: "25"
+  JAVA_DISTRIBUTION: temurin
+  # Must match docker-compose.yaml and TestcontainersConfiguration.java (checked by lint).
+  POSTGRES_IMAGE: postgis/postgis:18-3.6
+  # Read by Maven 3.9+ on every ./mvnw call: batch mode, no download progress noise.
+  MAVEN_ARGS: -B -ntp
+  # Same version as the local command in docs/api.md.
+  REDOCLY_CLI_VERSION: "2.71.0"
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ${{ env.BACKEND_DIR }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: No .env file is versioned
+        # The whole repository is checked, not only BACKEND_DIR.
+        working-directory: .
+        run: |
+          tracked=$(git ls-files | grep -E '(^|/)\.env$' || true)
+          if [ -n "$tracked" ]; then
+            echo "::error title=12F-III Config::Versioned .env files: $tracked. Version only .env.example (.env is in .gitignore)."
+            exit 1
+          fi
+
+      - name: Same PostgreSQL image in Compose, Testcontainers and CI
+        run: |
+          status=0
+          if [ -f docker-compose.yaml ] && ! grep -qF "$POSTGRES_IMAGE" docker-compose.yaml; then
+            echo "::error file=docker-compose.yaml,title=12F-X Dev/prod parity::docker-compose.yaml does not use $POSTGRES_IMAGE (POSTGRES_IMAGE in ci.yml)."
+            status=1
+          fi
+          if ! grep -rqF "$POSTGRES_IMAGE" src/test/java; then
+            echo "::error title=12F-X Dev/prod parity::TestcontainersConfiguration.java does not use $POSTGRES_IMAGE (POSTGRES_IMAGE in ci.yml)."
+            status=1
+          fi
+          exit $status
+
+      - name: Docker Compose file is valid with .env.example (12F-III)
+        run: |
+          if [ ! -f docker-compose.yaml ]; then echo "No docker-compose.yaml, nothing to check."; exit 0; fi
+          if [ ! -f .env.example ]; then
+            echo "::error title=12F-III Config::docker-compose.yaml exists but .env.example does not."
+            exit 1
+          fi
+          cp .env.example .env
+          docker compose config --quiet
+          echo "docker-compose.yaml is valid (only parsed, no container is started)."
+
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+          cache-dependency-path: ${{ env.BACKEND_DIR }}/pom.xml
+
+      - name: Formatting (Spotless, google-java-format AOSP)
+        run: |
+          chmod +x mvnw
+          if ! ./mvnw spotless:check; then
+            echo "::error title=Formatting::Some files are not formatted. Run ./mvnw spotless:apply, commit and push. If this keeps happening, the pre-commit hook is not installed (docs/ci-setup.md)."
+            exit 1
+          fi
+
+  contract:
+    name: contract
+    runs-on: ubuntu-latest
+    # 10 and not 5: it also installs the client workspace to regenerate frontend/packages/api-client.
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      # Rules in redocly.yaml (repository root): OpenAPI 3.1 validity plus the naming, tag and
+      # error conventions of docs/api.md.
+      - name: OpenAPI contract is valid (Redocly)
+        run: |
+          if ! npx --yes "@redocly/cli@$REDOCLY_CLI_VERSION" lint --format=github-actions; then
+            echo "::error file=docs/api/openapi.yml,title=OpenAPI contract::The contract is not valid. Run npx @redocly/cli@$REDOCLY_CLI_VERSION lint from the repository root (docs/api.md, section 4)."
+            exit 1
+          fi
+
+      # The TypeScript types of frontend/packages/api-client are generated from the contract (ADR-0008) and
+      # committed. If the contract changes, they must be regenerated in the same PR.
+      - name: Set up JS workspace
+        uses: ./.github/actions/setup-js
+        with:
+          directory: ${{ env.FRONTEND_DIR }}
+
+      - name: api-client types are up to date with the contract
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: |
+          pnpm generate:api
+          changes=$(git status --porcelain -- packages/api-client)
+          if [ -n "$changes" ]; then
+            echo "::error title=api-client::The generated types differ from the committed ones. Run pnpm generate:api from $FRONTEND_DIR/ and commit the result."
+            echo "$changes"
+            git --no-pager diff --stat -- packages/api-client
+            exit 1
+          fi
+
+  # Client workspace (ADR-0007): frontend/apps/web, frontend/apps/mobile and frontend/packages/*.
+  # Node steps live only here and in contract, never in the Java jobs.
+  frontend:
+    name: frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: ${{ env.FRONTEND_DIR }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history, so detect can compare with the base of the PR or the previous push.
+          fetch-depth: 0
+
+      # frontend is a required check, so it never skips itself as a job: when a PR does not touch
+      # the clients (for example a backend-only change), the steps below are skipped and the job
+      # still ends green. The rules are in the script.
+      - name: Detect client changes
+        id: detect
+        working-directory: .
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: bash .github/scripts/client_changes.sh
+
+      - name: Set up JS workspace
+        if: steps.detect.outputs.clients == 'true'
+        uses: ./.github/actions/setup-js
+        with:
+          directory: ${{ env.FRONTEND_DIR }}
+
+      # One step per check, so the name of the red step tells you what failed.
+      # GitHub Actions sets CI=true: test runners do not start in watch mode.
+      - name: Formatting (Prettier)
+        if: steps.detect.outputs.clients == 'true'
+        run: pnpm format:check
+
+      - name: Lint (ESLint)
+        if: steps.detect.outputs.clients == 'true'
+        run: pnpm lint
+
+      - name: Type check (TypeScript)
+        if: steps.detect.outputs.clients == 'true'
+        run: pnpm typecheck
+
+      - name: Tests
+        if: steps.detect.outputs.clients == 'true'
+        run: pnpm test
+
+      - name: Build (web bundle and mobile export)
+        if: steps.detect.outputs.clients == 'true'
+        run: pnpm build
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: ${{ env.BACKEND_DIR }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+          cache-dependency-path: ${{ env.BACKEND_DIR }}/pom.xml
+
+      # Formatting is the job of lint, so a whitespace problem never turns this job red.
+      # The coverage and SpotBugs gates are disabled here and evaluated in the next two
+      # steps, so the name of the failing step tells you which gate failed.
+      - name: Unit and integration tests
+        run: |
+          chmod +x mvnw
+          ./mvnw -Dspotless.check.skip=true -Djacoco.haltOnFailure=false -Dspotbugs.failOnError=false verify
+
+      - name: Coverage gate (jacoco.minimum.coverage in pom.xml)
+        run: ./mvnw jacoco:check@check-coverage
+
+      - name: Static analysis gate (SpotBugs)
+        run: ./mvnw spotbugs:check
+
+      - name: Test and coverage summary
+        if: always()
+        working-directory: .
+        run: |
+          python3 .github/scripts/ci_summary.py junit "Unit tests" "$BACKEND_DIR/target/surefire-reports"
+          python3 .github/scripts/ci_summary.py junit "Integration tests" "$BACKEND_DIR/target/failsafe-reports"
+          python3 .github/scripts/ci_summary.py jacoco "Coverage (unit + integration)" "$BACKEND_DIR/target/site/jacoco-merged/jacoco.csv"
+
+      - name: Publish reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports
+          path: |
+            ${{ env.BACKEND_DIR }}/target/surefire-reports/
+            ${{ env.BACKEND_DIR }}/target/failsafe-reports/
+            ${{ env.BACKEND_DIR }}/target/site/jacoco-merged/
+            ${{ env.BACKEND_DIR }}/target/spotbugsXml.xml
+          if-no-files-found: ignore
+          retention-days: 7
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: ${{ env.BACKEND_DIR }}
+    env:
+      SMOKE_PORT: "9090"
+      SMOKE_DB: urbanpulse
+      SMOKE_USER: urbanpulse
+      # Throwaway database that only lives inside this job: not a secret.
+      SMOKE_PASSWORD: smoke
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+          cache-dependency-path: ${{ env.BACKEND_DIR }}/pom.xml
+
+      - name: Package (tests run in the test job)
+        run: |
+          chmod +x mvnw
+          ./mvnw -Dspotless.check.skip=true -DskipTests -Djacoco.skip=true -Dspotbugs.skip=true package
+
+      - name: Exactly one jar per commit
+        run: |
+          shopt -s nullglob
+          jars=(target/*.jar)
+          if [ "${#jars[@]}" -ne 1 ]; then
+            echo "::error title=12F-V Build::Expected exactly one jar in target/, found ${#jars[@]}: ${jars[*]}"
+            exit 1
+          fi
+          echo "JAR=${jars[0]}" >> "$GITHUB_ENV"
+          echo "Artifact: \`${jars[0]}\` (commit \`${GITHUB_SHA}\`)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Start PostGIS (backing service)
+        run: |
+          docker run -d --name smoke-db -p 5432:5432 \
+            -e POSTGRES_DB="$SMOKE_DB" -e POSTGRES_USER="$SMOKE_USER" -e POSTGRES_PASSWORD="$SMOKE_PASSWORD" \
+            "$POSTGRES_IMAGE"
+          # -h 127.0.0.1: during its first start the image runs init scripts on a temporary
+          # server that only listens on a socket; wait for the real server on TCP.
+          for _ in $(seq 1 60); do
+            if docker exec smoke-db pg_isready -h 127.0.0.1 -U "$SMOKE_USER" -d "$SMOKE_DB" >/dev/null 2>&1; then
+              echo "PostGIS ready ($POSTGRES_IMAGE)"; exit 0
+            fi
+            sleep 2
+          done
+          echo "::error title=Smoke::PostGIS did not start in 120 s."
+          docker logs smoke-db
+          exit 1
+
+      - name: Smoke test — the jar starts with env config and /actuator/health is UP
+        run: |
+          export SERVER_PORT="$SMOKE_PORT"
+          export SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5432/$SMOKE_DB"
+          export SPRING_DATASOURCE_USERNAME="$SMOKE_USER"
+          export SPRING_DATASOURCE_PASSWORD="$SMOKE_PASSWORD"
+          nohup java -jar "$JAR" > "$RUNNER_TEMP/app.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/app.pid"
+          for _ in $(seq 1 60); do
+            if body=$(curl -fsS "http://localhost:$SMOKE_PORT/actuator/health" 2>/dev/null) && echo "$body" | grep -q '"status":"UP"'; then
+              echo "Health on port $SMOKE_PORT: \`$body\`" | tee -a "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            if ! kill -0 "$(cat "$RUNNER_TEMP/app.pid")" 2>/dev/null; then
+              echo "::error title=Smoke::The application exited during startup (see the log step)."
+              exit 1
+            fi
+            sleep 2
+          done
+          echo "::error title=12F-VII Port binding::/actuator/health was not UP on port $SMOKE_PORT after 120 s."
+          exit 1
+
+      - name: Smoke test — clean shutdown on SIGTERM
+        run: |
+          pid=$(cat "$RUNNER_TEMP/app.pid")
+          kill -TERM "$pid"
+          for _ in $(seq 1 30); do
+            if ! kill -0 "$pid" 2>/dev/null; then
+              echo "The application stopped after SIGTERM." | tee -a "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error title=12F-IX Disposability::The application did not stop 30 s after SIGTERM."
+          exit 1
+
+      - name: Application log
+        if: always()
+        run: if [ -f "$RUNNER_TEMP/app.log" ]; then tail -n 200 "$RUNNER_TEMP/app.log"; else echo "No log"; fi
+
+      - name: Publish the jar
+        uses: actions/upload-artifact@v7
+        with:
+          name: urbanpulse-${{ github.sha }}
+          path: ${{ env.BACKEND_DIR }}/target/*.jar
+          if-no-files-found: error
+          retention-days: 7
+
+
