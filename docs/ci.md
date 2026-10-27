@@ -38,6 +38,7 @@ flowchart LR
 |---|---|---|
 | `.github/workflows/ci.yml` | PR to `main`, push to `main`, manual (*Run workflow*) | `lint`, `contract`, `frontend`, `test`, `build` |
 | `.github/workflows/pr-title.yml` | When a PR to `main` is opened, edited or updated | `pr-title` |
+| `.github/workflows/project-status.yml` | When a PR to `main` is opened, reopened, edited, marked ready for review or converted to draft | `project-status` |
 | `.github/scripts/ci_summary.py` | Called by `test` | Test and coverage tables in the job summary |
 | `.github/scripts/client_changes.sh` | Called by `frontend` | Decides whether the PR or push changed the clients, so the client checks run or are skipped |
 | `.github/actions/setup-js/action.yml` | Called by `frontend` and `contract` | pnpm (from `packageManager` in `frontend/package.json`), Node (from `frontend/.nvmrc`), pnpm store cache and `pnpm install --frozen-lockfile` in `frontend/` |
@@ -133,6 +134,24 @@ The health step needs `/actuator/health` to be unprotected: with `spring-boot-st
 - **Warning** (does not fail) if the description has no `Closes #N` / `Fixes #N`.
 
 It matters because, with squash merge, **the PR title is the commit message on `main`**.
+
+### `project-status` — project board
+
+Moves the issues the PR closes (`Closes #N`) on the project board: a **draft** PR puts them in **In progress**, a PR **ready for review** puts them in **In review**. An issue not yet on the board is added. The board's own workflows cover the rest: *Item added* puts new issues in **Backlog**, and *Item closed* / *Pull request merged* put them in **Done**. Only **Backlog → Ready** is manual.
+
+It is automation, **not a required check**: never add it to the ruleset.
+
+| Result | When | Fix |
+|---|---|---|
+| **Warning** | The PR does not close any issue | Add `Closes #N` to the description; editing it runs the job again |
+| **Error** | The `PROJECT_TOKEN` secret is missing or expired (401) | The maintainer replaces the secret (see below) |
+| **Error** | The board, its `Status` field or the `In progress` / `In review` option was not found | Restore the column name, or change `STATUS_*` in the workflow |
+
+- The board's *Pull request linked to issue* workflow must stay **off**: it would move the cards on its own and fight this job.
+- It runs on `pull_request_target`, so GitHub always runs **the version on `main`**, never the one in the PR. A PR cannot change the workflow to read the token, and the job never checks out the PR code. The consequence: a change to this workflow only takes effect after it is merged, and it cannot be tested on its own PR.
+- PRs from forks are skipped.
+
+**Token.** The default `GITHUB_TOKEN` cannot write to a project owned by a user account, so the job uses the repository secret `PROJECT_TOKEN`: a classic personal access token of the board owner with **only** the `project` scope (the repository is public, so `repo` is not needed). It can edit every board of that account, but it is only readable by the workflows on `main`; collaborators cannot see it. When it expires, the job fails with 401: the owner creates a new token and replaces the secret in *Settings → Secrets and variables → Actions*.
 
 ## 4. Formatting: local hook + CI check
 

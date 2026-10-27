@@ -1,6 +1,6 @@
 {
   "name": "@urbanpulse/domain",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "description": "Domain types and rules shared by the web and mobile apps (ADR-0007).",
   "type": "module",
