@@ -9,6 +9,8 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- ADR-0020 (Proposed): incident lifecycle transitions, with the transition table and its state diagram (#31).
+
 ### Changed
 
 ### Fixed
