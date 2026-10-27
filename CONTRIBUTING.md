@@ -16,7 +16,7 @@ them, as a reference; update it whenever the assignment changes.
 | Maintainer | Manages the repository settings, branch rules, releases and long-lived branches | Dalibex |
 | Developer | Implements issues, opens pull requests and answers review comments | Everyone |
 | Reviewer | Reviews pull requests, approves them and performs the merge | Pablit023 |
-| Tester | Validates that a feature works as described in its issue | Lewas88 |
+| Tester | Writes the acceptance tests of each feature and validates that it works as described in its issue | Lewas88 |
 | Product owner | Prioritizes issues and plans the milestones | Fjjorda |
 
 A person can hold more than one role, but nobody approves their own pull request. When the reviewer
@@ -25,9 +25,10 @@ opens a pull request, another team member approves it and the reviewer merges it
 ## Workflow at a glance
 
 1. Pick an issue from the project board, assign it to yourself and move it to **In progress**.
-2. Create a branch from the latest `main`.
+2. Create a branch from the latest `main` and open a draft pull request, so the tester can add the
+   acceptance tests to it (see [Testing lifecycle](#testing-lifecycle)).
 3. Commit small changes with Conventional Commits.
-4. Open a pull request that links the issue and move both cards to **In review**.
+4. Mark the pull request as ready when its tests pass, and move the cards to **In review**.
 5. Fix what the CI or the reviewer reports, pushing to the same branch.
 6. The reviewer approves and merges with **Squash and merge**.
 7. Move the cards to **Done**.
@@ -54,6 +55,32 @@ Create the issue with the template that fits the work:
 
 Give each issue its labels, the milestone it belongs to and add it to the project board. Use
 `priority: high`, `priority: medium` or `priority: low` to order the work.
+
+Record dependencies in the issue's **Relationships**, with **Blocked by**, so the board shows which
+issues can start. A `[Test]` sub-issue is blocked by the same issues as its parent, not by the parent
+itself: its tests are written while the feature is built, not after it.
+
+## Testing lifecycle
+
+Each feature or task that changes behavior has a `[Test]` sub-issue whose table of test cases is the
+specification of the feature. We follow acceptance test-driven development (ATDD): the acceptance tests
+are written first, from the issue and the [OpenAPI contract](docs/api/openapi.yml), and the feature is
+implemented until they pass.
+
+| Step | Who | What |
+| --- | --- | --- |
+| 1. Start | Developer | Creates the branch and opens a **draft** pull request that closes both issues. |
+| 2. Red | Tester | Adds the automated acceptance tests (HTTP, integration, contract) to the same branch. They fail until the feature exists. |
+| 3. Green | Developer | Implements the feature until they pass, with their own unit tests for the internal logic. |
+| 4. Complete | Tester | Adds edge cases, runs the manual cases on the pull request's commit and leaves the evidence in a comment. |
+| 5. Review | Developer | Marks the pull request as ready for review. |
+
+- A feature is merged only with its tests, so the feature and its `[Test]` issue close together.
+- The tester and the developer push to the same branch: pull before pushing and avoid editing the same
+  files at the same time.
+- Failing tests never reach `main`: the required checks block the merge until they pass.
+- In the web and mobile clients, component tests may be written alongside the screen instead of
+  before it, because the interface changes while it is built.
 
 ## Branches
 
@@ -102,7 +129,7 @@ See the [CI setup guide](docs/ci-setup.md) if it does not run.
 
 ## Pull requests
 
-- One issue per pull request. Keep it small enough to review in one sitting.
+- One issue per pull request, plus its `[Test]` sub-issue. Keep it small enough to review in one sitting.
 - Fill in the [pull request template](.github/pull_request_template.md).
 - **Title:** a Conventional Commit, such as `feat(incidents): add incident registration endpoint`. The
   `pr-title` job rejects anything else, and with squash merge the title becomes the commit on `main`.
