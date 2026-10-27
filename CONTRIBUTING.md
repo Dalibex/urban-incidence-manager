@@ -245,6 +245,22 @@ diagram updated in the same pull request.
 
 The maintainer configures it as described in the [CI setup guide](docs/ci-setup.md#4-protect-main-with-a-ruleset).
 
+### Versioning
+
+UrbanPulse has a single version, following [Semantic Versioning](https://semver.org/), shared by the
+backend, both clients, the shared client packages and the API contract. The release in
+[`CHANGELOG.md`](CHANGELOG.md) is the reference; every other file repeats it:
+
+| File | Field |
+| --- | --- |
+| `backend/pom.xml` | `<version>` |
+| `docs/api/openapi.yml` | `info.version` |
+| `frontend/apps/*/package.json`, `frontend/packages/*/package.json` | `version` |
+| `frontend/apps/mobile/app.json` | `expo.version` |
+
+When the maintainer cuts a release, the same pull request moves the `[Unreleased]` entries under the new
+version in the changelog and updates every file in the table. Never change the version of a single part.
+
 ### Changelog
 
 From the first release on `main`, every pull request that adds a feature, fixes a bug or changes
