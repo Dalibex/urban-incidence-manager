@@ -35,6 +35,11 @@ every staff role. Citizens do not need it in this version.
 - **Two-step sign-in.** A correct password for such an account returns a short-lived, single-use
   challenge and **no tokens**. The access and refresh tokens of ADR-0004 are issued only after a
   valid code is sent for that challenge. The token model itself does not change.
+  - The challenge is kept on the server, expires after a few minutes and can be used only once.
+    Whether it lives in PostgreSQL or in Redis ([ADR-0012](0012-cache-redis.md)) is decided in #57.
+  - The sign-in response says that a second factor is needed, and a wrong, expired or reused code
+    is rejected with a Problem whose `code` follows the API conventions of #33 (for example
+    `MFA_REQUIRED` and `MFA_CODE_INVALID`).
 - **Enrolment.** On the first sign-in after the second factor becomes required, the user scans a QR
   code (`otpauth://` URI) and confirms it with a first valid code.
 - **Codes.** A code is valid for its 30-second time step and one step on each side. A code that was
@@ -44,9 +49,13 @@ every staff role. Citizens do not need it in this version.
   from the environment and are never committed.
 - **Lost device.** An administrator resets the user's second factor. The reset is audited and
   revokes the user's refresh tokens, and the user enrols again on the next sign-in.
-- **Last administrator.** If no other administrator can do the reset, the maintainer runs a
-  documented emergency procedure on the database that clears the user's second factor and records
-  who did it and why. Recovery codes are left for later.
+- **Last administrator.** If no other administrator can do the reset, the maintainer runs an
+  emergency procedure on the database that clears the user's second factor and records who did it
+  and why. #57 documents it in [`docs/development.md`](../development.md). Recovery codes are left
+  for later.
+- **Audit (RF18).** Enrolment, reset and the emergency procedure are recorded in the audit history
+  with actor, instant and reason (#36). Failed codes are written to the application log, never with
+  the code itself, and count towards the rate limit.
 
 ## Considered Options
 
@@ -83,6 +92,7 @@ the project can afford now.
   - Tests use a controllable clock, since codes depend on the time.
   - The TOTP implementation comes from a maintained library, checked before it is added as
     `AGENTS.md` asks for any new dependency.
+  - The emergency procedure for the last administrator is written in `docs/development.md`.
   - No new C4 container; at most a component inside the `identity` module.
 
 ## How it will be evaluated
@@ -100,5 +110,6 @@ the project can afford now.
 - [ADR-0006: Use React for the web application](0006-frontend-web-technology.md)
 - [ADR-0010: Start with a modular monolith](0010-modular-monolith.md)
 - [ADR-0011: Deploy with docker-compose and 12-factor configuration](0011-deployment-12factor.md)
+- [ADR-0012: Use Redis as cache layer](0012-cache-redis.md)
 - [ADR-0019: Use Brevo for email and Twilio for SMS notifications](0019-notification-delivery-providers.md)
 - Issue #56 (this decision) and #57 (implementation)
