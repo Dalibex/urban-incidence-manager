@@ -1,0 +1,112 @@
+# Moves the issues a PR closes on the project board: a draft PR puts them in "In progress"
+# and a PR ready for review puts them in "In review". "Ready" stays manual (sprint planning)
+# and "Done" is set by the board's own "Item closed" and "Pull request merged" workflows.
+# It is automation, not a check: it must never be a required status check.
+# Needs the PROJECT_TOKEN secret, because the default GITHUB_TOKEN cannot write to a
+# project owned by a user account.
+# Runs on pull_request_target so the workflow always comes from main: a PR cannot change it to
+# read the secret. It never checks out the PR code and reads PR values only through env.
+# Documentation: docs/ci.md
+
+name: Project status
+
+on:
+  pull_request_target:
+    types: [opened, reopened, edited, ready_for_review, converted_to_draft]
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: project-status-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  PROJECT_OWNER: Dalibex
+  PROJECT_NUMBER: 3
+  STATUS_FIELD: Status
+  STATUS_DRAFT: In progress
+  STATUS_READY_FOR_REVIEW: In review
+
+jobs:
+  project-status:
+    name: project-status
+    # PRs from forks are skipped; a PR that is already closed must not move its issues back.
+    if: >-
+      github.event.pull_request.state == 'open' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Move the linked issues on the board
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          IS_DRAFT: ${{ github.event.pull_request.draft }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "::error title=Project status::The PROJECT_TOKEN secret is missing. See docs/ci.md."
+            exit 1
+          fi
+
+          if [[ "$IS_DRAFT" == "true" ]]; then target="$STATUS_DRAFT"; else target="$STATUS_READY_FOR_REVIEW"; fi
+
+          project=$(gh api graphql \
+            -f owner="$PROJECT_OWNER" -F number="$PROJECT_NUMBER" -f field="$STATUS_FIELD" \
+            -f query='query($owner: String!, $number: Int!, $field: String!) {
+              user(login: $owner) { projectV2(number: $number) {
+                id
+                field(name: $field) { ... on ProjectV2SingleSelectField { id options { id name } } }
+              } } }')
+          project_id=$(jq -r '.data.user.projectV2.id // empty' <<<"$project")
+          field_id=$(jq -r '.data.user.projectV2.field.id // empty' <<<"$project")
+          option_id=$(jq -r --arg name "$target" \
+            '.data.user.projectV2.field.options // [] | .[] | select(.name == $name) | .id' <<<"$project")
+          if [[ -z "$project_id" || -z "$field_id" ]]; then
+            echo "::error title=Project status::Project $PROJECT_OWNER/$PROJECT_NUMBER or its '$STATUS_FIELD' field was not found."
+            exit 1
+          fi
+          if [[ -z "$option_id" ]]; then
+            echo "::error title=Project status::The board has no '$target' option in its '$STATUS_FIELD' field."
+            exit 1
+          fi
+
+          # closingIssuesReferences are the issues GitHub will close on merge ("Closes #N").
+          issues=$(gh api graphql \
+            -f owner="$REPO_OWNER" -f name="$REPO_NAME" -F number="$PR_NUMBER" \
+            -f query='query($owner: String!, $name: String!, $number: Int!) {
+              repository(owner: $owner, name: $name) { pullRequest(number: $number) {
+                closingIssuesReferences(first: 10) { nodes {
+                  id number
+                  projectItems(first: 20) { nodes { id project { id } } }
+                } }
+              } } }')
+          count=$(jq '.data.repository.pullRequest.closingIssuesReferences.nodes | length' <<<"$issues")
+          if [[ "$count" -eq 0 ]]; then
+            echo "::warning title=Project status::The PR does not close any issue ('Closes #N'), so no card was moved."
+            exit 0
+          fi
+
+          while read -r issue; do
+            number=$(jq -r '.number' <<<"$issue")
+            item_id=$(jq -r --arg project "$project_id" \
+              '.projectItems.nodes[] | select(.project.id == $project) | .id' <<<"$issue")
+            if [[ -z "$item_id" ]]; then
+              item_id=$(gh api graphql \
+                -f project="$project_id" -f content="$(jq -r '.id' <<<"$issue")" \
+                -f query='mutation($project: ID!, $content: ID!) {
+                  addProjectV2ItemById(input: { projectId: $project, contentId: $content }) { item { id } } }' \
+                --jq '.data.addProjectV2ItemById.item.id')
+            fi
+            gh api graphql \
+              -f project="$project_id" -f item="$item_id" -f field="$field_id" -f option="$option_id" \
+              -f query='mutation($project: ID!, $item: ID!, $field: ID!, $option: String!) {
+                updateProjectV2ItemFieldValue(input: {
+                  projectId: $project, itemId: $item, fieldId: $field,
+                  value: { singleSelectOptionId: $option } }) { projectV2Item { id } } }' > /dev/null
+            echo "#$number -> $target"
+          done < <(jq -c '.data.repository.pullRequest.closingIssuesReferences.nodes[]' <<<"$issues")
