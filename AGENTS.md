@@ -110,7 +110,7 @@ The ADRs in `docs/adr/` are the source of truth. Check each ADR status before re
 | 0015 | CI with check-only jobs and pre-commit formatting. |
 | 0016 | Self-hosted OSM base map (PMTiles rebuilt every two weeks) rendered with MapLibre. |
 
-Proposed, not accepted: 0013 (evidence storage), 0017 (nginx reverse proxy), 0018 (Open-Meteo and TomTom as weather and traffic providers), 0019 (Brevo and Twilio as notification delivery providers), 0020 (incident lifecycle transitions). Do not implement them as if they were accepted.
+Proposed, not accepted: 0013 (evidence storage), 0017 (nginx reverse proxy), 0018 (Open-Meteo and TomTom as weather and traffic providers), 0019 (Brevo and Twilio as notification delivery providers), 0020 (incident lifecycle transitions), 0021 (TOTP second factor for staff accounts). Do not implement them as if they were accepted.
 
 Kubernetes, Terraform, queues, and microservices remain extensions conditioned on a demonstrated need.
 
