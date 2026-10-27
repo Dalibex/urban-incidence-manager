@@ -86,7 +86,7 @@ The evolutionary scope includes model training and evaluation, hotspot detection
 
 States defined in the teaching case: `REPORTED`, `VALIDATED`, `REJECTED`, `ASSIGNED`, `IN PROGRESS`, `RESOLVED`, `REOPENED`, and `CLOSED`.
 
-The document lists states, but does not specify a complete transition matrix. Consult the accepted rules before implementing them; do not assume that any change is valid. If the code uses `IN_PROGRESS`, document its correspondence with `IN PROGRESS` and keep the contract consistent.
+The document lists states, but does not specify a complete transition matrix. The proposed matrix is in ADR-0020 (`docs/adr/0020-incident-lifecycle-transitions.md`): check its status before implementing it, and do not assume that any change outside it is valid. The code uses `IN_PROGRESS` for the case study's `IN PROGRESS`; keep the contract consistent.
 
 Centralize transition validation. When status and history are modified in the same database, persist them in a transaction. An invalid transition must not leave partial changes. If there is concurrent editing, adopt the necessary conflict control and test that behavior.
 
@@ -110,7 +110,7 @@ The ADRs in `docs/adr/` are the source of truth. Check each ADR status before re
 | 0015 | CI with check-only jobs and pre-commit formatting. |
 | 0016 | Self-hosted OSM base map (PMTiles rebuilt every two weeks) rendered with MapLibre. |
 
-Proposed, not accepted: 0013 (evidence storage), 0017 (nginx reverse proxy), 0018 (Open-Meteo and TomTom as weather and traffic providers), 0019 (Brevo and Twilio as notification delivery providers). Do not implement them as if they were accepted.
+Proposed, not accepted: 0013 (evidence storage), 0017 (nginx reverse proxy), 0018 (Open-Meteo and TomTom as weather and traffic providers), 0019 (Brevo and Twilio as notification delivery providers), 0020 (incident lifecycle transitions). Do not implement them as if they were accepted.
 
 Kubernetes, Terraform, queues, and microservices remain extensions conditioned on a demonstrated need.
 
