@@ -1,6 +1,6 @@
 {
   "name": "@urbanpulse/ui",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "description": "Design tokens and platform-agnostic presentation helpers shared by web and mobile (ADR-0007).",
   "type": "module",

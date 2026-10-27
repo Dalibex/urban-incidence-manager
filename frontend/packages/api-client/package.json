@@ -1,6 +1,6 @@
 {
   "name": "@urbanpulse/api-client",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "description": "Typed HTTP client generated from docs/api/openapi.yml (ADR-0007, ADR-0008).",
   "type": "module",
