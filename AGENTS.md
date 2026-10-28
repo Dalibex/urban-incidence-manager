@@ -65,7 +65,7 @@ The evolutionary scope includes model training and evaluation, hotspot detection
 | `Assignment`          | Temporary relationship with a department, team, or technician.                                   |
 | `StatusChange`        | Auditable change with actor, time, reason, and associated data.                                  |
 | `ExternalObservation` | Normalized data with source, observation date, ingestion date, unit, and quality.                |
-| `Notification`        | Communication derived from an event and tracking of its delivery.                                |
+| `Notification`        | Communication created from an incident change and tracking of its delivery.                      |
 | `KnowledgeDocument`   | Versioned procedure or regulation that can be used in RAG.                                       |
 
 ### Invariants
@@ -140,6 +140,7 @@ The repository root only holds what is shared (documentation, CI, hooks, the API
 - The domain expresses rules and invariants without unnecessarily depending on HTTP, external providers, or interface components.
 - Repositories and adapters encapsulate persistence and integrations.
 - Modules only organize the code (ADR-0010): any class may use the services and entities of another module, and modules do not communicate through application events. Keep each module's own layers (controller, service, repository, entity, dto, mapper) inside its package.
+- Nothing in the build enforces module boundaries, so protect the rules that must not be skipped in the entity: when an entity may only be created through another one (for example `StatusChange` through `Incident.changeStatus`), give it a package-private constructor in `entity/` (ADR-0010).
 - Do not impose a full hexagonal architecture or one interface per class. Introduce abstractions when they represent a real boundary, a necessary variation, or enable useful tests.
 
 ## 5. Clean code and maintenance
