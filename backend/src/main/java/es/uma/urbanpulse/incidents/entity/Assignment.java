@@ -1,6 +1,6 @@
-package es.uma.urbanpulse.geospatial.domain;
+package es.uma.urbanpulse.incidents.entity;
 
-import es.uma.urbanpulse.incidents.domain.Incident;
+import es.uma.urbanpulse.identity.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -10,17 +10,18 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "incident_asset")
+@Table(name = "assignment")
 @Getter
 @Setter
 @NoArgsConstructor
-public class IncidentAsset {
+public class Assignment {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -31,15 +32,18 @@ public class IncidentAsset {
     private Incident incident;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "urban_asset_id", nullable = false)
-    private UrbanAsset urbanAsset;
+    @JoinColumn(name = "department_id", nullable = false)
+    private Department department;
 
-    @Column(name = "distance_to_incident")
-    private Double distanceToIncident;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "technician_id")
+    private User technician;
 
-    @Column(name = "confidence_level")
-    private Double confidenceLevel;
+    private String team;
 
-    @Column(nullable = false)
-    private String status;
+    @Column(name = "assigned_at", nullable = false)
+    private OffsetDateTime assignedAt;
+
+    @Column(name = "is_active", nullable = false)
+    private Boolean isActive = Boolean.TRUE;
 }

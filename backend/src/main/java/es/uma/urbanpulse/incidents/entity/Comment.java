@@ -1,6 +1,6 @@
-package es.uma.urbanpulse.incidents.domain;
+package es.uma.urbanpulse.incidents.entity;
 
-import es.uma.urbanpulse.identity.domain.User;
+import es.uma.urbanpulse.identity.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -15,15 +15,13 @@ import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 @Entity
-@Table(name = "status_change")
+@Table(name = "comment")
 @Getter
 @Setter
 @NoArgsConstructor
-public class StatusChange {
+public class Comment {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -34,23 +32,14 @@ public class StatusChange {
     private Incident incident;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "actor_id", nullable = false)
-    private User actor;
+    @JoinColumn(name = "author_id", nullable = false)
+    private User author;
 
-    @Column(nullable = false)
-    private OffsetDateTime instant;
+    @Column(nullable = false, columnDefinition = "text")
+    private String text;
 
-    @Column(name = "previous_status")
-    private String previousStatus;
-
-    @Column(name = "new_status", nullable = false)
-    private String newStatus;
-
-    private String reason;
-
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "associated_data", columnDefinition = "jsonb")
-    private String associatedData;
+    @Column(name = "created_at", nullable = false)
+    private OffsetDateTime createdAt;
 
     @Column(name = "visible_to_citizen", nullable = false)
     private Boolean visibleToCitizen;

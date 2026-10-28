@@ -1,4 +1,4 @@
-package es.uma.urbanpulse.incidents.domain;
+package es.uma.urbanpulse.identity.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -12,11 +12,11 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "category")
+@Table(name = "users")
 @Getter
 @Setter
 @NoArgsConstructor
-public class Category {
+public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -25,8 +25,15 @@ public class Category {
     @Column(nullable = false)
     private String name;
 
-    private String description;
+    @Column(nullable = false)
+    private String email;
 
-    @Column(name = "is_active", nullable = false)
-    private Boolean isActive = Boolean.TRUE;
+    @Column(name = "password_hash", nullable = false)
+    private String passwordHash;
+
+    @Column(nullable = false)
+    private String role;
+
+    @Column(nullable = false)
+    private Boolean enabled = Boolean.TRUE;
 }

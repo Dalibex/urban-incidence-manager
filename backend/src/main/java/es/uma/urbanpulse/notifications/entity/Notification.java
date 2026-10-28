@@ -1,6 +1,7 @@
-package es.uma.urbanpulse.incidents.domain;
+package es.uma.urbanpulse.notifications.entity;
 
-import es.uma.urbanpulse.identity.domain.User;
+import es.uma.urbanpulse.identity.entity.User;
+import es.uma.urbanpulse.incidents.entity.Incident;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -17,11 +18,11 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "assignment")
+@Table(name = "notification")
 @Getter
 @Setter
 @NoArgsConstructor
-public class Assignment {
+public class Notification {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -32,18 +33,18 @@ public class Assignment {
     private Incident incident;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "department_id", nullable = false)
-    private Department department;
+    @JoinColumn(name = "recipient_id", nullable = false)
+    private User recipient;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "technician_id")
-    private User technician;
+    @Column(nullable = false)
+    private String message;
 
-    private String team;
+    @Column(nullable = false)
+    private String channel;
 
-    @Column(name = "assigned_at", nullable = false)
-    private OffsetDateTime assignedAt;
+    @Column(name = "delivery_status", nullable = false)
+    private String deliveryStatus;
 
-    @Column(name = "is_active", nullable = false)
-    private Boolean isActive = Boolean.TRUE;
+    @Column(name = "sent_at")
+    private OffsetDateTime sentAt;
 }

@@ -1,11 +1,15 @@
-package es.uma.urbanpulse.geospatial.domain;
+package es.uma.urbanpulse.identity.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -14,30 +18,33 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 @Entity
-@Table(name = "urban_asset")
+@Table(name = "audit_log")
 @Getter
 @Setter
 @NoArgsConstructor
-public class UrbanAsset {
+public class AuditLog {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "external_id", nullable = false)
-    private String externalId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "actor_id", nullable = false)
+    private User actor;
 
     @Column(nullable = false)
-    private String type;
+    private OffsetDateTime instant;
 
     @Column(nullable = false)
-    private String source;
+    private String action;
 
-    @JdbcTypeCode(SqlTypes.GEOGRAPHY)
-    @Column(nullable = false, columnDefinition = "geography(Point,4326)")
-    private Object geometry;
+    @Column(name = "target_id")
+    private UUID targetId;
+
+    @Column(name = "target_type")
+    private String targetType;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
-    private String metadata;
+    private String details;
 }

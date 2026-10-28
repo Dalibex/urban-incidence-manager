@@ -1,5 +1,6 @@
-package es.uma.urbanpulse.incidents.domain;
+package es.uma.urbanpulse.urbancontext.entity;
 
+import es.uma.urbanpulse.incidents.entity.Incident;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -9,19 +10,18 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 @Entity
-@Table(name = "location")
+@Table(name = "urban_context")
 @Getter
 @Setter
 @NoArgsConstructor
-public class Location {
+public class UrbanContext {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -31,15 +31,16 @@ public class Location {
     @JoinColumn(name = "incident_id", nullable = false, unique = true)
     private Incident incident;
 
-    @JdbcTypeCode(SqlTypes.GEOGRAPHY)
-    @Column(nullable = false, columnDefinition = "geography(Point,4326)")
-    private Object coordinates;
+    private String weather;
 
-    private Double accuracy;
+    @Column(name = "traffic_status")
+    private String trafficStatus;
 
-    private String address;
+    private String event;
 
-    private String neighborhood;
+    @Column(nullable = false)
+    private String status;
 
-    private String district;
+    @Column(name = "captured_at")
+    private OffsetDateTime capturedAt;
 }

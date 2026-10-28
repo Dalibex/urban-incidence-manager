@@ -1,6 +1,6 @@
 package es.uma.urbanpulse.geospatial.repository;
 
-import es.uma.urbanpulse.geospatial.domain.UrbanAsset;
+import es.uma.urbanpulse.geospatial.entity.UrbanAsset;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 

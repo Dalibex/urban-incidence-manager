@@ -1,6 +1,6 @@
-package es.uma.urbanpulse.urbancontext.domain;
+package es.uma.urbanpulse.geospatial.entity;
 
-import es.uma.urbanpulse.incidents.domain.Incident;
+import es.uma.urbanpulse.incidents.entity.Incident;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -8,39 +8,38 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.OneToOne;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import java.time.OffsetDateTime;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "urban_context")
+@Table(name = "incident_asset")
 @Getter
 @Setter
 @NoArgsConstructor
-public class UrbanContext {
+public class IncidentAsset {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "incident_id", nullable = false, unique = true)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "incident_id", nullable = false)
     private Incident incident;
 
-    private String weather;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "urban_asset_id", nullable = false)
+    private UrbanAsset urbanAsset;
 
-    @Column(name = "traffic_status")
-    private String trafficStatus;
+    @Column(name = "distance_to_incident")
+    private Double distanceToIncident;
 
-    private String event;
+    @Column(name = "confidence_level")
+    private Double confidenceLevel;
 
     @Column(nullable = false)
     private String status;
-
-    @Column(name = "captured_at")
-    private OffsetDateTime capturedAt;
 }

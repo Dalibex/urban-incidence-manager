@@ -1,6 +1,6 @@
 package es.uma.urbanpulse.identity.repository;
 
-import es.uma.urbanpulse.identity.domain.User;
+import es.uma.urbanpulse.identity.entity.User;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 

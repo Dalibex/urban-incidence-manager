@@ -1,6 +1,6 @@
 package es.uma.urbanpulse.identity.repository;
 
-import es.uma.urbanpulse.identity.domain.AuditLog;
+import es.uma.urbanpulse.identity.entity.AuditLog;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 

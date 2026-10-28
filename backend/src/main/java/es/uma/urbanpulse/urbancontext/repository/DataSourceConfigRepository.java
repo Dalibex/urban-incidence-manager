@@ -1,6 +1,6 @@
 package es.uma.urbanpulse.urbancontext.repository;
 
-import es.uma.urbanpulse.urbancontext.domain.DataSourceConfig;
+import es.uma.urbanpulse.urbancontext.entity.DataSourceConfig;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 

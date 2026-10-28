@@ -1,7 +1,6 @@
-package es.uma.urbanpulse.notifications.domain;
+package es.uma.urbanpulse.incidents.entity;
 
-import es.uma.urbanpulse.identity.domain.User;
-import es.uma.urbanpulse.incidents.domain.Incident;
+import es.uma.urbanpulse.identity.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -16,13 +15,15 @@ import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
-@Table(name = "notification")
+@Table(name = "status_change")
 @Getter
 @Setter
 @NoArgsConstructor
-public class Notification {
+public class StatusChange {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -33,18 +34,24 @@ public class Notification {
     private Incident incident;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "recipient_id", nullable = false)
-    private User recipient;
+    @JoinColumn(name = "actor_id", nullable = false)
+    private User actor;
 
     @Column(nullable = false)
-    private String message;
+    private OffsetDateTime instant;
 
-    @Column(nullable = false)
-    private String channel;
+    @Column(name = "previous_status")
+    private String previousStatus;
 
-    @Column(name = "delivery_status", nullable = false)
-    private String deliveryStatus;
+    @Column(name = "new_status", nullable = false)
+    private String newStatus;
 
-    @Column(name = "sent_at")
-    private OffsetDateTime sentAt;
+    private String reason;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "associated_data", columnDefinition = "jsonb")
+    private String associatedData;
+
+    @Column(name = "visible_to_citizen", nullable = false)
+    private Boolean visibleToCitizen;
 }

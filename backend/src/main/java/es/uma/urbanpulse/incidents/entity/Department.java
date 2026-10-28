@@ -1,4 +1,4 @@
-package es.uma.urbanpulse.urbancontext.domain;
+package es.uma.urbanpulse.incidents.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -12,11 +12,11 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "data_source_config")
+@Table(name = "department")
 @Getter
 @Setter
 @NoArgsConstructor
-public class DataSourceConfig {
+public class Department {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -24,9 +24,6 @@ public class DataSourceConfig {
 
     @Column(nullable = false)
     private String name;
-
-    @Column(name = "endpoint_url", nullable = false)
-    private String endpointUrl;
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = Boolean.TRUE;

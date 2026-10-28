@@ -1,4 +1,4 @@
-package es.uma.urbanpulse.urbancontext.domain;
+package es.uma.urbanpulse.urbancontext.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

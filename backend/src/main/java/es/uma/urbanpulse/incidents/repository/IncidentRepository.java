@@ -1,6 +1,6 @@
 package es.uma.urbanpulse.incidents.repository;
 
-import es.uma.urbanpulse.incidents.domain.Incident;
+import es.uma.urbanpulse.incidents.entity.Incident;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
