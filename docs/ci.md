@@ -117,14 +117,18 @@ The three gates run in separate steps so that the name of the red step tells you
 
 | Step | Fails if… |
 |---|---|
-| Package | It does not compile or package (`./mvnw -DskipTests package`) |
-| Exactly one jar per commit | There is more than one `.jar` in `target/` |
+| Build the image | `backend/Dockerfile` does not build: the jar does not compile or package, or the build produces more than one jar |
 | Start PostGIS | The database does not start within 120 s |
-| Smoke test — `/actuator/health` UP | The jar does not start **with environment variables only** (`SERVER_PORT=9090`, `SPRING_DATASOURCE_*`) or the health is not `UP` |
-| Smoke test — SIGTERM | The app does not stop within 30 s after SIGTERM |
-| Publish the jar | — (`urbanpulse-<sha>` artifact, 7 days) |
+| Smoke test — `/actuator/health` UP | The container does not start **with environment variables only** (`SERVER_PORT=9090`, `SPRING_DATASOURCE_*`) or the health is not `UP` |
+| Smoke test — not root | The process in the container runs as root |
+| Smoke test — SIGTERM | The container does not stop within 30 s after `docker stop` (SIGTERM) and is killed |
+| Extract the jar and publish it | — (`urbanpulse-<sha>` artifact, 7 days) |
 
-The smoke test uses `docker run` with the PostGIS image, **not `docker compose`**. The packaged jar does not include Spring Boot's Docker Compose support, which is why the connection comes through `SPRING_DATASOURCE_*` and not through `application.yml`: locally, Spring Boot starts the Compose file and infers the URL and credentials.
+The image is the artifact ([ADR-0011](adr/0011-deployment-12factor.md)): the jar is compiled once, inside the image, and the published jar is copied out of the image that passed the smoke test. The image is not pushed to any registry yet.
+
+The smoke test uses `docker run` with the PostGIS image on a Docker network, **not `docker compose`**. The packaged jar does not include Spring Boot's Docker Compose support, which is why the connection comes through `SPRING_DATASOURCE_*` and not through `application.yml`: locally, Spring Boot starts the Compose file and infers the URL and credentials.
+
+The Maven dependencies are downloaded again on every run, because the build runs inside Docker and does not use the `setup-java` cache. If the job gets slow, see [7.6 Caching](#76-caching).
 
 The health step needs `/actuator/health` to be unprotected: with `spring-boot-starter-security`, `SecurityConfig` opens only `/actuator/health/**`. When the JWT filter is implemented, that bean is the one to replace, keeping the health endpoint open. Any **mandatory** property that gets added (e.g. a JWT secret) must also be passed as an environment variable in the smoke test step.
 
@@ -236,7 +240,7 @@ It has to be changed in four places, always with the same image:
 
 1. `docker-compose.yaml` (local development).
 2. `TestcontainersConfiguration.java`: one more `@Bean @ServiceConnection` (`RedisContainer`, `RabbitMQContainer`…).
-3. `build` job: one more `docker run -d …` and its `SPRING_…` variables, if the app needs it to start.
+3. `build` job: one more `docker run -d --network smoke …` and its `SPRING_…` variables as `-e` options of the `smoke-app` container, if the app needs it to start.
 4. `ci.yml`: a `REDIS_IMAGE` variable and its line in the *Same … image* step of `lint`.
 
 ### 7.5 Tests take too long: split unit and integration
@@ -279,13 +283,13 @@ Then, in the ruleset, replace `test` with `test-unit`, `test-integration` and `q
 
 ### 7.6 Caching
 
-- **Maven dependencies:** already on (`cache: maven` in `setup-java`, keyed on the hash of `pom.xml`). Nothing to do.
+- **Maven dependencies:** already on in `lint` and `test` (`cache: maven` in `setup-java`, keyed on the hash of `pom.xml`). The `build` job compiles inside Docker and downloads them on every run; if that becomes slow, cache the BuildKit layers with `docker/build-push-action` and `cache-from: type=gha`.
 - **Frontend:** already on: `.github/actions/setup-js` caches the pnpm store, keyed on the hash of `frontend/pnpm-lock.yaml`.
 - **Testcontainers Docker images:** GitHub runners already ship Docker and pull the image in a few seconds. Caching them is not worth it unless you hit Docker Hub limits.
 
 ### 7.7 Changing the Java version
 
-`JAVA_VERSION` in `ci.yml` and `java.version` in `pom.xml`, in the same PR.
+`JAVA_VERSION` in `ci.yml`, `java.version` in `pom.xml` and the two Temurin image tags in `backend/Dockerfile`, in the same PR.
 
 
 ## 8. How to make sure the CI works and does not fail for silly reasons
@@ -303,15 +307,11 @@ cd frontend && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && 
 npx @redocly/cli@2.71.0 lint && cd frontend && pnpm generate:api                             # contract (then git status: nothing changed)
 ```
 
-If they pass locally, `lint`, `contract`, `frontend` and `test` pass in the CI. The only thing they do not cover is the `build` smoke test (starting the jar), which can be reproduced:
+If they pass locally, `lint`, `contract`, `frontend` and `test` pass in the CI. The only thing they do not cover is the `build` smoke test (building and starting the image), which can be reproduced from `backend/`:
 
 ```bash
-docker compose up -d
-./mvnw -DskipTests package
-SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/urbanpulse \
-SPRING_DATASOURCE_USERNAME=urbanpulse SPRING_DATASOURCE_PASSWORD=change_me \
-SERVER_PORT=9090 java -jar target/*.jar
-# in another terminal: curl localhost:9090/actuator/health
+docker compose --profile app up --build
+# in another terminal: curl localhost:8080/actuator/health
 ```
 
 ### 8.2 When changing a workflow
