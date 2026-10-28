@@ -43,6 +43,10 @@ Copy-Item .env.example .env
 
 Replace `POSTGRES_PASSWORD` in `.env`. Never commit `.env`; only `.env.example` is versioned.
 
+Change `POSTGRES_PORT` (5432) or `BACKEND_PORT` (8080) only if something else on your computer
+already uses that port. `BACKEND_PORT` is only used when the backend runs in Docker (see *Run the
+Backend in Docker*); from the IDE the backend always listens on 8080.
+
 PostgreSQL applies `POSTGRES_DB`, `POSTGRES_USER` and `POSTGRES_PASSWORD` only when it initializes
 an empty volume. If you change them later, see the *Reset the Local Database* section below.
 
@@ -74,6 +78,53 @@ Windows PowerShell:
 ```
 
 Stop the application with `Ctrl+C`.
+
+## 🐳 Run the Backend in Docker
+
+The backend also runs as a container, from the same image that the CI tests and that is deployed
+([ADR-0011](adr/0011-deployment-12factor.md)). Use it to check that the backend works outside your
+IDE, or when you work on the clients and only need the API. You do not need Java or Maven for this:
+the image compiles the jar.
+
+From `backend/`, with `.env` created as above:
+
+```bash
+docker compose --profile app up --build
+```
+
+This starts the database and the backend. The API listens on `http://localhost:8080`, or on
+`BACKEND_PORT` if you set it in `.env`. Check it with:
+
+Linux or macOS:
+
+```bash
+curl http://localhost:8080/actuator/health
+```
+
+Windows PowerShell (`curl.exe`, because in Windows PowerShell `curl` is an alias of
+`Invoke-WebRequest`):
+
+```powershell
+curl.exe http://localhost:8080/actuator/health
+```
+
+- `--build` rebuilds the image with your current code. Without it, Compose reuses the last image it
+  built. The first build takes a few minutes because it downloads Maven and the dependencies; later
+  builds reuse them.
+- Those downloads and the image layers stay in Docker's build cache, which grows with every build
+  that changes something. `docker system df` shows its size (the *Build Cache* line). To free the
+  space, run `docker builder prune`: it does not touch images, containers or volumes, but the next
+  build takes as long as the first one.
+- The `backend` service belongs to the `app` profile. Without `--profile app`, Compose and the IDE
+  start only the database, so both ways of running the backend keep working. Do not run both at the
+  same time: they use the same port.
+- The port is published on `127.0.0.1`, so the API is only reachable from your computer: the web
+  app, `curl` or an Android emulator (`http://10.0.2.2:8080`). A physical phone cannot reach it;
+  to test the mobile app on a phone, run the backend from the IDE or the terminal instead (see
+  *Client Workspace*).
+- With `-d` (in the background), follow the logs with `docker compose logs -f backend`.
+- Stop everything with `Ctrl+C`, or with `docker compose --profile app down` if you started it with
+  `-d`. Your data stays in the `postgres-data` volume.
 
 ## 🚀 Running Tests
 
@@ -136,8 +187,10 @@ While a migration only exists on your branch, you can still change it: reset you
 delete all local data and start from an empty database:
 
 ```bash
-docker compose down -v
+docker compose --profile app down -v
 ```
+
+`--profile app` also removes the backend container, if you started it.
 
 ## 📱 Client Workspace
 

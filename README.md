@@ -18,7 +18,7 @@ The repository currently provides:
 - PostgreSQL with PostGIS for relational and geospatial data.
 - Spring Data JPA and PostgreSQL connectivity.
 - The database schema of the whole data model, created by versioned Flyway migrations.
-- Docker Compose integration for local database startup.
+- Docker Compose integration for local database startup, and a container image of the backend.
 - The OpenAPI 3.1 contract (`docs/api/openapi.yml`), served by the backend with Swagger UI.
 - Spring Security with only the Actuator health endpoints and the API documentation open.
 - Integration tests against PostGIS with Testcontainers.
@@ -89,6 +89,8 @@ Windows PowerShell:
 
 Spring Boot detects `docker-compose.yaml`, starts PostgreSQL/PostGIS, waits until the database is healthy, and configures the connection.
 
+To run the backend as a container instead, with the same image as the CI, use `docker compose --profile app up --build` (see the [development guide](docs/development.md)).
+
 ## 🚀 Testing
 
 Docker must be running: the integration tests start their own PostGIS container with Testcontainers.
@@ -112,6 +114,7 @@ urban-incidence-manager/
 |-- .githooks/
 |-- .github/
 |-- backend/
+|   |-- Dockerfile
 |   |-- docker-compose.yaml
 |   |-- pom.xml
 |   |-- mvnw
