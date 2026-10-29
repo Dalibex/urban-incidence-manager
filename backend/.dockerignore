@@ -1,0 +1,7 @@
+# Allow list: only what the image build needs enters the build context. Anything else, including
+# .env, target/ and IDE folders, stays out without having to list it.
+*
+!.mvn/
+!mvnw
+!pom.xml
+!src/

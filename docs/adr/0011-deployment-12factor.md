@@ -3,6 +3,7 @@
 - **Status:** Accepted
 - **Decision Makers:** Project Team
 - **Date:** 2026-10-10
+- **Amended:** 2026-10-28 (see *Amendments*)
 
 ## Context
 
@@ -46,9 +47,11 @@ one machine, keeping every 12-factor practice that makes the same image runnable
   at any time.
 - **Database on the internal network only:** the `internal` compose network has no published
   ports and no outbound internet access. Only `web` and `backend` publish ports.
-- **Local development exception:** `compose.yaml` publishes `db` `127.0.0.1`
-  only, so the backend can run from the IDE. It is enabled per developer with
-  `COMPOSE_FILE=compose.yaml:compose.dev.yaml` in their local `.env` and is never used on a server.
+- **Local development exception:** `backend/docker-compose.yaml` publishes `db` on `127.0.0.1`
+  only, so the backend can run from the IDE, where Spring Boot's Docker Compose support starts the
+  database. The `backend` service in that file belongs to the `app` profile, so the IDE flow
+  starts only the database, and `docker compose --profile app up` runs the backend image locally.
+  This file is never used on a server.
 - **Logs to standard output and standard error** in a structured format; collection is a
   concern of the runtime, not of the application code.
 - **Processes as containers:** any background task (cache refresh, retries) runs as a separate
@@ -109,3 +112,11 @@ requirements demand.
 - [ADR-0008: Use Spring Boot for the backend](0008-backend.md)
 - [ADR-0010: Start with a modular monolith](0010-modular-monolith.md)
 - C4 model: `docs/architecture/workspace.dsl` (deployment view)
+
+## Amendments
+
+- **2026-10-28** ([#90](https://github.com/Dalibex/urban-incidence-manager/issues/90)). The
+  decision does not change. The local development exception uses the `app` Compose profile in
+  `backend/docker-compose.yaml` instead of a separate `compose.dev.yaml` enabled with
+  `COMPOSE_FILE`, because Spring Boot's Docker Compose support already starts that file from the
+  IDE.
