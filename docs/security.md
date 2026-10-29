@@ -54,6 +54,27 @@ API does not reveal which ids exist. The contract says so in each operation.
 Sign-up, sign-in and refresh run in their own filter chain without token validation: a client that
 sends its expired access token along with the refresh request still gets the refresh.
 
+## CSRF
+
+CSRF protection is disabled in `SecurityConfig` on purpose. A cross-site request forgery works
+because the browser attaches a site's cookies to any request sent to it, even from another site's
+page. This API never authenticates with something the browser sends by itself:
+
+- The access token travels in the `Authorization` header, which only our own client code adds. A page
+  on another origin cannot read the token nor add the header to a request to the API.
+- There is no session and no cookie: the filter chains are stateless and the API never sends
+  `Set-Cookie`. `JwtAuthenticationIT` checks this, so a change that introduces cookies breaks a test.
+
+Static analysis flags the disabled protection anyway (CodeQL `java/spring-disabled-csrf-protection`):
+it cannot see that no cookie carries a credential. The alert is dismissed as a false positive with a
+link to this section.
+
+**When this stops being true:** if any credential ever travels in a cookie (for example, the refresh
+token in an `HttpOnly` cookie for the web client), the endpoints that accept it are open to CSRF.
+That change needs an update of [ADR-0004](adr/0004-authentication-strategy.md) and CSRF protection
+(or `SameSite=Strict` plus a check of the `Origin` header) for those endpoints, in the same pull
+request.
+
 ## Permission matrix
 
 Paths are relative to `/api/v1`. **Public** means no token. A role in the cell can call the

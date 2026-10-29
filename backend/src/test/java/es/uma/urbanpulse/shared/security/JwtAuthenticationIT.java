@@ -1,6 +1,8 @@
 package es.uma.urbanpulse.shared.security;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
+import static org.springframework.http.HttpHeaders.SET_COOKIE;
 import static org.springframework.http.HttpHeaders.WWW_AUTHENTICATE;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -105,6 +107,27 @@ class JwtAuthenticationIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(userId.toString()))
                 .andExpect(jsonPath("$.role").value("TECHNICIAN"));
+    }
+
+    /**
+     * Disabling CSRF is safe only while no credential travels in a cookie (docs/security.md, CSRF).
+     * If a change makes the API set a cookie or keep a session, this test fails on purpose.
+     */
+    @Test
+    void neverSetsCookiesNorKeepsASession() throws Exception {
+        var authenticated =
+                mvc.perform(get(ME).header(AUTHORIZATION, tokens.bearer(Role.CITIZEN)))
+                        .andExpect(status().isOk())
+                        .andExpect(header().doesNotExist(SET_COOKIE))
+                        .andReturn();
+        var anonymous =
+                mvc.perform(get(ME))
+                        .andExpect(status().isUnauthorized())
+                        .andExpect(header().doesNotExist(SET_COOKIE))
+                        .andReturn();
+
+        assertThat(authenticated.getRequest().getSession(false)).isNull();
+        assertThat(anonymous.getRequest().getSession(false)).isNull();
     }
 
     @Test
