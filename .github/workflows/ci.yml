@@ -288,8 +288,10 @@ jobs:
 
       - name: Smoke test — the image starts with env config and /actuator/health is UP
         run: |
+          # Throwaway signing secret, generated here and gone with the job (docs/security.md).
           docker run -d --name smoke-app --network smoke -p "$SMOKE_PORT:$SMOKE_PORT" \
             -e SERVER_PORT="$SMOKE_PORT" \
+            -e JWT_SECRET="$(openssl rand -base64 48)" \
             -e SPRING_DATASOURCE_URL="jdbc:postgresql://smoke-db:5432/$SMOKE_DB" \
             -e SPRING_DATASOURCE_USERNAME="$SMOKE_USER" \
             -e SPRING_DATASOURCE_PASSWORD="$SMOKE_PASSWORD" \
