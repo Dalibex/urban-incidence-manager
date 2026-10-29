@@ -3,9 +3,11 @@ package es.uma.urbanpulse;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import es.uma.urbanpulse.identity.entity.AuditLog;
+import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.identity.entity.User;
 import es.uma.urbanpulse.identity.repository.AuditLogRepository;
 import es.uma.urbanpulse.incidents.entity.Incident;
+import es.uma.urbanpulse.incidents.entity.IncidentStatus;
 import es.uma.urbanpulse.incidents.entity.Location;
 import es.uma.urbanpulse.incidents.repository.IncidentRepository;
 import es.uma.urbanpulse.incidents.repository.LocationRepository;
@@ -41,7 +43,7 @@ class EntityMappingIT extends PersistenceTestSupport {
 
         Incident found = incidents.findById(saved.getId()).orElseThrow();
         assertThat(found.getTitle()).isEqualTo("Broken streetlight");
-        assertThat(found.getStatus()).isEqualTo("REPORTED");
+        assertThat(found.getStatus()).isEqualTo(IncidentStatus.REPORTED);
         assertThat(found.getReportedAt()).isEqualTo(REPORTED_AT);
         assertThat(found.getReporter().getEmail()).isEqualTo(incident.getReporter().getEmail());
     }
@@ -96,7 +98,7 @@ class EntityMappingIT extends PersistenceTestSupport {
         user.setName("Ana Citizen");
         user.setEmail("citizen-" + UUID.randomUUID() + "@example.com");
         user.setPasswordHash("not-a-real-hash");
-        user.setRole("CITIZEN");
+        user.setRole(Role.CITIZEN);
         entityManager.persist(user);
         return user;
     }
@@ -106,7 +108,7 @@ class EntityMappingIT extends PersistenceTestSupport {
         incident.setReporter(reporter);
         incident.setTitle("Broken streetlight");
         incident.setDescription("The streetlight at the corner is off.");
-        incident.setStatus("REPORTED");
+        incident.setStatus(IncidentStatus.REPORTED);
         incident.setReportedAt(REPORTED_AT);
         incident.setUpdatedAt(REPORTED_AT);
         return incident;
