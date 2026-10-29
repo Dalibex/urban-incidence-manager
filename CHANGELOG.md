@@ -9,8 +9,6 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- OpenAPI contract of the Sprint 1 endpoints, ahead of their implementation: sign-up, sign-in, token refresh, sign-out and current user, and incident reporting, listing, detail, status history and categories; listing and error conventions (pagination, `422`, `429`, stable error `code`) in `docs/api.md`; regenerated `api-client` types (#93, #33).
-
 ### Changed
 
 ### Fixed
