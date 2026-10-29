@@ -1,6 +1,6 @@
 {
   "name": "@urbanpulse/mobile",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "description": "UrbanPulse mobile app for citizens (ADR-0005).",
   "main": "index.ts",

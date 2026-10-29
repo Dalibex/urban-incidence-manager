@@ -1,6 +1,6 @@
 {
   "name": "@urbanpulse/web",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "description": "UrbanPulse web app for operators, technicians, analysts and administrators (ADR-0006).",
   "type": "module",
