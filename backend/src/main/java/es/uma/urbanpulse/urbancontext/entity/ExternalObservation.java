@@ -2,6 +2,8 @@ package es.uma.urbanpulse.urbancontext.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -51,6 +53,7 @@ public class ExternalObservation {
     @Column(name = "expiration_date")
     private OffsetDateTime expirationDate;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String status;
+    private ExternalObservationStatus status;
 }

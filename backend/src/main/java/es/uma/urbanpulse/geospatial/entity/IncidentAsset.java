@@ -3,6 +3,8 @@ package es.uma.urbanpulse.geospatial.entity;
 import es.uma.urbanpulse.incidents.entity.Incident;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -40,6 +42,7 @@ public class IncidentAsset {
     @Column(name = "confidence_level")
     private Double confidenceLevel;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String status;
+    private IncidentAssetStatus status;
 }

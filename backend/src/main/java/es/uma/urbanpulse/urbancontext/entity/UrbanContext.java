@@ -3,6 +3,8 @@ package es.uma.urbanpulse.urbancontext.entity;
 import es.uma.urbanpulse.incidents.entity.Incident;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -31,15 +33,18 @@ public class UrbanContext {
     @JoinColumn(name = "incident_id", nullable = false, unique = true)
     private Incident incident;
 
-    private String weather;
+    @Enumerated(EnumType.STRING)
+    private Weather weather;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "traffic_status")
-    private String trafficStatus;
+    private TrafficStatus trafficStatus;
 
     private String event;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String status;
+    private UrbanContextStatus status;
 
     @Column(name = "captured_at")
     private OffsetDateTime capturedAt;
