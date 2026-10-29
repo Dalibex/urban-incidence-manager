@@ -1,6 +1,10 @@
 spring:
   application:
     name: urbanpulse
+  # Locally, the variables of backend/.env (JWT_SECRET...) are read as properties, so the IDE needs
+  # no extra setup. Real environment variables win over the file; in a container there is no .env.
+  config:
+    import: optional:file:.env[.properties]
   jpa:
     open-in-view: false
     # SQL is not logged by default (it would also be logged in production). To see it locally,
@@ -18,3 +22,11 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
     url: /openapi.yml
+
+# Access tokens (ADR-0004, docs/security.md). Without JWT_SECRET the secret is empty and the
+# application does not start (JwtProperties checks it).
+urbanpulse:
+  security:
+    jwt:
+      secret: ${JWT_SECRET:}
+      access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:PT15M}
