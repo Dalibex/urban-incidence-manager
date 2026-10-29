@@ -2,6 +2,8 @@ package es.uma.urbanpulse.geospatial.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -12,6 +14,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import org.locationtech.jts.geom.Point;
 
 @Entity
 @Table(name = "urban_asset")
@@ -27,15 +30,15 @@ public class UrbanAsset {
     @Column(name = "external_id", nullable = false)
     private String externalId;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String type;
+    private UrbanAssetType type;
 
     @Column(nullable = false)
     private String source;
 
-    @JdbcTypeCode(SqlTypes.GEOGRAPHY)
     @Column(nullable = false, columnDefinition = "geography(Point,4326)")
-    private Object geometry;
+    private Point geometry;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")

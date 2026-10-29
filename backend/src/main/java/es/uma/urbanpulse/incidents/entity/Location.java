@@ -13,8 +13,7 @@ import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
+import org.locationtech.jts.geom.Point;
 
 @Entity
 @Table(name = "location")
@@ -31,9 +30,8 @@ public class Location {
     @JoinColumn(name = "incident_id", nullable = false, unique = true)
     private Incident incident;
 
-    @JdbcTypeCode(SqlTypes.GEOGRAPHY)
     @Column(nullable = false, columnDefinition = "geography(Point,4326)")
-    private Object coordinates;
+    private Point coordinates;
 
     private Double accuracy;
 
