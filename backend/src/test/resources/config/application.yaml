@@ -1,0 +1,9 @@
+# Test-only settings. This file is in config/ so it is read on top of the main application.yaml
+# instead of replacing it (a test application.yaml in the root of the classpath would hide it).
+urbanpulse:
+  security:
+    jwt:
+      # Fixed and public: it only signs tokens inside the tests.
+      secret: test-secret-for-integration-tests-only-0123456789
+      # Fixed too, so a JWT_ACCESS_TOKEN_TTL in the developer's .env does not change the tests.
+      access-token-ttl: PT15M

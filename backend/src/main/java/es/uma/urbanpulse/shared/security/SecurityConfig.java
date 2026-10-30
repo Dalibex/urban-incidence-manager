@@ -1,12 +1,23 @@
 package es.uma.urbanpulse.shared.security;
 
+import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.Customizer;
+import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 
+/**
+ * Every request needs a valid access token ({@code Authorization: Bearer}) except the public paths
+ * below. Role checks live next to the code they protect, with {@code @PreAuthorize}; the endpoint ×
+ * role matrix is in {@code docs/security.md}.
+ */
 @Configuration
+@EnableMethodSecurity
 class SecurityConfig {
 
     // Public API documentation (docs/api.md, section 5): the contract, Swagger UI and the
@@ -15,17 +26,68 @@ class SecurityConfig {
         "/openapi.yml", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**"
     };
 
+    // Operations of the contract marked with `security: []`: sign-up, sign-in and refresh.
+    private static final String[] PUBLIC_API_POSTS = {
+        "/api/v1/registrations", "/api/v1/sessions", "/api/v1/sessions/refresh"
+    };
+
+    /**
+     * Sign-up, sign-in and refresh have their own chain, without the bearer token filter. In the
+     * main chain that filter rejects any {@code Authorization: Bearer} it cannot validate before
+     * {@code permitAll} is checked, so a client that sends its expired access token along with the
+     * refresh request would get {@code 401} and lose the session.
+     */
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    @Order(1)
+    SecurityFilterChain publicApiFilterChain(
+            HttpSecurity http, SecurityProblemResponses problemResponses) throws Exception {
+        http.securityMatchers(
+                        matchers -> matchers.requestMatchers(HttpMethod.POST, PUBLIC_API_POSTS))
+                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
+        return statelessWithProblemResponses(http, problemResponses).build();
+    }
+
+    @Bean
+    @Order(2)
+    SecurityFilterChain apiFilterChain(HttpSecurity http, SecurityProblemResponses problemResponses)
+            throws Exception {
         http.authorizeHttpRequests(
                         auth ->
-                                auth.requestMatchers("/actuator/health/**")
+                                // A 400, 404 or 500 is rendered in a second, internal dispatch to
+                                // /error. The original request was already authorized; without this
+                                // line an anonymous caller would get 401 instead of the real error.
+                                auth.dispatcherTypeMatchers(DispatcherType.ERROR)
+                                        .permitAll()
+                                        .requestMatchers("/actuator/health/**")
                                         .permitAll()
                                         .requestMatchers(API_DOCS_PATHS)
                                         .permitAll()
                                         .anyRequest()
                                         .authenticated())
-                .httpBasic(Customizer.withDefaults());
-        return http.build();
+                .oauth2ResourceServer(
+                        resourceServer ->
+                                resourceServer
+                                        .jwt(
+                                                jwt ->
+                                                        jwt.jwtAuthenticationConverter(
+                                                                new AuthenticatedUserConverter()))
+                                        .authenticationEntryPoint(problemResponses)
+                                        .accessDeniedHandler(problemResponses));
+        return statelessWithProblemResponses(http, problemResponses).build();
+    }
+
+    private static HttpSecurity statelessWithProblemResponses(
+            HttpSecurity http, SecurityProblemResponses problemResponses) throws Exception {
+        return http.exceptionHandling(
+                        exceptions ->
+                                exceptions
+                                        .authenticationEntryPoint(problemResponses)
+                                        .accessDeniedHandler(problemResponses))
+                // Each request carries its token (Twelve-Factor VI): no HTTP session.
+                .sessionManagement(
+                        session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // CSRF abuses credentials the browser sends by itself (cookies). A bearer token is
+                // only sent when the client adds it, so there is nothing to forge.
+                .csrf(AbstractHttpConfigurer::disable);
     }
 }

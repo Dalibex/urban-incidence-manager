@@ -41,7 +41,19 @@ Windows PowerShell:
 Copy-Item .env.example .env
 ```
 
-Replace `POSTGRES_PASSWORD` in `.env`. Never commit `.env`; only `.env.example` is versioned.
+Replace `POSTGRES_PASSWORD` in `.env` and fill in `JWT_SECRET`, the secret that signs the access
+tokens ([security guide](security.md)). The backend does not start without it. Generate one with
+(in Windows, from Git Bash):
+
+```bash
+openssl rand -base64 48
+```
+
+Never commit `.env`; only `.env.example` is versioned. The backend reads `backend/.env` by itself
+when it runs from `backend/` (IDE or `./mvnw spring-boot:run`), and Docker Compose passes it to the
+container, so no other setup is needed. The backend reads `.env` as a properties file, so write
+the values without quotes (`JWT_SECRET=abc...`, not `JWT_SECRET="abc..."`): quotes would become part
+of the secret.
 
 Change `POSTGRES_PORT` (5432) or `BACKEND_PORT` (8080) only if something else on your computer
 already uses that port. `BACKEND_PORT` is only used when the backend runs in Docker (see *Run the
