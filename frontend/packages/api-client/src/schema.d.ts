@@ -3,11 +3,258 @@
  * Do not make direct changes to the file.
  */
 
-export type paths = Record<string, never>;
+export interface paths {
+    "/registrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign up as a citizen
+         * @description Creates a citizen account. The new user always gets the `CITIZEN` role: a `role` sent in
+         *     the body is ignored. Staff accounts are created by an administrator, not here. The
+         *     response does not sign the user in; the client calls `createSession` afterwards.
+         *
+         *     `EMAIL_ALREADY_EXISTS` reveals that an email has an account, so sign-up is rate limited
+         *     like sign-in, to keep anyone from checking many emails.
+         *
+         *     Roles: public.
+         */
+        post: operations["createRegistration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign in
+         * @description Checks the email and password and returns a new token pair (ADR-0004). Repeated failed
+         *     attempts are rate limited.
+         *
+         *     A wrong email and a wrong password get the same `401`, so sign-in does not reveal which
+         *     emails have an account (sign-up does, with `EMAIL_ALREADY_EXISTS`). `ACCOUNT_DISABLED` is
+         *     only returned when the password is right.
+         *
+         *     Roles: public.
+         */
+        post: operations["createSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sessions/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Renew the token pair
+         * @description Exchanges a refresh token for a new token pair. The refresh token is rotated: the one sent
+         *     stops working, and sending it again fails.
+         *
+         *     A client must not try to refresh again when this operation returns `401`: it signs the
+         *     user out instead.
+         *
+         *     Roles: public (the refresh token is the credential).
+         */
+        post: operations["refreshSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sessions/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Sign out
+         * @description Revokes the refresh token of the session the access token belongs to: the access token
+         *     carries the id of the refresh token issued with it. Other sessions of the same user (other
+         *     devices) stay open. The access token keeps working until it expires (about 15 minutes,
+         *     ADR-0004), so the client discards both tokens.
+         *
+         *     It is idempotent: a session that is already revoked also returns `204`. If the access
+         *     token has expired, the client refreshes first and then signs out, so the refresh token
+         *     does not stay valid on the device.
+         *
+         *     Roles: any authenticated user.
+         */
+        delete: operations["deleteCurrentSession"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the signed-in user
+         * @description Profile and role of the user the access token belongs to. The clients use `role` to choose
+         *     the landing screen; the API checks the role again in every operation.
+         *
+         *     Roles: any authenticated user.
+         */
+        get: operations["getCurrentUser"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the active categories
+         * @description Active categories, ordered by name, for the category drop-down of the report form. It is a
+         *     short reference list managed by administrators, so it is not paginated.
+         *
+         *     Roles: any authenticated user.
+         */
+        get: operations["listCategories"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/incidents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the incidents the user can see
+         * @description Paginated incidents, scoped by role (#37):
+         *
+         *     - `CITIZEN`: only the incidents they reported.
+         *     - `TECHNICIAN`: only the incidents actively assigned to them.
+         *     - `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`: all incidents.
+         *     - `ANALYST`: no access yet (`403`); analytics comes in a later milestone.
+         *
+         *     Sortable properties: `reportedAt`, `updatedAt`. Default `reportedAt,desc` (newest first);
+         *     `id` is always added as the last criterion so the order is stable between pages.
+         */
+        get: operations["listIncidents"];
+        put?: never;
+        /**
+         * Report an incident
+         * @description Creates an incident in `REPORTED` status with its first history entry, in one transaction
+         *     (#37, ADR-0020). The reporter is the user of the access token, never a property of the
+         *     body.
+         *
+         *     No external source is called while reporting (RF26): `address`, `neighborhood` and
+         *     `district` start as `null` ("not available yet") and are filled in later, when enrichment
+         *     exists.
+         *
+         *     Roles: `CITIZEN`.
+         */
+        post: operations["createIncident"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/incidents/{incidentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get an incident
+         * @description The incident, if the user may see it under the rules of `listIncidents`. An incident the
+         *     user may not see returns `404`, the same as one that does not exist, so its existence is
+         *     not revealed (#37).
+         *
+         *     Roles: `CITIZEN` (own incidents), `TECHNICIAN` (actively assigned), `MUNICIPAL_OPERATOR`,
+         *     `ADMINISTRATOR`. `ANALYST` gets `403`.
+         */
+        get: operations["getIncident"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/incidents/{incidentId}/status-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the status history of an incident
+         * @description Every status change of the incident, oldest first. It is not paginated: the lifecycle of
+         *     ADR-0020 bounds it to a few entries per incident.
+         *
+         *     A citizen only gets the entries visible to them, with the reason only where ADR-0020 says
+         *     the citizen sees it, and without the staff-only properties. Staff get every entry.
+         *
+         *     Roles: the same as `getIncident`, with the same `404` rule.
+         */
+        get: operations["listIncidentStatusChanges"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+}
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** @description Error body for every 4xx and 5xx response (RFC 9457 Problem Details). Clients must not parse `detail`, which is for humans; they branch on `status` and `type`. */
+        /** @description Error body for every 4xx and 5xx response (RFC 9457 Problem Details). Clients must not parse `detail`, which is for humans; they branch on `status` and, when present, `code`. */
         Problem: {
             /**
              * Format: uri-reference
@@ -28,6 +275,11 @@ export interface components {
              */
             status: number;
             /**
+             * @description Stable, machine-readable reason, for the cases where the status alone is not enough for the client (for example `INVALID_CREDENTIALS` and `ACCOUNT_DISABLED`). Once published, a code never changes its meaning. The catalogue is in `docs/api.md`.
+             * @example EMAIL_ALREADY_EXISTS
+             */
+            code?: string;
+            /**
              * @description Explanation of this occurrence. Never contains stack traces, SQL or personal data.
              * @example Incident 3f1c2a9e-7b4d-4c1a-9e2f-5d6b7a8c9d0e does not exist.
              */
@@ -43,7 +295,7 @@ export interface components {
              * @example 4bf92f3577b34da6a3ce929d0e0e4736
              */
             traceId?: string;
-            /** @description Only in `400` responses caused by invalid input, one item per invalid field. */
+            /** @description Only in `422` responses, one item per invalid field. */
             errors?: components["schemas"]["FieldError"][];
         };
         /** @description One invalid field of the request. */
@@ -59,9 +311,344 @@ export interface components {
              */
             message: string;
         };
+        /** @description Position of a page inside a paginated listing. */
+        PageMetadata: {
+            /**
+             * Format: int32
+             * @description Number of this page, starting at 0.
+             * @example 0
+             */
+            number: number;
+            /**
+             * Format: int32
+             * @description Requested page size. The last page may hold fewer items.
+             * @example 20
+             */
+            size: number;
+            /**
+             * Format: int64
+             * @description Items in the whole listing with the current filters.
+             * @example 1
+             */
+            totalElements: number;
+            /**
+             * Format: int32
+             * @description Pages in the whole listing with the current filters.
+             * @example 1
+             */
+            totalPages: number;
+        };
+        /**
+         * @description Role of a user (ADR-0004). A user has exactly one.
+         * @example CITIZEN
+         * @enum {string}
+         */
+        Role: "CITIZEN" | "MUNICIPAL_OPERATOR" | "TECHNICIAN" | "ADMINISTRATOR" | "ANALYST";
+        /** @description Data to create a citizen account. */
+        CreateRegistrationRequest: {
+            /**
+             * @description Full name, shown to staff working on the user's incidents. It may not be blank.
+             * @example Lucía Martín
+             */
+            name: string;
+            /**
+             * Format: email
+             * @description Email used to sign in. It is stored in lower case and is unique, so two emails that only differ in case are the same account.
+             * @example lucia.martin@example.com
+             */
+            email: string;
+            /**
+             * Format: password
+             * @description At least 8 characters and at most 72 bytes in UTF-8 (a password hash limit; a letter such as "ñ" takes 2 bytes). The server checks the byte length and returns `422` above it. It is stored hashed and never returned.
+             * @example correct-horse-battery
+             */
+            password: string;
+        };
+        /** @description Credentials to sign in. */
+        CreateSessionRequest: {
+            /**
+             * Format: email
+             * @example lucia.martin@example.com
+             */
+            email: string;
+            /**
+             * Format: password
+             * @example correct-horse-battery
+             */
+            password: string;
+        };
+        /** @description The refresh token received with the last token pair. */
+        RefreshSessionRequest: {
+            /** @example Yh2k7sQ9vX1mN4pR8tW3zB6cF0gJ5lD2 */
+            refreshToken: string;
+        };
+        /** @description Token pair of a session (ADR-0004). Each client keeps the refresh token in the storage agreed for it (#39) and sends the access token in `Authorization: Bearer`. */
+        SessionResponse: {
+            /**
+             * @example Bearer
+             * @constant
+             */
+            tokenType: "Bearer";
+            /**
+             * @description Signed JWT with the user id and role. Clients do not need to decode it.
+             * @example eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI3YzJlIn0.c2lnbmF0dXJl
+             */
+            accessToken: string;
+            /**
+             * Format: date-time
+             * @description When the access token expires (UTC).
+             * @example 2026-11-02T10:15:00Z
+             */
+            accessTokenExpiresAt: string;
+            /**
+             * @description Opaque token for `refreshSession`. It works once.
+             * @example Yh2k7sQ9vX1mN4pR8tW3zB6cF0gJ5lD2
+             */
+            refreshToken: string;
+            /**
+             * Format: date-time
+             * @description When the refresh token expires (UTC). After it, the user signs in again.
+             * @example 2026-11-16T10:00:00Z
+             */
+            refreshTokenExpiresAt: string;
+        };
+        /** @description Public profile of a user. It never includes the password or its hash. */
+        UserResponse: {
+            /**
+             * Format: uuid
+             * @example 7c2e4b1a-9d3f-4e8a-b6c5-1f0a2d3e4b5c
+             */
+            id: string;
+            /** @example Lucía Martín */
+            name: string;
+            /**
+             * Format: email
+             * @example lucia.martin@example.com
+             */
+            email: string;
+            role: components["schemas"]["Role"];
+        };
+        /**
+         * @description Lifecycle status (ADR-0020). `IN_PROGRESS` is the "IN PROGRESS" status of the case study.
+         * @example REPORTED
+         * @enum {string}
+         */
+        IncidentStatus: "REPORTED" | "VALIDATED" | "REJECTED" | "ASSIGNED" | "IN_PROGRESS" | "RESOLVED" | "REOPENED" | "CLOSED";
+        /**
+         * @description Priority set by an operator.
+         * @example HIGH
+         * @enum {string}
+         */
+        Priority: "LOW" | "MEDIUM" | "HIGH";
+        /** @description Category an incident can be classified in. */
+        CategoryResponse: {
+            /**
+             * Format: uuid
+             * @example a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d
+             */
+            id: string;
+            /** @example Street lighting */
+            name: string;
+            /**
+             * @description Help text for the citizen. `null` when the category has none.
+             * @example Broken or flickering street lights.
+             */
+            description: string | null;
+        };
+        /** @description Category of an incident, embedded so a listing needs no extra request. */
+        CategorySummary: {
+            /**
+             * Format: uuid
+             * @example a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d
+             */
+            id: string;
+            /** @example Street lighting */
+            name: string;
+        };
+        /** @description A citizen's report. The category is optional: an operator classifies the incident if the citizen does not. */
+        CreateIncidentRequest: {
+            /**
+             * @description Short summary. It may not be blank.
+             * @example Street light off
+             */
+            title: string;
+            /**
+             * @description What happens and where. It may not be blank.
+             * @example The street light in front of number 12 has been off for three days.
+             */
+            description: string;
+            /**
+             * Format: uuid
+             * @description An active category from `listCategories`. Absent if the citizen does not choose one; an unknown or inactive category returns `422`.
+             * @example a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d
+             */
+            categoryId?: string;
+            location: components["schemas"]["ReportedLocation"];
+        };
+        /** @description Position of the incident as the device measured it. */
+        ReportedLocation: {
+            /**
+             * Format: double
+             * @description WGS 84 latitude in decimal degrees.
+             * @example 36.7213
+             */
+            latitude: number;
+            /**
+             * Format: double
+             * @description WGS 84 longitude in decimal degrees.
+             * @example -4.4214
+             */
+            longitude: number;
+            /**
+             * Format: double
+             * @description Accuracy radius in metres reported by the device. Absent when the device does not report it.
+             * @example 12.5
+             */
+            accuracy?: number;
+        };
+        /** @description Position of the incident and what is known about the place. `null` in `accuracy`, `address`, `neighborhood` or `district` means "not available": unknown or not looked up yet, never "none". */
+        IncidentLocation: {
+            /**
+             * Format: double
+             * @description WGS 84 latitude in decimal degrees.
+             * @example 36.7213
+             */
+            latitude: number;
+            /**
+             * Format: double
+             * @description WGS 84 longitude in decimal degrees.
+             * @example -4.4214
+             */
+            longitude: number;
+            /**
+             * Format: double
+             * @description Accuracy radius in metres. `null` when the device did not report it.
+             * @example 12.5
+             */
+            accuracy: number | null;
+            /**
+             * @description Normalized address. `null` while not available.
+             * @example null
+             */
+            address: string | null;
+            /**
+             * @description Neighbourhood of Málaga. `null` while not available.
+             * @example null
+             */
+            neighborhood: string | null;
+            /**
+             * @description District of Málaga. `null` while not available.
+             * @example null
+             */
+            district: string | null;
+        };
+        /** @description One incident in a listing. `priority` is staff-only: it is absent in the responses to a citizen. */
+        IncidentSummaryResponse: {
+            /**
+             * Format: uuid
+             * @example 3f1c2a9e-7b4d-4c1a-9e2f-5d6b7a8c9d0e
+             */
+            id: string;
+            /** @example Street light off */
+            title: string;
+            status: components["schemas"]["IncidentStatus"];
+            /** @description Staff only. `null` while the incident has no priority. */
+            priority?: components["schemas"]["Priority"] | null;
+            /** @description `null` while the incident has no category. */
+            category: components["schemas"]["CategorySummary"] | null;
+            /**
+             * Format: date-time
+             * @example 2026-11-02T09:58:31Z
+             */
+            reportedAt: string;
+            /**
+             * Format: date-time
+             * @description Last change of the incident, including status changes.
+             * @example 2026-11-02T09:58:31Z
+             */
+            updatedAt: string;
+        };
+        /** @description One page of incidents. */
+        IncidentPageResponse: {
+            content: components["schemas"]["IncidentSummaryResponse"][];
+            page: components["schemas"]["PageMetadata"];
+        };
+        /** @description Full incident. `priority` is staff-only: it is absent in the responses to a citizen. */
+        IncidentResponse: {
+            /**
+             * Format: uuid
+             * @example 3f1c2a9e-7b4d-4c1a-9e2f-5d6b7a8c9d0e
+             */
+            id: string;
+            /** @example Street light off */
+            title: string;
+            /** @example The street light in front of number 12 has been off for three days. */
+            description: string;
+            status: components["schemas"]["IncidentStatus"];
+            /** @description Staff only. `null` while the incident has no priority. */
+            priority?: components["schemas"]["Priority"] | null;
+            /** @description `null` while the incident has no category. */
+            category: components["schemas"]["CategorySummary"] | null;
+            location: components["schemas"]["IncidentLocation"];
+            /**
+             * Format: date-time
+             * @example 2026-11-02T09:58:31Z
+             */
+            reportedAt: string;
+            /**
+             * Format: date-time
+             * @example 2026-11-02T09:58:31Z
+             */
+            updatedAt: string;
+            /**
+             * Format: date-time
+             * @description When the incident was closed. `null` while it is not closed.
+             * @example null
+             */
+            closedAt: string | null;
+        };
+        /** @description Who made a status change. */
+        StatusChangeActor: {
+            /**
+             * Format: uuid
+             * @example 7c2e4b1a-9d3f-4e8a-b6c5-1f0a2d3e4b5c
+             */
+            id: string;
+            /** @example Lucía Martín */
+            name: string;
+            role: components["schemas"]["Role"];
+        };
+        /** @description One entry of the status history (ADR-0020). `actor` and `visibleToCitizen` are staff-only: they are absent in the responses to a citizen. */
+        StatusChangeResponse: {
+            /**
+             * Format: uuid
+             * @example 5e6f7a8b-9c0d-4e1f-a2b3-c4d5e6f7a8b9
+             */
+            id: string;
+            /**
+             * Format: date-time
+             * @description When the change happened (UTC).
+             * @example 2026-11-02T09:58:31Z
+             */
+            instant: string;
+            /** @description `null` in the first entry, when the incident was reported. */
+            previousStatus: components["schemas"]["IncidentStatus"] | null;
+            newStatus: components["schemas"]["IncidentStatus"];
+            /**
+             * @description Reason or message of the change, such as the reason of a rejection or the message of an information request. `null` when there is none, or when the caller is a citizen and ADR-0020 does not show it to citizens.
+             * @example null
+             */
+            reason: string | null;
+            actor?: components["schemas"]["StatusChangeActor"];
+            /**
+             * @description Staff only. Whether the citizen sees this entry.
+             * @example true
+             */
+            visibleToCitizen?: boolean;
+        };
     };
     responses: {
-        /** @description The request is malformed or does not pass validation. `errors` lists the invalid fields. */
+        /** @description The request is malformed: the body is not valid JSON, a value has the wrong type, or a parameter is out of range (for example `size` over 100). Validation of well-formed data returns `422` instead. */
         BadRequest: {
             headers: {
                 [name: string]: unknown;
@@ -72,15 +659,10 @@ export interface components {
                  *       "type": "about:blank",
                  *       "title": "Bad Request",
                  *       "status": 400,
-                 *       "detail": "The request has 1 invalid field.",
+                 *       "code": "MALFORMED_REQUEST",
+                 *       "detail": "The request body is not valid JSON.",
                  *       "instance": "/api/v1/incidents",
-                 *       "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
-                 *       "errors": [
-                 *         {
-                 *           "field": "location.latitude",
-                 *           "message": "must be between -90 and 90"
-                 *         }
-                 *       ]
+                 *       "traceId": "4bf92f3577b34da6a3ce929d0e0e4736"
                  *     }
                  */
                 "application/problem+json": components["schemas"]["Problem"];
@@ -117,7 +699,7 @@ export interface components {
                  *       "title": "Forbidden",
                  *       "status": 403,
                  *       "detail": "You are not allowed to perform this action.",
-                 *       "instance": "/api/v1/incidents/3f1c2a9e-7b4d-4c1a-9e2f-5d6b7a8c9d0e",
+                 *       "instance": "/api/v1/incidents",
                  *       "traceId": "4bf92f3577b34da6a3ce929d0e0e4736"
                  *     }
                  */
@@ -143,7 +725,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description The request conflicts with the current state of the resource, for example a status transition that is not allowed or a duplicated unique value. */
+        /** @description The request conflicts with the current state of the resource, for example a status transition that is not allowed or a duplicated unique value. `code` says which. */
         Conflict: {
             headers: {
                 [name: string]: unknown;
@@ -154,8 +736,60 @@ export interface components {
                  *       "type": "about:blank",
                  *       "title": "Conflict",
                  *       "status": 409,
-                 *       "detail": "A user with this email already exists.",
-                 *       "instance": "/api/v1/auth/sign-up",
+                 *       "code": "INVALID_TRANSITION",
+                 *       "detail": "An incident in status CLOSED cannot change to IN_PROGRESS.",
+                 *       "instance": "/api/v1/incidents/3f1c2a9e-7b4d-4c1a-9e2f-5d6b7a8c9d0e/acceptance",
+                 *       "traceId": "4bf92f3577b34da6a3ce929d0e0e4736"
+                 *     }
+                 */
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The request is well formed but its data does not pass validation. `errors` lists every invalid field, so a form can show them all at once. */
+        UnprocessableEntity: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                /**
+                 * @example {
+                 *       "type": "about:blank",
+                 *       "title": "Unprocessable Content",
+                 *       "status": 422,
+                 *       "code": "VALIDATION_FAILED",
+                 *       "detail": "The request has 2 invalid fields.",
+                 *       "instance": "/api/v1/incidents",
+                 *       "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+                 *       "errors": [
+                 *         {
+                 *           "field": "title",
+                 *           "message": "must not be blank"
+                 *         },
+                 *         {
+                 *           "field": "location.latitude",
+                 *           "message": "must be between -90 and 90"
+                 *         }
+                 *       ]
+                 *     }
+                 */
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Too many attempts in a short time. `Retry-After` says when to try again. */
+        TooManyRequests: {
+            headers: {
+                "Retry-After": components["headers"]["RetryAfter"];
+                [name: string]: unknown;
+            };
+            content: {
+                /**
+                 * @example {
+                 *       "type": "about:blank",
+                 *       "title": "Too Many Requests",
+                 *       "status": 429,
+                 *       "code": "TOO_MANY_ATTEMPTS",
+                 *       "detail": "Too many attempts. Try again later.",
+                 *       "instance": "/api/v1/sessions",
                  *       "traceId": "4bf92f3577b34da6a3ce929d0e0e4736"
                  *     }
                  */
@@ -182,10 +816,370 @@ export interface components {
             };
         };
     };
-    parameters: never;
+    parameters: {
+        /** @description Identifier of the incident. */
+        IncidentId: string;
+        /** @description Page number, starting at 0. */
+        Page: number;
+        /** @description Items per page. A value over 100 returns `400`; it is never silently reduced. */
+        Size: number;
+        /** @description Sort criterion as `property,asc` or `property,desc`. Each listing documents the properties it accepts and its default; an unknown property returns `400`. */
+        Sort: string;
+    };
     requestBodies: never;
-    headers: never;
+    headers: {
+        /** @description Seconds to wait before trying again. */
+        RetryAfter: number;
+    };
     pathItems: never;
 }
 export type $defs = Record<string, never>;
-export type operations = Record<string, never>;
+export interface operations {
+    createRegistration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRegistrationRequest"];
+            };
+        };
+        responses: {
+            /** @description The account was created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description An account with this email already exists. Code: `EMAIL_ALREADY_EXISTS`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "type": "about:blank",
+                     *       "title": "Conflict",
+                     *       "status": 409,
+                     *       "code": "EMAIL_ALREADY_EXISTS",
+                     *       "detail": "An account with this email already exists.",
+                     *       "instance": "/api/v1/registrations",
+                     *       "traceId": "4bf92f3577b34da6a3ce929d0e0e4736"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    createSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSessionRequest"];
+            };
+        };
+        responses: {
+            /** @description Signed in. The body holds the new token pair. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description The email or the password is wrong. Code: `INVALID_CREDENTIALS`. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "type": "about:blank",
+                     *       "title": "Unauthorized",
+                     *       "status": 401,
+                     *       "code": "INVALID_CREDENTIALS",
+                     *       "detail": "The email or the password is not correct.",
+                     *       "instance": "/api/v1/sessions",
+                     *       "traceId": "4bf92f3577b34da6a3ce929d0e0e4736"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The credentials are right but the account is disabled. Code: `ACCOUNT_DISABLED`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "type": "about:blank",
+                     *       "title": "Forbidden",
+                     *       "status": 403,
+                     *       "code": "ACCOUNT_DISABLED",
+                     *       "detail": "This account is disabled.",
+                     *       "instance": "/api/v1/sessions",
+                     *       "traceId": "4bf92f3577b34da6a3ce929d0e0e4736"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    refreshSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefreshSessionRequest"];
+            };
+        };
+        responses: {
+            /** @description The new token pair. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description The refresh token is unknown, expired, revoked or already used, or the account is disabled. Code: `INVALID_REFRESH_TOKEN`. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "type": "about:blank",
+                     *       "title": "Unauthorized",
+                     *       "status": 401,
+                     *       "code": "INVALID_REFRESH_TOKEN",
+                     *       "detail": "The session has expired. Sign in again.",
+                     *       "instance": "/api/v1/sessions/refresh",
+                     *       "traceId": "4bf92f3577b34da6a3ce929d0e0e4736"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    deleteCurrentSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Signed out. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    getCurrentUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The signed-in user. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    listCategories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The active categories. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryResponse"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    listIncidents: {
+        parameters: {
+            query?: {
+                /** @description Page number, starting at 0. */
+                page?: components["parameters"]["Page"];
+                /** @description Items per page. A value over 100 returns `400`; it is never silently reduced. */
+                size?: components["parameters"]["Size"];
+                /** @description Sort criterion as `property,asc` or `property,desc`. Each listing documents the properties it accepts and its default; an unknown property returns `400`. */
+                sort?: components["parameters"]["Sort"];
+                /** @description Only incidents in one of these statuses. Repeat it for several values (`?status=REPORTED&status=VALIDATED`). Absent means every status. */
+                status?: components["schemas"]["IncidentStatus"][];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of incidents. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentPageResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    createIncident: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateIncidentRequest"];
+            };
+        };
+        responses: {
+            /** @description The incident was created. `Location` points to it and the body repeats it. */
+            201: {
+                headers: {
+                    /** @description URL of the new incident. */
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    getIncident: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Identifier of the incident. */
+                incidentId: components["parameters"]["IncidentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The incident. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    listIncidentStatusChanges: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Identifier of the incident. */
+                incidentId: components["parameters"]["IncidentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The status history. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusChangeResponse"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+}
