@@ -184,10 +184,10 @@ describe('session refresh', () => {
     expect(onSessionExpired).toHaveBeenCalledTimes(1);
   });
 
-  it('works with a relative base URL with a trailing slash, as the web uses', async () => {
+  it.each(['/api/v1/', '/api/v1///'])('works with the relative base URL %s', async (baseUrl) => {
     const store = memoryStore(TOKENS);
     const urls: string[] = [];
-    const sessionFetch = createSessionFetch('/api/v1/', {
+    const sessionFetch = createSessionFetch(baseUrl, {
       tokenStore: store,
       fetch: async (request) => {
         urls.push(new URL(request.url).pathname);

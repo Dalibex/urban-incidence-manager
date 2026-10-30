@@ -35,10 +35,8 @@ const PATHS_WITHOUT_REFRESH = new Set(['/sessions', REFRESH_PATH, '/registration
 export function createSessionFetch(baseUrl: string, options: SessionOptions) {
   const { tokenStore, onSessionExpired } = options;
   const send = (request: Request) => (options.fetch ?? globalThis.fetch)(request);
-  // openapi-fetch drops a trailing slash too, so "/api/v1/" and "/api/v1" call the same paths.
-  const base = baseUrl.replace(/\/+$/, '');
   // The placeholder origin only lets a relative base URL ("/api/v1") be parsed.
-  const basePath = new URL(base, 'http://placeholder').pathname;
+  const basePath = withoutTrailingSlashes(new URL(baseUrl, 'http://placeholder').pathname);
   // The last refresh and the access token it replaced. Requests rejected with that token wait for
   // it instead of starting another one, even if the store has not saved the new tokens yet.
   let lastRefresh: { replaces: string; tokens: Promise<SessionTokens | null> } | null = null;
@@ -120,6 +118,18 @@ export function createSessionFetch(baseUrl: string, options: SessionOptions) {
     const fresh = await tokensAfterRejection(tokens, request.url);
     return fresh ? send(withAccessToken(retry, fresh)) : response;
   };
+}
+
+/**
+ * openapi-fetch drops a trailing slash too, so "/api/v1/" and "/api/v1" call the same paths. A loop
+ * instead of `/\/+$/`, whose backtracking is quadratic on long runs of slashes (CodeQL ReDoS).
+ */
+function withoutTrailingSlashes(path: string): string {
+  let end = path.length;
+  while (end > 0 && path[end - 1] === '/') {
+    end -= 1;
+  }
+  return path.slice(0, end);
 }
 
 function withAccessToken(request: Request, tokens: SessionTokens | null): Request {
