@@ -58,12 +58,12 @@ them, as a reference; update it whenever the assignment changes.
 | --- | --- | --- |
 | Maintainer | Manages the repository settings, branch rules, releases and long-lived branches | Dalibex |
 | Developer | Implements issues, opens pull requests and answers review comments | Everyone |
-| Reviewer | Reviews pull requests, approves them and performs the merge | Pablit023 |
+| Reviewer | Reviews pull requests, approves them and performs the merge | Pablit023, AlejandroCuetoDiaz |
 | Tester | Writes the acceptance tests of each feature and validates that it works as described in its issue | Lewas88 |
 | Product owner | Prioritizes issues and plans the milestones | Fjjorda |
 
-A person can hold more than one role, but nobody approves their own pull request. When the reviewer
-opens a pull request, another team member approves it and the reviewer merges it afterwards.
+A person can hold more than one role, but nobody approves their own pull request. When a reviewer
+opens a pull request, the other reviewer approves it and merges it.
 
 ### Workflow at a glance
 
