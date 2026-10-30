@@ -17,8 +17,14 @@ import es.uma.urbanpulse.TestcontainersConfiguration;
 import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.shared.security.TestTokens;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,11 +41,12 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 /**
  * Acceptance tests of #61 for the sign-up, sign-in, refresh and sign-out API of #35 (ADR-0004).
  *
- * <p>They are written before the feature (ATDD, CONTRIBUTING.md) and fail until it exists. The HTTP
- * behaviour comes from the contract ({@code docs/api/openapi.yml}: {@code createRegistration},
- * {@code createSession}, {@code refreshSession}, {@code deleteCurrentSession}, {@code
- * getCurrentUser}) and the error codes from {@code docs/api.md}. What the contract does not fix
- * follows the notes agreed in the pull request of #35:
+ * <p>They are written before the feature (ATDD, CONTRIBUTING.md), so most of them fail until it
+ * exists; the checks that only need the JWT resource server already pass. The HTTP behaviour comes
+ * from the contract ({@code docs/api/openapi.yml}: {@code createRegistration}, {@code
+ * createSession}, {@code refreshSession}, {@code deleteCurrentSession}, {@code getCurrentUser}) and
+ * the error codes from {@code docs/api.md}. What the contract does not fix follows the notes agreed
+ * in the pull request of #35:
  *
  * <ul>
  *   <li>There is no endpoint to disable a user until #40, so the test disables the row with SQL.
@@ -116,6 +123,16 @@ class AuthenticationApiIT {
                 .andExpect(jsonPath("$.role").value("CITIZEN"));
     }
 
+    // T1: sign-up creates the account but does not sign in; the client calls createSession.
+    @Test
+    void signUpReturnsTheUserWithoutTokens() throws Exception {
+        signUp(email, VALID_PASSWORD)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").isNotEmpty())
+                .andExpect(jsonPath("$.accessToken").doesNotExist())
+                .andExpect(jsonPath("$.refreshToken").doesNotExist());
+    }
+
     // T1: a role sent in the sign-up body is ignored.
     @Test
     void signUpIgnoresARoleInTheBody() throws Exception {
@@ -167,6 +184,38 @@ class AuthenticationApiIT {
         refresh(secondRefreshToken).andExpect(status().isOk());
     }
 
+    // T2: a refresh token sent several times at once still works once. Otherwise whoever stole it
+    // could keep a session by racing the real client.
+    @Test
+    void concurrentRefreshesWithTheSameTokenSucceedOnlyOnce() throws Exception {
+        signUp(email, VALID_PASSWORD).andExpect(status().isCreated());
+        String refreshToken = read(signIn(email, VALID_PASSWORD), "$.refreshToken");
+
+        int attempts = 5;
+        CountDownLatch start = new CountDownLatch(1);
+        List<Future<Integer>> statuses = new ArrayList<>();
+        try (ExecutorService clients = Executors.newFixedThreadPool(attempts)) {
+            for (int attempt = 0; attempt < attempts; attempt++) {
+                statuses.add(
+                        clients.submit(
+                                () -> {
+                                    start.await();
+                                    return refresh(refreshToken)
+                                            .andReturn()
+                                            .getResponse()
+                                            .getStatus();
+                                }));
+            }
+            start.countDown();
+        }
+
+        List<Integer> results = new ArrayList<>();
+        for (Future<Integer> result : statuses) {
+            results.add(result.get());
+        }
+        assertThat(results).containsOnly(200, 401).containsOnlyOnce(200);
+    }
+
     // T3
     @Test
     void signOutRevokesTheRefreshTokenOfThatSessionOnly() throws Exception {
@@ -209,6 +258,33 @@ class AuthenticationApiIT {
     @Test
     void weakPasswordIsRejectedAndNothingIsStored() throws Exception {
         expectFieldError(signUp(email, "Short-1"), "password");
+
+        assertThat(usersWithEmail(email)).isZero();
+    }
+
+    // T4: every invalid field is reported at once, so the form can show them all.
+    @Test
+    void blankNameAndMalformedEmailAreReportedTogether() throws Exception {
+        String body =
+                """
+                {"name": "   ", "email": "not-an-email", "password": "%s"}
+                """
+                        .formatted(VALID_PASSWORD);
+
+        expectProblem(mvc.perform(json(post(REGISTRATIONS), body)), 422, "VALIDATION_FAILED")
+                .andExpect(jsonPath("$.errors[?(@.field == 'name')]").exists())
+                .andExpect(jsonPath("$.errors[?(@.field == 'email')]").exists());
+
+        assertThat(usersWithEmail("not-an-email")).isZero();
+    }
+
+    // T4: a body that is not JSON is a client bug (400), not invalid data (422) nor a 500.
+    @Test
+    void malformedJsonIsABadRequest() throws Exception {
+        expectProblem(
+                mvc.perform(json(post(REGISTRATIONS), "{\"email\": \"%s\",".formatted(email))),
+                400,
+                "MALFORMED_REQUEST");
 
         assertThat(usersWithEmail(email)).isZero();
     }
