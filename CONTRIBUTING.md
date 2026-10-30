@@ -143,6 +143,10 @@ implemented until they pass.
 - Failing tests never reach `main`: the required checks block the merge until they pass.
 - In the web and mobile clients, component tests may be written alongside the screen instead of
   before it, because the interface changes while it is built.
+- The contract of an endpoint is merged before or with its implementation
+  ([API guide](docs/api.md)). A `[Test]` sub-issue that tests an endpoint is blocked by the issue
+  that writes its contract, not by the back-end issues its parent waits for: the acceptance tests
+  only need the contract to be written.
 
 ### Branches
 
