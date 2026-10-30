@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Decision Makers:** Project Team
-- **Date:** 2026-25-10
+- **Date:** 2026-10-25
 
 ## Context
 
@@ -39,7 +39,7 @@ into the following modules.
 | Incidents | `incidents` | The incident as the central entity: reporting, location, categories, priority, lifecycle with allowed transitions, audited status history, assignments, comments and evidence metadata (binaries through `StorageService`, ADR-0013). |
 | Urban context | `urbancontext` | External data: adapters for Open Data Málaga and OpenStreetMap (ADR-0009), Open-Meteo and TomTom (ADR-0018); loading of reference data, geocoding and asynchronous enrichment of incidents with timeouts and graceful degradation. |
 | Geospatial | `geospatial` | Location and territory: districts, neighbourhoods, urban assets and spatial queries over local data (PostGIS, ADR-0003). |
-| Notifications | `notifications` | Notifications derived from incident events and their delivery status; email through Brevo and SMS through Twilio, behind one sender per channel (ADR-0019). |
+| Notifications | `notifications` | Notifications created from incident changes (status, assignment, comments) through direct calls, and their delivery status; email through Brevo and SMS through Twilio, behind one sender per channel (ADR-0019). |
 | Analytics | `analytics` | Read-only indicators, zone analysis and reports. |
 
 Besides the modules there is one **`shared`** package (`es.uma.urbanpulse.shared`) for
@@ -86,11 +86,54 @@ project ends in that direction.
 - Modules call each other directly. There are **no application events** between modules.
 - Entities keep the JPA relations of the schema, also across modules.
 
+### Protecting rules without enforced boundaries
+
+Package by feature organises the code from the outside; inside each module the code is still
+package by layer. Because every class is public, any class can inject any service or repository,
+and nothing in the build stops code that skips a business rule. Keeping the rules is part of a
+correct implementation and is checked in pull request review.
+
+When an entity may only be created through another one to keep a rule, its constructor is
+**package-private** in `entity/`, so only the entities of that package can create it. JPA still
+gets the `protected` no-argument constructor it needs. For example, a `StatusChange` is only
+created by `Incident` when the transition is valid:
+
+```java
+// es.uma.urbanpulse.incidents.entity
+public class Incident {
+    public StatusChange changeStatus(IncidentStatus target, User actor, String reason) {
+        // validates the transition (ADR-0020), then records it
+        StatusChange change = new StatusChange(this, status, target, actor, reason);
+        status = target;
+        return change; // the service saves it in the same transaction
+    }
+}
+
+public class StatusChange {
+    protected StatusChange() {} // for JPA
+
+    StatusChange(Incident incident, IncidentStatus from, IncidentStatus to, User actor, String reason) {
+        // ...
+    }
+}
+```
+
+`StatusChangeRepository` can stay public for reading the history, but no code outside
+`incidents.entity` can build a `StatusChange` that skips the transition check. Package-private
+does not work across sub-packages: `incidents.service` and `incidents.entity` are different
+packages for Java, so the rule must live in the entity.
+
 
 ## Considered Options
 
 - **Modular monolith (package by feature)** — One deployable, real
   transactions, with packages per module mainly to organise the architecture.
+- **Modular monolith with enforced boundaries (Spring Modulith)** — The first version of this ADR.
+  Each module exposes a public API, its internals are hidden and a test fails the build on any
+  violation; modules reference each other's entities by ID and communicate through application
+  events. It was dropped because it brings the system closer to microservices without their
+  benefits, and it would remove the JPA relations between entities that the relational schema
+  already defines.
 - **Microservices from day one** — Independent scaling and deployment, but network calls replace
   transactions, every cross-cutting feature needs distributed coordination, and there is no
   observable problem yet that would justify it.
@@ -116,6 +159,9 @@ already knows, now inside each module, so the cost of adoption is low.
   - The whole system has to be running for the program to work; all or nothing.
   - Scaling becomes difficult in a larger project.
   - High coupling between modules.
+  - No enforced boundaries: nothing in the build stops a class from using another module's
+    repository or from skipping a business rule. Module isolation depends on review, and rules
+    that must not be skipped need package-private constructors or methods in the entity.
   - If the code base grows, each package ends up with dozens of classes, making it hard to follow.
 
 ## Links Related

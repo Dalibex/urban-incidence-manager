@@ -7,6 +7,8 @@ UrbanPulse is built by a university team. This guide has two parts:
 - **[Team workflow](#team-workflow):** how the team members, who have write access to the repository,
   plan, build, review and merge every change, including documentation.
 
+Everyone who takes part in the project agrees to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
+
 Write issues, pull requests and commits in English. To set up the project locally, follow the
 [development guide](docs/development.md). This document does not repeat it.
 
@@ -56,12 +58,12 @@ them, as a reference; update it whenever the assignment changes.
 | --- | --- | --- |
 | Maintainer | Manages the repository settings, branch rules, releases and long-lived branches | Dalibex |
 | Developer | Implements issues, opens pull requests and answers review comments | Everyone |
-| Reviewer | Reviews pull requests, approves them and performs the merge | Pablit023 |
+| Reviewer | Reviews pull requests, approves them and performs the merge | Pablit023, AlejandroCuetoDiaz |
 | Tester | Writes the acceptance tests of each feature and validates that it works as described in its issue | Lewas88 |
 | Product owner | Prioritizes issues and plans the milestones | Fjjorda |
 
-A person can hold more than one role, but nobody approves their own pull request. When the reviewer
-opens a pull request, another team member approves it and the reviewer merges it afterwards.
+A person can hold more than one role, but nobody approves their own pull request. When a reviewer
+opens a pull request, the other reviewer approves it and merges it.
 
 ### Workflow at a glance
 
@@ -271,6 +273,24 @@ From the first release on `main`, every pull request that adds a feature, fixes 
 behavior adds a short entry to [`CHANGELOG.md`](CHANGELOG.md), under `[Unreleased]`, in the same pull
 request. Use the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) sections (`Added`, `Changed`,
 `Fixed`, `Removed`) and link the issue or pull request.
+
+The changelog tells the people who use or deploy UrbanPulse what changed between versions, so it only
+lists changes they can notice:
+
+| Goes in the changelog | Does not |
+| --- | --- |
+| New features and endpoints (`Added`) | Documentation, guides and ADRs |
+| Changes to existing behavior, the API contract, configuration or environment variables (`Changed`) | Refactorings with no change in behavior |
+| Removed features or endpoints (`Removed`) | Tests, CI and repository tooling |
+| Bugs fixed in a released version (`Fixed`) | Formatting and dependency bumps without a visible effect |
+
+Keep each entry consistent with the rest of the file:
+
+- `Fixed` is only for bugs that exist in a released version. A bug in something that is still under
+  `[Unreleased]` is not a separate entry: correct the original entry if its description changes.
+- If a later pull request changes or removes something still under `[Unreleased]`, edit or delete its
+  entry instead of adding a contradictory one.
+- Write each entry from the user's point of view, as one short noun phrase, like the existing ones.
 
 ### Architecture decisions
 
