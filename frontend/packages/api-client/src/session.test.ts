@@ -118,7 +118,7 @@ function memoryTokenStore(initial: SessionTokens | null) {
 }
 
 describe('T4: transparent refresh', () => {
-  let onSessionExpired: ReturnType<typeof vi.fn>;
+  let onSessionExpired: ReturnType<typeof vi.fn<() => void>>;
 
   beforeEach(() => {
     onSessionExpired = vi.fn();
