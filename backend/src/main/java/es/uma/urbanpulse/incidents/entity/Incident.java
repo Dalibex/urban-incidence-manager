@@ -23,6 +23,7 @@ import lombok.Setter;
 @Table(name = "incident")
 @Getter
 @Setter
+// TODO (#37): Restrict public setters and enforce encapsulation for status transitions
 @NoArgsConstructor
 public class Incident {
 
@@ -64,7 +65,7 @@ public class Incident {
 
     @Version
     @Column(nullable = false)
-    private Integer version = 0;
+    private Integer version;
 
     @Column(name = "reported_at", nullable = false)
     private OffsetDateTime reportedAt;

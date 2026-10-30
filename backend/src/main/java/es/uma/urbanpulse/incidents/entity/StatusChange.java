@@ -24,6 +24,7 @@ import org.hibernate.type.SqlTypes;
 @Table(name = "status_change")
 @Getter
 @Setter
+// TODO (#37): Restrict public setters and enforce encapsulation for status transitions
 @NoArgsConstructor
 public class StatusChange {
 
