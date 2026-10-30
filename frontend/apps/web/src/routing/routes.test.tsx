@@ -19,11 +19,16 @@ describe('routes', () => {
     expect(router.state.location.pathname).toBe(path);
   });
 
-  it("does not open another role's screen", async () => {
-    const router = renderApp(PATHS.users, { role: 'MUNICIPAL_OPERATOR' });
+  // #62, T5: a role that opens another role's route is redirected to its own screen.
+  it.each([
+    ['CITIZEN', PATHS.inbox, PATHS.useMobile, 'Use the UrbanPulse mobile app'],
+    ['MUNICIPAL_OPERATOR', PATHS.users, PATHS.inbox, 'Inbox'],
+    ['ANALYST', PATHS.workQueue, PATHS.reports, 'Reports'],
+  ] as const)('redirects a %s from %s to %s', async (role, path, landing, heading) => {
+    const router = renderApp(path, { role });
 
-    expect(await screen.findByRole('heading', { name: 'You cannot open this page' })).toBeDefined();
-    expect(router.state.location.pathname).toBe(PATHS.users);
+    expect(await screen.findByRole('heading', { level: 1, name: heading })).toBeDefined();
+    expect(router.state.location.pathname).toBe(landing);
   });
 
   it('sends a visitor without a session to sign in', async () => {

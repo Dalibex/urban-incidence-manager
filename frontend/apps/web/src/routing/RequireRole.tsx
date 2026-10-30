@@ -1,9 +1,8 @@
 import type { Role } from '@urbanpulse/domain';
 import { Navigate, Outlet } from 'react-router';
 
-import { ForbiddenPage } from '../pages/ForbiddenPage';
 import { useSession } from '../session/SessionContext';
-import { PATHS, routeAccess } from './access';
+import { PATHS, landingPath, routeAccess } from './access';
 
 interface RequireRoleProps {
   roles: readonly Role[];
@@ -12,12 +11,13 @@ interface RequireRoleProps {
 /** Renders the child routes only for the given roles; see `routeAccess`. */
 export function RequireRole({ roles }: RequireRoleProps) {
   const { user } = useSession();
-  switch (routeAccess(user?.role ?? null, roles)) {
+  const role = user?.role ?? null;
+  switch (routeAccess(role, roles)) {
     case 'sign-in':
       return <Navigate to={PATHS.signIn} replace />;
     case 'forbidden':
-      // Keeps the URL, so the user sees which address they cannot open.
-      return <ForbiddenPage />;
+      // A screen of another role sends the user to their own (#62, T5).
+      return <Navigate to={role ? landingPath(role) : PATHS.signIn} replace />;
     case 'allowed':
       return <Outlet />;
   }
