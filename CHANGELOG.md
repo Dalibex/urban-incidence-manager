@@ -9,7 +9,11 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Citizen sign-up, sign-in, session refresh and sign-out on the API, with access tokens and rate-limited attempts (#35).
+
 ### Changed
+
+- The backend requires the `JWT_SECRET` environment variable, and accepts `JWT_ACCESS_TOKEN_TTL` and `REFRESH_TOKEN_TTL` (#35).
 
 ### Fixed
 
