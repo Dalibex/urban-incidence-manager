@@ -6,7 +6,8 @@
 #              and the generated frontend/packages/api-client types match it
 #   frontend → client workspace in frontend/ (ADR-0007): format, lint, type-check, test and build with pnpm
 #   test → unit (*Test) + integration (*IT, Testcontainers) tests, coverage gate and SpotBugs
-#   build → packages ONE jar per commit, smoke-tests it against PostGIS and publishes it
+#   build → builds the backend image (ONE jar per commit inside), smoke-tests the container against
+#           PostGIS and publishes the jar copied from the image
 
 name: CI
 
@@ -30,6 +31,7 @@ env:
   BACKEND_DIR: backend
   # Folder of the client pnpm workspace (package.json, pnpm-lock.yaml, .nvmrc), relative to the root.
   FRONTEND_DIR: frontend
+  # Also the major version of the Temurin images in backend/Dockerfile.
   JAVA_VERSION: "25"
   JAVA_DISTRIBUTION: temurin
   # Must match docker-compose.yaml and TestcontainersConfiguration.java (checked by lint).
@@ -252,6 +254,7 @@ jobs:
       run:
         working-directory: ${{ env.BACKEND_DIR }}
     env:
+      IMAGE: urbanpulse-backend:${{ github.sha }}
       SMOKE_PORT: "9090"
       SMOKE_DB: urbanpulse
       SMOKE_USER: urbanpulse
@@ -260,33 +263,15 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Set up Java
-        uses: actions/setup-java@v6
-        with:
-          distribution: ${{ env.JAVA_DISTRIBUTION }}
-          java-version: ${{ env.JAVA_VERSION }}
-          cache: maven
-          cache-dependency-path: ${{ env.BACKEND_DIR }}/pom.xml
-
-      - name: Package (tests run in the test job)
-        run: |
-          chmod +x mvnw
-          ./mvnw -Dspotless.check.skip=true -DskipTests -Djacoco.skip=true -Dspotbugs.skip=true package
-
-      - name: Exactly one jar per commit
-        run: |
-          shopt -s nullglob
-          jars=(target/*.jar)
-          if [ "${#jars[@]}" -ne 1 ]; then
-            echo "::error title=12F-V Build::Expected exactly one jar in target/, found ${#jars[@]}: ${jars[*]}"
-            exit 1
-          fi
-          echo "JAR=${jars[0]}" >> "$GITHUB_ENV"
-          echo "Artifact: \`${jars[0]}\` (commit \`${GITHUB_SHA}\`)" >> "$GITHUB_STEP_SUMMARY"
+      # backend/Dockerfile compiles the jar inside the image, so the image is the artifact that is
+      # tested and published. The Dockerfile fails if the build produces more than one jar.
+      - name: Build the image (tests run in the test job)
+        run: docker build --build-context contract=../docs/api -t "$IMAGE" .
 
       - name: Start PostGIS (backing service)
         run: |
-          docker run -d --name smoke-db -p 5432:5432 \
+          docker network create smoke
+          docker run -d --name smoke-db --network smoke \
             -e POSTGRES_DB="$SMOKE_DB" -e POSTGRES_USER="$SMOKE_USER" -e POSTGRES_PASSWORD="$SMOKE_PASSWORD" \
             "$POSTGRES_IMAGE"
           # -h 127.0.0.1: during its first start the image runs init scripts on a temporary
@@ -301,21 +286,21 @@ jobs:
           docker logs smoke-db
           exit 1
 
-      - name: Smoke test — the jar starts with env config and /actuator/health is UP
+      - name: Smoke test — the image starts with env config and /actuator/health is UP
         run: |
-          export SERVER_PORT="$SMOKE_PORT"
-          export SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5432/$SMOKE_DB"
-          export SPRING_DATASOURCE_USERNAME="$SMOKE_USER"
-          export SPRING_DATASOURCE_PASSWORD="$SMOKE_PASSWORD"
-          nohup java -jar "$JAR" > "$RUNNER_TEMP/app.log" 2>&1 &
-          echo $! > "$RUNNER_TEMP/app.pid"
+          docker run -d --name smoke-app --network smoke -p "$SMOKE_PORT:$SMOKE_PORT" \
+            -e SERVER_PORT="$SMOKE_PORT" \
+            -e SPRING_DATASOURCE_URL="jdbc:postgresql://smoke-db:5432/$SMOKE_DB" \
+            -e SPRING_DATASOURCE_USERNAME="$SMOKE_USER" \
+            -e SPRING_DATASOURCE_PASSWORD="$SMOKE_PASSWORD" \
+            "$IMAGE"
           for _ in $(seq 1 60); do
             if body=$(curl -fsS "http://localhost:$SMOKE_PORT/actuator/health" 2>/dev/null) && echo "$body" | grep -q '"status":"UP"'; then
               echo "Health on port $SMOKE_PORT: \`$body\`" | tee -a "$GITHUB_STEP_SUMMARY"
               exit 0
             fi
-            if ! kill -0 "$(cat "$RUNNER_TEMP/app.pid")" 2>/dev/null; then
-              echo "::error title=Smoke::The application exited during startup (see the log step)."
+            if [ "$(docker inspect -f '{{.State.Running}}' smoke-app)" != "true" ]; then
+              echo "::error title=Smoke::The container exited during startup (see the log step)."
               exit 1
             fi
             sleep 2
@@ -323,30 +308,43 @@ jobs:
           echo "::error title=12F-VII Port binding::/actuator/health was not UP on port $SMOKE_PORT after 120 s."
           exit 1
 
+      - name: Smoke test — the process does not run as root
+        run: |
+          uid=$(docker exec smoke-app id -u)
+          if [ "$uid" = "0" ]; then
+            echo "::error title=Image::The application runs as root. backend/Dockerfile must end with a USER that is not root."
+            exit 1
+          fi
+          echo "The application runs as UID $uid." | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: Smoke test — clean shutdown on SIGTERM
         run: |
-          pid=$(cat "$RUNNER_TEMP/app.pid")
-          kill -TERM "$pid"
-          for _ in $(seq 1 30); do
-            if ! kill -0 "$pid" 2>/dev/null; then
-              echo "The application stopped after SIGTERM." | tee -a "$GITHUB_STEP_SUMMARY"
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "::error title=12F-IX Disposability::The application did not stop 30 s after SIGTERM."
-          exit 1
+          # docker stop sends SIGTERM and, if the container is still running after 30 s, SIGKILL.
+          docker stop --time 30 smoke-app
+          code=$(docker inspect -f '{{.State.ExitCode}}' smoke-app)
+          if [ "$code" = "137" ]; then
+            echo "::error title=12F-IX Disposability::The application did not stop 30 s after SIGTERM and was killed."
+            exit 1
+          fi
+          echo "The application stopped after SIGTERM (exit code $code)." | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Application log
         if: always()
-        run: if [ -f "$RUNNER_TEMP/app.log" ]; then tail -n 200 "$RUNNER_TEMP/app.log"; else echo "No log"; fi
+        run: docker logs --tail 200 smoke-app 2>&1 || echo "No log"
+
+      # The published jar is copied out of the image, so it is the same file that was smoke-tested.
+      - name: Extract the jar from the image
+        run: |
+          mkdir -p "$RUNNER_TEMP/artifact"
+          docker create --name extract "$IMAGE"
+          docker cp extract:/app/app.jar "$RUNNER_TEMP/artifact/urbanpulse-$GITHUB_SHA.jar"
+          docker rm extract
+          echo "Artifact: \`urbanpulse-$GITHUB_SHA.jar\`, copied from the image \`$IMAGE\`" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Publish the jar
         uses: actions/upload-artifact@v7
         with:
           name: urbanpulse-${{ github.sha }}
-          path: ${{ env.BACKEND_DIR }}/target/*.jar
+          path: ${{ runner.temp }}/artifact/*.jar
           if-no-files-found: error
           retention-days: 7
-
-

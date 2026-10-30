@@ -26,5 +26,26 @@ services:
       # Used by Spring Boot to automatically configure a connection to the Postgres database.
       org.springframework.boot.service-connection: postgres
 
+  backend:
+    # The backend image (backend/Dockerfile). It belongs to the "app" profile, so it only starts with
+    # `docker compose --profile app up`: when the backend runs from the IDE, Spring Boot starts this
+    # file without profiles and gets only the database (ADR-0011).
+    profiles: [app]
+    build:
+      context: .
+      additional_contexts:
+        # The build copies the OpenAPI contract into the jar (see backend/Dockerfile).
+        contract: ../docs/api
+    environment:
+      # The jar has no Docker Compose support, so the connection comes from these variables.
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   postgres-data:
