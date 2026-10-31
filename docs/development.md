@@ -193,6 +193,25 @@ application starts. Hibernate only validates the entities against the schema.
 While a migration only exists on your branch, you can still change it: reset your local database
 (see below) so Flyway applies it again from scratch.
 
+### Reference data
+
+The initial categories and departments are inserted by a migration,
+`V7__incidents_insert_reference_data.sql`, so every environment starts with the same rows. Never
+insert them by hand or with a script run from a database client.
+
+- To add or change initial reference data, write a new migration with `INSERT` or `UPDATE`
+  statements and the next free number, for example `V8__incidents_add_graffiti_category.sql`. Do
+  not edit V7 once it is merged.
+- Give each row a fixed `id` (a UUID written in the migration), so the demo data and the tests can
+  refer to it in every environment.
+- To retire a category or a department, set `is_active = false` instead of deleting it: existing
+  incidents and assignments still point to it.
+- Add the new rows to the expected lists of `DatabaseMigrationIT`.
+- Demo users and incidents are not reference data: they are loaded separately (#54).
+
+Once administrators can manage categories and departments from the application, a migration only
+sets the starting point.
+
 ## ⚠️ Reset the Local Database
 
 `docker compose down` stops the database and keeps its data in the `postgres-data` volume. To
@@ -254,18 +273,29 @@ From `frontend/`:
 pnpm dev:web
 ```
 
-The web app opens at `http://localhost:5173`.
+The web app opens at `http://localhost:5173`. It calls the API on its own origin (`/api/v1`) and
+Vite forwards `/api` to the backend at `http://localhost:8080`, so the browser needs no CORS. To
+use another backend, set `API_PROXY_TARGET` before `pnpm dev:web`. The web keeps the session in
+memory only: reloading the page asks for sign-in again.
+
+The mobile app needs the API URL in `apps/mobile/.env`, which is not versioned. Copy the example
+and set the address of your machine in the local network:
+
+```bash
+cp apps/mobile/.env.example apps/mobile/.env
+```
 
 ```bash
 pnpm dev:mobile
 ```
 
-Expo prints a QR code. Scan it with the **Expo Go** app (Android or iOS) on a phone in the same
-network, or press `a` / `i` to open an Android emulator or iOS simulator. If the phone cannot
-connect (firewall, isolated Wi-Fi), run `pnpm dev:mobile --tunnel`. The mobile app only targets
-Android and iOS (`platforms` in `app.json`); the browser client is `apps/web`. A phone or emulator
-cannot reach the backend through `localhost`: when the apps call the API, configure its URL with
-the address of your machine in the local network.
+Expo prints a QR code. Scan it with the **Expo Go** app on a phone in the same network (on an
+iPhone, with the Camera app), or press `a` / `i` to open an Android emulator or iOS simulator. If
+the phone cannot connect (firewall, isolated Wi-Fi), run `pnpm dev:mobile --tunnel`. The mobile app
+only targets Android and iOS (`platforms` in `app.json`); the browser client is `apps/web`. A phone
+or emulator cannot reach the backend through `localhost`: the Android emulator reaches your machine
+at `10.0.2.2`, a phone at its address in the local network. The mobile app keeps the session in
+`expo-secure-store` (Keychain on iOS, Keystore on Android), so it survives a restart.
 
 ### Checks
 

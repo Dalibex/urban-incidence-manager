@@ -1,6 +1,7 @@
 package es.uma.urbanpulse.shared.web;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.http.HttpStatus;
 
@@ -34,5 +35,10 @@ public abstract class ApiProblemException extends RuntimeException {
     /** How long the client should wait before retrying ({@code Retry-After}), if it applies. */
     public Optional<Duration> retryAfter() {
         return Optional.empty();
+    }
+
+    /** The invalid fields of a {@code 422}, written as {@code errors}; empty for other errors. */
+    public List<FieldError> fieldErrors() {
+        return List.of();
     }
 }

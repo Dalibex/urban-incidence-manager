@@ -14,7 +14,10 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
-/** The schema is built only by Flyway, on an empty PostGIS database (ADR-0014). */
+/**
+ * The schema and the reference data are built only by Flyway, on an empty PostGIS database
+ * (ADR-0014).
+ */
 @SpringBootTest
 @Import(TestcontainersConfiguration.class)
 @Transactional
@@ -39,6 +42,24 @@ class DatabaseMigrationIT {
                     "incident_asset",
                     "data_source_config",
                     "notification");
+
+    private static final List<String> REFERENCE_CATEGORIES =
+            List.of(
+                    "Street lighting",
+                    "Pavement",
+                    "Waste",
+                    "Urban furniture",
+                    "Parks and green areas",
+                    "Signage",
+                    "Other");
+
+    private static final List<String> REFERENCE_DEPARTMENTS =
+            List.of(
+                    "Public Lighting",
+                    "Roads and Works",
+                    "Cleaning and Waste",
+                    "Parks and Gardens",
+                    "Mobility");
 
     @Autowired private Flyway flyway;
 
@@ -71,6 +92,32 @@ class DatabaseMigrationIT {
                         String.class);
 
         assertThat(tables).containsAll(SCHEMA_TABLES);
+    }
+
+    @Test
+    void loadsTheActiveReferenceCategories() {
+        var categories =
+                jdbc.queryForList("SELECT name FROM category WHERE is_active", String.class);
+
+        assertThat(categories).containsExactlyInAnyOrderElementsOf(REFERENCE_CATEGORIES);
+    }
+
+    @Test
+    void givesEveryReferenceCategoryAHelpText() {
+        var withoutDescription =
+                jdbc.queryForObject(
+                        "SELECT count(*) FROM category WHERE description IS NULL OR description = ''",
+                        Integer.class);
+
+        assertThat(withoutDescription).isZero();
+    }
+
+    @Test
+    void loadsTheActiveReferenceDepartments() {
+        var departments =
+                jdbc.queryForList("SELECT name FROM department WHERE is_active", String.class);
+
+        assertThat(departments).containsExactlyInAnyOrderElementsOf(REFERENCE_DEPARTMENTS);
     }
 
     @Test

@@ -1,0 +1,87 @@
+.standalone {
+  padding: var(--space-xl) var(--space-md);
+}
+
+.page {
+  max-width: 68ch;
+  margin: 0 auto;
+}
+
+.title {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--font-size-title);
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.summary {
+  margin: 0 0 var(--space-md);
+}
+
+.note {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.link {
+  color: var(--color-primary);
+  text-underline-offset: 3px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  max-width: 360px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  font-weight: 600;
+}
+
+.field input {
+  padding: var(--space-sm);
+  border: 1px solid var(--color-text-muted);
+  border-radius: 6px;
+  font: inherit;
+  font-weight: 400;
+}
+
+.notice {
+  margin: 0 0 var(--space-md);
+  color: var(--color-text-muted);
+}
+
+.error {
+  margin: 0;
+  color: var(--color-danger);
+}
+
+/* Kept in the page while empty, so screen readers announce the message when it appears. */
+.error:empty {
+  display: block;
+  height: 0;
+}
+
+.primaryButton {
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: var(--color-primary);
+  color: var(--color-background);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primaryButton:hover {
+  background: color-mix(in srgb, var(--color-primary) 85%, var(--color-text));
+}
+
+.primaryButton:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}

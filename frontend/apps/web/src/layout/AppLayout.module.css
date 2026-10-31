@@ -1,0 +1,85 @@
+.shell {
+  min-height: 100vh;
+}
+
+.navbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm) var(--space-lg);
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-text-muted) 30%, transparent);
+  background: var(--color-surface);
+}
+
+.brand {
+  font-weight: 700;
+}
+
+.links {
+  display: flex;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.link,
+.activeLink {
+  display: inline-block;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 6px;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.link:hover {
+  background: color-mix(in srgb, var(--color-text) 6%, transparent);
+}
+
+.activeLink {
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.account {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-left: auto;
+}
+
+.user {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  text-align: right;
+}
+
+.userName {
+  font-weight: 600;
+}
+
+.userRole {
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+.signOut {
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid color-mix(in srgb, var(--color-text-muted) 50%, transparent);
+  border-radius: 6px;
+  background: var(--color-background);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.signOut:hover {
+  border-color: var(--color-text);
+}
+
+.content {
+  padding: var(--space-lg) var(--space-md);
+}
