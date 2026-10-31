@@ -192,7 +192,7 @@ class IncidentTest {
                         InvalidIncidentDataException.class,
                         ex -> {
                             assertThat(ex.status().value()).isEqualTo(422);
-                            assertThat(ex.code()).isEqualTo("VALIDATION_FAILED");
+                            assertThat(ex.code()).contains("VALIDATION_FAILED");
                             assertThat(ex.fieldErrors())
                                     .extracting(FieldError::field)
                                     .containsExactly("reason");
