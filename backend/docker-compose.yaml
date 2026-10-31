@@ -45,6 +45,8 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_ACCESS_TOKEN_TTL: ${JWT_ACCESS_TOKEN_TTL:-PT15M}
       REFRESH_TOKEN_TTL: ${REFRESH_TOKEN_TTL:-P14D}
+      # Data profile (docs/development.md): empty for no sample data, dev for the development dataset.
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8080}:8080"
     depends_on:
