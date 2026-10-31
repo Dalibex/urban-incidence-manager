@@ -136,6 +136,7 @@ urban-incidence-manager/
 |   |   `-- ui/
 |   |-- package.json
 |   `-- pnpm-workspace.yaml
+|-- tiles/                base map builder (ADR-0016)
 |-- AGENTS.md
 |-- CHANGELOG.md
 `-- README.md
