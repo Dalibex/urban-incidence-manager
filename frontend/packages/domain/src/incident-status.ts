@@ -1,7 +1,6 @@
 /**
  * Lifecycle states of an incident, in the same spelling as the database (`incident.status`) and the
- * API. The allowed transitions between them are not agreed yet, so this module only names the
- * states; it does not decide which change is valid.
+ * API. The allowed changes between them are in `incident-transition.ts`.
  */
 export const INCIDENT_STATUSES = [
   'REPORTED',

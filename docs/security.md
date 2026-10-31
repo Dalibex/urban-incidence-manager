@@ -106,7 +106,7 @@ Rules for code that records an entry:
   accepts scalar values, so a whole entity cannot be recorded by mistake. A field that had no value
   is recorded as `null`, not left out.
 - **Append-only.** Nothing updates or deletes an entry: the entity is immutable (no `UPDATE`), the
-  repository has no `delete`, and a trigger (migration V7) rejects `UPDATE`, `DELETE` and
+  repository has no `delete`, and a trigger (migration V8) rejects `UPDATE`, `DELETE` and
   `TRUNCATE` on the table. For the same reason an `AuditAction` constant is never renamed or removed.
 
 Known limits:

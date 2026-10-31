@@ -26,7 +26,7 @@ import org.hibernate.type.SqlTypes;
  * <p>It has no setters and Hibernate never writes changes to an {@link Immutable} entity, so the
  * application cannot update an entry. {@code @Immutable} does not stop a delete: that is the job of
  * {@code AuditLogRepository}, which has no {@code delete}, and of the database, which rejects any
- * {@code UPDATE}, {@code DELETE} or {@code TRUNCATE} on the table (migration V7).
+ * {@code UPDATE}, {@code DELETE} or {@code TRUNCATE} on the table (migration V8).
  */
 @Entity
 @Table(name = "audit_log")
