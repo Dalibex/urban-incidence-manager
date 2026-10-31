@@ -44,6 +44,9 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     ResponseEntity<ProblemDetail> handleApiProblem(ApiProblemException ex, WebRequest request) {
         var problem = ProblemDetail.forStatusAndDetail(ex.status(), ex.getMessage());
         problem.setProperty(CODE, ex.code());
+        if (!ex.fieldErrors().isEmpty()) {
+            problem.setProperty(ERRORS, ex.fieldErrors());
+        }
         complete(problem, request);
 
         var headers = new HttpHeaders();
