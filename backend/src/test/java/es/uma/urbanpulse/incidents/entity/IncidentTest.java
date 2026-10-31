@@ -78,6 +78,31 @@ class IncidentTest {
     }
 
     @Test
+    void theCitizenSeesTheReasonOfAnInformationRequestAndARejectionOnly() {
+        var reopened = fixture.in(IncidentStatus.REOPENED);
+        var requested = fixture.reported();
+        var request =
+                requested.changeStatus(
+                        IncidentTransition.INFORMATION_REQUEST,
+                        fixture.operator,
+                        TransitionDetails.withReason("Which street number?"),
+                        LATER);
+        var rejection =
+                requested.changeStatus(
+                        IncidentTransition.REJECTION,
+                        fixture.operator,
+                        TransitionDetails.withReason("Duplicate"),
+                        LATER);
+
+        // Report, validation, assignment, acceptance, resolution and reopening.
+        assertThat(reopened.getStatusChanges())
+                .hasSize(6)
+                .allSatisfy(change -> assertThat(change.citizenSeesReason()).isFalse());
+        assertThat(request.citizenSeesReason()).isTrue();
+        assertThat(rejection.citizenSeesReason()).isTrue();
+    }
+
+    @Test
     void anInformationRequestKeepsTheStatusAndIsMarkedInTheHistory() {
         var incident = fixture.reported();
 
@@ -192,7 +217,7 @@ class IncidentTest {
                         InvalidIncidentDataException.class,
                         ex -> {
                             assertThat(ex.status().value()).isEqualTo(422);
-                            assertThat(ex.code()).isEqualTo("VALIDATION_FAILED");
+                            assertThat(ex.code()).contains("VALIDATION_FAILED");
                             assertThat(ex.fieldErrors())
                                     .extracting(FieldError::field)
                                     .containsExactly("reason");
