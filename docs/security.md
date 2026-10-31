@@ -32,10 +32,56 @@ refresh token is revoked and no new access token is issued.
 | --- | --- | --- | --- |
 | `JWT_SECRET` | Yes | — | Signing secret. The application does not start without it or with fewer than 32 bytes. |
 | `JWT_ACCESS_TOKEN_TTL` | No | `PT15M` | Lifetime of the access tokens. |
+| `REFRESH_TOKEN_TTL` | No | `P14D` | Lifetime of the refresh tokens. After it, the user signs in again. |
 
 Locally the variables come from `backend/.env` ([development guide](development.md)); in a container
 or in production, from the environment. Never commit a real secret, never log it, and use a
 different one in every environment: whoever knows it can sign a token for any user and role.
+
+## Sessions and passwords
+
+- **Passwords** are hashed with bcrypt (cost 10) behind a prefix (`{bcrypt}$2a$10$...`), so a
+  stronger algorithm can become the default later without resetting anyone's password. They are 8
+  characters to 72 bytes of UTF-8: bcrypt ignores anything after 72 bytes.
+- **A session is a refresh token.** The token is 256 random bits; the database only keeps its SHA-256
+  hash, so a copy of the database does not give working tokens. The access token carries the id of
+  its refresh token (`sid`), which is what sign-out revokes.
+- **Rotation:** each refresh revokes the token used and issues a new pair. The revocation is a
+  conditional `UPDATE` (`... WHERE revoked_at IS NULL`), so two requests with the same token at once
+  cannot both succeed.
+- **Sign-out** revokes only that session; other devices stay signed in. A disabled account loses
+  every session at its next refresh, and `SessionService.revokeAllSessions` revokes every refresh
+  token at once. In both cases the access tokens already issued keep working until they expire
+  (about 15 minutes): that is the price of not checking the database on every request (ADR-0004).
+- **Sign-in with an unknown email** still compares the password against a hash, so it takes as long
+  as a wrong password and the response time does not reveal which emails have an account.
+
+### Rate limits
+
+| Operation | Limit | Key |
+| --- | --- | --- |
+| `POST /sessions` | 5 failed attempts per 15 minutes | Email and client address |
+| `POST /registrations` | 10 attempts per hour | Client address |
+
+Past the limit the API answers `429 TOO_MANY_ATTEMPTS` with `Retry-After` (seconds, rounded up),
+even for the right password. Each attempt is reserved before the password is checked, in one atomic
+step, so a burst of parallel requests cannot go past the limit; a right password gives the attempts
+back, so only failures add up. The limits are properties (`urbanpulse.security.sign-in-attempts.max` / `.window`,
+`urbanpulse.security.sign-up-attempts.max` / `.window`).
+
+Known limits:
+
+- The counters live in the backend process. That is correct with one replica (ADR-0011); with more,
+  each replica would allow the full limit and they would have to move to a shared store such as
+  Redis (ADR-0012). A restart resets them.
+- The key is the email and the address, so one address can still try 5 passwords on each of many
+  emails (password spraying), and the counters of one window grow with every email tried. A global
+  limit per address is the next step if that becomes a problem.
+- Revoked and expired refresh tokens stay in `refresh_token`; a periodic clean-up is pending.
+- The client address is the TCP peer, not `X-Forwarded-For`, because no proxy sits in front of the
+  backend yet. When one is added (ADR-0017), configure Spring to trust only that proxy
+  (`server.forward-headers-strategy`); trusting the header from anyone would let a client skip the
+  limit.
 
 ## Errors
 
