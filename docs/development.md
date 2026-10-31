@@ -221,7 +221,42 @@ delete all local data and start from an empty database:
 docker compose --profile app down -v
 ```
 
-`--profile app` also removes the backend container, if you started it.
+`--profile app` also removes the backend container, if you started it. `-v` also deletes the
+sources downloaded by the base map builder (see below), but not the map files it built.
+
+## 🗺️ Build the Base Map
+
+The maps use our own OpenStreetMap vector tiles of the province of Málaga, not a tile provider
+([ADR-0016](adr/0016-self-hosted-osm-base-map.md)). They are never committed: a one-off process,
+the `tiles-builder` Compose service, builds them. From `backend/`, with Docker running:
+
+```bash
+docker compose --profile tiles run --rm tiles-builder
+```
+
+It writes these files to `frontend/apps/web/public/tiles/`, a folder that Git ignores, and the web
+development server (`pnpm dev:web`) serves them at `http://localhost:5173/tiles/`:
+
+- `malaga.pmtiles`: the vector tiles, zoom 0 to 14, in the OpenMapTiles schema.
+- `style.json`: the map style (OSM Bright), with its sprites and `fonts/`. A map loads it from
+  `http://localhost:5173/tiles/style.json`; it references no external host and needs no key.
+
+How it behaves:
+
+- The first run downloads about 1.5 GB (the Andalucía extract from Geofabrik, water polygons and
+  Natural Earth) into the `tiles-sources` Docker volume. Later runs download only what changed, so
+  run it again whenever you want newer OpenStreetMap data.
+- The new tiles replace the old ones only if the build succeeds, `pmtiles verify` accepts the file
+  and it is not suspiciously small. Otherwise the previous files stay as they were and the command
+  exits with an error; the last `tiles-builder: ERROR` line of the log says which step failed.
+- `TILES_BASE_URL` in `.env` (default `http://localhost:5173/tiles`) is the address written into
+  `style.json`. A phone cannot reach `localhost`: to load the map on a phone, set the address of
+  your machine in the local network, start the web app with `pnpm dev:web --host` and run the
+  builder again.
+- Every version is pinned in `tiles/Dockerfile` (Planetiler, the style, the fonts and the images).
+  To update one, change its version and its checksum together.
+- `docker volume rm urbanpulse_tiles-sources` frees the downloaded sources. The next run downloads
+  them again.
 
 ## 📱 Client Workspace
 

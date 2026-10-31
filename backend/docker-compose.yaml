@@ -51,5 +51,22 @@ services:
       postgres:
         condition: service_healthy
 
+  tiles-builder:
+    # One-off admin process (12-factor XII, ADR-0016) that builds the base map of Málaga. It belongs
+    # to the "tiles" profile, so `up` never starts it. Run it by hand (docs/development.md):
+    #   docker compose --profile tiles run --rm tiles-builder
+    profiles: [tiles]
+    build: ../tiles
+    environment:
+      # Where the clients load the tiles, sprites and glyphs from. It is written into style.json.
+      TILES_BASE_URL: ${TILES_BASE_URL:-http://localhost:5173/tiles}
+    volumes:
+      # Output. Until nginx serves the tiles (ADR-0017), the web development server serves this
+      # folder, which Git ignores.
+      - ../frontend/apps/web/public/tiles:/tiles
+      # Downloaded sources (OSM extract, water polygons, Natural Earth), reused between runs.
+      - tiles-sources:/data/sources
+
 volumes:
   postgres-data:
+  tiles-sources:
