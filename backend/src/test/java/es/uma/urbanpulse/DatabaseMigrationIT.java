@@ -3,6 +3,7 @@ package es.uma.urbanpulse;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import org.flywaydb.core.Flyway;
@@ -118,6 +119,25 @@ class DatabaseMigrationIT {
                 jdbc.queryForList("SELECT name FROM department WHERE is_active", String.class);
 
         assertThat(departments).containsExactlyInAnyOrderElementsOf(REFERENCE_DEPARTMENTS);
+    }
+
+    @Test
+    void loadsNoDevelopmentDataWithoutTheDevProfile() {
+        var repeatable =
+                Arrays.stream(flyway.info().all())
+                        .filter(migration -> migration.getVersion() == null);
+        var developmentUsers =
+                jdbc.queryForObject(
+                        "SELECT count(*) FROM users WHERE id::text LIKE 'd0000000-%'",
+                        Integer.class);
+        var developmentIncidents =
+                jdbc.queryForObject(
+                        "SELECT count(*) FROM incident WHERE id::text LIKE 'd1000000-%'",
+                        Integer.class);
+
+        assertThat(repeatable).isEmpty();
+        assertThat(developmentUsers).isZero();
+        assertThat(developmentIncidents).isZero();
     }
 
     @Test

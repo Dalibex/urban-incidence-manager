@@ -1,0 +1,5 @@
+# Development profile (#83, docs/development.md). It only adds the development dataset to the
+# migrations Flyway applies. Never activate it outside a developer machine.
+spring:
+  flyway:
+    locations: classpath:db/migration,classpath:db/dev-data
