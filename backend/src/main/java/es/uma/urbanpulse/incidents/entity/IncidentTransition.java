@@ -10,7 +10,9 @@ import static es.uma.urbanpulse.incidents.entity.IncidentStatus.RESOLVED;
 import static es.uma.urbanpulse.incidents.entity.IncidentStatus.VALIDATED;
 
 import es.uma.urbanpulse.identity.entity.Role;
+import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -108,5 +110,20 @@ public enum IncidentTransition {
      */
     public boolean citizenSeesReason() {
         return reason == Reason.SHOWN_TO_CITIZEN;
+    }
+
+    /**
+     * The transition that changes {@code from} into {@code to}. The table has at most one per pair,
+     * so a history entry tells which transition made it.
+     *
+     * @param from {@code null} for the first entry, the report, which no transition makes
+     */
+    public static Optional<IncidentTransition> between(IncidentStatus from, IncidentStatus to) {
+        if (from == null) {
+            return Optional.empty();
+        }
+        return Arrays.stream(values())
+                .filter(transition -> transition.startsFrom(from) && transition.target() == to)
+                .findFirst();
     }
 }

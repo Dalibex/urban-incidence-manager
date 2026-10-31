@@ -93,4 +93,19 @@ public class StatusChange {
         this.associatedData = associatedData;
         return this;
     }
+
+    /** Whether the citizen sees this entry in the history of their incident. */
+    public boolean isVisibleToCitizen() {
+        return Boolean.TRUE.equals(visibleToCitizen);
+    }
+
+    /**
+     * Whether the citizen sees the reason of this entry: only that of an information request or a
+     * rejection (ADR-0020, "Citizen sees").
+     */
+    public boolean citizenSeesReason() {
+        return IncidentTransition.between(previousStatus, newStatus)
+                .map(IncidentTransition::citizenSeesReason)
+                .orElse(false);
+    }
 }
