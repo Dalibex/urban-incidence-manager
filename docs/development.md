@@ -193,6 +193,25 @@ application starts. Hibernate only validates the entities against the schema.
 While a migration only exists on your branch, you can still change it: reset your local database
 (see below) so Flyway applies it again from scratch.
 
+### Reference data
+
+The initial categories and departments are inserted by a migration,
+`V7__incidents_insert_reference_data.sql`, so every environment starts with the same rows. Never
+insert them by hand or with a script run from a database client.
+
+- To add or change initial reference data, write a new migration with `INSERT` or `UPDATE`
+  statements and the next free number, for example `V8__incidents_add_graffiti_category.sql`. Do
+  not edit V7 once it is merged.
+- Give each row a fixed `id` (a UUID written in the migration), so the demo data and the tests can
+  refer to it in every environment.
+- To retire a category or a department, set `is_active = false` instead of deleting it: existing
+  incidents and assignments still point to it.
+- Add the new rows to the expected lists of `DatabaseMigrationIT`.
+- Demo users and incidents are not reference data: they are loaded separately (#54).
+
+Once administrators can manage categories and departments from the application, a migration only
+sets the starting point.
+
 ## ⚠️ Reset the Local Database
 
 `docker compose down` stops the database and keeps its data in the `postgres-data` volume. To
