@@ -6,18 +6,18 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 
 /**
- * The transition is allowed, but the data it needs is missing (ADR-0020, "Required data"): a
- * reason, the department of an assignment, or the category and priority of an incident being
- * validated. Answered with {@code 422} and the code {@code VALIDATION_FAILED}, with one entry in
- * {@code errors} per missing item.
+ * The change is allowed, but its data is missing or not valid: a reason (ADR-0020, "Required
+ * data"), an active department and technician for an assignment, the category and priority of an
+ * incident being validated, or the justification of a priority. Answered with {@code 422} and the
+ * code {@code VALIDATION_FAILED}, with one entry in {@code errors} per field.
  */
-public class MissingTransitionDataException extends ApiProblemException {
+public class InvalidIncidentDataException extends ApiProblemException {
 
     static final String CODE = "VALIDATION_FAILED";
 
     private final List<FieldError> fieldErrors;
 
-    MissingTransitionDataException(List<FieldError> fieldErrors) {
+    InvalidIncidentDataException(List<FieldError> fieldErrors) {
         super(
                 HttpStatus.UNPROCESSABLE_CONTENT,
                 CODE,

@@ -5,6 +5,7 @@ import static es.uma.urbanpulse.incidents.entity.IncidentFixture.REPORTED_AT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.shared.web.FieldError;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -188,7 +189,7 @@ class IncidentTest {
                                         TransitionDetails.withReason("  "),
                                         LATER))
                 .isInstanceOfSatisfying(
-                        MissingTransitionDataException.class,
+                        InvalidIncidentDataException.class,
                         ex -> {
                             assertThat(ex.status().value()).isEqualTo(422);
                             assertThat(ex.code()).isEqualTo("VALIDATION_FAILED");
@@ -213,7 +214,7 @@ class IncidentTest {
                                         TransitionDetails.none(),
                                         LATER))
                 .isInstanceOfSatisfying(
-                        MissingTransitionDataException.class,
+                        InvalidIncidentDataException.class,
                         ex ->
                                 assertThat(ex.fieldErrors())
                                         .extracting(FieldError::field)
@@ -233,12 +234,39 @@ class IncidentTest {
                                         TransitionDetails.assignment(null, fixture.technician),
                                         LATER))
                 .isInstanceOfSatisfying(
-                        MissingTransitionDataException.class,
+                        InvalidIncidentDataException.class,
                         ex ->
                                 assertThat(ex.fieldErrors())
                                         .extracting(FieldError::field)
                                         .containsExactly("departmentId"));
         assertThat(incident.getAssignments()).isEmpty();
+    }
+
+    @Test
+    void anAssignmentNeedsAnActiveDepartment() {
+        var closedDepartment = IncidentFixture.department();
+        closedDepartment.setIsActive(false);
+
+        assertAssignmentRejectedOn(
+                TransitionDetails.assignment(closedDepartment, fixture.technician), "departmentId");
+    }
+
+    @Test
+    void onlyATechnicianCanBeAssigned() {
+        assertAssignmentRejectedOn(
+                TransitionDetails.assignment(fixture.department, fixture.operator), "technicianId");
+        assertAssignmentRejectedOn(
+                TransitionDetails.assignment(fixture.department, fixture.citizen), "technicianId");
+    }
+
+    @Test
+    void aDisabledTechnicianCannotBeAssigned() {
+        var disabledTechnician = IncidentFixture.user(Role.TECHNICIAN);
+        disabledTechnician.setEnabled(false);
+
+        assertAssignmentRejectedOn(
+                TransitionDetails.assignment(fixture.department, disabledTechnician),
+                "technicianId");
     }
 
     @Test
@@ -253,8 +281,16 @@ class IncidentTest {
                                         PrioritySource.MANUAL,
                                         fixture.operator,
                                         LATER))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOfSatisfying(
+                        InvalidIncidentDataException.class,
+                        ex -> {
+                            assertThat(ex.status().value()).isEqualTo(422);
+                            assertThat(ex.fieldErrors())
+                                    .extracting(FieldError::field)
+                                    .containsExactly("priorityReason");
+                        });
         assertThat(incident.getPriority()).isEqualTo(Priority.MEDIUM);
+        assertThat(incident.getPriorityReason()).isEqualTo("Dark street");
     }
 
     @Test
@@ -273,5 +309,28 @@ class IncidentTest {
         assertThat(incident.getPrioritySource()).isEqualTo(PrioritySource.MANUAL);
         assertThat(incident.getPrioritySetter()).isSameAs(fixture.administrator);
         assertThat(incident.getUpdatedAt()).isEqualTo(LATER_UTC);
+    }
+
+    /** The assignment is refused on that field and the validated incident is left as it was. */
+    private void assertAssignmentRejectedOn(TransitionDetails details, String field) {
+        var incident = fixture.in(IncidentStatus.VALIDATED);
+        var historyBefore = incident.getStatusChanges().size();
+
+        assertThatThrownBy(
+                        () ->
+                                incident.changeStatus(
+                                        IncidentTransition.ASSIGNMENT,
+                                        fixture.operator,
+                                        details,
+                                        LATER))
+                .isInstanceOfSatisfying(
+                        InvalidIncidentDataException.class,
+                        ex ->
+                                assertThat(ex.fieldErrors())
+                                        .extracting(FieldError::field)
+                                        .containsExactly(field));
+        assertThat(incident.getStatus()).isEqualTo(IncidentStatus.VALIDATED);
+        assertThat(incident.getStatusChanges()).hasSize(historyBefore);
+        assertThat(incident.getAssignments()).isEmpty();
     }
 }

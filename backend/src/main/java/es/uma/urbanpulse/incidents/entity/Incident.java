@@ -144,7 +144,7 @@ public class Incident {
      * @return the new history entry
      * @throws InvalidTransitionException if the table does not allow it from the current status or
      *     for this actor
-     * @throws MissingTransitionDataException if data the transition needs is missing
+     * @throws InvalidIncidentDataException if data the transition needs is missing or not valid
      */
     public StatusChange changeStatus(
             IncidentTransition transition, User actor, TransitionDetails details, Instant now) {
@@ -187,6 +187,8 @@ public class Incident {
     /**
      * Sets the priority with its justification and the origin of the decision, which are always
      * kept together (AGENTS.md, section 3). Validation needs it (ADR-0020).
+     *
+     * @throws InvalidIncidentDataException if the justification is blank
      */
     public void prioritize(
             Priority priority, String reason, PrioritySource source, User setter, Instant now) {
@@ -194,7 +196,10 @@ public class Incident {
         Objects.requireNonNull(source, "source");
         Objects.requireNonNull(setter, "setter");
         if (isBlank(reason)) {
-            throw new IllegalArgumentException("A priority needs its justification.");
+            throw new InvalidIncidentDataException(
+                    List.of(
+                            new FieldError(
+                                    "priorityReason", "A priority needs its justification.")));
         }
         this.priority = priority;
         this.priorityReason = reason;
@@ -230,26 +235,37 @@ public class Incident {
     }
 
     private void requireData(IncidentTransition transition, TransitionDetails details) {
-        var missing = new ArrayList<FieldError>();
+        var invalid = new ArrayList<FieldError>();
         if (transition.requiresReason() && isBlank(details.reason())) {
-            missing.add(new FieldError("reason", "This change needs a reason."));
+            invalid.add(new FieldError("reason", "This change needs a reason."));
         }
-        if (transition == IncidentTransition.ASSIGNMENT && details.department() == null) {
-            missing.add(new FieldError("departmentId", "An assignment needs a department."));
+        if (transition == IncidentTransition.ASSIGNMENT) {
+            if (details.department() == null) {
+                invalid.add(new FieldError("departmentId", "An assignment needs a department."));
+            } else if (!Boolean.TRUE.equals(details.department().getIsActive())) {
+                invalid.add(new FieldError("departmentId", "The department is not active."));
+            }
+            // Only an active technician can accept the incident later (ADR-0020).
+            var technician = details.technician();
+            if (technician != null
+                    && (technician.getRole() != Role.TECHNICIAN
+                            || !Boolean.TRUE.equals(technician.getEnabled()))) {
+                invalid.add(new FieldError("technicianId", "Choose an active technician."));
+            }
         }
         if (transition == IncidentTransition.VALIDATION) {
             if (category == null) {
-                missing.add(
+                invalid.add(
                         new FieldError("category", "Classify the incident before validating it."));
             }
             if (priority == null) {
-                missing.add(
+                invalid.add(
                         new FieldError(
                                 "priority", "Set a priority before validating the incident."));
             }
         }
-        if (!missing.isEmpty()) {
-            throw new MissingTransitionDataException(missing);
+        if (!invalid.isEmpty()) {
+            throw new InvalidIncidentDataException(invalid);
         }
     }
 
