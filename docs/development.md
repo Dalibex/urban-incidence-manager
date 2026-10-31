@@ -254,18 +254,29 @@ From `frontend/`:
 pnpm dev:web
 ```
 
-The web app opens at `http://localhost:5173`.
+The web app opens at `http://localhost:5173`. It calls the API on its own origin (`/api/v1`) and
+Vite forwards `/api` to the backend at `http://localhost:8080`, so the browser needs no CORS. To
+use another backend, set `API_PROXY_TARGET` before `pnpm dev:web`. The web keeps the session in
+memory only: reloading the page asks for sign-in again.
+
+The mobile app needs the API URL in `apps/mobile/.env`, which is not versioned. Copy the example
+and set the address of your machine in the local network:
+
+```bash
+cp apps/mobile/.env.example apps/mobile/.env
+```
 
 ```bash
 pnpm dev:mobile
 ```
 
-Expo prints a QR code. Scan it with the **Expo Go** app (Android or iOS) on a phone in the same
-network, or press `a` / `i` to open an Android emulator or iOS simulator. If the phone cannot
-connect (firewall, isolated Wi-Fi), run `pnpm dev:mobile --tunnel`. The mobile app only targets
-Android and iOS (`platforms` in `app.json`); the browser client is `apps/web`. A phone or emulator
-cannot reach the backend through `localhost`: when the apps call the API, configure its URL with
-the address of your machine in the local network.
+Expo prints a QR code. Scan it with the **Expo Go** app on a phone in the same network (on an
+iPhone, with the Camera app), or press `a` / `i` to open an Android emulator or iOS simulator. If
+the phone cannot connect (firewall, isolated Wi-Fi), run `pnpm dev:mobile --tunnel`. The mobile app
+only targets Android and iOS (`platforms` in `app.json`); the browser client is `apps/web`. A phone
+or emulator cannot reach the backend through `localhost`: the Android emulator reaches your machine
+at `10.0.2.2`, a phone at its address in the local network. The mobile app keeps the session in
+`expo-secure-store` (Keychain on iOS, Keystore on Android), so it survives a restart.
 
 ### Checks
 
