@@ -11,6 +11,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 - Citizen sign-up, sign-in, session refresh and sign-out on the API, with access tokens and rate-limited attempts (#35).
 - Sign-in on the web and the mobile app, citizen sign-up on the mobile app, transparent session refresh and sign-out. Each role lands on its own web screen and cannot open the screens of another role; citizens are sent to the mobile app. The mobile app needs `EXPO_PUBLIC_API_BASE_URL` (`apps/mobile/.env.example`) (#39).
+- Incident list, detail and status history on the API. Citizens see only their incidents, technicians only those assigned to them, and operators and administrators all of them; anyone else's incident answers `404`. Citizens do not receive priority, actors or internal reasons (#100).
 
 ### Changed
 
