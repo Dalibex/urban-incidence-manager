@@ -265,7 +265,8 @@
 				<configuration>
 					<effort>Max</effort>
 					<threshold>Medium</threshold>
-					<excludeFilterFile>${project.basedir}/spotbugs-exclude.xml</excludeFilterFile>
+					<!-- Accepted findings, each with its reason -->
+					<excludeFilterFile>spotbugs-exclude.xml</excludeFilterFile>
 				</configuration>
 								<executions>
 					<execution>

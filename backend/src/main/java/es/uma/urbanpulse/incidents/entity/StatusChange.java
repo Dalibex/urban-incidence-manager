@@ -14,18 +14,21 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 import java.util.UUID;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+/**
+ * One entry of the status history of an incident (ADR-0020, RF18). Entries are only created by
+ * {@link Incident}, after it has checked the transition, and are never changed: the constructor is
+ * package-private and there are no setters (ADR-0010).
+ */
 @Entity
 @Table(name = "status_change")
 @Getter
-@Setter
-// TODO (#37): Restrict public setters and enforce encapsulation for status transitions
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class StatusChange {
 
     @Id
@@ -59,4 +62,35 @@ public class StatusChange {
 
     @Column(name = "visible_to_citizen", nullable = false)
     private Boolean visibleToCitizen;
+
+    /**
+     * Every transition of ADR-0020 is visible to the citizen (each row of "Citizen sees" includes
+     * the status); what the citizen may not see is the reason of some of them and the associated
+     * data.
+     *
+     * @param previousStatus {@code null} for the first entry, when the incident is reported
+     */
+    StatusChange(
+            Incident incident,
+            User actor,
+            OffsetDateTime instant,
+            IncidentStatus previousStatus,
+            IncidentStatus newStatus) {
+        this.incident = incident;
+        this.actor = actor;
+        this.instant = instant;
+        this.previousStatus = previousStatus;
+        this.newStatus = newStatus;
+        this.visibleToCitizen = Boolean.TRUE;
+    }
+
+    StatusChange withReason(String reason) {
+        this.reason = reason;
+        return this;
+    }
+
+    StatusChange withAssociatedData(String associatedData) {
+        this.associatedData = associatedData;
+        return this;
+    }
 }

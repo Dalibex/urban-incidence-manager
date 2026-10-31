@@ -1,15 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- SpotBugs findings excluded on purpose. Keep each exclusion narrow and say why. -->
+<!--
+  SpotBugs findings the project accepts on purpose. Each entry says why; keep it as narrow as
+  possible, never exclude a whole category of bugs for every class.
+-->
 <FindBugsFilter
-		xmlns="https://github.com/spotbugs/filter/3.0.0"
-		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-		xsi:schemaLocation="https://github.com/spotbugs/filter/3.0.0 https://raw.githubusercontent.com/spotbugs/spotbugs/3.1.0/spotbugs/etc/findbugsfilter.xsd">
+        xmlns="https://github.com/spotbugs/filter/3.0.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="https://github.com/spotbugs/filter/3.0.0 https://raw.githubusercontent.com/spotbugs/spotbugs/3.1.0/spotbugs/etc/findbugsfilter.xsd">
 
-	<!-- A JPA entity keeps a reference to the managed User it points to: copying it would detach
-	     it from the persistence context. The other entities only avoid the finding because their
-	     Lombok setters are generated code, which SpotBugs skips. -->
-	<Match>
-		<Class name="es.uma.urbanpulse.identity.entity.AuditLog"/>
-		<Bug pattern="EI_EXPOSE_REP2"/>
-	</Match>
+    <!--
+      JPA entities and the values that carry them hold references to other entities (the reporter
+      of an incident, the technician of an assignment): sharing that reference is how JPA relations
+      work, and a defensive copy of an entity would detach it from the persistence context. The
+      setters that Lombok generates are already skipped by SpotBugs; this covers the hand-written
+      domain methods of the entities (ADR-0020).
+    -->
+    <Match>
+        <Package name="~es\.uma\.urbanpulse\.[a-z]+\.entity" />
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2" />
+    </Match>
 </FindBugsFilter>

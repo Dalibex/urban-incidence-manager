@@ -109,13 +109,11 @@ class EntityMappingIT extends PersistenceTestSupport {
     }
 
     private static Incident incidentReportedBy(User reporter) {
-        Incident incident = new Incident();
-        incident.setReporter(reporter);
-        incident.setTitle("Broken streetlight");
-        incident.setDescription("The streetlight at the corner is off.");
-        incident.setStatus(IncidentStatus.REPORTED);
-        incident.setReportedAt(REPORTED_AT);
-        incident.setUpdatedAt(REPORTED_AT);
-        return incident;
+        return Incident.report(
+                reporter,
+                "Broken streetlight",
+                "The streetlight at the corner is off.",
+                null,
+                REPORTED_AT.toInstant());
     }
 }
