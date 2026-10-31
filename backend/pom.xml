@@ -265,6 +265,8 @@
 				<configuration>
 					<effort>Max</effort>
 					<threshold>Medium</threshold>
+					<!-- Accepted findings, each with its reason -->
+					<excludeFilterFile>spotbugs-exclude.xml</excludeFilterFile>
 				</configuration>
 								<executions>
 					<execution>
