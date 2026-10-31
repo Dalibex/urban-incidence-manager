@@ -105,7 +105,7 @@ One step per check, so the name of the red step tells you what failed. GitHub Ac
 |---|---|---|
 | Unit and integration tests | `*Test` with Surefire (no Docker) and `*IT` with Failsafe (PostGIS in Testcontainers) | `./mvnw verify` |
 | Coverage gate | Combined line coverage (unit + integration) ≥ `jacoco.minimum.coverage` (80 %) | included in `./mvnw verify` |
-| Static analysis gate | SpotBugs with no findings (`effort=Max`, `threshold=Medium`) | included in `./mvnw verify` |
+| Static analysis gate | SpotBugs with no findings (`effort=Max`, `threshold=Medium`; accepted findings, each with its reason, in `backend/spotbugs-exclude.xml`) | included in `./mvnw verify` |
 | Test and coverage summary | Tables on the run page (never fails) | — |
 | Publish reports | `test-reports` artifact with test reports, HTML coverage and SpotBugs | `target/` |
 
