@@ -1,4 +1,4 @@
-package es.uma.urbanpulse.incidents.service;
+package es.uma.urbanpulse.incidents;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.data.Offset.offset;

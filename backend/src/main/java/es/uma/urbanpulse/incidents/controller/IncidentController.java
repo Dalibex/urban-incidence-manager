@@ -1,14 +1,12 @@
 package es.uma.urbanpulse.incidents.controller;
 
-import es.uma.urbanpulse.identity.entity.User;
-import es.uma.urbanpulse.identity.repository.UserRepository;
 import es.uma.urbanpulse.incidents.dto.CreateIncidentRequest;
 import es.uma.urbanpulse.incidents.dto.IncidentResponse;
 import es.uma.urbanpulse.incidents.dto.IncidentSummaryResponse;
 import es.uma.urbanpulse.incidents.dto.StatusChangeResponse;
 import es.uma.urbanpulse.incidents.entity.IncidentStatus;
 import es.uma.urbanpulse.incidents.service.IncidentQueryService;
-import es.uma.urbanpulse.incidents.service.IncidentService;
+import es.uma.urbanpulse.incidents.service.IncidentReportService;
 import es.uma.urbanpulse.shared.security.AuthenticatedUser;
 import es.uma.urbanpulse.shared.web.PageRequests;
 import es.uma.urbanpulse.shared.web.PageResponse;
@@ -48,16 +46,12 @@ class IncidentController {
     private static final Sort NEWEST_FIRST = Sort.by(Sort.Direction.DESC, "reportedAt");
 
     private final IncidentQueryService incidents;
-    private final IncidentService incidentService;
-    private final UserRepository users;
+    private final IncidentReportService incidentService;
 
     public IncidentController(
-            IncidentService incidentService,
-            IncidentQueryService incidentQueryService,
-            UserRepository users) {
+            IncidentReportService incidentService, IncidentQueryService incidentQueryService) {
         this.incidentService = incidentService;
         this.incidents = incidentQueryService;
-        this.users = users;
     }
 
     @GetMapping
@@ -95,16 +89,9 @@ class IncidentController {
     public ResponseEntity<IncidentResponse> createIncident(
             @Valid @RequestBody CreateIncidentRequest request,
             @AuthenticationPrincipal AuthenticatedUser currentUser) {
-        User reporter =
-                users.findById(currentUser.id())
-                        .orElseThrow(
-                                () ->
-                                        new org.springframework.security.authentication
-                                                .InsufficientAuthenticationException(
-                                                "The user does not exist"));
-        var incident = incidentService.createIncident(request, reporter);
+        var incident = incidentService.createIncident(request, currentUser.id());
 
-        var response = IncidentResponse.of(incident, incident.getLocation(), reporter.getRole());
+        var response = IncidentResponse.of(incident, incident.getLocation(), currentUser.role());
 
         URI location =
                 ServletUriComponentsBuilder.fromCurrentRequest()

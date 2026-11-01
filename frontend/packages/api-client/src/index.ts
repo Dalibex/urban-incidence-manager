@@ -1,4 +1,5 @@
 import createClient from 'openapi-fetch';
+
 import type { paths } from './schema';
 import { createSessionFetch, type SessionOptions } from './session';
 
@@ -12,7 +13,6 @@ export {
   signIn,
   signOut,
   signUp,
-  isProblem,
   type ApiFailure,
   type ApiResult,
 } from './account';

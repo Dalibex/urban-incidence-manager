@@ -167,8 +167,9 @@ class IncidentControllerIT {
                 .isEqualTo(0);
     }
 
-    // T3: only CITIZEN reports. A 403 needs a valid payload: an invalid one answers 422 before
-    // the role is checked, so a technician is not told what is invalid about a form it cannot use.
+    // T3: only CITIZEN reports. @Valid is evaluated before @PreAuthorize, so an invalid body
+    // answers 422 with the field errors even for a technician; a valid body is needed to reach
+    // the role check and get the 403.
     @Test
     void onlyACitizenCanReportAndUnauthenticatedRequestsAreRejected() throws Exception {
         UUID technician = insertUser(Role.TECHNICIAN);

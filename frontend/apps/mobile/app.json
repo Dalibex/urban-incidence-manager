@@ -19,6 +19,13 @@
       },
       "predictiveBackGestureEnabled": false
     },
-    "plugins": ["expo-secure-store"]
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "This application needs to access your location to report incidents accurately."
+        }
+      ]
+    ]
   }
 }

@@ -1,10 +1,17 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import { createIncident, type ApiFailure, type FieldError } from '@urbanpulse/api-client';
-import { useState } from 'react';
 import {
+  createIncident,
+  type ApiFailure,
+  type FieldError,
+  type components,
+} from '@urbanpulse/api-client';
+import { useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,7 +21,7 @@ import {
 
 import { colors, fontSizes, spacing } from '@urbanpulse/ui';
 
-import { Button } from '../components/Button';
+import { Button, MIN_TOUCH_SIZE } from '../components/Button';
 import { FormMessage } from '../components/FormMessage';
 import { LocationIndicator } from '../components/LocationIndicator';
 import { TextField } from '../components/TextField';
@@ -25,6 +32,8 @@ import { useSession } from '../session/SessionContext';
 import { screenStyles } from './styles';
 
 type Props = BottomTabScreenProps<MainTabsParamList, 'NewReport'>;
+
+type Category = components['schemas']['CategoryResponse'];
 
 /** Message of the per-field errors that are not shown next to an input (`location.*`). */
 const FIELD_BANNER = 'Check the highlighted fields.';
@@ -43,19 +52,57 @@ export function NewIncidentScreen({ navigation }: Props) {
   const [fieldErrors, setFieldErrors] = useState<Readonly<Record<string, string>>>({});
   const [error, setError] = useState<string | null>(null);
 
+  const submittingRef = useRef(false);
+
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await api.GET('/categories');
+        if (!cancelled && result.data) {
+          setCategories(result.data);
+        }
+      } catch (fetchError) {
+        if (!cancelled) {
+          console.warn('Could not load categories', fetchError);
+        }
+      } finally {
+        if (!cancelled) {
+          setCategoriesLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [api]);
+
   const canSubmit =
     !location.isLoading &&
     !isSubmitting &&
     location.latitude !== null &&
-    location.longitude !== null &&
-    title.trim().length > 0 &&
-    description.trim().length > 0;
+    location.longitude !== null;
 
   async function submit() {
     // Guards the button too: `isSubmitting` plus a tap before the state settles would send it twice.
     if (isSubmitting || location.latitude === null || location.longitude === null) {
       return;
     }
+    if (submittingRef.current) {
+      return;
+    }
+    if (title.trim().length === 0) {
+      setFieldErrors({ title: 'Enter a title for the incident.' });
+      return;
+    }
+    if (description.trim().length === 0) {
+      setFieldErrors({ description: 'Enter a description of the incident.' });
+      return;
+    }
+    submittingRef.current = true;
     setIsSubmitting(true);
     setFieldErrors({});
     setError(null);
@@ -85,6 +132,7 @@ export function NewIncidentScreen({ navigation }: Props) {
       console.error(unexpected);
       setError(UNEXPECTED_ERROR);
     } finally {
+      submittingRef.current = false;
       setIsSubmitting(false);
     }
   }
@@ -136,6 +184,7 @@ export function NewIncidentScreen({ navigation }: Props) {
             value={title}
             onChangeText={setTitle}
             placeholder="Short summary"
+            maxLength={120}
             accessibilityHint={fieldErrors.title}
           />
           {fieldErrors.title ? <Text style={styles.fieldError}>{fieldErrors.title}</Text> : null}
@@ -150,6 +199,7 @@ export function NewIncidentScreen({ navigation }: Props) {
             numberOfLines={4}
             placeholder="What happens and where"
             placeholderTextColor={colors.textMuted}
+            maxLength={2000}
             style={styles.textArea}
             value={description}
             onChangeText={setDescription}
@@ -161,13 +211,45 @@ export function NewIncidentScreen({ navigation }: Props) {
 
         <View style={styles.field}>
           <Text style={styles.label}>Category (optional)</Text>
-          <View style={styles.pickerPlaceholder}>
-            <Text style={styles.placeholderText}>
-              {categoryId
-                ? `Selected: ${categoryId}`
-                : 'Category picker (coming soon); an operator can classify it later'}
-            </Text>
-          </View>
+          {categoriesLoading ? (
+            <ActivityIndicator />
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.categoryRow}
+            >
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setCategoryId(null)}
+                style={[styles.categoryChip, categoryId === null && styles.categoryChipSelected]}
+              >
+                <Text
+                  style={[
+                    styles.categoryLabel,
+                    categoryId === null && styles.categoryLabelSelected,
+                  ]}
+                >
+                  None
+                </Text>
+              </Pressable>
+              {categories.map((category) => {
+                const selected = categoryId === category.id;
+                return (
+                  <Pressable
+                    key={category.id}
+                    accessibilityRole="button"
+                    onPress={() => setCategoryId(category.id)}
+                    style={[styles.categoryChip, selected && styles.categoryChipSelected]}
+                  >
+                    <Text style={[styles.categoryLabel, selected && styles.categoryLabelSelected]}>
+                      {category.name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          )}
           {fieldErrors.categoryId ? (
             <Text style={styles.fieldError}>{fieldErrors.categoryId}</Text>
           ) : null}
@@ -219,5 +301,30 @@ const styles = StyleSheet.create({
   placeholderText: {
     color: colors.textMuted,
     fontSize: fontSizes.body,
+  },
+  categoryRow: {
+    gap: spacing.xs,
+    paddingVertical: spacing.xs,
+  },
+  categoryChip: {
+    minHeight: MIN_TOUCH_SIZE,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.textMuted,
+    backgroundColor: colors.background,
+  },
+  categoryChipSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  categoryLabel: {
+    color: colors.text,
+    fontSize: fontSizes.body,
+  },
+  categoryLabelSelected: {
+    color: colors.background,
+    fontWeight: '600',
   },
 });
