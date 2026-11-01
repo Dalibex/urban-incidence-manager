@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
+import es.uma.urbanpulse.ApiContract;
 import es.uma.urbanpulse.TestcontainersConfiguration;
 import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.shared.security.TestTokens;
@@ -39,7 +40,8 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>They are written from the issue, the contract ({@code docs/api/openapi.yml}), {@code
  * docs/api.md} and ADR-0020, not from the implementation: the data is inserted with SQL on the
- * Flyway schema and every check goes through HTTP.
+ * Flyway schema and every check goes through HTTP. Every response is also validated against the
+ * contract ({@link ApiContract}).
  *
  * <p>Each test creates its own users and incidents inside a transaction that is rolled back, so the
  * tests never see each other's data. Other incidents may exist in the database (from other tests or
@@ -47,7 +49,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @SpringBootTest(properties = "spring.jpa.properties.hibernate.generate_statistics=true")
 @AutoConfigureMockMvc
-@Import({TestcontainersConfiguration.class, TestTokens.class})
+@Import({TestcontainersConfiguration.class, TestTokens.class, ApiContract.EveryResponse.class})
 @Transactional
 class IncidentReadApiIT {
 
@@ -420,65 +422,18 @@ class IncidentReadApiIT {
         assertThat(large).as("statements for a page of 20 vs a page of 2").isEqualTo(small);
     }
 
-    // T14: the responses carry the required properties of the contract schemas.
+    // T14: every response of this class is checked against the contract by ApiContract (#111);
+    // this test only makes sure the three endpoints are called by a citizen and by staff, whose
+    // responses use different properties.
     @Test
-    void responsesHaveThePropertiesOfTheContract() throws Exception {
+    void responsesOfCitizensAndStaffFollowTheContract() throws Exception {
         UUID incident = incidentWithFullHistory(citizenA);
 
-        String page =
-                list(operator, Role.MUNICIPAL_OPERATOR, "?size=100")
-                        .andReturn()
-                        .getResponse()
-                        .getContentAsString();
-        assertThat((Map<String, Object>) JsonPath.read(page, "$")).containsKeys("content", "page");
-        assertThat((Map<String, Object>) JsonPath.read(page, "$.page"))
-                .containsKeys("number", "size", "totalElements", "totalPages");
-        List<Map<String, Object>> mine =
-                JsonPath.read(page, "$.content[?(@.id == '%s')]".formatted(incident));
-        assertThat(mine.getFirst())
-                .containsKeys(
-                        "id", "title", "status", "category", "reportedAt", "updatedAt", "priority");
-        assertThat((Map<String, Object>) mine.getFirst().get("category"))
-                .containsKeys("id", "name");
-
-        String detail =
-                mvc.perform(as(operator, Role.MUNICIPAL_OPERATOR, get(INCIDENTS + "/" + incident)))
-                        .andReturn()
-                        .getResponse()
-                        .getContentAsString();
-        assertThat((Map<String, Object>) JsonPath.read(detail, "$"))
-                .containsKeys(
-                        "id",
-                        "title",
-                        "description",
-                        "status",
-                        "category",
-                        "location",
-                        "reportedAt",
-                        "updatedAt",
-                        "closedAt");
-
-        String history =
-                mvc.perform(
-                                as(
-                                        operator,
-                                        Role.MUNICIPAL_OPERATOR,
-                                        get(INCIDENTS + "/" + incident + "/status-changes")))
-                        .andReturn()
-                        .getResponse()
-                        .getContentAsString();
-        List<Map<String, Object>> entries = JsonPath.read(history, "$");
-        assertThat(entries)
-                .allSatisfy(
-                        entry ->
-                                assertThat(entry)
-                                        .containsKeys(
-                                                "id",
-                                                "instant",
-                                                "previousStatus",
-                                                "newStatus",
-                                                "reason"));
-        assertThat(entries.getFirst().get("previousStatus")).isNull();
+        for (UUID caller : new UUID[] {citizenA, operator}) {
+            for (String path : readPaths(incident)) {
+                mvc.perform(as(caller, roleOf(caller), get(path))).andExpect(status().isOk());
+            }
+        }
     }
 
     /**
@@ -555,7 +510,7 @@ class IncidentReadApiIT {
                         + " RETURNING id",
                 UUID.class,
                 "Test " + role,
-                role.name().toLowerCase() + "-" + UUID.randomUUID() + "@example.test",
+                role.name().toLowerCase() + "-" + UUID.randomUUID() + "@example.com",
                 role.name());
     }
 
