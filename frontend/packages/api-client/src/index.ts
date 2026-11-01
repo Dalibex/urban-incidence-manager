@@ -16,6 +16,12 @@ export {
   type ApiFailure,
   type ApiResult,
 } from './account';
+export {
+  getIncident,
+  listIncidents,
+  listIncidentStatusChanges,
+  type IncidentListQuery,
+} from './incidents';
 
 /**
  * Creates a client whose paths, parameters and responses are typed from the contract. Each app
