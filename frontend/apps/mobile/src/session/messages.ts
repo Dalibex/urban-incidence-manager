@@ -36,3 +36,17 @@ export function signUpMessage(failure: ApiFailure): string {
       return 'The account could not be created. Try again in a moment.';
   }
 }
+
+/** Only for failures without per-field errors: a `422` is shown next to the invalid fields. */
+export function reportIncidentMessage(failure: ApiFailure): string {
+  if (failure.kind === 'network') {
+    return NETWORK;
+  }
+  if (failure.status === 403) {
+    return 'This account cannot report incidents.';
+  }
+  if (failure.status === 429) {
+    return TOO_MANY;
+  }
+  return 'The incident could not be reported. Try again in a moment.';
+}
