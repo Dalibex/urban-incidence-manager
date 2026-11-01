@@ -50,6 +50,8 @@
 		<springdoc.version>3.0.3</springdoc.version>
 		<!-- Contract first: the source of truth lives outside the backend folder (docs/api.md) -->
 		<openapi.contract.dir>${project.basedir}/../docs/api</openapi.contract.dir>
+		<!-- Validates the responses of the HTTP integration tests against the contract (#111) -->
+		<openapi-request-validator.version>3.0.0</openapi-request-validator.version>
 	</properties>
 
 	<dependencies>
@@ -170,6 +172,16 @@
 		<dependency>
 			<groupId>org.springframework.security</groupId>
 			<artifactId>spring-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<!-- Contract tests: every response of the HTTP integration tests must match its operation
+			and status in docs/api/openapi.yml (#111, ApiContract). Chosen over networknt
+			json-schema-validator because it maps path, method and status to the schema by itself;
+			the two cannot be used together (this one embeds an older networknt). -->
+		<dependency>
+			<groupId>com.atlassian.oai</groupId>
+			<artifactId>openapi-request-validator-mockmvc</artifactId>
+			<version>${openapi-request-validator.version}</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>

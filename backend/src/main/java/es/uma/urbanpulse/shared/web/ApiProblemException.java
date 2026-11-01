@@ -24,12 +24,23 @@ public abstract class ApiProblemException extends RuntimeException {
         this.code = code;
     }
 
+    /**
+     * An error the status already explains, such as a {@code 404}: {@code code} is only added when
+     * the status alone does not tell the client what to do ({@code docs/api.md}, "Error codes").
+     */
+    protected ApiProblemException(HttpStatus status, String detail) {
+        super(detail);
+        this.status = status;
+        this.code = null;
+    }
+
     public HttpStatus status() {
         return status;
     }
 
-    public String code() {
-        return code;
+    /** The stable {@code code} of {@code docs/api.md}, if the error has one. */
+    public Optional<String> code() {
+        return Optional.ofNullable(code);
     }
 
     /** How long the client should wait before retrying ({@code Retry-After}), if it applies. */

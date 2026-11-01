@@ -166,6 +166,12 @@ Test classes are picked up by name:
 - `*IT`: integration tests with the Spring context and PostGIS, run by `./mvnw verify`. Skip them
   with `-DskipITs`.
 
+HTTP integration tests that call `/api/v1` with MockMvc import `ApiContract.EveryResponse`: every
+response is then validated against its operation and status in
+[`docs/api/openapi.yml`](api/openapi.yml), error bodies included, so a DTO that drifts from the
+contract fails the test. Only the response is checked, so a test may send an invalid request on
+purpose.
+
 `verify` also checks formatting, coverage and SpotBugs. See the [CI guide](ci.md).
 
 ## 🐧 Code Formatting
