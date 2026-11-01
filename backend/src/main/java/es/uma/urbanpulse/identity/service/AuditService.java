@@ -5,6 +5,7 @@ import es.uma.urbanpulse.identity.entity.AuditLog;
 import es.uma.urbanpulse.identity.repository.AuditLogRepository;
 import es.uma.urbanpulse.identity.repository.UserRepository;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
@@ -47,10 +48,12 @@ public class AuditService {
      * the entry is committed or rolled back with the change it records. {@code REQUIRED} would open
      * its own transaction when the caller forgot one, and the entry could outlive a failed change.
      *
-     * <p>Values can only be scalars (text, numbers, booleans, enums, UUIDs), so an entity with its
-     * hash or email cannot end up in an entry that can never be deleted. Keep them to identifiers
-     * and domain values (a role, a priority): never a password, a token or personal data the entry
-     * does not need, such as an email.
+     * <p>Values can only be scalars (text, numbers, booleans, enums, UUIDs, and instants as {@code
+     * Instant} or {@code OffsetDateTime}, stored as ISO-8601 text), so an entity with its hash or
+     * email cannot end up in an entry that can never be deleted. {@code LocalDateTime} is left out
+     * on purpose: without an offset it is not an instant. Keep them to identifiers and domain
+     * values (a role, a priority): never a password, a token or personal data the entry does not
+     * need, such as an email.
      *
      * <p>{@code actorId} should come from the authenticated user: an unknown id only fails when the
      * transaction flushes, through the foreign key.
@@ -64,6 +67,7 @@ public class AuditService {
             AuditTarget target,
             Map<String, ?> before,
             Map<String, ?> after) {
+        Objects.requireNonNull(actorId, "actorId");
         Objects.requireNonNull(action, "action");
         Objects.requireNonNull(target, "target");
 
@@ -100,6 +104,8 @@ public class AuditService {
                 || value instanceof Number
                 || value instanceof Boolean
                 || value instanceof Enum<?>
-                || value instanceof UUID;
+                || value instanceof UUID
+                || value instanceof Instant
+                || value instanceof OffsetDateTime;
     }
 }

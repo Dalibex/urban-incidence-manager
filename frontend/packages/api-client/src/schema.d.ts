@@ -573,7 +573,7 @@ export interface components {
             content: components["schemas"]["IncidentSummaryResponse"][];
             page: components["schemas"]["PageMetadata"];
         };
-        /** @description Full incident. `priority` is staff-only: it is absent in the responses to a citizen. */
+        /** @description Full incident. `priority` and `version` are staff-only: they are absent in the responses to a citizen. */
         IncidentResponse: {
             /**
              * Format: uuid
@@ -606,6 +606,11 @@ export interface components {
              * @example null
              */
             closedAt: string | null;
+            /**
+             * @description Staff only. Changes every time the incident changes. Lifecycle actions send back the version the client read; if the incident changed since then, they answer `409` with the code `CONCURRENT_MODIFICATION` (ADR-0020).
+             * @example 3
+             */
+            version?: number;
         };
         /** @description Who made a status change. */
         StatusChangeActor: {
@@ -725,7 +730,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description The request conflicts with the current state of the resource, for example a status transition that is not allowed or a duplicated unique value. `code` says which. */
+        /** @description The request conflicts with the current state of the resource, for example a status transition that is not allowed, a change made on a stale version or a duplicated unique value. `code` says which. */
         Conflict: {
             headers: {
                 [name: string]: unknown;

@@ -128,6 +128,7 @@ Do not define a new error body. If an error needs extra information, add an opti
 | `TOO_MANY_ATTEMPTS` | 429 | `createSession`, `createRegistration` | Rate limited; see `Retry-After` |
 | `INVALID_REFRESH_TOKEN` | 401 | `refreshSession` | Unknown, expired, revoked or reused refresh token: sign in again |
 | `INVALID_TRANSITION` | 409 | Lifecycle actions (Sprint 2) | The transition is not allowed (ADR-0020) |
+| `CONCURRENT_MODIFICATION` | 409 | Lifecycle actions (Sprint 2) | The incident changed since the client read its `version`: reload it and decide again (ADR-0020) |
 
 Add a row in the same PR that introduces a new code.
 
