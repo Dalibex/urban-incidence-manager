@@ -15,6 +15,8 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.GeometryFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
@@ -48,18 +50,28 @@ class EntityMappingIT extends PersistenceTestSupport {
         assertThat(found.getReporter().getEmail()).isEqualTo(incident.getReporter().getEmail());
     }
 
+    /**
+     * The report writes its own location; the test replaces the stored coordinates with SQL, so the
+     * read-back goes through the stored column alone.
+     */
     @Test
     void readsAStoredPointAsLongitudeAndLatitude() {
-        Incident incident = incidents.save(incidentReportedBy(citizen()));
-        UUID locationId = UUID.randomUUID();
+        UUID incidentId = incidents.save(incidentReportedBy(citizen())).getId();
+        flushAndClear();
+
+        UUID locationId =
+                (UUID)
+                        entityManager
+                                .createNativeQuery("SELECT id FROM location WHERE incident_id = ?")
+                                .setParameter(1, incidentId)
+                                .getSingleResult();
         entityManager
                 .createNativeQuery(
-                        "INSERT INTO location (id, incident_id, coordinates) VALUES (?, ?,"
-                                + " ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography)")
-                .setParameter(1, locationId)
-                .setParameter(2, incident.getId())
-                .setParameter(3, LONGITUDE)
-                .setParameter(4, LATITUDE)
+                        "UPDATE location SET coordinates ="
+                                + " ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography WHERE id = ?")
+                .setParameter(1, LONGITUDE)
+                .setParameter(2, LATITUDE)
+                .setParameter(3, locationId)
                 .executeUpdate();
         flushAndClear();
 
@@ -109,6 +121,14 @@ class EntityMappingIT extends PersistenceTestSupport {
                 "Broken streetlight",
                 "The streetlight at the corner is off.",
                 null,
+                locationAt(36.7213, -4.4214),
                 REPORTED_AT.toInstant());
+    }
+
+    private static Location locationAt(double latitude, double longitude) {
+        Location location = new Location();
+        location.setCoordinates(
+                new GeometryFactory().createPoint(new Coordinate(longitude, latitude)));
+        return location;
     }
 }

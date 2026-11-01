@@ -12,6 +12,8 @@ import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.identity.entity.User;
 import java.time.Instant;
 import java.util.UUID;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.GeometryFactory;
 
 /**
  * Users and incidents for the lifecycle tests, built in memory through the public API of {@link
@@ -34,7 +36,12 @@ final class IncidentFixture {
     Incident reported() {
         var incident =
                 Incident.report(
-                        citizen, "Street light off", "Off since Monday.", null, REPORTED_AT);
+                        citizen,
+                        "Street light off",
+                        "Off since Monday.",
+                        null,
+                        locationAt(36.7213, -4.4214),
+                        REPORTED_AT);
         incident.classify(category(), REPORTED_AT);
         incident.prioritize(
                 Priority.MEDIUM, "Dark street", PrioritySource.MANUAL, operator, REPORTED_AT);
@@ -100,5 +107,13 @@ final class IncidentFixture {
         department.setId(UUID.randomUUID());
         department.setName("Public lighting");
         return department;
+    }
+
+    /** The location every report needs (a report accepts a title, a description and a position). */
+    static Location locationAt(double latitude, double longitude) {
+        var location = new Location();
+        location.setCoordinates(
+                new GeometryFactory().createPoint(new Coordinate(longitude, latitude)));
+        return location;
     }
 }
