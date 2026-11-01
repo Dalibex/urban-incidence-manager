@@ -13,7 +13,6 @@ import es.uma.urbanpulse.identity.entity.User;
 import java.time.Instant;
 import java.util.UUID;
 import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.GeometryFactory;
 
 /**
  * Users and incidents for the lifecycle tests, built in memory through the public API of {@link
@@ -112,8 +111,7 @@ final class IncidentFixture {
     /** The location every report needs (a report accepts a title, a description and a position). */
     static Location locationAt(double latitude, double longitude) {
         var location = new Location();
-        location.setCoordinates(
-                new GeometryFactory().createPoint(new Coordinate(longitude, latitude)));
+        location.setCoordinates(Location.WGS84.createPoint(new Coordinate(longitude, latitude)));
         return location;
     }
 }

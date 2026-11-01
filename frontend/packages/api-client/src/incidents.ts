@@ -45,3 +45,14 @@ export async function createIncident(
     fieldErrors: problem?.errors ?? [],
   };
 }
+type Category = components['schemas']['CategoryResponse'];
+
+export async function listCategories(client: ApiClient): Promise<Category[]> {
+  const result = await client.GET('/categories');
+
+  if (result.error || !result.data) {
+    throw new Error('Failed to load categories');
+  }
+
+  return result.data;
+}

@@ -1,6 +1,7 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import {
   createIncident,
+  listCategories,
   type ApiFailure,
   type FieldError,
   type components,
@@ -56,25 +57,32 @@ export function NewIncidentScreen({ navigation }: Props) {
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [categoriesError, setCategoriesError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+
+    async function loadCategories() {
+      setCategoriesLoading(true);
+      setCategoriesError(null);
       try {
-        const result = await api.GET('/categories');
-        if (!cancelled && result.data) {
-          setCategories(result.data);
+        const list = await listCategories(api);
+        if (!cancelled) {
+          setCategories(list);
         }
       } catch (fetchError) {
         if (!cancelled) {
-          console.warn('Could not load categories', fetchError);
+          setCategoriesError('Could not load categories.');
         }
       } finally {
         if (!cancelled) {
           setCategoriesLoading(false);
         }
       }
-    })();
+    }
+
+    void loadCategories();
+
     return () => {
       cancelled = true;
     };
@@ -213,6 +221,8 @@ export function NewIncidentScreen({ navigation }: Props) {
           <Text style={styles.label}>Category (optional)</Text>
           {categoriesLoading ? (
             <ActivityIndicator />
+          ) : categoriesError ? (
+            <Text style={styles.fieldError}>{categoriesError}</Text>
           ) : (
             <ScrollView
               horizontal
@@ -221,6 +231,7 @@ export function NewIncidentScreen({ navigation }: Props) {
             >
               <Pressable
                 accessibilityRole="button"
+                accessibilityState={{ selected: categoryId === null }}
                 onPress={() => setCategoryId(null)}
                 style={[styles.categoryChip, categoryId === null && styles.categoryChipSelected]}
               >
@@ -239,6 +250,7 @@ export function NewIncidentScreen({ navigation }: Props) {
                   <Pressable
                     key={category.id}
                     accessibilityRole="button"
+                    accessibilityState={{ selected }}
                     onPress={() => setCategoryId(category.id)}
                     style={[styles.categoryChip, selected && styles.categoryChipSelected]}
                   >

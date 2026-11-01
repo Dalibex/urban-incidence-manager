@@ -32,9 +32,9 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 /**
- * {@code listIncidents}, {@code getIncident} and {@code listIncidentStatusChanges}. The role is
- * checked here; which incidents the caller may see is checked by the service, which answers {@code
- * 404} for the others (docs/security.md).
+ * {@code listIncidents}, {@code getIncident}, {@code listIncidentStatusChanges} and {@code
+ * createIncident}. The role is checked here; which incidents the caller may see is checked by the
+ * service, which answers {@code 404} for the others (docs/security.md).
  */
 @RestController
 @RequestMapping("/api/v1/incidents")
@@ -46,11 +46,12 @@ class IncidentController {
     private static final Sort NEWEST_FIRST = Sort.by(Sort.Direction.DESC, "reportedAt");
 
     private final IncidentQueryService incidents;
-    private final IncidentReportService incidentService;
+    private final IncidentReportService incidentReportService;
 
     public IncidentController(
-            IncidentReportService incidentService, IncidentQueryService incidentQueryService) {
-        this.incidentService = incidentService;
+            IncidentReportService incidentReportService,
+            IncidentQueryService incidentQueryService) {
+        this.incidentReportService = incidentReportService;
         this.incidents = incidentQueryService;
     }
 
@@ -89,7 +90,7 @@ class IncidentController {
     public ResponseEntity<IncidentResponse> createIncident(
             @Valid @RequestBody CreateIncidentRequest request,
             @AuthenticationPrincipal AuthenticatedUser currentUser) {
-        var incident = incidentService.createIncident(request, currentUser.id());
+        var incident = incidentReportService.createIncident(request, currentUser.id());
 
         var response = IncidentResponse.of(incident, incident.getLocation(), currentUser.role());
 

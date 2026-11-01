@@ -107,7 +107,11 @@ public class Incident {
     @OneToMany(mappedBy = "incident", cascade = CascadeType.PERSIST)
     private List<Assignment> assignments = new ArrayList<>();
 
-    @OneToOne(mappedBy = "incident", cascade = CascadeType.PERSIST, fetch = FetchType.LAZY)
+    @Getter
+    @OneToOne(
+            mappedBy = "incident",
+            cascade = jakarta.persistence.CascadeType.ALL,
+            fetch = jakarta.persistence.FetchType.LAZY)
     private Location location;
 
     /**

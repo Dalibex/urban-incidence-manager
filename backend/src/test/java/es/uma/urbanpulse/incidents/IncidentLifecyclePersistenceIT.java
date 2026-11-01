@@ -1,4 +1,4 @@
-package es.uma.urbanpulse.incidents.service;
+package es.uma.urbanpulse.incidents;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -20,7 +20,6 @@ import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.GeometryFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
@@ -98,8 +97,7 @@ class IncidentLifecyclePersistenceIT extends PersistenceTestSupport {
 
     private static Location locationAt(double latitude, double longitude) {
         Location location = new Location();
-        location.setCoordinates(
-                new GeometryFactory().createPoint(new Coordinate(longitude, latitude)));
+        location.setCoordinates(Location.WGS84.createPoint(new Coordinate(longitude, latitude)));
         return location;
     }
 

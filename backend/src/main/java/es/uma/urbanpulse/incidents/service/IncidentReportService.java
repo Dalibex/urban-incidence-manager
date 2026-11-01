@@ -13,8 +13,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.UUID;
 import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.GeometryFactory;
-import org.locationtech.jts.geom.PrecisionModel;
 import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +24,6 @@ public class IncidentReportService {
     private final CategoryRepository categories;
     private final UserRepository users;
     private final Clock clock;
-    public static final GeometryFactory WGS84 = new GeometryFactory(new PrecisionModel(), 4326);
 
     public IncidentReportService(
             IncidentRepository incidents,
@@ -61,7 +58,8 @@ public class IncidentReportService {
         var reported = request.location();
         var location = new Location();
         location.setCoordinates(
-                WGS84.createPoint(new Coordinate(reported.longitude(), reported.latitude())));
+                Location.WGS84.createPoint(
+                        new Coordinate(reported.longitude(), reported.latitude())));
         location.setAccuracy(reported.accuracy());
         // address, neighborhood and district stay null (RF26: graceful degradation).
 
