@@ -6,6 +6,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.TypeMismatchException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -38,6 +39,7 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     static final String CODE = "code";
     static final String ERRORS = "errors";
+    static final String CONCURRENT_MODIFICATION = "CONCURRENT_MODIFICATION";
     private static final URI ABOUT_BLANK = URI.create("about:blank");
 
     private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
@@ -62,6 +64,24 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
                                         String.valueOf(
                                                 Math.max(1, Math.ceilDiv(wait.toMillis(), 1000)))));
         return ResponseEntity.status(ex.status()).headers(headers).body(problem);
+    }
+
+    /**
+     * Optimistic locking (ADR-0020, "Conflicts"): the resource changed since the client read its
+     * {@code version}. The client reloads it and decides again, so its change never overwrites
+     * another one.
+     */
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    ProblemDetail handleConcurrentModification(
+            OptimisticLockingFailureException ex, WebRequest request) {
+        var problem =
+                ProblemDetail.forStatusAndDetail(
+                        HttpStatus.CONFLICT,
+                        "Someone else changed this resource since you read it. Reload it and try"
+                                + " again.");
+        problem.setProperty(CODE, CONCURRENT_MODIFICATION);
+        complete(problem, request);
+        return problem;
     }
 
     /**
