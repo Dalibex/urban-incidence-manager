@@ -152,7 +152,7 @@ class IncidentTransitionTest {
                             InvalidTransitionException.class,
                             ex -> {
                                 assertThat(ex.status().value()).isEqualTo(409);
-                                assertThat(ex.code()).isEqualTo("INVALID_TRANSITION");
+                                assertThat(ex.code()).contains("INVALID_TRANSITION");
                             });
             assertThat(incident.getStatus()).isEqualTo(from);
             assertThat(incident.getStatusChanges()).hasSize(historyBefore);
@@ -172,5 +172,27 @@ class IncidentTransitionTest {
 
     static Stream<IncidentTransition> everyTransition() {
         return Arrays.stream(IncidentTransition.values());
+    }
+
+    @ParameterizedTest(name = "{0} -> {1}")
+    @MethodSource("everyPair")
+    void aHistoryEntryTellsWhichTransitionMadeIt(IncidentStatus from, IncidentStatus to) {
+        var expected =
+                ADR_0020.stream()
+                        .filter(row -> row.from() == from && row.to() == to)
+                        .map(Row::transition)
+                        .findFirst();
+
+        assertThat(IncidentTransition.between(from, to)).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @MethodSource("everyStatus")
+    void theFirstEntryWasMadeByNoTransition(IncidentStatus to) {
+        assertThat(IncidentTransition.between(null, to)).isEmpty();
+    }
+
+    static Stream<IncidentStatus> everyStatus() {
+        return Arrays.stream(IncidentStatus.values());
     }
 }

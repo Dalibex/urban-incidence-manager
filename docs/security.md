@@ -83,6 +83,41 @@ Known limits:
   (`server.forward-headers-strategy`); trusting the header from anyone would let a client skip the
   limit.
 
+## Audit trail
+
+Administrative actions and relevant decisions are recorded in `audit_log` (RF18): who (`actor_id`),
+when (`instant`, UTC), what (`action`), on which record (`target_type`, `target_id`) and `details`,
+a JSON object with the values the change replaced and the ones it set:
+`{"before": {"role": "TECHNICIAN"}, "after": {"role": "MUNICIPAL_OPERATOR"}}`. It is domain data, not
+an operational log: the application logs on stdout never replace it.
+
+| Action | Recorded by |
+| --- | --- |
+| `CREATE_USER`, `UPDATE_USER`, `CHANGE_ROLE`, `DISABLE_USER`, `ENABLE_USER` | User management (#40) |
+| `CLASSIFY_INCIDENT` | Incident classification (#47) |
+
+Rules for code that records an entry:
+
+- **Same transaction as the change.** Call `AuditService.record` from inside the transaction of the
+  use case. It refuses to run without one (`Propagation.MANDATORY`), so a change and its entry are
+  committed or rolled back together.
+- **No secrets or unneeded personal data in `details`.** Record identifiers and domain values (a
+  role, a priority, a category id), never a password, hash, token, email or name. `record` only
+  accepts scalar values, so a whole entity cannot be recorded by mistake. A field that had no value
+  is recorded as `null`, not left out.
+- **Append-only.** Nothing updates or deletes an entry: the entity is immutable (no `UPDATE`), the
+  repository has no `delete`, and a trigger (migration V8) rejects `UPDATE`, `DELETE` and
+  `TRUNCATE` on the table. For the same reason an `AuditAction` constant is never renamed or removed.
+
+Known limits:
+
+- The trigger guards against mistakes, not against someone with the database owner or superuser
+  account, who can disable it. Separate database roles for migrations and for the application would
+  close that gap.
+- A user who appears in an entry can no longer be deleted: the actor's foreign key and the trigger
+  stop it. Accounts are disabled instead (#40); erasing personal data on request would need its own
+  procedure.
+
 ## Errors
 
 The filters answer before any controller runs, with the contract's Problem Details body
