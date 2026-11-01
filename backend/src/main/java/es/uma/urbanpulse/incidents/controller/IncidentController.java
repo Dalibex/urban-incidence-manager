@@ -7,7 +7,6 @@ import es.uma.urbanpulse.incidents.dto.IncidentResponse;
 import es.uma.urbanpulse.incidents.dto.IncidentSummaryResponse;
 import es.uma.urbanpulse.incidents.dto.StatusChangeResponse;
 import es.uma.urbanpulse.incidents.entity.IncidentStatus;
-import es.uma.urbanpulse.incidents.mapper.IncidentMapper;
 import es.uma.urbanpulse.incidents.service.IncidentQueryService;
 import es.uma.urbanpulse.incidents.service.IncidentService;
 import es.uma.urbanpulse.shared.security.AuthenticatedUser;
@@ -52,7 +51,10 @@ public class IncidentController {
     private final IncidentQueryService incidentQueryService;
     private final UserRepository users;
 
-    public IncidentController(IncidentService incidentService, IncidentQueryService incidentQueryService, UserRepository users) {
+    IncidentController(
+            IncidentService incidentService,
+            IncidentQueryService incidentQueryService,
+            UserRepository users) {
         this.incidentService = incidentService;
         this.incidentQueryService = incidentQueryService;
         this.users = users;
@@ -71,7 +73,7 @@ public class IncidentController {
                                                 .InsufficientAuthenticationException(
                                                 "The user does not exist"));
         var incident = incidentService.createIncident(request, reporter);
-        var response = IncidentMapper.toResponse(incident);
+        var response = IncidentResponse.of(incident, incident.getLocation(), reporter.getRole());
         URI location =
                 ServletUriComponentsBuilder.fromCurrentRequest()
                         .path("/{id}")
@@ -81,7 +83,7 @@ public class IncidentController {
     }
 
     @GetMapping
-    public PageResponse<IncidentSummaryResponse> list(
+    PageResponse<IncidentSummaryResponse> list(
             @AuthenticationPrincipal AuthenticatedUser user,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
@@ -99,13 +101,13 @@ public class IncidentController {
     }
 
     @GetMapping("/{incidentId}")
-    public IncidentResponse get(
+    IncidentResponse get(
             @AuthenticationPrincipal AuthenticatedUser user, @PathVariable UUID incidentId) {
         return incidentQueryService.get(incidentId, user.id(), user.role());
     }
 
     @GetMapping("/{incidentId}/status-changes")
-    public List<StatusChangeResponse> history(
+    List<StatusChangeResponse> history(
             @AuthenticationPrincipal AuthenticatedUser user, @PathVariable UUID incidentId) {
         return incidentQueryService.history(incidentId, user.id(), user.role());
     }
