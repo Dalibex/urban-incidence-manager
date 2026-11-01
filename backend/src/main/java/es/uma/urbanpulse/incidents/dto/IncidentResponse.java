@@ -10,8 +10,9 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 /**
- * {@code IncidentResponse}: the full incident. {@code priority} is staff-only, so a citizen gets a
- * type without it rather than a {@code null} (docs/api.md, "Absent and null").
+ * {@code IncidentResponse}: the full incident. {@code priority} and {@code version} are staff-only,
+ * so a citizen gets a type without them rather than a {@code null} (docs/api.md, "Absent and
+ * null"). Only staff change the status, so only they need the {@code version} (ADR-0020).
  */
 public sealed interface IncidentResponse {
 
@@ -29,7 +30,8 @@ public sealed interface IncidentResponse {
             IncidentLocationResponse location,
             Instant reportedAt,
             Instant updatedAt,
-            Instant closedAt)
+            Instant closedAt,
+            int version)
             implements IncidentResponse {
 
         static Staff of(Incident incident, Location location) {
@@ -43,7 +45,8 @@ public sealed interface IncidentResponse {
                     IncidentLocationResponse.of(location),
                     incident.getReportedAt().toInstant(),
                     incident.getUpdatedAt().toInstant(),
-                    instantOrNull(incident.getClosedAt()));
+                    instantOrNull(incident.getClosedAt()),
+                    incident.getVersion());
         }
     }
 
