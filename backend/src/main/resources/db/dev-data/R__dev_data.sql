@@ -258,19 +258,22 @@ INSERT INTO comment (id, incident_id, author_id, text, created_at, visible_to_ci
     ('d5000000-0000-4000-8000-000000008001', 'd1000000-0000-4000-8000-000000000008', 'd0000000-0000-4000-8000-000000000003',
      'The swing has been repaired. We will close the incident after a final check.', '2026-10-09T14:00:00Z', true);
 
--- Metadata only: storage_url holds a server-generated storage key (ADR-0013), and no real file
--- exists behind it.
+-- Metadata only (ADR-0013): no real file exists behind the server-generated storage_key, and
+-- content_hash is the SHA-256 of the file name, not of any content.
 INSERT INTO attachment (id, incident_id, comment_id, uploader_id, file_name, file_type, file_size,
-                        storage_url, uploaded_at) VALUES
+                        storage_key, content_hash, uploaded_at) VALUES
     ('d6000000-0000-4000-8000-000000002001', 'd1000000-0000-4000-8000-000000000002', 'd5000000-0000-4000-8000-000000002001',
      'd0000000-0000-4000-8000-000000000002', 'bench.jpg', 'image/jpeg', 482133,
-     '6f1c2b0e-3d4a-4c5b-9e8f-1a2b3c4d5e6f', '2026-10-20T09:10:00Z'),
+     '6f1c2b0e-3d4a-4c5b-9e8f-1a2b3c4d5e6f',
+     '01c6738912c82aa26209927da67e7c8371494b8539e3f34a0492ebc2707e1f5d', '2026-10-20T09:10:00Z'),
     ('d6000000-0000-4000-8000-000000003001', 'd1000000-0000-4000-8000-000000000003', NULL,
      'd0000000-0000-4000-8000-000000000001', 'pothole.jpg', 'image/jpeg', 1204551,
-     '0b7e4f6a-8c2d-4e1f-a3b5-c7d9e1f3a5b7', '2026-10-17T08:05:00Z'),
+     '0b7e4f6a-8c2d-4e1f-a3b5-c7d9e1f3a5b7',
+     'ad9d47932ee60fa9846afd347abdf2588ff91cc22e0e30233c77926223dd2289', '2026-10-17T08:05:00Z'),
     ('d6000000-0000-4000-8000-000000008001', 'd1000000-0000-4000-8000-000000000008', NULL,
      'd0000000-0000-4000-8000-000000000005', 'swing-repaired.jpg', 'image/jpeg', 905220,
-     '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d', '2026-10-09T13:30:00Z');
+     '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d',
+     '5c3d77e55158f0ee3902c58d267d42cd608c394a809e35fee34a41c76099a604', '2026-10-09T13:30:00Z');
 
 -- Every status of the context, so missing or failed data is never shown as current.
 INSERT INTO urban_context (id, incident_id, weather, traffic_status, event, status, captured_at) VALUES
