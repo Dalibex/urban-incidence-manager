@@ -34,6 +34,8 @@ RUN groupadd --system --gid 10001 urbanpulse \
     && useradd --system --uid 10001 --gid urbanpulse --no-create-home urbanpulse
 WORKDIR /app
 COPY --from=build /workspace/app.jar app.jar
+# Create an evidence directory and assign permissions to a non-root user
+RUN mkdir -p /app/storage && chown -R urbanpulse:urbanpulse /app/storage
 USER urbanpulse
 # Documentation only: the application listens on SERVER_PORT when it is set (12-factor VII).
 EXPOSE 8080

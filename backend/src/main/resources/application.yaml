@@ -40,7 +40,7 @@ urbanpulse:
       max: 10
       window: PT1H
   storage:
-    base-path: ${STORAGE_BASE_PATH:/var/urbanpulse/storage}
+    base-path: ${STORAGE_BASE_PATH:/app/storage}
     evidence:
       max-file-size: ${EVIDENCE_MAX_FILE_SIZE:10MB}
       max-files-per-incident: ${EVIDENCE_MAX_FILES_PER_INCIDENT:5}
