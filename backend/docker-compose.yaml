@@ -47,11 +47,18 @@ services:
       REFRESH_TOKEN_TTL: ${REFRESH_TOKEN_TTL:-P14D}
       # Data profile (docs/development.md): empty for no sample data, dev for the development dataset.
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-}
+      # Evidence storage policy (ADR-0013)
+      STORAGE_BASE_PATH: ${STORAGE_BASE_PATH:-/app/storage}
+      EVIDENCE_MAX_FILE_SIZE: ${EVIDENCE_MAX_FILE_SIZE:-10MB}
+      EVIDENCE_MAX_FILES_PER_INCIDENT: ${EVIDENCE_MAX_FILES_PER_INCIDENT:-5}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8080}:8080"
     depends_on:
       postgres:
         condition: service_healthy
+    volumes:
+      - evidence_data:/app/storage
 
 volumes:
   postgres-data:
+  evidence_data:
