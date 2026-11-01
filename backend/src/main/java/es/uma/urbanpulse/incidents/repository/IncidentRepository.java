@@ -14,6 +14,6 @@ public interface IncidentRepository
 
     /** A page of incidents with their category in the same query, so listing has no N+1. */
     @Override
-    @EntityGraph(attributePaths = "category")
+    @EntityGraph(attributePaths = {"category", "location"})
     Page<Incident> findAll(Specification<Incident> spec, Pageable pageable);
 }

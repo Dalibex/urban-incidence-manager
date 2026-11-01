@@ -1,27 +1,37 @@
 package es.uma.urbanpulse.incidents.controller;
 
+import es.uma.urbanpulse.identity.entity.User;
+import es.uma.urbanpulse.identity.repository.UserRepository;
+import es.uma.urbanpulse.incidents.dto.CreateIncidentRequest;
 import es.uma.urbanpulse.incidents.dto.IncidentResponse;
 import es.uma.urbanpulse.incidents.dto.IncidentSummaryResponse;
 import es.uma.urbanpulse.incidents.dto.StatusChangeResponse;
 import es.uma.urbanpulse.incidents.entity.IncidentStatus;
 import es.uma.urbanpulse.incidents.service.IncidentQueryService;
+import es.uma.urbanpulse.incidents.service.IncidentService;
 import es.uma.urbanpulse.shared.security.AuthenticatedUser;
 import es.uma.urbanpulse.shared.web.PageRequests;
 import es.uma.urbanpulse.shared.web.PageResponse;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import java.net.URI;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 /**
  * {@code listIncidents}, {@code getIncident} and {@code listIncidentStatusChanges}. The role is
@@ -38,9 +48,16 @@ class IncidentController {
     private static final Sort NEWEST_FIRST = Sort.by(Sort.Direction.DESC, "reportedAt");
 
     private final IncidentQueryService incidents;
+    private final IncidentService incidentService;
+    private final UserRepository users;
 
-    IncidentController(IncidentQueryService incidents) {
-        this.incidents = incidents;
+    public IncidentController(
+            IncidentService incidentService,
+            IncidentQueryService incidentQueryService,
+            UserRepository users) {
+        this.incidentService = incidentService;
+        this.incidents = incidentQueryService;
+        this.users = users;
     }
 
     @GetMapping
@@ -71,5 +88,29 @@ class IncidentController {
     List<StatusChangeResponse> history(
             @AuthenticationPrincipal AuthenticatedUser user, @PathVariable UUID incidentId) {
         return incidents.history(incidentId, user.id(), user.role());
+    }
+
+    @PostMapping
+    @PreAuthorize("hasRole('CITIZEN')")
+    public ResponseEntity<IncidentResponse> createIncident(
+            @Valid @RequestBody CreateIncidentRequest request,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        User reporter =
+                users.findById(currentUser.id())
+                        .orElseThrow(
+                                () ->
+                                        new org.springframework.security.authentication
+                                                .InsufficientAuthenticationException(
+                                                "The user does not exist"));
+        var incident = incidentService.createIncident(request, reporter);
+
+        var response = IncidentResponse.of(incident, incident.getLocation(), reporter.getRole());
+
+        URI location =
+                ServletUriComponentsBuilder.fromCurrentRequest()
+                        .path("/{id}")
+                        .buildAndExpand(incident.getId())
+                        .toUri();
+        return ResponseEntity.created(location).body(response);
     }
 }
