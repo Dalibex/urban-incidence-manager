@@ -15,7 +15,6 @@
  * - `signOut(client, tokenStore)`: signs out on the server and always discards the tokens.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-
 import { createApiClient, signOut, type SessionTokens, type TokenStore } from './index';
 
 const BASE_URL = 'https://api.test/api/v1';

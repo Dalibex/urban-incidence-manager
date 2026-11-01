@@ -39,7 +39,7 @@ export async function callApi<T>(call: () => Promise<FetchResult<T>>): Promise<A
   return { ok: false, failure: { kind: 'problem', status: result.response.status, code } };
 }
 
-function isProblem(value: unknown): value is Problem {
+export function isProblem(value: unknown): value is Problem {
   return typeof value === 'object' && value !== null && 'status' in value;
 }
 

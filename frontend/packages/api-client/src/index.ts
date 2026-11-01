@@ -1,5 +1,4 @@
 import createClient from 'openapi-fetch';
-
 import type { paths } from './schema';
 import { createSessionFetch, type SessionOptions } from './session';
 
@@ -13,9 +12,11 @@ export {
   signIn,
   signOut,
   signUp,
+  isProblem,
   type ApiFailure,
   type ApiResult,
 } from './account';
+export { createIncident, type CreateIncidentResult, type FieldError } from './incidents';
 
 /**
  * Creates a client whose paths, parameters and responses are typed from the contract. Each app
