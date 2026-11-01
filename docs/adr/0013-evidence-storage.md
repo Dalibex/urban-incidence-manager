@@ -41,7 +41,7 @@ accessed through an application-level **`StorageService` interface**.
 
 - **Accepted types:** JPEG, PNG and WebP, detected from the file content (magic bytes), not from the extension or the declared Content-Type.
 - **Limits:** Maximum size per file from configuration (`EVIDENCE_MAX_FILE_SIZE`, default 10 MB); maximum files per incident from configuration (`EVIDENCE_MAX_FILES_PER_INCIDENT`, default 5).
-- **Migration strategy:** A new migration will replace `attachment.storage_url` with `storage_key` and add `content_hash` (SHA-256). Merged migrations are never edited (ADR-0014).
+- **Migration strategy:** A database migration (V9) replaces `attachment.storage_url` with `storage_key` (unique) and adds `content_hash` (SHA-256). Merged migrations are never edited (ADR-0014).
 - **Security:** Files are served only through an authorised endpoint; a storage key is never a public URL.
 
 ## How it will be evaluated
