@@ -48,8 +48,11 @@ public class Attachment {
     @Column(name = "file_size", nullable = false)
     private Long fileSize;
 
-    @Column(name = "storage_url", nullable = false)
-    private String storageUrl;
+    @Column(name = "storage_key", nullable = false)
+    private String storageKey;
+
+    @Column(name = "content_hash", nullable = false)
+    private String contentHash;
 
     @Column(name = "uploaded_at", nullable = false)
     private OffsetDateTime uploadedAt;

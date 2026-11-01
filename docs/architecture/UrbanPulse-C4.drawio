@@ -356,7 +356,7 @@
             <mxGeometry x="1660" y="590" width="260" height="170" as="geometry" />
           </mxCell>
         </UserObject>
-        <mxCell id="2 ·-b40" value="&lt;div style=&quot;color:#64748B;font-size:10px;line-height:15px;letter-spacing:0.3px;&quot;&gt;CONTAINER · DOCKER NAMED VOLUME (LOCALFSSTORAGE) · PROPOSED · ADR-0013&lt;/div&gt;&lt;div style=&quot;line-height:15px;&quot;&gt;Evidence binaries outside PostgreSQL in the evidence_data volume mounted in the backend, accessed only through StorageService with server-generated keys; S3-compatible storage later.&lt;/div&gt;" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontFamily=Helvetica;fontSize=11;fontColor=#1F2937;spacingLeft=12;spacingRight=10;spacingTop=6;connectable=0;opacity=80;" vertex="1" parent="2 ·-e39">
+        <mxCell id="2 ·-b40" value="&lt;div style=&quot;color:#64748B;font-size:10px;line-height:15px;letter-spacing:0.3px;&quot;&gt;CONTAINER · DOCKER NAMED VOLUME (LOCALFSSTORAGE) · ACCEPTED · ADR-0013&lt;/div&gt;&lt;div style=&quot;line-height:15px;&quot;&gt;Evidence binaries outside PostgreSQL in the evidence_data volume mounted in the backend, accessed only through StorageService with server-generated keys; S3-compatible storage later.&lt;/div&gt;" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontFamily=Helvetica;fontSize=11;fontColor=#1F2937;spacingLeft=12;spacingRight=10;spacingTop=6;connectable=0;opacity=80;" vertex="1" parent="2 ·-e39">
           <mxGeometry y="28" width="260" height="142" as="geometry" />
         </mxCell>
         <UserObject label="Redis Cache" link="https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0012-cache-redis.md" id="2 ·-e41">
@@ -659,7 +659,7 @@
             <mxGeometry x="1020" y="1110" width="240" height="170" as="geometry" />
           </mxCell>
         </UserObject>
-        <mxCell id="3 ·-b36" value="&lt;div style=&quot;color:#64748B;font-size:10px;line-height:15px;letter-spacing:0.3px;&quot;&gt;CONTAINER · DOCKER NAMED VOLUME (LOCALFSSTORAGE) · PROPOSED · ADR-0013&lt;/div&gt;&lt;div style=&quot;line-height:15px;&quot;&gt;Evidence binaries outside PostgreSQL in the evidence_data volume mounted in the backend, accessed only through StorageService with server-generated keys; S3-compatible storage later.&lt;/div&gt;" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontFamily=Helvetica;fontSize=11;fontColor=#1F2937;spacingLeft=12;spacingRight=10;spacingTop=6;connectable=0;opacity=80;" vertex="1" parent="3 ·-e35">
+        <mxCell id="3 ·-b36" value="&lt;div style=&quot;color:#64748B;font-size:10px;line-height:15px;letter-spacing:0.3px;&quot;&gt;CONTAINER · DOCKER NAMED VOLUME (LOCALFSSTORAGE) · ACCEPTED · ADR-0013&lt;/div&gt;&lt;div style=&quot;line-height:15px;&quot;&gt;Evidence binaries outside PostgreSQL in the evidence_data volume mounted in the backend, accessed only through StorageService with server-generated keys; S3-compatible storage later.&lt;/div&gt;" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontFamily=Helvetica;fontSize=11;fontColor=#1F2937;spacingLeft=12;spacingRight=10;spacingTop=6;connectable=0;opacity=80;" vertex="1" parent="3 ·-e35">
           <mxGeometry y="28" width="240" height="142" as="geometry" />
         </mxCell>
         <UserObject label="Redis Cache" link="https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0012-cache-redis.md" id="3 ·-e37">
