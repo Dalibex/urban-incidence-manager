@@ -12,6 +12,8 @@ import es.uma.urbanpulse.identity.service.AuditService;
 import es.uma.urbanpulse.identity.service.AuditTarget;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
@@ -141,6 +143,51 @@ class AuditTrailIT {
                                 Boolean.class,
                                 incidentId))
                 .isTrue();
+    }
+
+    @Test
+    void recordsInstantsAsIso8601Text() {
+        var incidentId = UUID.randomUUID();
+
+        transaction.executeWithoutResult(
+                status ->
+                        audit.record(
+                                admin.getId(),
+                                AuditAction.CLASSIFY_INCIDENT,
+                                AuditTarget.incident(incidentId),
+                                Map.of("dueAt", Instant.parse("2026-11-01T10:00:00Z")),
+                                Map.of(
+                                        "dueAt",
+                                        OffsetDateTime.of(
+                                                2026, 11, 2, 12, 30, 0, 0, ZoneOffset.UTC))));
+
+        var dates =
+                jdbc.queryForMap(
+                        "SELECT details -> 'before' ->> 'dueAt' AS before_due,"
+                                + " details -> 'after' ->> 'dueAt' AS after_due"
+                                + " FROM audit_log WHERE target_id = ?",
+                        incidentId);
+        assertThat(dates)
+                .containsEntry("before_due", "2026-11-01T10:00:00Z")
+                .containsEntry("after_due", "2026-11-02T12:30:00Z");
+    }
+
+    @Test
+    void refusesANullActor() {
+        assertThatThrownBy(
+                        () ->
+                                transaction.executeWithoutResult(
+                                        status ->
+                                                audit.record(
+                                                        null,
+                                                        AuditAction.DISABLE_USER,
+                                                        AuditTarget.user(technician.getId()),
+                                                        Map.of("enabled", true),
+                                                        Map.of("enabled", false))))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("actorId");
+
+        assertThat(entriesAbout(technician)).isZero();
     }
 
     @Test
