@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
+import es.uma.urbanpulse.ApiContract;
 import es.uma.urbanpulse.TestcontainersConfiguration;
 import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.shared.security.TestTokens;
@@ -66,7 +67,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
             "urbanpulse.security.sign-up-attempts.window=PT1H"
         })
 @AutoConfigureMockMvc
-@Import({TestcontainersConfiguration.class, TestTokens.class})
+@Import({TestcontainersConfiguration.class, TestTokens.class, ApiContract.EveryResponse.class})
 class AuthenticationApiIT {
 
     static final int SIGN_IN_LIMIT = 3;
@@ -92,7 +93,7 @@ class AuthenticationApiIT {
     @BeforeEach
     void useFreshCitizenAndClient() {
         String id = UUID.randomUUID().toString();
-        email = "citizen-" + id + "@example.test";
+        email = "citizen-" + id + "@example.com";
         clientAddress = "10.61." + (id.hashCode() & 0xff) + "." + ((id.hashCode() >> 8) & 0xff);
     }
 
