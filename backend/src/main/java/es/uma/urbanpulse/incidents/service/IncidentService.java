@@ -21,7 +21,8 @@ public class IncidentService {
     private final IncidentRepository incidents;
     private final CategoryRepository categories;
     private final Clock clock;
-    private final GeometryFactory geometryFactory = new GeometryFactory();
+    private final GeometryFactory geometryFactory =
+            new GeometryFactory(new org.locationtech.jts.geom.PrecisionModel(), 4326);
 
     public IncidentService(
             IncidentRepository incidents, CategoryRepository categories, Clock clock) {
@@ -59,6 +60,6 @@ public class IncidentService {
                         category,
                         location,
                         Instant.now(clock));
-        return incidents.save(incident);
+        return incidents.saveAndFlush(incident);
     }
 }
