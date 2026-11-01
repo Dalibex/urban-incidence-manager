@@ -2,7 +2,9 @@ package es.uma.urbanpulse;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import es.uma.urbanpulse.identity.entity.AuditAction;
 import es.uma.urbanpulse.identity.entity.AuditLog;
+import es.uma.urbanpulse.identity.entity.AuditTargetType;
 import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.identity.entity.User;
 import es.uma.urbanpulse.identity.repository.AuditLogRepository;
@@ -74,11 +76,14 @@ class EntityMappingIT extends PersistenceTestSupport {
     @Test
     void storesAndReadsBackJsonbDetails() {
         User actor = citizen();
-        AuditLog entry = new AuditLog();
-        entry.setActor(actor);
-        entry.setInstant(REPORTED_AT);
-        entry.setAction("USER_DISABLED");
-        entry.setDetails("{\"reason\": \"spam\"}");
+        AuditLog entry =
+                new AuditLog(
+                        actor,
+                        REPORTED_AT,
+                        AuditAction.DISABLE_USER,
+                        AuditTargetType.USER,
+                        actor.getId(),
+                        "{\"reason\": \"spam\"}");
 
         AuditLog saved = auditLogs.save(entry);
         flushAndClear();
