@@ -134,6 +134,8 @@ curl.exe http://localhost:8080/actuator/health
   app, `curl` or an Android emulator (`http://10.0.2.2:8080`). A physical phone cannot reach it;
   to test the mobile app on a phone, run the backend from the IDE or the terminal instead (see
   *Client Workspace*).
+- To start it with sample data, set `SPRING_PROFILES_ACTIVE=dev` in `.env` (see *Development
+  Dataset*). Leave it empty for an empty database, as in production.
 - With `-d` (in the background), follow the logs with `docker compose logs -f backend`.
 - Stop everything with `Ctrl+C`, or with `docker compose --profile app down` if you started it with
   `-d`. Your data stays in the `postgres-data` volume.
@@ -192,6 +194,90 @@ application starts. Hibernate only validates the entities against the schema.
 
 While a migration only exists on your branch, you can still change it: reset your local database
 (see below) so Flyway applies it again from scratch.
+
+### Reference data
+
+The initial categories and departments are inserted by a migration,
+`V7__incidents_insert_reference_data.sql`, so every environment starts with the same rows. Never
+insert them by hand or with a script run from a database client.
+
+- To add or change initial reference data, write a new migration with `INSERT` or `UPDATE`
+  statements and the next free number, for example `V8__incidents_add_graffiti_category.sql`. Do
+  not edit V7 once it is merged.
+- Give each row a fixed `id` (a UUID written in the migration), so the demo data and the tests can
+  refer to it in every environment.
+- To retire a category or a department, set `is_active = false` instead of deleting it: existing
+  incidents and assignments still point to it.
+- Add the new rows to the expected lists of `DatabaseMigrationIT`.
+- Sample users and incidents are not reference data: the development dataset loads them only with
+  the `dev` profile (see *Development Dataset*).
+
+Once administrators can manage categories and departments from the application, a migration only
+sets the starting point.
+
+## 🧪 Development Dataset
+
+The `dev` Spring profile loads a shared development dataset (#83): a user of every role, incidents
+in every status of the lifecycle with their history, and the assignments, comments, attachment
+metadata, urban context, external observations, urban assets and notifications around them. Use it
+to try the API and the clients without creating data by hand. Never activate it outside a developer
+machine: production starts with no profile and no sample data. Among the integration tests, only
+`DevelopmentDatasetIT` uses the profile, on its own PostGIS container.
+
+`application-dev.yaml` adds `classpath:db/dev-data` to the Flyway locations, and
+`db/dev-data/R__dev_data.sql` is a repeatable migration: Flyway runs it after the versioned
+migrations, and again whenever the file changes. Other data profiles, such as the demo dataset
+(#54) and the performance dataset (#84), follow the same pattern: a profile, its own folder and one
+repeatable migration. Only one data profile is active at a time.
+
+### Activate it
+
+- IntelliJ IDEA: in the run configuration of `UrbanpulseApplication`, set **Active profiles** to
+  `dev`.
+- Terminal, from `backend/`: `./mvnw spring-boot:run -Dspring-boot.run.profiles=dev` (Windows
+  PowerShell: `./mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=dev"`).
+- Docker: set `SPRING_PROFILES_ACTIVE=dev` in `.env` and run `docker compose --profile app up
+  --build`. The variable only reaches the container: the IDE and `./mvnw` read `.env` as a
+  properties file and do not activate a profile from it, so use the options above there.
+
+Every user signs in with the password `urbanpulse-dev`:
+
+| Email | Role |
+| --- | --- |
+| `dev.citizen@example.com` | `CITIZEN` |
+| `dev.citizen2@example.com` | `CITIZEN` |
+| `dev.operator@example.com` | `MUNICIPAL_OPERATOR` |
+| `dev.technician@example.com` | `TECHNICIAN` |
+| `dev.technician2@example.com` | `TECHNICIAN` |
+| `dev.admin@example.com` | `ADMINISTRATOR` |
+| `dev.analyst@example.com` | `ANALYST` |
+
+### When the data reloads
+
+- Restarting the backend keeps everything, including what you created yourself.
+- When `R__dev_data.sql` changes (you edit it, or you pull a change to it), the next start runs it
+  again: it deletes every incident and what belongs to it, yours too, and inserts the dataset
+  again. The users and urban assets of the dataset are updated in place by their fixed ids; users
+  you signed up yourself stay.
+- Each developer has their own database (the `postgres-data` volume): what you create or delete
+  never reaches your teammates.
+- Restarting is not enough to undo your changes, because the file did not change. To start again
+  from the dataset, reset the database (see below) and start with the profile.
+
+A database that loaded the dataset does not start without the `dev` profile: Flyway finds that
+`R__dev_data.sql` was applied but is no longer among its migrations, and fails with *Migrations
+have failed validation*. The sample data would still be in it, so to leave the profile, reset the
+database first.
+
+### Change the dataset
+
+- When a migration changes a table the dataset fills, update `R__dev_data.sql` in the same pull
+  request. `DevelopmentDatasetIT` loads it on an empty database and fails if it no longer fits the
+  schema or the lifecycle rules ([ADR-0020](adr/0020-incident-lifecycle-transitions.md)).
+- Give every new row a fixed id that follows the scheme described at the top of the file.
+- Never delete a user of the dataset: set `enabled = false`, because other records may still
+  point to it.
+- Do not write `${` in the file: Flyway would read it as a placeholder.
 
 ## ⚠️ Reset the Local Database
 
