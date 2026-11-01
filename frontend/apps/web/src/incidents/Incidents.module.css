@@ -1,0 +1,299 @@
+/* Inbox and incident detail. Colors and spacing come from the shared tokens (theme.ts). */
+
+.page {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.header {
+  margin-bottom: var(--space-lg);
+}
+
+.title {
+  margin: 0 0 var(--space-xs);
+  font-size: var(--font-size-title);
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.lead {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Status: the color is a mark next to the name, so the text keeps full contrast. */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.status::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--status-color);
+}
+
+/* Inbox table */
+
+.tableWrapper {
+  overflow-x: auto;
+  border: 1px solid color-mix(in srgb, var(--color-text-muted) 30%, transparent);
+  border-radius: 8px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table[aria-busy='true'] {
+  opacity: 0.6;
+}
+
+.table th,
+.table td {
+  padding: var(--space-sm) var(--space-md);
+  text-align: left;
+  vertical-align: top;
+}
+
+.table thead th {
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.table tbody tr + tr {
+  border-top: 1px solid color-mix(in srgb, var(--color-text-muted) 20%, transparent);
+}
+
+.table tbody tr:hover {
+  background: color-mix(in srgb, var(--color-primary) 4%, transparent);
+}
+
+.date {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.incidentTitle {
+  min-width: 20ch;
+  font-weight: 600;
+}
+
+.manage {
+  color: var(--color-primary);
+  font-weight: 600;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+}
+
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+
+.pageButtons {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.button {
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid color-mix(in srgb, var(--color-text-muted) 50%, transparent);
+  border-radius: 6px;
+  background: var(--color-background);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled) {
+  border-color: var(--color-text);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Loading, empty and error states */
+
+.state {
+  padding: var(--space-xl) var(--space-md);
+  border: 1px dashed color-mix(in srgb, var(--color-text-muted) 50%, transparent);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.state p {
+  margin: 0 0 var(--space-sm);
+}
+
+.state p:last-child {
+  margin-bottom: 0;
+}
+
+.failure {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--color-danger) 50%, transparent);
+}
+
+.link {
+  color: var(--color-primary);
+  text-underline-offset: 3px;
+}
+
+/* Incident detail */
+
+.backLink {
+  display: inline-block;
+  margin-bottom: var(--space-md);
+  color: var(--color-primary);
+  text-underline-offset: 3px;
+}
+
+.detailHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.detailHeader .title {
+  margin: 0;
+}
+
+.detail {
+  display: grid;
+  gap: var(--space-lg);
+}
+
+@media (min-width: 900px) {
+  .detail {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    align-items: start;
+  }
+
+  .actions {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
+
+.panel {
+  padding: var(--space-md);
+  border: 1px solid color-mix(in srgb, var(--color-text-muted) 30%, transparent);
+  border-radius: 8px;
+}
+
+.panel + .panel {
+  margin-top: var(--space-lg);
+}
+
+.panelTitle {
+  margin: 0 0 var(--space-sm);
+  font-size: 18px;
+}
+
+.description {
+  margin: 0 0 var(--space-md);
+  white-space: pre-line;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-xs) var(--space-md);
+  margin: 0;
+}
+
+.facts dt {
+  color: var(--color-text-muted);
+}
+
+.facts dd {
+  margin: 0;
+}
+
+.actions {
+  background: var(--color-surface);
+}
+
+/* History: oldest first, one mark per entry in the color of the status it left the incident in. */
+.history {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.entry {
+  position: relative;
+  padding: 0 0 var(--space-md) var(--space-lg);
+  border-left: 2px solid color-mix(in srgb, var(--color-text-muted) 30%, transparent);
+}
+
+.entry:last-child {
+  padding-bottom: 0;
+  border-left-color: transparent;
+}
+
+.entry::before {
+  content: '';
+  position: absolute;
+  top: 6px;
+  left: -7px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--color-background);
+  border-radius: 50%;
+  background: var(--status-color);
+}
+
+.entryHeading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-xs) var(--space-sm);
+  margin: 0;
+}
+
+.event {
+  font-weight: 600;
+}
+
+.internal {
+  padding: 0 var(--space-xs);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--color-warning) 18%, transparent);
+  font-size: 14px;
+}
+
+.reason {
+  margin: var(--space-xs) 0 0;
+  white-space: pre-line;
+}
