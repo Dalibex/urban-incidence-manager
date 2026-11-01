@@ -214,6 +214,9 @@ importers:
       expo:
         specifier: ~58.0.19
         version: 58.0.19(@babel/core@7.29.7(supports-color@10.2.2))(react-dom@19.3.0(react@19.3.0))(react-native@0.88.0(@babel/core@7.29.7(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(react@19.3.0)(supports-color@10.2.2)(typescript@6.0.3)
+      expo-location:
+        specifier: ~19.0.0
+        version: 19.0.8(expo@58.0.19(@babel/core@7.29.7(supports-color@10.2.2))(react-dom@19.3.0(react@19.3.0))(react-native@0.88.0(@babel/core@7.29.7(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(react@19.3.0)(supports-color@10.2.2)(typescript@6.0.3))
       expo-secure-store:
         specifier: ~58.0.2
         version: 58.0.2(expo@58.0.19(@babel/core@7.29.7(supports-color@10.2.2))(react-dom@19.3.0(react@19.3.0))(react-native@0.88.0(@babel/core@7.29.7(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(react@19.3.0)(supports-color@10.2.2)(typescript@6.0.3))
@@ -1991,6 +1994,11 @@ packages:
     peerDependencies:
       expo: '*'
       react: '*'
+
+  expo-location@19.0.8:
+    resolution: {integrity: sha512-H/FI75VuJ1coodJbbMu82pf+Zjess8X8Xkiv9Bv58ZgPKS/2ztjC1YO1/XMcGz7+s9DrbLuMIw22dFuP4HqneA==}
+    peerDependencies:
+      expo: '*'
 
   expo-modules-autolinking@58.0.15:
     resolution: {integrity: sha512-eTeWBS2RWdp2V/LlhjI5JI/5ACMfrdOax9iBpOshDOAZHsncbAKN2fkpmvyAtvVbj1DUJ04ejINUTyDDLgo2yg==}
@@ -5374,6 +5382,10 @@ snapshots:
     dependencies:
       expo: 58.0.19(@babel/core@7.29.7(supports-color@10.2.2))(react-dom@19.3.0(react@19.3.0))(react-native@0.88.0(@babel/core@7.29.7(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(react@19.3.0)(supports-color@10.2.2)(typescript@6.0.3)
       react: 19.3.0
+
+  expo-location@19.0.8(expo@58.0.19(@babel/core@7.29.7(supports-color@10.2.2))(react-dom@19.3.0(react@19.3.0))(react-native@0.88.0(@babel/core@7.29.7(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(react@19.3.0)(supports-color@10.2.2)(typescript@6.0.3)):
+    dependencies:
+      expo: 58.0.19(@babel/core@7.29.7(supports-color@10.2.2))(react-dom@19.3.0(react@19.3.0))(react-native@0.88.0(@babel/core@7.29.7(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(react@19.3.0)(supports-color@10.2.2)(typescript@6.0.3)
 
   expo-modules-autolinking@58.0.15(supports-color@10.2.2)(typescript@6.0.3):
     dependencies:
