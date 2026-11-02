@@ -51,6 +51,11 @@ services:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-}
       DEMO_PASSWORD: ${DEMO_PASSWORD:-}
       PERF_INCIDENTS: ${PERF_INCIDENTS:-100000}
+      # Only read by the one-off process that creates the first administrator (docs/deployment.md):
+      #   docker compose --profile app run --rm backend --spring.profiles.include=bootstrap-admin
+      BOOTSTRAP_ADMIN_NAME: ${BOOTSTRAP_ADMIN_NAME:-}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
       # Evidence storage policy (ADR-0013)
       STORAGE_BASE_PATH: ${STORAGE_BASE_PATH:-/app/storage}
       EVIDENCE_MAX_FILE_SIZE: ${EVIDENCE_MAX_FILE_SIZE:-10MB}
