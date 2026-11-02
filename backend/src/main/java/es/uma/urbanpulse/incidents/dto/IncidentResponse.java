@@ -16,7 +16,8 @@ import java.util.UUID;
  */
 public sealed interface IncidentResponse {
 
-    static IncidentResponse of(Incident incident, Location location, Role role) {
+    static IncidentResponse of(Incident incident, Role role) {
+        var location = incident.getLocation();
         return role == Role.CITIZEN ? Citizen.of(incident, location) : Staff.of(incident, location);
     }
 
