@@ -136,4 +136,5 @@ or repeated, so every measurement records:
 | Result | Percentiles (p50, p95, p99), never only the average |
 | Date and commit | When and on which commit it was measured |
 
-No measurements have been recorded yet.
+No measurements have been recorded yet. The query plans that justify the indexes of the main
+queries are in *Indexes* in the [database guide](database.md).
