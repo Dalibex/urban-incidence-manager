@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.data.Offset.offset;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -261,7 +262,22 @@ class IncidentReportApiIT {
                         post(INCIDENTS)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(validReport(category)))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(header().string(HttpHeaders.WWW_AUTHENTICATE, "Bearer"));
+    }
+
+    // T6: a signed CITIZEN token of a user that does not exist (deleted after sign-in) cannot
+    // report: the reporter must be a stored user.
+    @Test
+    void reportWithATokenOfAnUnknownUserIsUnauthorizedAndNothingIsStored() throws Exception {
+        int before = allIncidents();
+
+        report(UUID.randomUUID(), Role.CITIZEN, validReport(category))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+
+        assertThat(allIncidents()).isEqualTo(before);
     }
 
     // T7: the reporter comes from the token; a reporter or a status in the body is ignored.
@@ -326,6 +342,14 @@ class IncidentReportApiIT {
                         "SELECT count(*) FROM incident WHERE reporter_id = ?",
                         Integer.class,
                         reporter);
+        return count == null ? 0 : count;
+    }
+
+    /**
+     * Compared before and after inside the test's transaction, so other tests' rows don't count.
+     */
+    private int allIncidents() {
+        Integer count = jdbc.queryForObject("SELECT count(*) FROM incident", Integer.class);
         return count == null ? 0 : count;
     }
 
