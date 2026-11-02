@@ -18,9 +18,13 @@ export {
 } from './account';
 export {
   createIncident,
+  getIncident,
   listCategories,
+  listIncidents,
+  listIncidentStatusChanges,
   type CreateIncidentResult,
   type FieldError,
+  type IncidentListQuery,
 } from './incidents';
 
 /**

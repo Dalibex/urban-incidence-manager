@@ -4,11 +4,17 @@ export const PATHS = {
   home: '/',
   signIn: '/sign-in',
   inbox: '/inbox',
+  incident: '/incidents/:incidentId',
   workQueue: '/work-queue',
   users: '/users',
   reports: '/reports',
   useMobile: '/use-mobile',
 } as const;
+
+/** Path of the detail page of one incident. */
+export function incidentPath(incidentId: string): string {
+  return PATHS.incident.replace(':incidentId', encodeURIComponent(incidentId));
+}
 
 /** Screen each role lands on after signing in. Citizens use the mobile app, so they get a notice. */
 const LANDING_PATHS: Record<Role, string> = {

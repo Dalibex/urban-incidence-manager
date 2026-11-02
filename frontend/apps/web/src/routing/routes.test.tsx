@@ -1,9 +1,12 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { fakeApi, renderApp } from '../test-utils';
+import { fakeApi, json, renderApp } from '../test-utils';
 import { PATHS } from './access';
+
+// The inbox loads its first page as soon as it opens.
+const EMPTY_PAGE = { content: [], page: { number: 0, size: 20, totalElements: 0, totalPages: 0 } };
 
 describe('routes', () => {
   it.each([
@@ -47,8 +50,10 @@ describe('routes', () => {
   });
 
   it('shows the active user and signs them out on the API', async () => {
+    const signOut = vi.fn(() => new Response(null, { status: 204 }));
     const fetch = fakeApi({
-      'DELETE /sessions/current': () => new Response(null, { status: 204 }),
+      'GET /incidents': () => json(200, EMPTY_PAGE),
+      'DELETE /sessions/current': signOut,
     });
     const router = renderApp(PATHS.inbox, { role: 'MUNICIPAL_OPERATOR', fetch });
     expect(await screen.findByText('Lucía Martín')).toBeDefined();
@@ -57,7 +62,7 @@ describe('routes', () => {
 
     expect(await screen.findByRole('heading', { name: 'Sign in to UrbanPulse' })).toBeDefined();
     expect(router.state.location.pathname).toBe(PATHS.signIn);
-    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(signOut).toHaveBeenCalledTimes(1);
   });
 
   it('shows not found for an unknown address', async () => {

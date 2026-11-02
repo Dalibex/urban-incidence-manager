@@ -1,10 +1,11 @@
 import type { ApiClient } from './index';
 import { callApi, isProblem, type ApiFailure, type ApiResult } from './account';
-import type { components } from './schema';
+import type { components, operations } from './schema';
 
 type Category = components['schemas']['CategoryResponse'];
 type CreateIncidentRequest = components['schemas']['CreateIncidentRequest'];
 type IncidentResponse = components['schemas']['IncidentResponse'];
+type Schemas = components['schemas'];
 
 /** One invalid field of a `422` problem body (`Problem.errors` items). */
 export type FieldError = components['schemas']['FieldError'];
@@ -50,4 +51,33 @@ export async function createIncident(
 /** The active categories, ordered by name, for the category choice of the report form. */
 export function listCategories(client: ApiClient): Promise<ApiResult<Category[]>> {
   return callApi(() => client.GET('/categories'));
+}
+
+/** Query of `listIncidents`: `page` starts at 0; omitted values take the contract's defaults. */
+export type IncidentListQuery = NonNullable<operations['listIncidents']['parameters']['query']>;
+
+/** A page of incidents the caller may see, newest first unless `sort` says otherwise. */
+export function listIncidents(
+  client: ApiClient,
+  query: IncidentListQuery = {},
+): Promise<ApiResult<Schemas['IncidentPageResponse']>> {
+  return callApi(() => client.GET('/incidents', { params: { query } }));
+}
+
+/** The full incident. Someone else's incident answers `404`, the same as one that does not exist. */
+export function getIncident(
+  client: ApiClient,
+  incidentId: string,
+): Promise<ApiResult<Schemas['IncidentResponse']>> {
+  return callApi(() => client.GET('/incidents/{incidentId}', { params: { path: { incidentId } } }));
+}
+
+/** The status history of an incident, oldest first. */
+export function listIncidentStatusChanges(
+  client: ApiClient,
+  incidentId: string,
+): Promise<ApiResult<Schemas['StatusChangeResponse'][]>> {
+  return callApi(() =>
+    client.GET('/incidents/{incidentId}/status-changes', { params: { path: { incidentId } } }),
+  );
 }
