@@ -225,8 +225,8 @@ class IncidentQueryServiceIT extends PersistenceTestSupport {
         incident.classify(category, reportedAt);
         incident.prioritize(
                 Priority.LOW, "Side street", PrioritySource.MANUAL, operator, reportedAt);
+        // The report cascades to its location.
         entityManager.persist(incident);
-        entityManager.persist(location);
         return incident;
     }
 

@@ -92,7 +92,7 @@ class IncidentController {
             @AuthenticationPrincipal AuthenticatedUser currentUser) {
         var incident = incidentReportService.createIncident(request, currentUser.id());
 
-        var response = IncidentResponse.of(incident, incident.getLocation(), currentUser.role());
+        var response = IncidentResponse.of(incident, currentUser.role());
 
         URI location =
                 ServletUriComponentsBuilder.fromCurrentRequest()
