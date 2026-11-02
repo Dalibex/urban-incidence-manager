@@ -166,6 +166,7 @@ The diagram is a `.drawio.svg`: GitHub shows it as an image, and draw.io opens i
 
 ## 📚 Documentation
 
+- [Requirements and prioritization](docs/requirements.md) (the plan is in the GitHub milestones)
 - [Development guide](docs/development.md)
 - [Deployment guide](docs/deployment.md) (local Compose stack for now)
 - [Database guide](docs/database.md) and [database schema](docs/database.drawio.svg)
