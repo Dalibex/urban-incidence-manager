@@ -15,8 +15,10 @@ and this project follows [Semantic Versioning](https://semver.org/).
 - Incident list, detail and status history on the API. Citizens see only their incidents, technicians only those assigned to them, and operators and administrators all of them; anyone else's incident answers `404`. Citizens do not receive priority, actors or internal reasons (#100).
 - The incident detail gives staff its `version`. Lifecycle actions will send it back, and a change made on an incident someone else changed meanwhile answers `409` with the code `CONCURRENT_MODIFICATION` instead of overwriting it (#101).
 - Initial incident categories and departments, loaded by a database migration in every environment (#34).
+- Base map of Málaga built from OpenStreetMap with `docker compose --profile tiles run --rm tiles-builder`, with its own style, fonts and sprites, so the maps need no tile provider and no API key (#38).
 - Operator inbox on the web: every incident, newest first and page by page, and an incident detail with the report, its location ("Not available" when the address or district is unknown) and the full history, internal entries included (#46).
 - *My reports* on the mobile app: the citizen's own incidents, open or closed, newest first and loaded as the list scrolls, and a detail with its location ("Not available" when the address or district is unknown) and the history visible to the citizen, where an information request shows as a message from the city council. Pull down to refresh; signing out forgets the loaded incidents (#45).
+- Demo dataset behind the `demo` profile: one user per role, whose password comes from `DEMO_PASSWORD`, and fifteen incidents in Málaga in every status. `docs/demo.md` is the demo script (#54).
 
 ### Changed
 

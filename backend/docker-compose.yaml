@@ -45,8 +45,10 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_ACCESS_TOKEN_TTL: ${JWT_ACCESS_TOKEN_TTL:-PT15M}
       REFRESH_TOKEN_TTL: ${REFRESH_TOKEN_TTL:-P14D}
-      # Data profile (docs/development.md): empty for no sample data, dev for the development dataset.
+      # Data profile (docs/development.md): empty for no sample data, dev for the development dataset,
+      # demo for the demo dataset, which also needs DEMO_PASSWORD (docs/demo.md).
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-}
       # Evidence storage policy (ADR-0013)
       STORAGE_BASE_PATH: ${STORAGE_BASE_PATH:-/app/storage}
       EVIDENCE_MAX_FILE_SIZE: ${EVIDENCE_MAX_FILE_SIZE:-10MB}
@@ -59,6 +61,23 @@ services:
     volumes:
       - evidence_data:/app/storage
 
+  tiles-builder:
+    # One-off admin process (12-factor XII, ADR-0016) that builds the base map of Málaga. It belongs
+    # to the "tiles" profile, so `up` never starts it. Run it by hand (docs/development.md):
+    #   docker compose --profile tiles run --rm tiles-builder
+    profiles: [tiles]
+    build: ../tiles
+    environment:
+      # Where the clients load the tiles, sprites and glyphs from. It is written into style.json.
+      TILES_BASE_URL: ${TILES_BASE_URL:-http://localhost:5173/tiles}
+    volumes:
+      # Output. Until nginx serves the tiles (ADR-0017), the web development server serves this
+      # folder, which Git ignores.
+      - ../frontend/apps/web/public/tiles:/tiles
+      # Downloaded sources (OSM extract, water polygons, Natural Earth), reused between runs.
+      - tiles-sources:/data/sources
+
 volumes:
   postgres-data:
+  tiles-sources:
   evidence_data:
