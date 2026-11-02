@@ -1,4 +1,4 @@
-# Demo profile (#54, docs/development.md and docs/demo.md). It only adds the demo dataset to the
+# Demo profile (#54, docs/datasets.md and docs/demo.md). It only adds the demo dataset to the
 # migrations Flyway applies. Never activate it together with the dev profile, or in production.
 # The password of the demo users comes from DEMO_PASSWORD (shared.DemoDatasetConfig).
 spring:

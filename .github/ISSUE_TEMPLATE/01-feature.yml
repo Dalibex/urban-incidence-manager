@@ -105,8 +105,8 @@ body:
       description: |
         Each criterion must be observable and end with how it is verified: `[CI: <job>]`, `[Manual: T<n>]` (a case in the [Test] sub-issue) or `[Review]`. See `docs/ci.md`.
       value: |
-        - [ ] Criterion 1 [CI: test-unit]
-        - [ ] Criterion 2 [CI: test-integration]
+        - [ ] Criterion 1 [CI: test]
+        - [ ] Criterion 2 [CI: frontend]
         - [ ] Criterion 3 [Manual: T1]
     validations:
       required: true
@@ -119,7 +119,7 @@ body:
       value: |
         - Unit:
         - Integration:
-        - E2E (if there is a UI):
+        - Component (web or mobile, if there is a UI):
         - Manual:
     validations:
       required: true
@@ -131,14 +131,10 @@ body:
       description: Keep only the jobs that must be green in the PR that closes this issue, and tick them when they are.
       value: |
         - [ ] `lint`
-        - [ ] `build`
-        - [ ] `test-unit`
-        - [ ] `test-integration`
-        - [ ] `quality`
-        - [ ] `smoke`
         - [ ] `contract`
         - [ ] `frontend`
         - [ ] `test`
+        - [ ] `build`
         - [ ] `pr-title`
     validations:
       required: true
@@ -148,7 +144,7 @@ body:
     attributes:
       label: Dependencies
       value: |
-        - Depends on: #
+        - Blocked by: #
         - Blocks: #
 
   - type: textarea
@@ -160,7 +156,6 @@ body:
       value: |
         - [ ] OpenAPI contract (`docs/api/openapi.yml`)
         - [ ] C4 model (`docs/architecture/workspace.dsl`)
-        - [ ] Domain model (UML)
         - [ ] New or updated ADR
-        - [ ] User guide
+        - [ ] Permission matrix (`docs/security.md`)
         - [ ] New variables in `.env.example`

@@ -1,6 +1,5 @@
 /**
- * Analytics module: read-only indicators, zone analysis and reports. Dashboard aggregates are
- * cached in Redis (ADR-0012).
+ * Analytics module: read-only indicators, zone analysis and reports. Empty for now.
  *
  * <p>Decisions: ADR-0010 ({@code docs/adr/}).
  */

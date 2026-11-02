@@ -1,8 +1,8 @@
 # ADR-0017: nginx as the single entry point in the Docker deployment
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision Makers:** Project Team
-- **Date:** 2026-10-21
+- **Date:** 2026-11-02
 
 ## Context
 
@@ -21,22 +21,22 @@ How should the system be exposed to the outside?
 
 ## Decision
 
-In the **production/demo compose** we use **nginx (official image) as the unique published
-entry point**:
+In the **production/demo compose** we use **nginx as the unique published entry point**:
 
-- nginx serves the static build of the web app (Vite output) and proxies `location /api/` to the
-  backend container; the SPA fallback and the long-lived asset cache live in the same file.
-- Only `web` publishes a host port (`HTTP_PORT`, default 8080). The backend, database and Redis
-  publish no ports, per ADR-0011.
-- The same origin in production means **no CORS configuration is needed** and no extra headers or
-  preflight rules have to be maintained.
-- TLS termination, if it is ever added, lands on this component without touching the application
-  images.
+- nginx serves the static build of the web app (Vite output) and proxies `location /api/` to the backend container; the SPA fallback and the long-lived asset cache live in the same file.
+- We prefer an **unprivileged nginx image** (for example `nginxinc/nginx-unprivileged` listening on 8080) to follow the "unprivileged in the container" practice.
+- The `nginx.conf` maximum request body size (`client_max_body_size`) must match the evidence upload limit defined in ADR-0013.
+- Only the `web` container publishes a host port (`HTTP_PORT`). The `backend`, `db` and Redis publish no ports, per ADR-0011.
+- **HTTPS is strictly required** before any deployment reachable from the internet, for three reasons:
+  - credentials and tokens must not travel in plain HTTP;
+  - browsers only allow geolocation and the camera on secure origins;
+  - iOS and Android block plain HTTP from release builds.
+- TLS terminates at nginx. How the certificate is obtained will be decided alongside the cloud deployment.
+- The same origin in production means **no CORS configuration is needed** and no extra headers or preflight rules have to be maintained.
 
-In the **development compose** we keep direct ports (Vite on 5173, API on 8080) and instruct Vite
-to proxy `/api` to the backend through `API_PROXY_TARGET`; this avoids CORS in development too and
-lets the developer open two well-known URLs without another moving part. This difference is
-explicit in `docker-compose.dev.yml`, so it does not leak into production.
+In the **development compose** we keep direct ports (Vite on 5173, API on 8080) and instruct Vite to proxy `/api` to the backend through `API_PROXY_TARGET`; this avoids CORS in development too and lets the developer open two well-known URLs without another moving part.
+
+The full-stack **`docker-compose.yaml` file is located at the repository root**, because it builds images from both `backend/` and `frontend/`, while development-only database settings remain in `backend/docker-compose.yaml`. The file and profile names match the decisions made in the backend container issue (#90).
 
 ## Considered Options
 
@@ -44,9 +44,8 @@ explicit in `docker-compose.dev.yml`, so it does not leak into production.
   forces CORS in the browser, and lets the API drift from the web origin.
 - **Spring Boot serving the bundled web** — One process, but couples frontend releases to backend
   releases, inverts our web-first delivery and requires serving static content from the JVM.
-- **Caddy or Traefik as reverse proxy** — One binary, automatic TLS and nice dashboards, but adds
-  a second image and a learning surface not justified when the compose runs locally with `http`.
-- **nginx from the official image** — Selected for production: already needed to serve the static
+- **Caddy or Traefik as reverse proxy** — One binary, automatic TLS and nice dashboards, but adds a second image and a learning surface not justified when nginx is already needed to serve the static build.
+- **nginx from an unprivileged image** — Selected for production: already needed to serve the static
   build, a single configuration file, mature and one image fewer than the other proxies.
 
 ## Consequences
@@ -60,13 +59,14 @@ explicit in `docker-compose.dev.yml`, so it does not leak into production.
   - Production and development behave the same from the browser's point of view (`/api` on the
     same origin).
 - **Negatives:**
-  - One more configuration artifact to keep in sync with the API path (`/api`) and the evidence
-    upload size limits.
-  - In development two ports are published (documented), so the single-origin rule is a
-    production guarantee, not an automatic one.
-  - nginx in the prod image runs with its default user; the container boundary still isolates it,
-    but it does not follow the "unprivileged in the container" practice that the backend
-    Dockerfile does apply.
+  - One more configuration artifact to keep in sync with the API path (`/api`) and the evidence upload size limits.
+  - Development and production expose ports differently (documented).
+
+## How it will be evaluated
+
+- **Metric:** Ports published by the deployed Compose file and CORS configuration needed by the web client.
+- **Threshold:** Exactly one published port (`web`), and zero CORS configuration in the backend.
+- **Review date:** Before the AWS deployment. A move to a managed load balancer (for example an AWS ALB in front of several services) would need a new ADR.
 
 ## Links Related
 

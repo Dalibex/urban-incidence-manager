@@ -20,7 +20,7 @@ The product includes a web client and a mobile application that consume a shared
 
 ### Current state
 
-Only the backend skeleton exists: Spring Boot application, PostgreSQL/PostGIS through Docker Compose, Spring Security as a JWT resource server (every request needs a valid access token except the Actuator health endpoints, the API documentation and the public sign-up, sign-in and refresh operations; rules in `docs/security.md`), the OpenAPI contract with the Sprint 1 operations (`docs/api/openapi.yml`, described but not implemented yet), Testcontainers integration tests, the CI pipeline, and the database schema created by Flyway migrations (`backend/src/main/resources/db/migration`, diagram in `docs/database.drawio.svg`). The packages of the six ADR-0010 modules (`identity`, `incidents`, `urbancontext`, `geospatial`, `notifications`, `analytics`) exist under `es.uma.urbanpulse`. The JPA entities, their enums and the CRUD repositories of the schema exist in `identity`, `incidents`, `urbancontext`, `geospatial` and `notifications` (with PostGIS spatial mappings); `analytics` only has its `package-info.java`. `identity` also has the access token issuer (`identity.service.AccessTokenService`) and the append-only audit trail (`identity.service.AuditService`, rules in `docs/security.md`). `shared` holds the cross-cutting configuration: `shared.security` (filter chains, JWT validation, the `AuthenticatedUser` principal) and the UTC `Clock`. The client workspace exists in `frontend/` (`apps/web`, `apps/mobile`, `packages/domain`, `packages/ui`, `packages/api-client`) with the navigation shells and sign-in of #39: `api-client` sends the access token and refreshes the session through a `TokenStore` each app implements (memory on the web, `expo-secure-store` on mobile); the web has a React Router route table with a role guard (`apps/web/src/routing`, screens per role in `sections.tsx`) and the mobile app React Navigation tabs. The other screens are placeholders. There are no business endpoints yet. Do not describe any requirement below as implemented unless the code shows it.
+State at the end of Sprint 1. Backend: Spring Boot with PostgreSQL/PostGIS through Docker Compose and a container image (`backend/Dockerfile`, Compose `backend` service in the `app` profile); the database schema created by Flyway migrations (`backend/src/main/resources/db/migration`, diagram in `docs/database.drawio.svg`); Spring Security as a JWT resource server (rules and permission matrix in `docs/security.md`). The ten operations of the OpenAPI contract (`docs/api/openapi.yml`) are implemented: sign up, sign in, refresh, sign out, current user, categories, and create, list, read and history of incidents, filtered by role. The packages of the six ADR-0010 modules (`identity`, `incidents`, `urbancontext`, `geospatial`, `notifications`, `analytics`) exist under `es.uma.urbanpulse`, with the JPA entities and repositories of the schema (`analytics` only has its `package-info.java`). `identity` has the token issuer (`AccessTokenService`), sign-up and sessions with in-memory attempt limits, and the append-only audit trail (`AuditService`). `incidents` has reporting (`IncidentReportService`), reads by role (`IncidentQueryService`) and the lifecycle service (`IncidentLifecycleService`, ADR-0020 transitions with optimistic locking and `CONCURRENT_MODIFICATION`), but no endpoint changes the status yet. `shared` holds `shared.security` (filter chains, JWT validation, the `AuthenticatedUser` principal), `shared.web` (Problem errors) and the UTC `Clock`. Sample data loads behind the `dev`, `demo` and `perf` profiles (`docs/datasets.md`), and the self-hosted base map is built by the `tiles/` one-off process (ADR-0016). Clients (`frontend/`: `apps/web`, `apps/mobile`, `packages/domain`, `packages/ui`, `packages/api-client`): `api-client` is generated from the contract and refreshes the session through a `TokenStore` each app implements (memory on the web, `expo-secure-store` on mobile); `domain` has the roles, statuses and the ADR-0020 transition table. The web app (staff) has the React Router route table with a role guard, the operator inbox and the incident detail, with TanStack Query for server state; its other screens are placeholders. The mobile app (citizens) has sign-in, sign-up, reporting an incident with its position, and "My reports" with detail and history. Evidence, notifications, urban context, assignment and the status-changing actions are not implemented. Do not describe any requirement below as implemented unless the code shows it.
 
 ### Actors
 
@@ -86,7 +86,7 @@ The evolutionary scope includes model training and evaluation, hotspot detection
 
 States defined in the teaching case: `REPORTED`, `VALIDATED`, `REJECTED`, `ASSIGNED`, `IN PROGRESS`, `RESOLVED`, `REOPENED`, and `CLOSED`.
 
-The document lists states, but does not specify a complete transition matrix. The proposed matrix is in ADR-0020 (`docs/adr/0020-incident-lifecycle-transitions.md`): check its status before implementing it, and do not assume that any change outside it is valid. The code uses `IN_PROGRESS` for the case study's `IN PROGRESS`; keep the contract consistent.
+The document lists states, but does not specify a complete transition matrix. The transition matrix is in ADR-0020 (`docs/adr/0020-incident-lifecycle-transitions.md`, accepted), and the code follows it (`Incident.changeStatus` in the backend, `packages/domain` in the clients): do not assume that any change outside it is valid. The code uses `IN_PROGRESS` for the case study's `IN PROGRESS`; keep the contract consistent.
 
 Centralize transition validation. When status and history are modified in the same database, persist them in a transaction. An invalid transition must not leave partial changes. If there is concurrent editing, adopt the necessary conflict control and test that behavior.
 
@@ -105,12 +105,15 @@ The ADRs in `docs/adr/` are the source of truth. Check each ADR status before re
 | 0008 | Spring Boot backend exposing a REST API, contract first with OpenAPI. |
 | 0010 | Modular monolith: one deployable, one schema, modules are packages that organize the code by feature, with no application events between them. |
 | 0011 | Docker Compose deployment and 12-factor configuration. |
-| 0012 | Redis as cache layer. |
+| 0012 | Redis as cache layer. Not built yet: the rate-limit counters live in memory while there is one replica; the ADR lists when Redis comes in. |
+| 0013 | Evidence files outside the database, on a volume, with server-generated keys and type and size limits. |
 | 0014 | Versioned schema migrations with Flyway (plain SQL in `db/migration`, never edit a merged migration). |
 | 0015 | CI with check-only jobs and pre-commit formatting. |
 | 0016 | Self-hosted OSM base map (PMTiles rebuilt every two weeks) rendered with MapLibre. |
+| 0020 | Incident lifecycle transitions: one explicit table of transitions and the roles allowed for each, owned by `incidents`; an information request keeps the incident `REPORTED`. |
+| 0021 | TOTP second factor for staff accounts (implemented by #57). |
 
-Proposed, not accepted: 0013 (evidence storage), 0017 (nginx reverse proxy), 0018 (Open-Meteo and TomTom as weather and traffic providers), 0019 (Brevo and Twilio as notification delivery providers), 0020 (incident lifecycle transitions), 0021 (TOTP second factor for staff accounts). Do not implement them as if they were accepted.
+Proposed, not accepted: 0018 (Open-Meteo and TomTom as weather and traffic providers), 0019 (Brevo and Twilio as notification delivery providers). Do not implement them as if they were accepted.
 
 Kubernetes, Terraform, queues, and microservices remain extensions conditioned on a demonstrated need.
 
@@ -120,10 +123,11 @@ Do not change the stack or introduce components because they are popular. An arc
 
 | Path                      | Purpose                                                        |
 | ------------------------- | -------------------------------------------------------------- |
-| `backend/`                | Spring Boot backend (`pom.xml`, `mvnw`, `docker-compose.yaml`). |
+| `backend/`                | Spring Boot backend (`pom.xml`, `mvnw`, `Dockerfile`, `docker-compose.yaml`). |
 | `docs/adr/`               | Architectural decisions.                                       |
 | `docs/api/openapi.yml`    | OpenAPI 3.1 contract, source of truth of the API (`docs/api.md`). |
-| `docs/`                   | Development and CI guides.                                     |
+| `docs/`                   | Guides: `development`, `deployment`, `database`, `datasets`, `demo`, `testing`, `ci`, `api`, `security`; C4 model in `docs/architecture/`. |
+| `tiles/`                  | Base map builder, a one-off process (ADR-0016).                |
 | `.github/`                | CI workflows, issue and PR templates.                          |
 | `.githooks/`              | Versioned Git hooks (pre-commit formatting).                   |
 | `frontend/`               | Client pnpm workspace (ADR-0007): `package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`, `.nvmrc`. |
@@ -131,7 +135,7 @@ Do not change the stack or introduce components because they are popular. An arc
 | `frontend/apps/mobile/`   | Mobile client: React Native + Expo (ADR-0005).                 |
 | `frontend/packages/`      | Shared client packages: `domain`, `ui`, `api-client` (ADR-0007). |
 
-The repository root only holds what is shared (documentation, CI, hooks, the API contract). Do not create empty folders to anticipate future modules.
+The repository root only holds what is shared (README, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `CHANGELOG.md`, `LICENSE`, CI, hooks). Do not create empty folders to anticipate future modules.
 
 ### Separation of responsibilities
 
@@ -261,7 +265,7 @@ Especially important cases for UrbanPulse:
 - Follow GitHub Flow and the team workflow in `CONTRIBUTING.md` when the assignment includes Git work: small branches, PR linked to the issue, squash merge, and stable main.
 - Use the agreed prefixes, `<type>/<issue>-<slug>`, for example `feature/42-incident-registration` or `fix/57-incident-authorization`.
 - Use Conventional Commits when commits are requested: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `ci:`, or `chore:`.
-- Record each delivered feature and fix in `CHANGELOG.md`, under `[Unreleased]`, in the same PR that introduces it (not at the end of the milestone). Use a brief entry, Keep a Changelog format (`Added`/`Fixed`/`Changed`/`Removed`, version and date), linked to the issue or PR when one exists.
+- Record in `CHANGELOG.md`, under `[Unreleased]` and in the same PR, only the changes users can notice: features, changes to behavior, the API, configuration or environment variables, removals, and fixes of released bugs. Never documentation, ADRs, refactorings, tests, CI or tooling. `Fixed` is only for bugs of a released version; if a change alters something still under `[Unreleased]`, edit that entry instead of adding a contradictory one. Rules in *Changelog* of `CONTRIBUTING.md`.
 - Do not overwrite others' changes or include generated files, secrets, or changes unrelated to the task.
 - Keep implementation, tests, and contract synchronized. Do not disable validations or controls to make CI pass.
 - Creating commits, publishing branches, merging PRs, or deploying must be within the authorized scope of the assignment.
@@ -270,7 +274,7 @@ Especially important cases for UrbanPulse:
 
 1. Review the diff and remove accidental changes.
 2. Run the applicable tests, lint, build, and checks using the repository's real commands.
-3. Update documentation and examples when system usage changes. If the task delivers a feature or fix, verify that its entry is already in `CHANGELOG.md`.
+3. Update documentation and examples when system usage changes. If the task delivers a change users can notice, verify that its entry is already in `CHANGELOG.md`.
 4. In a relevant architectural change, update C4, ADR, and associated tests.
 5. Report what changed, how it was verified, and what decisions or limitations remain pending.
 
@@ -281,6 +285,8 @@ Backend commands run from `backend/` with Maven Wrapper (`./mvnw.cmd` on Windows
 | Command | Purpose |
 | ------- | ------- |
 | `./mvnw spring-boot:run` | Run the backend; Spring Boot starts PostGIS from `docker-compose.yaml` (needs `.env`). |
+| `./mvnw spring-boot:run -Dspring-boot.run.profiles=dev` | Same with the development dataset (`docs/development.md`). |
+| `docker compose --profile app up --build` | Run the backend image with the database (`docs/deployment.md`). |
 | `./mvnw test` | Unit tests (`*Test`), no Docker. |
 | `./mvnw verify` | Unit and integration tests (`*IT`, Testcontainers), formatting, coverage, and SpotBugs. |
 | `./mvnw verify -DskipITs` | Same without integration tests. |
@@ -295,12 +301,12 @@ Client commands run from `frontend/` with pnpm (Node from `frontend/.nvmrc`, pnp
 | `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` | The checks of the `frontend` CI job. `pnpm format` fixes formatting. |
 | `pnpm generate:api` | Regenerate `frontend/packages/api-client` after changing `docs/api/openapi.yml`. |
 
-The CI pipeline is described in `docs/ci.md`.
+Tests are described in `docs/testing.md` and the CI pipeline in `docs/ci.md`.
 
 ## 12. Documentation and decisions
 
 - The README describes the current state and decisions: purpose, scope, summarized architecture, requirements, installation, execution, tests, and useful links.
-- `CHANGELOG.md` records features, fixes, and behavioral changes by version; it is updated in the same PR as the change, never afterward.
+- `CHANGELOG.md` records, by version, the changes users can notice (see section 11); it is updated in the same PR as the change, never afterward.
 - Keep detailed architecture, development, and deployment documentation in `docs/` if that is the agreed organization.
 - An ADR records context, alternatives, decision, consequences, and status. Number files consistently; a replaced decision preserves its history.
 - C4 explains structure and relationships: context and containers at the beginning; components and deployment when they provide useful information. A C4 container does not necessarily imply a Docker container.
