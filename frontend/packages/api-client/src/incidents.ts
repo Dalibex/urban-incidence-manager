@@ -1,7 +1,8 @@
 import type { ApiClient } from './index';
-import { isProblem, type ApiFailure } from './account';
+import { callApi, isProblem, type ApiFailure, type ApiResult } from './account';
 import type { components } from './schema';
 
+type Category = components['schemas']['CategoryResponse'];
 type CreateIncidentRequest = components['schemas']['CreateIncidentRequest'];
 type IncidentResponse = components['schemas']['IncidentResponse'];
 
@@ -45,14 +46,8 @@ export async function createIncident(
     fieldErrors: problem?.errors ?? [],
   };
 }
-type Category = components['schemas']['CategoryResponse'];
 
-export async function listCategories(client: ApiClient): Promise<Category[]> {
-  const result = await client.GET('/categories');
-
-  if (result.error || !result.data) {
-    throw new Error('Failed to load categories');
-  }
-
-  return result.data;
+/** The active categories, ordered by name, for the category choice of the report form. */
+export function listCategories(client: ApiClient): Promise<ApiResult<Category[]>> {
+  return callApi(() => client.GET('/categories'));
 }

@@ -28,7 +28,7 @@ import { LocationIndicator } from '../components/LocationIndicator';
 import { TextField } from '../components/TextField';
 import { useIncidentLocation } from '../hooks/useIncidentLocation';
 import type { MainTabsParamList } from '../navigation/MainTabs';
-import { reportIncidentMessage, UNEXPECTED_ERROR } from '../session/messages';
+import { categoriesMessage, reportIncidentMessage, UNEXPECTED_ERROR } from '../session/messages';
 import { useSession } from '../session/SessionContext';
 import { screenStyles } from './styles';
 
@@ -58,35 +58,46 @@ export function NewIncidentScreen({ navigation }: Props) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
+  // Bumped by "Try again" to run the load effect once more.
+  const [categoriesAttempt, setCategoriesAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
-
-    async function loadCategories() {
-      setCategoriesLoading(true);
-      setCategoriesError(null);
-      try {
-        const list = await listCategories(api);
-        if (!cancelled) {
-          setCategories(list);
+    // State changes live in the promise callbacks, not in the effect body, and
+    // `categoriesLoading` is already `true` on mount and after a retry.
+    listCategories(api)
+      .then((result) => {
+        if (cancelled) {
+          return;
         }
-      } catch {
-        if (!cancelled) {
-          setCategoriesError('Could not load categories.');
+        if (result.ok) {
+          setCategories(result.data);
+        } else {
+          setCategoriesError(categoriesMessage(result.failure));
         }
-      } finally {
+      })
+      .catch((unexpected: unknown) => {
+        // A bug, not a user mistake: log it and let the user retry.
+        console.error(unexpected);
+        if (!cancelled) {
+          setCategoriesError(UNEXPECTED_ERROR);
+        }
+      })
+      .finally(() => {
         if (!cancelled) {
           setCategoriesLoading(false);
         }
-      }
-    }
-
-    void loadCategories();
-
+      });
     return () => {
       cancelled = true;
     };
-  }, [api]);
+  }, [api, categoriesAttempt]);
+
+  function retryCategories() {
+    setCategoriesLoading(true);
+    setCategoriesError(null);
+    setCategoriesAttempt((attempt) => attempt + 1);
+  }
 
   const canSubmit =
     !location.isLoading &&
@@ -222,7 +233,10 @@ export function NewIncidentScreen({ navigation }: Props) {
           {categoriesLoading ? (
             <ActivityIndicator />
           ) : categoriesError ? (
-            <Text style={styles.fieldError}>{categoriesError}</Text>
+            <View style={styles.field}>
+              <Text style={styles.fieldError}>{categoriesError}</Text>
+              <Button label="Try again" variant="secondary" onPress={retryCategories} />
+            </View>
           ) : (
             <ScrollView
               horizontal

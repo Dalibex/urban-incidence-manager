@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createApiClient, createIncident, type SessionTokens, type TokenStore } from './index';
+import {
+  createApiClient,
+  createIncident,
+  listCategories,
+  type SessionTokens,
+  type TokenStore,
+} from './index';
 import type { components } from './schema';
 
 const BASE_URL = 'https://api.test/api/v1';
@@ -109,5 +115,42 @@ describe('createIncident', () => {
       failure: { kind: 'network' },
       fieldErrors: [],
     });
+  });
+});
+
+describe('listCategories', () => {
+  const CATEGORIES: components['schemas']['CategoryResponse'][] = [
+    { id: 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d', name: 'Lighting', description: null },
+  ];
+
+  it('returns the active categories', async () => {
+    const fetch = vi.fn(async (request: Request) => {
+      expect(new URL(request.url).pathname).toBe('/api/v1/categories');
+      return json(200, CATEGORIES);
+    });
+    const client = createApiClient(BASE_URL, { tokenStore: memoryStore(TOKENS), fetch });
+
+    expect(await listCategories(client)).toEqual({ ok: true, data: CATEGORIES });
+  });
+
+  it('reports a problem with its status so the screen can offer a retry', async () => {
+    const fetch = vi.fn(async () =>
+      json(500, { status: 500, code: 'INTERNAL_ERROR' }, 'application/problem+json'),
+    );
+    const client = createApiClient(BASE_URL, { tokenStore: memoryStore(TOKENS), fetch });
+
+    expect(await listCategories(client)).toEqual({
+      ok: false,
+      failure: { kind: 'problem', status: 500, code: 'INTERNAL_ERROR' },
+    });
+  });
+
+  it('reports a network failure when the API cannot be reached', async () => {
+    const fetch = vi.fn(async () => {
+      throw new TypeError('Failed to fetch');
+    });
+    const client = createApiClient(BASE_URL, { tokenStore: memoryStore(TOKENS), fetch });
+
+    expect(await listCategories(client)).toEqual({ ok: false, failure: { kind: 'network' } });
   });
 });
