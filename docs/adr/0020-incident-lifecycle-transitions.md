@@ -1,8 +1,8 @@
 # ADR-0020: Incident lifecycle transitions
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision Makers:** Project Team
-- **Date:** 2026-10-27
+- **Date:** 2026-11-02
 
 ## Context
 
@@ -16,7 +16,7 @@ already stores them (migration `V3__incidents_create_incident_tables.sql`):
 - `status_change` with actor, instant, previous and new status, reason, `associated_data` (jsonb)
   and `visible_to_citizen`.
 
-`frontend/packages/domain/src/incident-status.ts` says the transitions are not agreed yet, and
+Neither the backend nor the clients (`frontend/packages/domain`) had transition rules, and
 RF09 ("request more information") has no state of its own. Several Sprint 1 and Sprint 2 features
 change the status of an incident (validate, reject, assign, accept, resolve, close, reopen:
 #48, #49, #51, #52). Without one shared set of rules, each feature would invent its own.
@@ -47,7 +47,7 @@ assignment of the incident.
 | `REPORTED` | `REPORTED` | `POST /incidents/{incidentId}/information-requests` | Operator | Message to the citizen | Status and message |
 | `REPORTED` | `VALIDATED` | `POST /incidents/{incidentId}/validation` | Operator | Category and priority already set | Status |
 | `REPORTED` | `REJECTED` | `POST /incidents/{incidentId}/rejection` | Operator | Reason | Status and reason |
-| `VALIDATED`, `REOPENED` | `ASSIGNED` | `POST /incidents/{incidentId}/assignments` | Operator | Department, optional technician | Status |
+| `VALIDATED`, `REOPENED` | `ASSIGNED` | `POST /incidents/{incidentId}/assignments` | Operator | Department, optional technician and team | Status |
 | `ASSIGNED` | `ASSIGNED` | `POST /incidents/{incidentId}/assignments` (reassignment) | Operator | New assignment; the previous one is deactivated | Status |
 | `ASSIGNED` | `IN_PROGRESS` | `POST /incidents/{incidentId}/acceptance` | Assigned technician | — | Status |
 | `IN_PROGRESS` | `RESOLVED` | `POST /incidents/{incidentId}/resolution` | Assigned technician | Resolution notes | Status |
@@ -97,9 +97,29 @@ stateDiagram-v2
 - **Internal data stays internal.** Internal data, such as the technician or internal notes, goes
   in `associated_data` and is never returned to citizens. A citizen gets only what the "Citizen
   sees" column says.
-- **Conflicts.** A transition made on a stale `incident.version` returns `409 Conflict`. A
-  transition the table forbids also returns `409`, with the code `INVALID_TRANSITION` (#33).
-  Missing required data returns `422`.
+- **Errors.** Each action is checked in this order, following `docs/security.md`:
+  - a role that never makes the transition gets `403`;
+  - an incident the caller cannot see, such as a technician's incident assigned to someone else,
+    gets `404`;
+  - a stale `incident.version` gets `409` with the code `CONCURRENT_MODIFICATION`;
+  - a transition the table does not allow from the current status gets `409` with the code
+    `INVALID_TRANSITION` (#33);
+  - missing or invalid required data gets `422`.
+- **Classification is not a transition.** Setting or correcting the category and the priority is
+  `PATCH /incidents/{incidentId}` (#47), allowed in every status except `REJECTED` and `CLOSED`.
+  It leaves an entry in the audit trail, not a `status_change`. Validation does not take them in
+  its body: it only checks that both are already set, so a client that validates an unclassified
+  incident classifies it first.
+- **Required reason.** Four transitions require a reason; the others accept an optional one that
+  only staff see:
+
+  | Transition | Reason | Who sees it |
+  |---|---|---|
+  | Information request | Message to the citizen | Citizen and staff |
+  | Rejection | Reason, for example "duplicate of …" | Citizen and staff |
+  | Resolution | Resolution notes | Staff |
+  | Reopening | Reason | Staff |
+
 - **Spelling.** The case study's `IN PROGRESS` is `IN_PROGRESS` everywhere in the code, the
   database and the API.
 
@@ -113,7 +133,11 @@ These follow from the table and are listed so that no feature adds them by itsel
   adds a technician.
 - A reopened incident is assigned again before any work; it cannot be closed or rejected.
 - Only operators reopen; citizens do not.
-- No automatic closing after a number of days.
+- No automatic closing after a number of days: only an operator closes an incident. This is a
+  deliberate deviation from the case study, whose `CLOSED` state also covers closing after a
+  deadline; it would need a scheduled process and a system actor in the history, and no
+  requirement depends on it yet.
+- The citizen cannot answer an information request from the app; that reply is out of the MVP.
 
 Each of them needs a new or superseding ADR.
 
@@ -124,8 +148,8 @@ Each of them needs a new or superseding ADR.
   the database.
 - **Metric:** a parameterised test over the 64 origin/destination pairs per role (#37).
 - **Threshold:** 100 % of the pairs covered and 0 forbidden transitions accepted.
-- **Review:** at the end of Sprint 1. Revert to option A if operators cannot tell which incidents
-  are waiting for the citizen.
+- **Review:** at the end of Sprint 2, after the lifecycle features (#47–#52). Revert to option A if
+  operators cannot tell which incidents are waiting for the citizen.
 
 ## Considered Options
 
@@ -153,7 +177,8 @@ changing the states of the case study or the schema.
   - Every decision on an incident leaves one history entry with actor, instant and reason (RF18).
 - **Negatives:**
   - "Waiting for the citizen" is derived from the last history entry, not stored as a state.
-  - The citizen's reply to an information request is not covered (follow-up issue).
+  - The citizen's reply to an information request is out of the MVP.
+  - Incidents never close by themselves: an operator closes every resolved incident.
   - The cases listed in "What the table does not allow in this version" may be needed later and
     will need a new ADR.
 
@@ -164,6 +189,6 @@ changing the states of the case study or the schema.
 - [ADR-0014: Versioned database migrations with Flyway](0014-database-migrations-flyway.md)
 - Migration `V3__incidents_create_incident_tables.sql` (`incident`, `status_change`, `assignment`)
 - Issue #31 (this ADR), #37 (implementation), #33 (API conventions and error codes)
-- Features that use it: #48, #49, #51, #52
+- Features that use it: #47 (classification), #48, #49, #51, #52
 - C4 model: component `incidents` ("lifecycle with allowed transitions"); no container or
   component changes
