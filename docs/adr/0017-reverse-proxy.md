@@ -44,9 +44,8 @@ The full-stack **`docker-compose.yaml` file is located at the repository root**,
   forces CORS in the browser, and lets the API drift from the web origin.
 - **Spring Boot serving the bundled web** — One process, but couples frontend releases to backend
   releases, inverts our web-first delivery and requires serving static content from the JVM.
-- **Caddy or Traefik as reverse proxy** — One binary, automatic TLS and nice dashboards, but adds
-  a second image and a learning surface not justified when the compose runs locally with `http`.
-- **nginx from the official image** — Selected for production: already needed to serve the static
+- **Caddy or Traefik as reverse proxy** — One binary, automatic TLS and nice dashboards, but adds a second image and a learning surface not justified when nginx is already needed to serve the static build.
+- **nginx from an unprivileged image** — Selected for production: already needed to serve the static
   build, a single configuration file, mature and one image fewer than the other proxies.
 
 ## Consequences
@@ -63,6 +62,11 @@ The full-stack **`docker-compose.yaml` file is located at the repository root**,
   - One more configuration artifact to keep in sync with the API path (`/api`) and the evidence upload size limits.
   - Development and production expose ports differently (documented).
 
+## How it will be evaluated
+
+- **Metric:** Ports published by the deployed Compose file and CORS configuration needed by the web client.
+- **Threshold:** Exactly one published port (`web`), and zero CORS configuration in the backend.
+- **Review date:** Before the AWS deployment. A move to a managed load balancer (for example an AWS ALB in front of several services) would need a new ADR.
 
 ## Links Related
 

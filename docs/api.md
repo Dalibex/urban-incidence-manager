@@ -16,7 +16,7 @@ Any change to public behaviour (a new endpoint, a new field, a different status 
 
 | Part | Where | Notes |
 |---|---|---|
-| Header | `openapi`, `info`, `servers` | Local backend `http://localhost:8080/api/v1` and same origin `/api/v1` (Swagger UI served by the backend, or the reverse proxy proposed in [ADR-0017](adr/0017-reverse-proxy.md)). Staging is added when it exists. |
+| Header | `openapi`, `info`, `servers` | Local backend `http://localhost:8080/api/v1` and same origin `/api/v1` (Swagger UI served by the backend, or the reverse proxy in [ADR-0017](adr/0017-reverse-proxy.md)). Staging is added when it exists. |
 | Security | `components.securitySchemes.bearerAuth` + global `security` | JWT access token in `Authorization: Bearer <token>` ([ADR-0004](adr/0004-authentication-strategy.md)). Applies to **every** operation unless it opts out. |
 | Error body | `components.schemas.Problem` (+ `FieldError`) | [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) Problem Details, `application/problem+json`: `type`, `title`, `status`, `code`, `detail`, `instance`, `traceId`, and `errors` for validation failures. |
 | Error responses | `components.responses` | `BadRequest` (400), `Unauthorized` (401), `Forbidden` (403), `NotFound` (404), `Conflict` (409), `UnprocessableEntity` (422), `TooManyRequests` (429), `InternalServerError` (500). |
