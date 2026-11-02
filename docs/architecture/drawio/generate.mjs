@@ -500,8 +500,8 @@ function firstLeaf(boxId, cards, boxes) {
 
 function pageHeader(view, index, cards, edges) {
     const key = view.key;
-    const legend = legendHtml(view, cards, edges);
-    const legendWidth = Math.round(textLength(legend) * 6.3 + 40);
+    const legend = pageLegend(view, cards, edges);
+    const legendWidth = Math.round(legend.text.length * 6.3 + 40);
     return [
         vertex(
             `${key}.title`,
@@ -517,37 +517,51 @@ function pageHeader(view, index, cards, edges) {
         ),
         vertex(
             `${key}.legend`,
-            legend,
+            legend.html,
             `rounded=1;arcSize=12;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#D0D7DE;fontFamily=${FONT};fontSize=12;fontColor=#475569;align=center;verticalAlign=middle;`,
             { x: 0, y: 64, width: legendWidth, height: 30 },
         ),
     ];
 }
 
-function legendHtml(view, cards, edges) {
+// Each entry is plain text with an optional mark, coloured or not. The HTML and the width of the box
+// are both built from it, so nothing has to strip tags out of HTML to measure it.
+function pageLegend(view, cards, edges) {
     const all = [...cards.values()];
     const swatches = LEGEND_ELEMENTS.flatMap(({ label, matches }) => {
         const match = all.find(matches);
-        return match ? [`<font color="${match.color}">■</font> ${label}`] : [];
+        return match ? [{ mark: '■', color: match.color, text: label }] : [];
     });
     const lines = [
-        edges.some((item) => item.color === USER_INTERACTION_COLOR) &&
-            `<font color="${USER_INTERACTION_COLOR}">──</font> user interaction`,
-        '── call',
-        edges.some((item) => item.async) && '- - - async call',
-        edges.some((item) => item.response) && '- - - response',
-        view.kind === 'dynamic' && 'numbers = order of the steps',
+        edges.some((item) => item.color === USER_INTERACTION_COLOR) && {
+            mark: '──',
+            color: USER_INTERACTION_COLOR,
+            text: 'user interaction',
+        },
+        { mark: '──', text: 'call' },
+        edges.some((item) => item.async) && { mark: '- - -', text: 'async call' },
+        edges.some((item) => item.response) && { mark: '- - -', text: 'response' },
+        view.kind === 'dynamic' && { text: 'numbers = order of the steps' },
     ].filter(Boolean);
     const boxes = [
-        all.some((item) => item.status === 'Proposed') && 'dashed box = proposed ADR',
-        (all.some((item) => item.status === 'Future') || edges.some((item) => item.future)) && 'dotted = future',
-        view.kind === 'deployment' && 'outer boxes = where it runs [technology]',
-        all.some((item) => item.url) && 'click a box to open its ADR',
+        all.some((item) => item.status === 'Proposed') && { text: 'dashed box = proposed ADR' },
+        (all.some((item) => item.status === 'Future') || edges.some((item) => item.future)) && {
+            text: 'dotted = future',
+        },
+        view.kind === 'deployment' && { text: 'outer boxes = where it runs [technology]' },
+        all.some((item) => item.url) && { text: 'click a box to open its ADR' },
     ].filter(Boolean);
-    return [swatches, lines, boxes]
-        .filter((group) => group.length > 0)
-        .map((group) => group.join(' &nbsp; '))
-        .join(' &nbsp;|&nbsp; ');
+    const groups = [swatches, lines, boxes].filter((group) => group.length > 0);
+    const entryHtml = ({ mark, color, text }) =>
+        [mark && (color ? `<font color="${color}">${mark}</font>` : mark), escapeHtml(text)]
+            .filter(Boolean)
+            .join(' ');
+    const entryText = ({ mark, text }) => [mark, text].filter(Boolean).join(' ');
+    return {
+        html: groups.map((group) => group.map(entryHtml).join(' &nbsp; ')).join(' &nbsp;|&nbsp; '),
+        // The same spacing as the HTML, where &nbsp; is one character.
+        text: groups.map((group) => group.map(entryText).join('   ')).join('  |  '),
+    };
 }
 
 function cardCells(item) {
@@ -690,10 +704,6 @@ function wrap(text, maxChars) {
     }
     if (line) lines.push(line);
     return lines;
-}
-
-function textLength(html) {
-    return html.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').length;
 }
 
 function inches(pixels) {
