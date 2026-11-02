@@ -11,6 +11,12 @@ export const PATHS = {
   useMobile: '/use-mobile',
 } as const;
 
+/**
+ * Roles that manage every incident: the inbox and the incident detail. ADR-0020 calls them
+ * "operator", and the permission matrix (docs/security.md) lets both read every incident.
+ */
+export const OPERATOR_ROLES: readonly Role[] = ['MUNICIPAL_OPERATOR', 'ADMINISTRATOR'];
+
 /** Path of the detail page of one incident. */
 export function incidentPath(incidentId: string): string {
   return PATHS.incident.replace(':incidentId', encodeURIComponent(incidentId));
