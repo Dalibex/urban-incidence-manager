@@ -9,7 +9,6 @@ import es.uma.urbanpulse.incidents.entity.InvalidIncidentDataException;
 import es.uma.urbanpulse.incidents.entity.InvalidTransitionException;
 import es.uma.urbanpulse.incidents.entity.TransitionDetails;
 import es.uma.urbanpulse.incidents.repository.IncidentRepository;
-import es.uma.urbanpulse.incidents.repository.LocationRepository;
 import java.time.Clock;
 import java.util.UUID;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
@@ -30,17 +29,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class IncidentLifecycleService {
 
     private final IncidentRepository incidents;
-    private final LocationRepository locations;
     private final UserRepository users;
     private final Clock clock;
 
     public IncidentLifecycleService(
-            IncidentRepository incidents,
-            LocationRepository locations,
-            UserRepository users,
-            Clock clock) {
+            IncidentRepository incidents, UserRepository users, Clock clock) {
         this.incidents = incidents;
-        this.locations = locations;
         this.users = users;
         this.clock = clock;
     }
@@ -85,13 +79,6 @@ public class IncidentLifecycleService {
         // the response carries the new version.
         incidents.flush();
 
-        var location =
-                locations
-                        .findByIncidentId(incidentId)
-                        .orElseThrow(
-                                () ->
-                                        new IllegalStateException(
-                                                "Incident " + incidentId + " has no location"));
-        return IncidentResponse.of(incident, location, role);
+        return IncidentResponse.of(incident, role);
     }
 }

@@ -102,8 +102,8 @@ class IncidentLifecycleServiceIT {
                     reported.classify(lighting, REPORTED_AT);
                     reported.prioritize(
                             Priority.LOW, "Side street", PrioritySource.MANUAL, staff, REPORTED_AT);
+                    // The report cascades to its location.
                     entityManager.persist(reported);
-                    entityManager.persist(location);
                     incident = reported.getId();
                 });
     }
