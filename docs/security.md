@@ -103,6 +103,26 @@ Known limits:
   (`server.forward-headers-strategy`); trusting the header from anyone would let a client skip the
   limit.
 
+## First administrator
+
+Sign-up only creates citizens and staff accounts are created by an administrator (#40), so a clean
+deployment gets its first administrator from a one-off admin process (#126, 12-factor XII), run
+with the same image and configuration as the backend. How to run it is in
+[the deployment guide](deployment.md#-create-the-first-administrator).
+
+- The name, email and password come from `BOOTSTRAP_ADMIN_NAME`, `BOOTSTRAP_ADMIN_EMAIL` and
+  `BOOTSTRAP_ADMIN_PASSWORD`, never from the code or the repository, and follow the rules of
+  sign-up. The process never prints the password.
+- It is idempotent: when an enabled administrator exists, it changes nothing and does not check the
+  values. When the email belongs to another account, it fails without promoting it, since that
+  would give the role to whoever signed up with the email first.
+- It only runs with the `bootstrap-admin` profile; a normal start of the backend never runs it.
+- Its audit entry is `CREATE_USER` with the new administrator as its own actor, because
+  `actor_id` is required and no administrator exists yet, and `"origin": "BOOTSTRAP"` in `after`.
+  No other action records an account as the actor of its own creation.
+- Until a password change exists, the administrator keeps the password of the environment: remove
+  it from the environment once the account exists.
+
 ## Audit trail
 
 Administrative actions and relevant decisions are recorded in `audit_log` (RF18): who (`actor_id`),
@@ -115,6 +135,7 @@ an operational log: the application logs on stdout never replace it.
 | --- | --- |
 | `CREATE_USER`, `UPDATE_USER`, `CHANGE_ROLE`, `DISABLE_USER`, `ENABLE_USER` | User management (#40) |
 | `CLASSIFY_INCIDENT` | Incident classification (#47) |
+| `CREATE_USER` (`"origin": "BOOTSTRAP"`) | The one-off process that creates the first administrator (#126) |
 
 Rules for code that records an entry:
 

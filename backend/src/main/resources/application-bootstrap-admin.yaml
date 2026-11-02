@@ -1,0 +1,9 @@
+# One-off process that creates the first administrator (#126, docs/deployment.md). It is not a
+# data profile: include it next to the data profile of the database (--spring.profiles.include),
+# never instead of it. It starts no web server, and the process ends when the runner returns
+# (identity.controller.FirstAdministratorCommand).
+spring:
+  main:
+    web-application-type: none
+urbanpulse:
+  one-off-process: true

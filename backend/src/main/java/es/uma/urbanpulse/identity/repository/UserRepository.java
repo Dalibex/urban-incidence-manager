@@ -1,5 +1,6 @@
 package es.uma.urbanpulse.identity.repository;
 
+import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.identity.entity.User;
 import jakarta.persistence.LockModeType;
 import java.util.Optional;
@@ -20,4 +21,6 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     Optional<User> findByEmail(String email);
 
     boolean existsByEmail(String email);
+
+    boolean existsByRoleAndEnabledTrue(Role role);
 }
