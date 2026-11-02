@@ -211,17 +211,22 @@ class IncidentQueryServiceIT extends PersistenceTestSupport {
     }
 
     private Incident persistedIncident(User reporter, Instant reportedAt) {
+        var location = new Location();
+        location.setCoordinates(WGS84.createPoint(new Coordinate(-4.4214, 36.7213)));
+
         var incident =
                 Incident.report(
-                        reporter, "Street light off", "Off since Monday.", null, reportedAt);
+                        reporter,
+                        "Street light off",
+                        "Off since Monday.",
+                        null,
+                        location,
+                        reportedAt);
         incident.classify(category, reportedAt);
         incident.prioritize(
                 Priority.LOW, "Side street", PrioritySource.MANUAL, operator, reportedAt);
+        // The report cascades to its location.
         entityManager.persist(incident);
-        var location = new Location();
-        location.setIncident(incident);
-        location.setCoordinates(WGS84.createPoint(new Coordinate(-4.4214, 36.7213)));
-        entityManager.persist(location);
         return incident;
     }
 

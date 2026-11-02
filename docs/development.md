@@ -441,6 +441,17 @@ pnpm generate:api
 
 Never edit `schema.d.ts` by hand: the `contract` CI job fails if it differs from the contract.
 
+Each operation gets a typed function in `api-client` (`listIncidents`, `getIncident`...) that
+returns an `ApiResult`, so both apps handle failures by `status` and `code`, never by the text.
+
+### Server state on the web
+
+The web reads the API through React Query ([ADR-0006](adr/0006-frontend-web-technology.md)): each
+screen calls a hook such as `useIncidentPage` (`apps/web/src/incidents/incident-queries.ts`), which
+caches the result and shares it between screens. Only failures that may pass on their own are
+retried: the API not reachable or a `5xx`; a `4xx` is shown at once. Signing out, or a session
+that expires, empties the cache, so the next user never sees the data of the previous one.
+
 ## 🔙 Backend Structure
 
 ```text

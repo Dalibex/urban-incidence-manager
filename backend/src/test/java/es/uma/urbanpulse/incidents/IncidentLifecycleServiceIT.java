@@ -88,21 +88,22 @@ class IncidentLifecycleServiceIT {
                     operator = staff.getId();
                     technician = persistedUser(Role.TECHNICIAN).getId();
 
+                    var location = new Location();
+                    location.setCoordinates(WGS84.createPoint(new Coordinate(-4.4214, 36.7213)));
+
                     var reported =
                             Incident.report(
                                     reporter,
                                     "Street light off",
                                     "Off since Monday.",
                                     null,
+                                    location,
                                     REPORTED_AT);
                     reported.classify(lighting, REPORTED_AT);
                     reported.prioritize(
                             Priority.LOW, "Side street", PrioritySource.MANUAL, staff, REPORTED_AT);
+                    // The report cascades to its location.
                     entityManager.persist(reported);
-                    var location = new Location();
-                    location.setIncident(reported);
-                    location.setCoordinates(WGS84.createPoint(new Coordinate(-4.4214, 36.7213)));
-                    entityManager.persist(location);
                     incident = reported.getId();
                 });
     }

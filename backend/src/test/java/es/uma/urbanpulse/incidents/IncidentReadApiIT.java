@@ -422,6 +422,22 @@ class IncidentReadApiIT {
         assertThat(large).as("statements for a page of 20 vs a page of 2").isEqualTo(small);
     }
 
+    // #116: the location is the inverse side of a one-to-one, which Hibernate always loads; the
+    // entity graph of findOne joins it, so the detail does not need a second query for it.
+    @Test
+    void theDetailReadsTheIncidentWithItsCategoryAndLocationInOneQuery() throws Exception {
+        UUID incident = incident(citizenA, "VALIDATED", MONDAY, newCategory());
+
+        Statistics statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
+        statistics.clear();
+        mvc.perform(as(citizenA, Role.CITIZEN, get(INCIDENTS + "/" + incident)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.category").isNotEmpty())
+                .andExpect(jsonPath("$.location.latitude").isNumber());
+
+        assertThat(statistics.getPrepareStatementCount()).isEqualTo(1);
+    }
+
     // T14: every response of this class is checked against the contract by ApiContract (#111);
     // this test only makes sure the three endpoints are called by a citizen and by staff, whose
     // responses use different properties.

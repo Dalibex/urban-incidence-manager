@@ -7,7 +7,6 @@ import es.uma.urbanpulse.incidents.dto.StatusChangeResponse;
 import es.uma.urbanpulse.incidents.entity.Incident;
 import es.uma.urbanpulse.incidents.entity.IncidentStatus;
 import es.uma.urbanpulse.incidents.repository.IncidentRepository;
-import es.uma.urbanpulse.incidents.repository.LocationRepository;
 import es.uma.urbanpulse.incidents.repository.StatusChangeRepository;
 import es.uma.urbanpulse.shared.web.PageResponse;
 import java.util.List;
@@ -27,15 +26,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class IncidentQueryService {
 
     private final IncidentRepository incidents;
-    private final LocationRepository locations;
     private final StatusChangeRepository statusChanges;
 
     public IncidentQueryService(
-            IncidentRepository incidents,
-            LocationRepository locations,
-            StatusChangeRepository statusChanges) {
+            IncidentRepository incidents, StatusChangeRepository statusChanges) {
         this.incidents = incidents;
-        this.locations = locations;
         this.statusChanges = statusChanges;
     }
 
@@ -58,15 +53,7 @@ public class IncidentQueryService {
      * @throws IncidentNotFoundException if it does not exist or the caller may not see it
      */
     public IncidentResponse get(UUID incidentId, UUID userId, Role role) {
-        var incident = visibleIncident(incidentId, userId, role);
-        var location =
-                locations
-                        .findByIncidentId(incidentId)
-                        .orElseThrow(
-                                () ->
-                                        new IllegalStateException(
-                                                "Incident " + incidentId + " has no location"));
-        return IncidentResponse.of(incident, location, role);
+        return IncidentResponse.of(visibleIncident(incidentId, userId, role), role);
     }
 
     /**
