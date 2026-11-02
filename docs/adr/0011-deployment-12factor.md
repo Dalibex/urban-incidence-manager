@@ -26,12 +26,12 @@ How should the system be deployed and configured in this phase of the project?
 
 ## Decision
 
-We will deploy the system as **containers orchestrated by a single `docker-compose` file** on
-one machine, keeping every 12-factor practice that makes the same image runnable elsewhere.
+We will deploy the system as **containers orchestrated by a single `docker-compose.yaml` file at the repository root** on one machine, keeping every 12-factor practice that makes the same image runnable elsewhere.
 
   | Service | Image | Exposed |
   |---|---|---|
-  | `backend` | Own image built from `backend/Dockerfile` | `BACKEND_PORT` |
+  | `web` | Own image built from `frontend/Dockerfile` (nginx) | `HTTP_PORT` |
+  | `backend` | Own image built from `backend/Dockerfile` | No (internal network) |
   | `db` | `postgis/postgis` (PostgreSQL + PostGIS) | No (internal network) |
 
 - **One image per service for every environment (12-factor X).** The same pinned image tag is
@@ -45,8 +45,7 @@ one machine, keeping every 12-factor practice that makes the same image runnable
 - **Stateless application process:** sessions and tokens live in the clients and, where
   server-side state is unavoidable, in the cache; the app container can be stopped and started
   at any time.
-- **Database on the internal network only:** the `internal` compose network has no published
-  ports and no outbound internet access. Only `web` and `backend` publish ports.
+- **Database and backend on the internal network only:** the `internal` compose network has no published ports and no outbound internet access. Per ADR-0017, only `web` publishes a port in the deployed system; `backend` and `db` are strictly internal.
 - **Local development exception:** `backend/docker-compose.yaml` publishes `db` on `127.0.0.1`
   only, so the backend can run from the IDE, where Spring Boot's Docker Compose support starts the
   database. The `backend` service in that file belongs to the `app` profile, so the IDE flow
@@ -120,3 +119,4 @@ requirements demand.
   `backend/docker-compose.yaml` instead of a separate `compose.dev.yaml` enabled with
   `COMPOSE_FILE`, because Spring Boot's Docker Compose support already starts that file from the
   IDE.
+- **2026-11-02** ([#91](https://github.com/Dalibex/urban-incidence-manager/issues/91)). Updated published ports and Compose file location to align with ADR-0017: in the deployed Compose, only `web` publishes a host port (`HTTP_PORT`), keeping `backend` and `db` strictly internal. Clarified that the full-stack `docker-compose.yaml` lives at the repository root, while `backend/docker-compose.yaml` is kept for the local development exception.

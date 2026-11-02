@@ -113,7 +113,7 @@ The ADRs in `docs/adr/` are the source of truth. Check each ADR status before re
 | 0020 | Incident lifecycle transitions: one explicit table of transitions and the roles allowed for each, owned by `incidents`; an information request keeps the incident `REPORTED`. |
 | 0021 | TOTP second factor for staff accounts (implemented by #57). |
 
-Proposed, not accepted: 0017 (nginx reverse proxy), 0018 (Open-Meteo and TomTom as weather and traffic providers), 0019 (Brevo and Twilio as notification delivery providers). Do not implement them as if they were accepted.
+Proposed, not accepted: 0018 (Open-Meteo and TomTom as weather and traffic providers), 0019 (Brevo and Twilio as notification delivery providers). Do not implement them as if they were accepted.
 
 Kubernetes, Terraform, queues, and microservices remain extensions conditioned on a demonstrated need.
 
