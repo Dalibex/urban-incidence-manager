@@ -135,8 +135,8 @@ curl.exe http://localhost:8080/actuator/health
   to test the mobile app on a phone, run the backend from the IDE or the terminal instead (see
   *Client Workspace*).
 - To start it with sample data, set `SPRING_PROFILES_ACTIVE=dev` in `.env` (see *Development
-  Dataset*), or `demo` with `DEMO_PASSWORD` (see *Demo Dataset*). Leave it empty for an empty
-  database, as in production.
+  Dataset*), `demo` with `DEMO_PASSWORD` (see *Demo Dataset*) or `perf` (see *Performance
+  Dataset*). Leave it empty for an empty database, as in production.
 - With `-d` (in the background), follow the logs with `docker compose logs -f backend`.
 - Stop everything with `Ctrl+C`, or with `docker compose --profile app down` if you started it with
   `-d`. Your data stays in the `postgres-data` volume.
@@ -318,6 +318,85 @@ repeatable migration. `DemoDatasetIT` loads it on its own PostGIS container.
   request; `DemoDatasetIT` fails if it no longer fits the schema or the lifecycle rules. Give new
   rows fixed ids that follow the scheme at the top of the file. Apart from `${demo_password}`, do
   not write `${` in the file.
+
+## 📈 Performance Dataset
+
+The `perf` Spring profile loads a large dataset for the quality attribute measurements (#84), so
+every team member measures against exactly the same rows instead of the ten incidents of `dev`,
+where every query is fast. It is the *data* part of the measurement conditions: write the
+operation, load and environment of each measurement next to it.
+
+`application-perf.yaml` adds `classpath:db/perf-data` to the Flyway locations, like the other data
+profiles, but `db/perf-data/R__perf_data.sql` does not store the rows: it generates them inside
+PostgreSQL with `generate_series`, so the script stays small and the volume can change without
+rewriting it. `PerformanceDatasetIT` generates 400 incidents on its own PostGIS container to check
+the script against the schema and the lifecycle rules; CI never loads the full volume.
+
+### What it generates
+
+With the default volume of 100,000 incidents:
+
+| Table | Rows | Distribution |
+| --- | --- | --- |
+| `users` | 5,055 | 5,000 citizens (one per twenty incidents) and a fixed staff of 10 operators, 40 technicians, 2 administrators and 3 analysts. A few citizens report many incidents: the top tenth reports about half of them. |
+| `incident` | 100,000 | Reported between November 2025 and mid-October 2026. Older incidents are mostly closed (about 59% closed, 10% rejected overall), recent ones still in progress. Categories in realistic proportions; a quarter of the unvalidated incidents have none. |
+| `location` | 100,000 | Clustered around twelve places of Málaga, the city centre the busiest. About 8% without address, neighbourhood and district, and 5% without accuracy ("not available"). |
+| `status_change` | about 487,000 | The history of each incident, only transitions of [ADR-0020](adr/0020-incident-lifecycle-transitions.md); 12% include an information request. |
+| `assignment`, `comment`, `attachment`, `notification` | about 80,000, 30,000, 40,000 and 94,000 | One assignment per assigned incident, a comment on 30% of the incidents, attachment metadata on 40%, and a notification of the last change. |
+
+Every user signs in with the password `urbanpulse-perf`, with emails such as
+`perf.citizen1@example.com` (the most active citizen), `perf.operator1@example.com`,
+`perf.technician1@example.com`, `perf.admin1@example.com` and `perf.analyst1@example.com`.
+
+### Activate it
+
+- Activate it as the `dev` profile (see *Activate it* in *Development Dataset*), with `perf`
+  instead of `dev`, on an empty database: reset it first (see below). Never activate it together
+  with `dev` or `demo`: each one empties the incident data of the others.
+- Loading is a slow admin process, which is why it stays out of `dev`: the default volume took
+  about 36 seconds of Flyway on a developer laptop (PostgreSQL 18 in Docker), and the whole start
+  about a minute. Later starts do not load it again.
+- The volume is the `PERF_INCIDENTS` environment variable (`backend/.env`, or the environment of the
+  container), 100,000 when it is not set. Flyway passes it to the script as the `perf_incidents`
+  placeholder. To change it, reset the database and start again with the new value.
+
+### Determinism
+
+The script fixes the random seed (`SELECT setseed(0.84)`) and draws every random value once per
+incident, in order; ids come from row numbers and the password hash from a fixed salt. Two loads
+with the same volume give exactly the same rows on any machine. To check it (T2 of #84), run this
+query after each load and compare the results:
+
+```sql
+SELECT 'incident' AS rows, count(*) AS total, md5(string_agg(id::text || status
+    || coalesce(priority, '') || coalesce(category_id::text, '')
+    || extract(epoch FROM reported_at) || extract(epoch FROM updated_at), ',' ORDER BY id)) AS checksum
+  FROM incident
+UNION ALL
+SELECT 'status_change', count(*), md5(string_agg(id::text || new_status || actor_id::text
+    || extract(epoch FROM instant), ',' ORDER BY id))
+  FROM status_change
+UNION ALL
+SELECT 'location', count(*), md5(string_agg(id::text || ST_AsText(coordinates::geometry)
+    || coalesce(address, ''), ',' ORDER BY id))
+  FROM location
+UNION ALL
+SELECT 'users', count(*), md5(string_agg(id::text || email || password_hash, ',' ORDER BY id))
+  FROM users WHERE id::text LIKE 'f0000000-%'
+ORDER BY 1;
+```
+
+From `backend/`, with the database running:
+`docker compose exec postgres psql -U urbanpulse -d urbanpulse`, then paste the query.
+`PerformanceDatasetIT` runs the same comparison on every build.
+
+### Change the dataset
+
+- When a migration changes a table the dataset fills, update `R__perf_data.sql` in the same pull
+  request; `PerformanceDatasetIT` fails if it no longer fits the schema or the lifecycle rules.
+- Draw new random values only as new columns of `perf_draw`, after the existing ones: a value drawn
+  anywhere else, or in another order, changes every row that follows and the checksums with them.
+- Apart from `${perf_incidents}`, do not write `${` in the file.
 
 ## ⚠️ Reset the Local Database
 

@@ -156,6 +156,21 @@ class DatabaseMigrationIT {
     }
 
     @Test
+    void loadsNoPerformanceDataWithoutThePerfProfile() {
+        var performanceUsers =
+                jdbc.queryForObject(
+                        "SELECT count(*) FROM users WHERE id::text LIKE 'f0000000-%'",
+                        Integer.class);
+        var performanceIncidents =
+                jdbc.queryForObject(
+                        "SELECT count(*) FROM incident WHERE id::text LIKE 'f1000000-%'",
+                        Integer.class);
+
+        assertThat(performanceUsers).isZero();
+        assertThat(performanceIncidents).isZero();
+    }
+
+    @Test
     void rejectsAnUnknownEnumValue() {
         assertThatThrownBy(
                         () ->
