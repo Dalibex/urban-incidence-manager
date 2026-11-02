@@ -70,7 +70,7 @@ export function NewIncidentScreen({ navigation }: Props) {
         if (!cancelled) {
           setCategories(list);
         }
-      } catch (fetchError) {
+      } catch {
         if (!cancelled) {
           setCategoriesError('Could not load categories.');
         }
