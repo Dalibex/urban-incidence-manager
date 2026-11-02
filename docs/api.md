@@ -112,6 +112,8 @@ Every operation lists the shared responses that can really happen, with `$ref`:
 
 When an operation returns an error with a specific `code`, it describes that response inline, with its own example, instead of the shared `$ref` (see `createSession`).
 
+Messages are always in English (`spring.web.locale-resolver: fixed`): bean validation would otherwise write them in the language of the machine that runs the backend. A client that shows them in another language keys its own texts by the `code` of the problem and the `field`, never by the text of `message`.
+
 Do not define a new error body. If an error needs extra information, add an optional property to `Problem` in its own PR.
 
 ### Error codes
@@ -139,6 +141,7 @@ Every response carries an `X-Request-ID` header (`components.headers.XRequestId`
 - A client may send its own `X-Request-ID`, for example to follow one action across its retries. It is kept only when it has 1 to 64 letters, digits, `.`, `_` or `-`; any other value (spaces, line breaks, too long, empty) is replaced by a generated id, and is never echoed or logged.
 - Without one, the backend generates 32 hexadecimal characters.
 - The shared error responses list the header. Operations do not repeat it in their success responses: the `info` of the contract says it applies to all of them.
+- Every response with a status of `400` or more writes one log line with its status, method and path (`Answered 422 to POST /api/v1/registrations`), so even a client error that logs nothing else can be found by its `traceId`. The line never has the body, the query string or the headers, which may hold personal data.
 - `RequestIdFilter` sets it before the security filters run, so their `401` and `403` carry it too. In the code, a module never reads or writes it: `ApiExceptionHandler` and `SecurityProblemResponses` add `traceId`.
 
 ### Domain errors
