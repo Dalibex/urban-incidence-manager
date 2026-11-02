@@ -46,6 +46,7 @@ values without quotes.
 | `JWT_SECRET` | empty | ✓ | `backend` | Signs the access tokens, at least 32 bytes ([security guide](security.md)). The backend does not start without it |
 | `JWT_ACCESS_TOKEN_TTL` | `PT15M` | | `backend` | Lifetime of an access token |
 | `REFRESH_TOKEN_TTL` | `P14D` | | `backend` | Lifetime of a refresh token |
+| `REFRESH_TOKEN_RETENTION` | `P30D` | | `backend` | How long an expired refresh token is kept before the daily clean-up deletes it ([security guide](security.md)) |
 | `SPRING_PROFILES_ACTIVE` | empty | | `backend` | Data profile: empty (no sample data, as in production), `dev`, `demo` or `perf` ([datasets](datasets.md)) |
 | `DEMO_PASSWORD` | empty | ✓ | `backend` | Password of the demo users; required with the `demo` profile |
 | `PERF_INCIDENTS` | commented out | | `backend` | Incidents the `perf` profile generates, 100000 when it is not set. Leave it commented out rather than empty |

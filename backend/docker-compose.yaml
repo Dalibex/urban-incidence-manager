@@ -45,6 +45,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_ACCESS_TOKEN_TTL: ${JWT_ACCESS_TOKEN_TTL:-PT15M}
       REFRESH_TOKEN_TTL: ${REFRESH_TOKEN_TTL:-P14D}
+      REFRESH_TOKEN_RETENTION: ${REFRESH_TOKEN_RETENTION:-P30D}
       # Data profile (docs/datasets.md): empty for no sample data, dev for the development dataset,
       # demo for the demo dataset, which also needs DEMO_PASSWORD (docs/demo.md), perf for the
       # performance dataset, of PERF_INCIDENTS incidents.

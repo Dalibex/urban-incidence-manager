@@ -187,7 +187,9 @@ paths:
       summary: Renew the token pair
       description: |
         Exchanges a refresh token for a new token pair. The refresh token is rotated: the one sent
-        stops working, and sending it again fails.
+        stops working. Sending a revoked refresh token again (already used, or signed out) before
+        it expires fails and also revokes every session of its user, because someone else may hold
+        a copy of it. The answer does not say whether the token was reused, expired or unknown.
 
         A client must not try to refresh again when this operation returns `401`: it signs the
         user out instead.

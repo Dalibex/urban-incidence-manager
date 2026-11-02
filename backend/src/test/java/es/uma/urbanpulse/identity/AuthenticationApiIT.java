@@ -182,7 +182,8 @@ class AuthenticationApiIT {
         assertThat(secondRefreshToken).isNotEqualTo(firstRefreshToken);
 
         expectInvalidRefreshToken(refresh(firstRefreshToken));
-        refresh(secondRefreshToken).andExpect(status().isOk());
+        // #125: reusing a rotated token revokes every session, the one that replaced it too.
+        expectInvalidRefreshToken(refresh(secondRefreshToken));
     }
 
     // T2: a refresh token sent several times at once still works once. Otherwise whoever stole it
@@ -215,6 +216,15 @@ class AuthenticationApiIT {
             results.add(result.get());
         }
         assertThat(results).containsOnly(200, 401).containsOnlyOnce(200);
+        // #125: the other attempts reuse a revoked token, so the session opened by the one that
+        // succeeded is revoked too.
+        assertThat(
+                        jdbc.queryForObject(
+                                "SELECT count(*) FROM refresh_token t JOIN users u ON u.id ="
+                                        + " t.user_id WHERE u.email = ? AND t.revoked_at IS NULL",
+                                Integer.class,
+                                email))
+                .isZero();
     }
 
     // T3
@@ -227,8 +237,9 @@ class AuthenticationApiIT {
 
         signOut(phoneAccessToken).andExpect(status().isNoContent());
 
-        expectInvalidRefreshToken(refresh(read(phone, "$.refreshToken")));
+        // The laptop goes first: since #125, presenting the signed-out token revokes every session.
         refresh(read(laptop, "$.refreshToken")).andExpect(status().isOk());
+        expectInvalidRefreshToken(refresh(read(phone, "$.refreshToken")));
     }
 
     // T3: signing out twice is not an error (the operation is idempotent).
