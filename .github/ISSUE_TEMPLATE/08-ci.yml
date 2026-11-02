@@ -30,21 +30,13 @@ body:
       label: Affected jobs
       multiple: true
       options:
-        - detect
         - lint
-        - build
-        - test-unit
-        - test-integration
-        - quality
-        - smoke
         - contract
         - frontend
         - test
+        - build
         - pr-title
-        - test-e2e
-        - security
-        - docker
-        - deploy-staging
+        - project-status
         - New job (describe it in Proposed changes)
     validations:
       required: true
@@ -105,5 +97,5 @@ body:
     attributes:
       label: Dependencies
       value: |
-        - Depends on: #
-        - Unblocks: #
+        - Blocked by: #
+        - Blocks: #

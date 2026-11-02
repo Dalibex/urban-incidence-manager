@@ -19,16 +19,17 @@ body:
         - README.md
         - CONTRIBUTING.md / SECURITY.md / CHANGELOG.md
         - AGENTS.md
-        - docs/architecture.md and docs/architecture/workspace.dsl (C4)
-        - docs/architecture/domain-model.md (UML)
-        - docs/backend-structure.md
+        - docs/architecture/ (C4 model)
+        - docs/adr/
         - docs/development.md
         - docs/deployment.md
+        - docs/database.md and docs/database.drawio.svg
+        - docs/datasets.md and docs/demo.md
         - docs/testing.md
         - docs/ci.md
         - docs/api.md and docs/api/openapi.yml
-        - docs/user-guide/
-        - docs/process/
+        - docs/security.md
+        - Twelve-factor traceability annex (#55)
         - Other (say which in the description)
     validations:
       required: true

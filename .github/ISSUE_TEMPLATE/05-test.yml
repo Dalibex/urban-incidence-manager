@@ -30,10 +30,10 @@ body:
       label: Test type
       multiple: true
       options:
-        - Unit (test-unit)
-        - Integration with Testcontainers (test-integration)
-        - Contract / API (contract, test-integration)
-        - End-to-end (test-e2e)
+        - Backend unit (test)
+        - Backend integration with Testcontainers (test)
+        - HTTP against the contract (test)
+        - Web or mobile component (frontend)
         - Load / performance
         - Resilience (external source down, SIGTERM, several replicas)
         - Manual (acceptance, exploratory, usability)
@@ -45,7 +45,7 @@ body:
     attributes:
       label: Test cases
       description: |
-        In **Verification**, write the CI job that runs the case (`test-unit`, `test-integration`...) or `Manual`. The criteria of the functional issue reference these IDs, e.g. `[Manual: T5]`.
+        In **Verification**, write the CI job that runs the case (`test`, `frontend`...) or `Manual`. The criteria of the functional issue reference these IDs, e.g. `[Manual: T5]`.
       value: |
         | ID | Scenario | Input data | Expected result | Verification |
         |---|---|---|---|---|

@@ -196,7 +196,7 @@ The contract is stricter than Spring's defaults, and the acceptance tests follow
 
    The rules are in `redocly.yaml` and are the same ones the `contract` CI job runs.
 5. **Preview it**: run the backend and open `http://localhost:8080/swagger-ui.html`, or paste the file into [Swagger Editor](https://editor.swagger.io/). Without the backend, build a static page from the repository root with `npx @redocly/cli@2.71.0 build-docs docs/api/openapi.yml -o redoc-static.html` and open it (do not commit it). `redocly preview` is not for this: it previews a whole Redocly project and parses every YAML file of the folder.
-6. **Open the PR with the contract change first** if the clients or the tester need it soon (tick *OpenAPI contract* in the issue), and regenerate the client types (`pnpm generate:api`, [development guide](development.md)) in it. The implementation can come in the same PR or right after, but never before: the code must never expose something the contract does not describe. If the implementation needs to change what was agreed, it changes the contract in its own PR and tells the client streams.
+6. **Open the PR with the contract change first** if the clients or the tester need it soon (tick *OpenAPI contract* in the issue), and regenerate the client types (`pnpm generate:api`, see [6. Generated client](#6-generated-client)) in it. The implementation can come in the same PR or right after, but never before: the code must never expose something the contract does not describe. If the implementation needs to change what was agreed, it changes the contract in its own PR and tells the client streams.
 7. **Implement the controller** following the contract, and add HTTP tests that check status codes, validation errors and permissions (AGENTS.md, section 9).
 
 ## 5. Viewing the documentation
@@ -212,3 +212,15 @@ The backend serves the contract with [springdoc-openapi](https://springdoc.org/)
 The build copies `docs/api/openapi.yml` into the jar (`maven-resources-plugin` in `pom.xml`), so the documentation always matches the contract of that commit. Any future Docker build must keep `docs/api/` in its context for the same reason.
 
 These URLs are open without authentication. To turn off Swagger UI and the generated description in an environment, set `SPRINGDOC_SWAGGER_UI_ENABLED=false` and `SPRINGDOC_API_DOCS_ENABLED=false`. `/openapi.yml` stays available: it is the public contract the clients are built from.
+
+## 6. Generated client
+
+The clients never write the API types by hand. `frontend/packages/api-client/src/schema.d.ts` is generated from the contract; after changing `docs/api/openapi.yml`, regenerate it from `frontend/` and commit the result in the same pull request:
+
+```bash
+pnpm generate:api
+```
+
+Never edit `schema.d.ts` by hand: the `contract` CI job fails if it differs from the contract.
+
+Each operation gets a typed function in `api-client` (`listIncidents`, `getIncident`...) that returns an `ApiResult`, so both apps handle failures by `status` and `code`, never by the text.
