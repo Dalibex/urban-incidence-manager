@@ -98,7 +98,7 @@ jobs:
         run: |
           chmod +x mvnw
           if ! ./mvnw spotless:check; then
-            echo "::error title=Formatting::Some files are not formatted. Run ./mvnw spotless:apply, commit and push. If this keeps happening, the pre-commit hook is not installed (docs/ci-setup.md)."
+            echo "::error title=Formatting::Some files are not formatted. Run ./mvnw spotless:apply, commit and push. If this keeps happening, the pre-commit hook is not installed (docs/ci.md, section 9.1)."
             exit 1
           fi
 

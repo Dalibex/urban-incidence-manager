@@ -60,5 +60,5 @@ body:
     attributes:
       label: Dependencies
       value: |
-        - Depends on: #
-        - Unblocks: #
+        - Blocked by: #
+        - Blocks: #

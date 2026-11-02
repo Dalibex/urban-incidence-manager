@@ -20,10 +20,10 @@ import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.test.context.ActiveProfiles;
 
 /**
- * The performance dataset of the {@code perf} profile (#84, docs/development.md). CI does not load
- * the default volume: this class generates a small one on its own PostGIS container, which is
- * enough to catch a schema migration or a lifecycle rule the generator no longer fits, and to check
- * that it is deterministic.
+ * The performance dataset of the {@code perf} profile (#84, docs/datasets.md). CI does not load the
+ * default volume: this class generates a small one on its own PostGIS container, which is enough to
+ * catch a schema migration or a lifecycle rule the generator no longer fits, and to check that it
+ * is deterministic.
  */
 @SpringBootTest(properties = "PERF_INCIDENTS=" + PerformanceDatasetIT.INCIDENTS)
 @ActiveProfiles("perf")
@@ -41,9 +41,8 @@ class PerformanceDatasetIT {
     private static final int STAFF = 10 + 40 + 2 + 3;
 
     /**
-     * Row count and checksum of the generated tables, the query docs/development.md gives to
-     * compare two loads. Instants go through their epoch, so the session's time zone does not
-     * change it.
+     * Row count and checksum of the generated tables, the query docs/datasets.md gives to compare
+     * two loads. Instants go through their epoch, so the session's time zone does not change it.
      */
     static final String CHECKSUMS =
             """

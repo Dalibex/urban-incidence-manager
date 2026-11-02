@@ -1,4 +1,4 @@
-# Performance profile (#84, docs/development.md). It only adds the performance dataset to the
+# Performance profile (#84, docs/datasets.md). It only adds the performance dataset to the
 # migrations Flyway applies, generated with the volume of PERF_INCIDENTS. Never activate it together
 # with the dev or demo profile, or in production.
 spring:
