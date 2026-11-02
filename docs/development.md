@@ -5,6 +5,7 @@ on them. Other guides cover the rest:
 
 | Guide | What it covers |
 | --- | --- |
+| [Architecture](architecture.md) | The architecture drivers, a summary of the containers and the quality attribute scenarios |
 | [Deployment](deployment.md) | The Compose services, their variables and volumes, the backend in Docker, resetting the database, the base map |
 | [Database](database.md) | Migrations, reference data and how the data profiles work |
 | [Datasets and measurements](datasets.md) | The demo and performance datasets, and the quality attribute measurements |

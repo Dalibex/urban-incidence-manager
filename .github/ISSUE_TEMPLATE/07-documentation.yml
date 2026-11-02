@@ -19,6 +19,7 @@ body:
         - README.md
         - CONTRIBUTING.md / SECURITY.md / CHANGELOG.md
         - AGENTS.md
+        - docs/architecture.md (architecture overview)
         - docs/architecture/ (C4 model)
         - docs/adr/
         - docs/development.md
