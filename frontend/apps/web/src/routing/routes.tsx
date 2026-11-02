@@ -1,6 +1,7 @@
 import { ROLES } from '@urbanpulse/domain';
 import type { RouteObject } from 'react-router';
 
+import { IncidentDetailPage } from '../incidents/IncidentDetailPage';
 import { AppLayout } from '../layout/AppLayout';
 import { LandingRedirect } from '../pages/LandingRedirect';
 import { NotFoundPage } from '../pages/NotFoundPage';
@@ -23,6 +24,11 @@ export const routes: RouteObject[] = [
             element: <RequireRole roles={roles} />,
             children: [{ path, element }],
           })),
+          // The detail of an incident opens from the inbox, so it is not a section of the navbar.
+          {
+            element: <RequireRole roles={['MUNICIPAL_OPERATOR']} />,
+            children: [{ path: PATHS.incident, element: <IncidentDetailPage /> }],
+          },
           {
             element: <RequireRole roles={['CITIZEN']} />,
             children: [{ path: PATHS.useMobile, element: <UseMobilePage /> }],

@@ -1,6 +1,7 @@
 import type { Role } from '@urbanpulse/domain';
 import type { ReactNode } from 'react';
 
+import { InboxPage } from '../incidents/InboxPage';
 import { PlaceholderPage } from '../pages/PlaceholderPage';
 import { PATHS } from './access';
 
@@ -19,7 +20,7 @@ export const SECTIONS: readonly Section[] = [
     path: PATHS.inbox,
     label: 'Inbox',
     roles: ['MUNICIPAL_OPERATOR'],
-    element: <PlaceholderPage title="Inbox" summary="Incidents waiting for validation." />,
+    element: <InboxPage />,
   },
   {
     path: PATHS.workQueue,

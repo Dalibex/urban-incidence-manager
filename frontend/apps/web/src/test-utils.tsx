@@ -1,9 +1,11 @@
+import { QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
 import type { Role } from '@urbanpulse/domain';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { vi } from 'vitest';
 
+import { createQueryClient } from './query-client';
 import { routes } from './routing/routes';
 import { SessionProvider, type SessionUser } from './session/SessionContext';
 
@@ -38,10 +40,13 @@ interface RenderOptions {
 /** Renders the real route table at `path`, signed in as `role` or signed out. */
 export function renderApp(path: string, { role = null, fetch = fakeApi({}) }: RenderOptions = {}) {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
+  // A new cache per test, so no test reads the data of another.
   render(
-    <SessionProvider initialUser={role ? userWith(role) : null} fetch={fetch}>
-      <RouterProvider router={router} />
-    </SessionProvider>,
+    <QueryClientProvider client={createQueryClient({ retryDelay: 0 })}>
+      <SessionProvider initialUser={role ? userWith(role) : null} fetch={fetch}>
+        <RouterProvider router={router} />
+      </SessionProvider>
+    </QueryClientProvider>,
   );
   return router;
 }

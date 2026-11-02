@@ -8,6 +8,7 @@ import {
   type SessionTokens,
   type TokenStore,
 } from '@urbanpulse/api-client';
+import { useQueryClient } from '@tanstack/react-query';
 import type { Role } from '@urbanpulse/domain';
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 
@@ -63,6 +64,8 @@ interface SessionProviderProps {
 }
 
 export function SessionProvider({ initialUser = null, fetch, children }: SessionProviderProps) {
+  // The cached incidents belong to the user who read them: they go away with the session.
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<SessionUser | null>(initialUser);
   const [expired, setExpired] = useState(false);
   const [{ api, tokenStore }] = useState(() => {
@@ -71,6 +74,7 @@ export function SessionProvider({ initialUser = null, fetch, children }: Session
       tokenStore: store,
       fetch,
       onSessionExpired: () => {
+        queryClient.clear();
         setUser(null);
         setExpired(true);
       },
@@ -104,12 +108,13 @@ export function SessionProvider({ initialUser = null, fetch, children }: Session
           await signOutOnApi(api, tokenStore);
         } finally {
           // The tokens are gone either way. A refresh rejected while signing out is not an expiry.
+          queryClient.clear();
           setUser(null);
           setExpired(false);
         }
       },
     }),
-    [user, expired, api, tokenStore],
+    [user, expired, api, tokenStore, queryClient],
   );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
