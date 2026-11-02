@@ -50,6 +50,30 @@ PostgreSQL and in front of external data sources.
   layer" is stored in Redis, and PostgreSQL keeps only durable, provenance-bearing data. The
   backend's responsibilities (timeouts, retries, scheduled refresh jobs) are unchanged.
 
+## Implementation status
+
+Updated on 2026-11-02. The decision stands, but Redis is not built yet: it is not in `pom.xml` nor in
+`docker-compose.yaml`, because nothing needs it so far.
+
+- No external source is called yet: geocoding, Overpass and opendata arrive with the urban context
+  features.
+- The incident lists read PostgreSQL directly, and no measurement shows them to be slow.
+- The rate-limit counters of sign-up and sign-in live in memory (`AttemptLimiter` in `identity`).
+  That is correct with the single backend replica of [ADR-0011](0011-deployment-12factor.md); a
+  restart resets them.
+
+Redis is added, as this ADR describes, when the first of these happens:
+
+- the first adapter to an external source with a usage limit (Nominatim, Overpass) is written: its
+  responses are cached from the start;
+- the backend runs more than one replica: the rate-limit counters move to Redis, because each
+  replica would otherwise allow the full limit;
+- a measurement with the performance dataset ([datasets](../datasets.md)) shows that a list or map
+  query misses its quality goal, and a cache is the fix that measurement points to.
+
+Adding it means a Compose service, a Testcontainers container and its CI image ([CI guide](../ci.md),
+*A new backing service*). The C4 model already shows the Redis container, as the decided target.
+
 ## Considered Options
 
 - **No cache** — Simplest, but every map render or incident list would hit PostgreSQL and every

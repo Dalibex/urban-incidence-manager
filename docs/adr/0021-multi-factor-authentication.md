@@ -1,8 +1,8 @@
 # ADR-0021: Require a TOTP second factor for staff accounts
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision Makers:** Project Team
-- **Date:** 2026-10-27
+- **Date:** 2026-11-02
 
 ## Context
 
@@ -51,7 +51,7 @@ every staff role. Citizens do not need it in this version.
   revokes the user's refresh tokens, and the user enrols again on the next sign-in.
 - **Last administrator.** If no other administrator can do the reset, the maintainer runs an
   emergency procedure on the database that clears the user's second factor and records who did it
-  and why. #57 documents it in [`docs/development.md`](../development.md). Recovery codes are left
+  and why. #57 documents it in the [deployment guide](../deployment.md). Recovery codes are left
   for later.
 - **Audit (RF18).** Enrolment, reset and the emergency procedure are recorded in the audit history
   with actor, instant and reason (#36). Failed codes are written to the application log, never with
@@ -92,7 +92,7 @@ the project can afford now.
   - Tests use a controllable clock, since codes depend on the time.
   - The TOTP implementation comes from a maintained library, checked before it is added as
     `AGENTS.md` asks for any new dependency.
-  - The emergency procedure for the last administrator is written in `docs/development.md`.
+  - The emergency procedure for the last administrator is written in `docs/deployment.md`.
   - No new C4 container; at most a component inside the `identity` module.
 
 ## How it will be evaluated

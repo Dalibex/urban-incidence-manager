@@ -135,7 +135,7 @@ pipeline.
 - [ADR-0010: Start with a modular monolith](0010-modular-monolith.md)
 - [ADR-0011: Deployment and 12-factor configuration](0011-deployment-12factor.md)
 - CI reference and how to scale it: `docs/ci.md`
-- One-time setup (hook, squash merge, ruleset): `docs/ci-setup.md`
+- One-time setup (hook, squash merge, ruleset): `docs/ci.md`, section 9
 - Workflows: `.github/workflows/ci.yml`, `.github/workflows/pr-title.yml`
 - Hook: `.githooks/pre-commit`
 - [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
