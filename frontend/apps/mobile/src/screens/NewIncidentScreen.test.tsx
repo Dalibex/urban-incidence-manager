@@ -131,6 +131,10 @@ describe('NewIncidentScreen', () => {
       mockedListCategories.mockResolvedValue(failed({ kind: 'network' }));
 
       await act(() => queryClient.refetchQueries({ queryKey: categoryKeys.active }));
+      // React Query tells the screen in a timeout of its own: let it re-render first.
+      await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+
+      expect(queryClient.getQueryState(categoryKeys.active)?.status).toBe('error');
 
       expect(screen.getByRole('button', { name: 'Street lighting' })).toBeOnTheScreen();
       expect(screen.queryByText(/UrbanPulse cannot be reached/)).not.toBeOnTheScreen();
