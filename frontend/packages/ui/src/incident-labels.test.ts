@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatInstant, historyEventLabel } from './labels';
+import { formatInstant, historyEventLabel } from './incident-labels';
 
 describe('historyEventLabel', () => {
   it.each([

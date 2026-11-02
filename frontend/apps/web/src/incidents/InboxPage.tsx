@@ -1,11 +1,12 @@
 import type { components } from '@urbanpulse/api-client';
+import { formatInstant } from '@urbanpulse/ui';
 import { Link, useSearchParams } from 'react-router';
 
 import { incidentPath } from '../routing/access';
 import { useIncidentPage } from './incident-queries';
 import styles from './Incidents.module.css';
 import { LoadFailure } from './LoadFailure';
-import { PRIORITY_LABELS, formatInstant } from './labels';
+import { PRIORITY_LABELS } from './labels';
 import { StatusBadge } from './StatusBadge';
 
 type IncidentSummary = components['schemas']['IncidentSummaryResponse'];
