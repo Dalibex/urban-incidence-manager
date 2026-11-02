@@ -1,6 +1,6 @@
 # Continuous integration (CI)
 
-> Initial rollout: [ci-setup.md](ci-setup.md). Decision: [ADR-0015](adr/0015-ci-pipeline-and-pre-commit-formatting.md).
+> Decision: [ADR-0015](adr/0015-ci-pipeline-and-pre-commit-formatting.md). How the tests are organised: [testing guide](testing.md). One-time setup of a clone and of the repository: [section 9](#9-setup).
 
 ## 1. What it is and the rules it follows
 
@@ -111,7 +111,7 @@ One step per check, so the name of the red step tells you what failed. GitHub Ac
 
 The three gates run in separate steps so that the name of the red step tells you which one failed.
 
-`merge-coverage` is bound to the `verify` phase, so `./mvnw verify` generates `target/jacoco-merged.exec` and `target/site/jacoco-merged/jacoco.csv`. While only `UrbanpulseApplication` exists (excluded from the report), coverage comes out empty (`—`) and the 80 % gate evaluates nothing. It will start to apply once there is real code.
+`merge-coverage` is bound to the `verify` phase, so `./mvnw verify` generates `target/jacoco-merged.exec` and `target/site/jacoco-merged/jacoco.csv`.
 
 ### `build` — one artifact per commit and smoke test
 
@@ -130,7 +130,7 @@ The smoke test uses `docker run` with the PostGIS image on a Docker network, **n
 
 The Maven dependencies are downloaded again on every run, because the build runs inside Docker and does not use the `setup-java` cache. If the job gets slow, see [7.6 Caching](#76-caching).
 
-The health step needs `/actuator/health` to be unprotected: with `spring-boot-starter-security`, `SecurityConfig` opens only `/actuator/health/**`. When the JWT filter is implemented, that bean is the one to replace, keeping the health endpoint open. Any **mandatory** property that gets added (e.g. a JWT secret) must also be passed as an environment variable in the smoke test step.
+The health step needs `/actuator/health` to stay unprotected: `SecurityConfig` (`shared.security`) leaves `/actuator/health/**` open ([security guide](security.md)). Any **mandatory** property that gets added must also be passed as an environment variable in the smoke test step, as `JWT_SECRET` already is.
 
 ### `pr-title` — PR title
 
@@ -179,7 +179,7 @@ git commit
 - **If Maven cannot start** (e.g. `JAVA_HOME` pointing to an old JDK, or GitHub Desktop's Git not understanding the JDK path), the hook **does not block**: it warns that it did not format, shows the cause and lets the commit through. `lint` will catch it. If the failure comes from Spotless (a `.java` with a syntax error), it does block and shows the first lines of the error.
 - **Same rule for the clients:** if `pnpm` is not installed or `pnpm install` was never run, the hook warns and lets the commit through, and `frontend` will catch it. A client file with a syntax error blocks the commit.
 - **Execute permission:** the file must be in Git as `100755` (`git ls-files --stage .githooks/pre-commit`). On Windows it is set with `git update-index --chmod=+x .githooks/pre-commit`; without it, Git silently ignores the hook on Linux/macOS.
-- **JDK:** the hook uses the `JAVA_HOME` of the process that runs `git commit`. Set JDK 25 as a **user** variable (see [ci-setup.md section 2](ci-setup.md#2-the-hook-in-every-clone)).
+- **JDK:** the hook uses the `JAVA_HOME` of the process that runs `git commit`. Set JDK 25 as a **user** variable (see [9.1 The hook in every clone](#91-the-hook-in-every-clone)).
 
 **When `lint` can fail on formatting** (and only then):
 
@@ -198,13 +198,7 @@ git commit
 
 ## 5. Test contract
 
-| Type | Class name | Plugin | Needs | Run with |
-|---|---|---|---|---|
-| Unit | `*Test`, `*Tests` | Surefire | Nothing (no Docker, no DB) | `./mvnw test` |
-| Integration | `*IT` | Failsafe | Docker (Testcontainers) | `./mvnw verify` |
-
-- Tests **never use `docker-compose.yaml`**. An `*IT` imports `TestcontainersConfiguration`, which starts a throwaway PostGIS, and Spring connects to it with `@ServiceConnection`. No `.env` or local DB is needed.
-- Coverage: `jacoco.minimum.coverage` in `pom.xml` (80 % of lines, combining unit and integration). `*Application` is excluded.
+Unit tests are `*Test` (Surefire, no Docker) and integration tests are `*IT` (Failsafe, PostGIS in Testcontainers); the `test` job runs both. The naming rules, the coverage threshold and the client test runners are in the [testing guide](testing.md).
 
 ## 6. Squash merge and history
 
@@ -216,7 +210,7 @@ Only squash merge is allowed (`main` ruleset). Each PR becomes a single commit o
 
 ## 7. How to scale the CI
 
-Recipes for when the project grows. General rule: **if you add or rename a job, update the `main` ruleset** (ci-setup.md section 4) and this guide.
+Recipes for when the project grows. General rule: **if you add or rename a job, update the `main` ruleset** ([9.3](#93-protect-main-with-a-ruleset)) and this guide.
 
 ### 7.1 New modules (ADR-0010)
 
@@ -307,6 +301,8 @@ cd frontend && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && 
 npx @redocly/cli@2.71.0 lint && cd frontend && pnpm generate:api                             # contract (then git status: nothing changed)
 ```
 
+The pre-commit hook formats what you commit; to format by hand, run `./mvnw spotless:apply` from `backend/` and `pnpm format` from `frontend/`.
+
 If they pass locally, `lint`, `contract`, `frontend` and `test` pass in the CI. The only thing they do not cover is the `build` smoke test (building and starting the image), which can be reproduced from `backend/`:
 
 ```bash
@@ -319,3 +315,93 @@ docker compose --profile app up --build
 1. Validate it before pushing with [actionlint](https://github.com/rhysd/actionlint): `pipx run actionlint` or `brew install actionlint`, then `actionlint`.
 2. Push it on a `ci/...` branch and open a PR. The PR's workflow is the one on the branch, so you test the change without touching `main`.
 3. If you rename or add a job, update the ruleset **before** merging.
+
+## 9. Setup
+
+One-time steps for a new clone (9.1) and for the repository settings the CI relies on (9.2, 9.3). The pipeline was first rolled out on a `boilerplate` integration branch, one commit per step; that history is in `git log`.
+
+### 9.1 The hook in every clone
+
+Nobody on the team has to do anything special: the first `./mvnw test`, `verify`, `package` or `spring-boot:run` in a clone runs the `install-git-hooks` profile of `pom.xml`, which sets `core.hooksPath`. To install it before building:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Check it with `git config --get core.hooksPath` (it prints `.githooks`).
+
+- **JDK 25** must be the one Maven sees (`JAVA_HOME`): it is the `JAVA_VERSION` of the CI and the `java.version` of `pom.xml`. With any other JDK the build fails.
+- **IntelliJ IDEA:** in the commit window, ⚙ → turn on **Run Git hooks** (on by default).
+- **VS Code, GitHub Desktop and the terminal** always run the hooks. **GitHub Desktop** uses its own bundled Git and may not read `JAVA_HOME` correctly; see the table below.
+- **Windows:** Git for Windows runs the hook with its `sh`. It works thanks to `.gitattributes`, which forces LF on `.githooks/*`.
+- If you already used another hook manager (Husky, pre-commit…), `core.hooksPath` replaces it. Move those hooks to `.githooks/`.
+
+**Windows tricks worth knowing:**
+
+| What | Command | Why |
+|---|---|---|
+| Set JDK 25 permanently (a **user** variable, which takes precedence over the system one) | `[Environment]::SetEnvironmentVariable("JAVA_HOME", "C:\path\to\jdk-25", "User")` and **restart** IntelliJ, GitHub Desktop and your terminals | A system `JAVA_HOME` pointing to another JDK makes the hook and Maven fail outside your terminal. `$env:JAVA_HOME = ...` only works in that window |
+| Check which JDK Maven uses | `./mvnw -v` (`Java version` line) | It must say 25 |
+| Make the hook executable | `git update-index --chmod=+x .githooks/pre-commit` | Windows does not store permissions; without this, Git silently ignores the hook on Linux/macOS |
+| Check the permission | `git ls-files --stage .githooks/pre-commit` | It must start with `100755` (not `100644`). Repeat it if the file is recreated (`reset --hard`, copied again) |
+| Avoid the `LF will be replaced by CRLF` warning | `git config core.autocrlf false` (in this repo) | `.gitattributes` already forces LF |
+| Leave Git's `(END)` screen | `q`, or use `git --no-pager <command>` | It is the pager |
+
+**Common errors:**
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `ExceptionInInitializerError: com.sun.tools.javac.tree.EndPosTable` | Maven runs with a JDK newer than what Lombok supports | `./mvnw -v` must say 25; set `JAVA_HOME` as above |
+| `release version 25 not supported` | Maven runs with an older JDK (old system `JAVA_HOME`) | A **user** variable with JDK 25, and restart the programs |
+| GitHub Desktop: `The JAVA_HOME environment variable is not defined correctly` / `cd: /home/...: No such file` | GitHub Desktop's bundled Git mangles the `JAVA_HOME` path | The hook warns and lets the commit through. To format: `./mvnw spotless:apply`, or commit from the terminal or IntelliJ |
+| IntelliJ: `Plugin 'org.codehaus.mojo:exec-maven-plugin:' not found` | IntelliJ has not reloaded `pom.xml` | Maven → *Reload All Projects*. VS Code: *Java: Update Project* |
+| A Spring test named `*Tests` runs under Surefire and needs Docker | Integration tests must be `*IT` | Rename it to `*IT` with `git mv` and import `TestcontainersConfiguration` |
+
+### 9.2 Squash merge
+
+In **Settings → General → Pull Requests**:
+
+1. Uncheck **Allow merge commits**.
+2. Check **Allow squash merging** and, under *Default commit message*, choose **Pull request title and description** (or just **Pull request title**).
+3. Uncheck **Allow rebase merging**.
+4. Check **Always suggest updating pull request branches** and **Automatically delete head branches**.
+
+Result: each PR enters `main` as **a single commit** whose message is the PR title, already validated by `pr-title` (section 6).
+
+### 9.3 Protect `main` with a ruleset
+
+> A check only shows up in the ruleset search **after it has run once**.
+
+In **Settings → Rules → Rulesets → New ruleset → New branch ruleset**:
+
+| Field | Value |
+|---|---|
+| Ruleset name | `main` |
+| Enforcement status | **Active** |
+| Target branches | **Include default branch** |
+| Restrict deletions | ✅ |
+| Require linear history | ✅ (fits with squash) |
+| Require a pull request before merging | ✅ · *Required approvals*: 1 · *Allowed merge methods*: **Squash** |
+| Require status checks to pass | ✅ · *Require branches to be up to date before merging* · add `lint`, `contract`, `frontend`, `test`, `build`, `pr-title` (source: GitHub Actions) |
+| Block force pushes | ✅ |
+
+A second ruleset, `release-tags`, protects the `v*` tags: they cannot be deleted, moved or force-pushed.
+
+### 9.4 Reproduce the smoke test by hand
+
+The `build` job starts the jar with environment variables only. To reproduce it outside Docker Compose (PowerShell; in bash use `export`), from `backend/`:
+
+```powershell
+docker run -d --name smoke-db -p 5432:5432 -e POSTGRES_DB=urbanpulse -e POSTGRES_USER=urbanpulse -e POSTGRES_PASSWORD=smoke postgis/postgis:18-3.6
+./mvnw "-Dspotless.check.skip=true" -DskipTests package
+$env:SERVER_PORT="9090"
+$env:JWT_SECRET="smoke-test-secret-of-at-least-thirty-two-bytes"
+$env:SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5432/urbanpulse"
+$env:SPRING_DATASOURCE_USERNAME="urbanpulse"
+$env:SPRING_DATASOURCE_PASSWORD="smoke"
+java -jar (Get-ChildItem target\*.jar | Where-Object Name -notlike "*.original").FullName
+# in another terminal:
+curl.exe -i http://localhost:9090/actuator/health      # 200 and "status":"UP"
+```
+
+When you are done: `docker rm -f smoke-db` and close that terminal (the `$env:` variables only live in it). Stop the local Compose database first if it already uses port 5432.
