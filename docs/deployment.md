@@ -49,6 +49,9 @@ values without quotes.
 | `SPRING_PROFILES_ACTIVE` | empty | | `backend` | Data profile: empty (no sample data, as in production), `dev`, `demo` or `perf` ([datasets](datasets.md)) |
 | `DEMO_PASSWORD` | empty | ✓ | `backend` | Password of the demo users; required with the `demo` profile |
 | `PERF_INCIDENTS` | commented out | | `backend` | Incidents the `perf` profile generates, 100000 when it is not set. Leave it commented out rather than empty |
+| `BOOTSTRAP_ADMIN_NAME` | empty | | `backend` | Name of the first administrator; only read by its one-off process (see *Create the First Administrator*) |
+| `BOOTSTRAP_ADMIN_EMAIL` | empty | | `backend` | Email of the first administrator; only read by its one-off process |
+| `BOOTSTRAP_ADMIN_PASSWORD` | empty | ✓ | `backend` | Password of the first administrator, with the rules of sign-up; empty it once the account exists |
 | `TILES_BASE_URL` | `http://localhost:5173/tiles` | | `tiles-builder` | Address the clients load the map from, written into `style.json` |
 | `STORAGE_BASE_PATH` | `/app/storage` | | `backend` | Folder for the evidence files, on the `evidence_data` volume ([ADR-0013](adr/0013-evidence-storage.md)) |
 | `EVIDENCE_MAX_FILE_SIZE` | `10MB` | | `backend` | Maximum size of an evidence file |
@@ -197,6 +200,54 @@ How it behaves:
   To update one, change its version and its checksum together.
 - `docker volume rm urbanpulse_tiles-sources` frees the downloaded sources. The next run downloads
   them again.
+
+## 🔑 Create the First Administrator
+
+Sign-up only creates citizens, and staff accounts are created by an administrator, so a database
+without the `dev` or `demo` dataset has no account that can manage the others. A one-off admin
+process (#126, Twelve-Factor XII) creates the first administrator with the same image and
+configuration as the backend. The rules it follows are in the
+[security guide](security.md#first-administrator).
+
+1. Set `BOOTSTRAP_ADMIN_NAME`, `BOOTSTRAP_ADMIN_EMAIL` and `BOOTSTRAP_ADMIN_PASSWORD` in `.env`,
+   or in the environment of the shell. The values follow the rules of sign-up: the password needs
+   8 characters or more. Leave `$` and `\` out of it: Compose reads `$` in `.env` as the start of a
+   variable and the IDE reads `\` as an escape, so the account would get a password you did not
+   type.
+2. From `backend/`, with Docker running:
+
+   ```bash
+   docker compose --profile app run --rm backend --spring.profiles.include=bootstrap-admin
+   ```
+
+3. Sign in on the web with that email and password, then empty `BOOTSTRAP_ADMIN_PASSWORD`.
+
+How it behaves:
+
+- No web server starts. Flyway applies the pending migrations, the account is created and the
+  process ends with exit code `0`. The log says whether it created the account or found an enabled
+  administrator.
+- Running it again is safe: with an enabled administrator in the database it changes nothing and
+  does not even check the variables, so it succeeds with the password already emptied. Further
+  staff accounts are created by that administrator (#40).
+- Without an administrator, it fails with the reason in the log, and changes nothing, when a value
+  breaks a rule of sign-up or the email belongs to another account. That account is never
+  promoted.
+- Run it once at a time: two runs at the same moment with different emails could create two
+  administrators.
+- If the administrator cannot sign in (a wrong password, and there is no password change yet),
+  disable the account in the database (`UPDATE users SET enabled = false WHERE email = '...'`) and
+  run the process again with another email: the old email now belongs to another account.
+- The password never appears in the output or in the logs.
+- `--spring.profiles.include` adds `bootstrap-admin` to `SPRING_PROFILES_ACTIVE`, so a database that
+  loaded a dataset keeps its data profile and Flyway still validates it
+  ([datasets](datasets.md)). `--spring.profiles.active` would replace it. `bootstrap-admin` is not
+  a data profile: it loads no data and goes with any of them.
+- From the IDE, add `bootstrap-admin` to the **Active profiles** of the run configuration, next to
+  the data profile of your database if it has one. From the terminal, that option sets every
+  active profile, so list the data profile too:
+  `./mvnw spring-boot:run "-Dspring-boot.run.profiles=bootstrap-admin"` on an empty database,
+  `"-Dspring-boot.run.profiles=dev,bootstrap-admin"` on one that loaded `dev`.
 
 ## 🔄 Update and Roll Back
 
