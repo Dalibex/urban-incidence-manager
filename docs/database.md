@@ -24,6 +24,8 @@ jobs.
 - Write SQL keywords in uppercase and identifiers and types in lowercase (`varchar`, `uuid`,
   `timestamptz`), like the existing migrations.
 - Update the [schema diagram](database.drawio.svg) in the same pull request.
+- Add an index only with a measured query plan behind it, and write the measurement down (see
+  *Indexes*).
 - If the change affects a table that a dataset fills, update that dataset in the same pull request
   too (see *Data Profiles*).
 
@@ -36,6 +38,73 @@ jobs.
   ([deployment guide](deployment.md)) so Flyway applies it again from scratch.
 - Rolling back an image does not roll back its migrations. A wrong migration is fixed with a new
   one that rolls forward.
+
+## 📇 Indexes
+
+An index speeds up the reads that use it and slows down every write to its table, so an index is
+added only when a query plan measured on the `perf` dataset ([datasets guide](datasets.md)) shows
+that it changes the plan, and the measurement is written down here. PostgreSQL does not index
+foreign keys by itself: the primary keys, the `UNIQUE` constraints and the indexes below are all
+there is.
+
+### Main Queries
+
+`V10__incidents_index_main_queries.sql` (#132) adds one index for each main query of the incidents
+module. The queries are the SQL Hibernate generates for the listing, the count of its page, the
+detail and the history (`IncidentQueryService`), captured with `spring.jpa.show-sql`.
+
+| Query | Index | Before | After |
+| --- | --- | --- | --- |
+| *My reports*: a citizen's page of 20, newest first | `ix_incident_reporter_reported_at` | 17.6 ms, seq scan of `incident` | 0.5 ms, index scan |
+| *My reports*: its count | `ix_incident_reporter_reported_at` | 21.1 ms, seq scan | 1.6 ms, index-only scan |
+| Operator inbox, every status, page of 20 | `ix_incident_reported_at` | 111.3 ms, seq scans of `incident` and `location` and a sort | 0.5 ms, index scan |
+| Operator inbox, one status, page of 20 | `ix_incident_status_reported_at` | 15.5 ms, seq scan | 0.4 ms, index scan |
+| Operator inbox, one status, count | `ix_incident_status_reported_at` | 18.1 ms, seq scan | 1.5 ms, index-only scan |
+| Technician list, page of 20 | `ix_assignment_active_technician` (and `ix_incident_reported_at`) | 20.7 ms, seq scans of `incident` and `assignment` | 8.1 ms, index scans |
+| Technician list, count | `ix_assignment_active_technician` | 11.0 ms, seq scan of `assignment` | 8.0 ms, index-only scan |
+| Technician detail of one incident | `ix_assignment_active_technician` | 5.1 ms, seq scan of `assignment` | 0.1 ms, index-only scan |
+| History of one incident | `ix_status_change_incident_id` | 25.3 ms, seq scan of `status_change` | 0.1 ms, bitmap index scan |
+
+Conditions:
+
+- Data: `perf` profile with the default volume, 100,000 incidents, about 487,000 history entries
+  and 80,000 assignments. The citizen is `perf.citizen1@example.com`, the one with the most
+  incidents (5,901); the technician has 2,089 active assignments; the status is `REPORTED` (6,512
+  incidents); the incident of the history has 6 entries.
+- Method: `EXPLAIN (ANALYZE, BUFFERS)` of each query, run six times after `VACUUM ANALYZE`; the
+  table gives the median of the last five, with the cache warm. Execution time only, without the
+  network or the backend.
+- Environment: PostgreSQL 18.6 with PostGIS 3.6 (`postgis/postgis:18-3.6`) in Docker, 4 CPUs and
+  16 GB of memory, on commit `2bd35be` plus this migration, on 2026-11-02.
+
+What the measurements decided:
+
+- The technician's queries gain the least: there is no index that gives both "assigned to me" and
+  "newest first", so PostgreSQL walks the newest incidents and checks each one's assignment. With
+  2,000 incidents per technician it stays under 10 ms.
+- Filtering by several statuses at once uses `ix_incident_reported_at` and filters as it walks:
+  0.5 ms for `REPORTED`, `REOPENED` and `VALIDATED`.
+- The history index is on `incident_id` alone. The wider `(incident_id, instant, id)`, which also
+  gives the order, measured the same time (0.06 ms against 0.08 ms) and was four times larger
+  (27 MB against 6.6 MB), because PostgreSQL only deduplicates repeated keys.
+- The indexes take 25 MB in total with this volume, against 33 MB of the `incident` table.
+
+To repeat a measurement, load the `perf` dataset, open `psql` (*Determinism* in the
+[datasets guide](datasets.md)) and run the query with `EXPLAIN (ANALYZE, BUFFERS)`, for example:
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT i.id, i.title, i.status, i.reported_at, l.address
+  FROM incident i
+  LEFT JOIN category c ON c.id = i.category_id
+  LEFT JOIN location l ON l.incident_id = i.id
+ WHERE i.reporter_id = 'f0000000-0000-4000-8000-000000000001'
+ ORDER BY i.reported_at DESC, i.id
+ OFFSET 0 ROWS FETCH FIRST 20 ROWS ONLY;
+```
+
+When a new query or filter is added (the filters of #58, for example), measure it the same way and
+add its index, with its row in the table, in a new migration.
 
 ## 📚 Reference Data
 

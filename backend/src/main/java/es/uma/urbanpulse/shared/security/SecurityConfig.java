@@ -1,11 +1,11 @@
 package es.uma.urbanpulse.shared.security;
 
 import jakarta.servlet.DispatcherType;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -15,9 +15,13 @@ import org.springframework.security.web.SecurityFilterChain;
  * Every request needs a valid access token ({@code Authorization: Bearer}) except the public paths
  * below. Role checks live next to the code they protect, with {@code @PreAuthorize}; the endpoint ×
  * role matrix is in {@code docs/security.md}.
+ *
+ * <p>Only in a web application: a one-off process such as {@code bootstrap-admin} starts no web
+ * server, receives no requests and has no {@code HttpSecurity} to build the chains with. Method
+ * security stays on there ({@link MethodSecurityConfig}).
  */
 @Configuration
-@EnableMethodSecurity
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 class SecurityConfig {
 
     // Public API documentation (docs/api.md, section 5): the contract, Swagger UI and the

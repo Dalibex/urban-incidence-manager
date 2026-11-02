@@ -10,6 +10,8 @@ import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class SessionService {
+
+    private static final Logger log = LoggerFactory.getLogger(SessionService.class);
 
     private final UserRepository users;
     private final RefreshTokenRepository refreshTokens;
@@ -77,26 +81,43 @@ public class SessionService {
 
     /**
      * Exchanges a refresh token for a new pair and revokes the one used. A disabled account loses
-     * every session; that revocation is kept although the request fails.
+     * every session. So does presenting a token that is already revoked, by a refresh or a
+     * sign-out, before it expires: two parties hold it and the server cannot tell which one is the
+     * user (#125). Both revocations are kept although the request fails, and the answer is the same
+     * {@code 401} as for an unknown token.
      */
     @Transactional(noRollbackFor = InvalidRefreshTokenException.class)
     public SessionResponse refresh(String presentedToken) {
+        var tokenHash = RefreshTokens.hash(presentedToken);
+        var userId =
+                refreshTokens
+                        .findUserIdByTokenHash(tokenHash)
+                        .orElseThrow(InvalidRefreshTokenException::new);
+        // The refreshes of one user run one after another. Otherwise revoking every session could
+        // miss the one that a refresh with another token is opening at that moment.
+        var user = users.findLockedById(userId).orElseThrow(InvalidRefreshTokenException::new);
         var token =
                 refreshTokens
-                        .findByTokenHash(RefreshTokens.hash(presentedToken))
+                        .findLockedByTokenHash(tokenHash)
                         .orElseThrow(InvalidRefreshTokenException::new);
         var now = now();
         if (!token.getExpiresAt().isAfter(now)) {
             throw new InvalidRefreshTokenException();
         }
-        var user = token.getUser();
         if (!Boolean.TRUE.equals(user.getEnabled())) {
             refreshTokens.revokeAllActive(user.getId(), now);
             throw new InvalidRefreshTokenException();
         }
-        if (refreshTokens.revokeIfActive(token.getId(), now) == 0) {
+        if (token.getRevokedAt() != null) {
+            log.warn(
+                    "Revoked refresh token of session {} presented again: revoking every session"
+                            + " of user {}",
+                    token.getId(),
+                    user.getId());
+            refreshTokens.revokeAllActive(user.getId(), now);
             throw new InvalidRefreshTokenException();
         }
+        token.setRevokedAt(now);
         return openSession(user);
     }
 

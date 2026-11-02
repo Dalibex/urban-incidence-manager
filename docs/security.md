@@ -33,6 +33,7 @@ refresh token is revoked and no new access token is issued.
 | `JWT_SECRET` | Yes | — | Signing secret. The application does not start without it or with fewer than 32 bytes. |
 | `JWT_ACCESS_TOKEN_TTL` | No | `PT15M` | Lifetime of the access tokens. |
 | `REFRESH_TOKEN_TTL` | No | `P14D` | Lifetime of the refresh tokens. After it, the user signs in again. |
+| `REFRESH_TOKEN_RETENTION` | No | `P30D` | How long an expired refresh token is kept before the daily clean-up deletes it. |
 
 Locally the variables come from `backend/.env` ([development guide](development.md)); in a container
 or in production, from the environment. Never commit a real secret, never log it, and use a
@@ -46,9 +47,29 @@ different one in every environment: whoever knows it can sign a token for any us
 - **A session is a refresh token.** The token is 256 random bits; the database only keeps its SHA-256
   hash, so a copy of the database does not give working tokens. The access token carries the id of
   its refresh token (`sid`), which is what sign-out revokes.
-- **Rotation:** each refresh revokes the token used and issues a new pair. The revocation is a
-  conditional `UPDATE` (`... WHERE revoked_at IS NULL`), so two requests with the same token at once
-  cannot both succeed.
+- **Rotation:** each refresh revokes the token used and issues a new pair. The refresh locks the row
+  of the user and then the one of the token (`SELECT ... FOR UPDATE`), so the refreshes of one user
+  run one after another: two requests with the same token cannot both succeed, and revoking every
+  session never misses the one that a refresh with another token is opening at that moment.
+- **Reuse of a revoked refresh token revokes every session of its user.** A token that is presented
+  again after a refresh or a sign-out revoked it, and before it expires, means that two parties hold
+  it: if a thief refreshed first, the thief has the live session and the user holds the spent token.
+  The server cannot tell which one is the user, so it revokes every active session of that user and
+  logs a warning with the session and user ids (never the token). The answer is the same `401
+  INVALID_REFRESH_TOKEN` as for an unknown or expired token, so it does not tell the client what
+  happened. An expired token is only rejected, even if it had been revoked. The price is a false
+  alarm when the answer of a refresh is lost (the network drops after the server rotated the token,
+  or the app is closed before it saves the new pair): the client still holds the spent token, and
+  the user is signed out of every device at its next refresh. `api-client` makes that case
+  possible on purpose: when a refresh fails without an answer it keeps the tokens, because the
+  session may still be valid, and sends the same refresh token at the next `401`. Otherwise it never
+  sends a token twice: it shares one refresh among concurrent requests and discards the tokens on
+  sign-out.
+- **Clean-up:** a job inside the backend deletes, every day at 03:00 UTC, the refresh tokens that
+  expired longer ago than `REFRESH_TOKEN_RETENTION` (`RefreshTokenCleanup`). It deletes by expiry,
+  not by revocation: a revoked token is kept while it would still work, because deleting it would
+  turn its reuse into an unknown token and the reuse would go unnoticed. The job assumes a single
+  backend replica (ADR-0011); with more, each one would run it, which only deletes the same rows.
 - **Sign-out** revokes only that session; other devices stay signed in. A disabled account loses
   every session at its next refresh, and `SessionService.revokeAllSessions` revokes every refresh
   token at once. In both cases the access tokens already issued keep working until they expire
@@ -77,11 +98,30 @@ Known limits:
 - The key is the email and the address, so one address can still try 5 passwords on each of many
   emails (password spraying), and the counters of one window grow with every email tried. A global
   limit per address is the next step if that becomes a problem.
-- Revoked and expired refresh tokens stay in `refresh_token`; a periodic clean-up is pending.
 - The client address is the TCP peer, not `X-Forwarded-For`, because no proxy sits in front of the
   backend yet. When one is added (ADR-0017), configure Spring to trust only that proxy
   (`server.forward-headers-strategy`); trusting the header from anyone would let a client skip the
   limit.
+
+## First administrator
+
+Sign-up only creates citizens and staff accounts are created by an administrator (#40), so a clean
+deployment gets its first administrator from a one-off admin process (#126, 12-factor XII), run
+with the same image and configuration as the backend. How to run it is in
+[the deployment guide](deployment.md#-create-the-first-administrator).
+
+- The name, email and password come from `BOOTSTRAP_ADMIN_NAME`, `BOOTSTRAP_ADMIN_EMAIL` and
+  `BOOTSTRAP_ADMIN_PASSWORD`, never from the code or the repository, and follow the rules of
+  sign-up. The process never prints the password.
+- It is idempotent: when an enabled administrator exists, it changes nothing and does not check the
+  values. When the email belongs to another account, it fails without promoting it, since that
+  would give the role to whoever signed up with the email first.
+- It only runs with the `bootstrap-admin` profile; a normal start of the backend never runs it.
+- Its audit entry is `CREATE_USER` with the new administrator as its own actor, because
+  `actor_id` is required and no administrator exists yet, and `"origin": "BOOTSTRAP"` in `after`.
+  No other action records an account as the actor of its own creation.
+- Until a password change exists, the administrator keeps the password of the environment: remove
+  it from the environment once the account exists.
 
 ## Audit trail
 
@@ -95,6 +135,7 @@ an operational log: the application logs on stdout never replace it.
 | --- | --- |
 | `CREATE_USER`, `UPDATE_USER`, `CHANGE_ROLE`, `DISABLE_USER`, `ENABLE_USER` | User management (#40) |
 | `CLASSIFY_INCIDENT` | Incident classification (#47) |
+| `CREATE_USER` (`"origin": "BOOTSTRAP"`) | The one-off process that creates the first administrator (#126) |
 
 Rules for code that records an entry:
 

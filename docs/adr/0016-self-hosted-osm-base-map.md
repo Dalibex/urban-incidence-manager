@@ -46,7 +46,7 @@ ourselves**, with MapLibre as the map renderer on web and mobile.
   build succeeds and passes a basic check (`pmtiles verify`, minimum size). If anything fails,
   the previous file keeps being served and the job exits with an error that shows in the logs.
 - **Serving.** The `web` service (nginx, [ADR-0011](0011-deployment-12factor.md) and
-  [ADR-0017](0017-reverse-proxy.md), the latter still Proposed) serves `malaga.pmtiles` from a
+  [ADR-0017](0017-reverse-proxy.md)) serves `malaga.pmtiles` from a
   named volume at `/tiles/`, with HTTP range requests and cache headers.
   The map style (an OpenMapTiles-compatible style such as OSM Bright or Positron), its fonts
   (glyphs) and its sprites are served from the same place, so the style references no external
