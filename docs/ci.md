@@ -22,21 +22,22 @@ flowchart LR
     P --> PR[Pull Request]
     PR --> L[lint]
     PR --> K[contract]
+    PR --> A[architecture]
     PR --> F[frontend]
     PR --> T[test]
     PR --> B[build]
     PR --> N[pr-title]
-    L & K & F & T & B & N --> M["Squash merge<br/>1 commit on main =<br/>PR title"]
+    L & K & A & F & T & B & N --> M["Squash merge<br/>1 commit on main =<br/>PR title"]
     M --> CI2[CI on main]
 ```
 
-`lint`, `contract`, `frontend`, `test` and `build` run **in parallel**. A new push to the same PR cancels the run in progress.
+`lint`, `contract`, `architecture`, `frontend`, `test` and `build` run **in parallel**. A new push to the same PR cancels the run in progress.
 
 ## 3. Workflows and jobs
 
 | File | When | Jobs |
 |---|---|---|
-| `.github/workflows/ci.yml` | PR to `main`, push to `main`, manual (*Run workflow*) | `lint`, `contract`, `frontend`, `test`, `build` |
+| `.github/workflows/ci.yml` | PR to `main`, push to `main`, manual (*Run workflow*) | `lint`, `contract`, `architecture`, `frontend`, `test`, `build` |
 | `.github/workflows/pr-title.yml` | When a PR to `main` is opened, edited or updated | `pr-title` |
 | `.github/workflows/project-status.yml` | When a PR to `main` is opened, reopened, edited, marked ready for review or converted to draft | `project-status` |
 | `.github/scripts/ci_summary.py` | Called by `test` | Test and coverage tables in the job summary |
@@ -68,6 +69,19 @@ flowchart LR
 It checks the contract and the types generated from it, not the Java code. The Redocly version is `REDOCLY_CLI_VERSION` in `ci.yml`.
 
 **Local equivalent:** `npx @redocly/cli@2.71.0 lint` from the repository root, then `pnpm generate:api` and `git status packages/api-client` from `frontend/` (nothing must change).
+
+### `architecture` — C4 model
+
+`docs/architecture/workspace.dsl` is the C4 model and `docs/architecture/UrbanPulse-C4.drawio` is generated from it ([CONTRIBUTING](../CONTRIBUTING.md#architecture-changes)). The generator is the image of `docs/architecture/drawio/`: Structurizr, Graphviz and Node, pinned by version and image digest, so it gives the same file for the same DSL on every machine and the job can regenerate it and compare. If Alpine drops a pinned package version, the image build fails: update the versions in its `Dockerfile`, regenerate and commit both.
+
+| Step | Fails if… | Fix |
+|---|---|---|
+| Regenerate the draw.io file from workspace.dsl | Structurizr cannot export `workspace.dsl`: a syntax error, an unknown identifier, or a relationship the DSL does not allow. The log names the line | Fix `workspace.dsl` and run the generator locally |
+| draw.io file is up to date with workspace.dsl | `git status` shows a change under `docs/architecture/` after regenerating: `UrbanPulse-C4.drawio` was edited by hand, deleted, or the DSL changed without regenerating | Run the generator and commit the result |
+
+The job runs on every PR with no `paths:` filter (rule 4). It needs no secrets, only Docker, which the runner has.
+
+**Local equivalent:** `docker compose -f docs/architecture/compose.yaml run --rm drawio` from the repository root, then `git status docs/architecture` (nothing must change if you only checked).
 
 ### `frontend` — client workspace
 
@@ -318,9 +332,15 @@ Then, from `frontend/`, regenerate the client types and commit them if `git stat
 pnpm generate:api
 ```
 
+C4 model, only if you changed `docs/architecture/workspace.dsl`; it covers `architecture`. From the repository root, then commit `docs/architecture/UrbanPulse-C4.drawio` if `git status` shows a change:
+
+```bash
+docker compose -f docs/architecture/compose.yaml run --rm drawio
+```
+
 The pre-commit hook formats what you commit; to format by hand, run `./mvnw spotless:apply` from `backend/` and `pnpm format` from `frontend/`.
 
-If they pass locally, `lint`, `contract`, `frontend` and `test` pass in the CI. The only thing they do not cover is the `build` smoke test (building and starting the image), which can be reproduced from `backend/`:
+If they pass locally, `lint`, `contract`, `architecture`, `frontend` and `test` pass in the CI. The only thing they do not cover is the `build` smoke test (building and starting the image), which can be reproduced from `backend/`:
 
 ```bash
 docker compose --profile app up --build
@@ -399,7 +419,7 @@ In **Settings → Rules → Rulesets → New ruleset → New branch ruleset**:
 | Restrict deletions | ✅ |
 | Require linear history | ✅ (fits with squash) |
 | Require a pull request before merging | ✅ · *Required approvals*: 1 · *Allowed merge methods*: **Squash** · *Dismiss stale approvals* and *Require approval of the most recent push* off: a new review after the approval is a team rule in [CONTRIBUTING](../CONTRIBUTING.md#review-and-merge) |
-| Require status checks to pass | ✅ · *Require branches to be up to date before merging* · add `lint`, `contract`, `frontend`, `test`, `build`, `pr-title` (source: GitHub Actions) |
+| Require status checks to pass | ✅ · *Require branches to be up to date before merging* · add `lint`, `contract`, `architecture`, `frontend`, `test`, `build`, `pr-title` (source: GitHub Actions) |
 | Block force pushes | ✅ |
 
 A second ruleset, `release-tags`, protects the `v*` tags: they cannot be deleted, moved or force-pushed.

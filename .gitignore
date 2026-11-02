@@ -12,6 +12,10 @@
 *.dtmp
 *.bkp
 
+# Structurizr local (docs/architecture.md) saves its state next to workspace.dsl; the DSL is the model.
+docs/architecture/workspace.json
+docs/architecture/.structurizr/
+
 # Front-end (client workspace in frontend/)
 node_modules/
 dist/

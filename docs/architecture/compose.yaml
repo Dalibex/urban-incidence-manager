@@ -1,0 +1,14 @@
+# Regenerates UrbanPulse-C4.drawio from workspace.dsl. From the repository root:
+#   docker compose -f docs/architecture/compose.yaml run --rm drawio
+# The draw.io file is an output: never edit it by hand, change workspace.dsl and run this again.
+name: urbanpulse-c4
+services:
+  drawio:
+    build: drawio
+    # Rebuild on every run: `run` alone reuses an existing image, so a pulled change to the
+    # generator would be ignored and CI, which starts with no image, would disagree. Docker's
+    # build cache makes it instant when nothing changed.
+    pull_policy: build
+    volumes:
+      # Reads workspace.dsl and writes UrbanPulse-C4.drawio next to it.
+      - .:/workspace

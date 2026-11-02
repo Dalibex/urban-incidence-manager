@@ -132,6 +132,7 @@ body:
       value: |
         - [ ] `lint`
         - [ ] `contract`
+        - [ ] `architecture`
         - [ ] `frontend`
         - [ ] `test`
         - [ ] `build`

@@ -2,7 +2,8 @@
 
 How the API authenticates requests and checks permissions ([ADR-0004](adr/0004-authentication-strategy.md)).
 Every feature that adds or changes an endpoint updates the [permission matrix](#permission-matrix)
-in the same pull request.
+in the same pull request, and every security alert gets its row in
+[Security findings](#security-findings).
 
 ## Access tokens
 
@@ -240,3 +241,19 @@ A global `@RestControllerAdvice` must not catch `AccessDeniedException` or `Auth
 (for example through a handler for `Exception`): rethrow them. The `403` of `@PreAuthorize` is
 written by the security filters after the exception leaves the controller; if an advice catches it
 first, the client gets `500`.
+
+## Security findings
+
+Every alert that GitHub raises on this repository gets a row here: code scanning (CodeQL) and
+Dependabot. The row goes in the pull request that fixes or dismisses the alert, so the reason stays
+in the repository and not only in the alert. A dismissed alert links to its row or to the section
+that explains it.
+
+A vulnerability reported privately ([security policy](../SECURITY.md)) is added only once its fix
+is released: before that, a row would make it public.
+
+| Alert | Rule | Where | Severity | Outcome | Why | Pull request |
+| --- | --- | --- | --- | --- | --- | --- |
+| [#1](https://github.com/Dalibex/urban-incidence-manager/security/code-scanning/1) | CodeQL `java/spring-disabled-csrf-protection` | `shared/security/SecurityConfig.java` | High | Dismissed, false positive | No credential travels in a cookie, so there is nothing to forge ([CSRF](#csrf)) | — |
+| [#2](https://github.com/Dalibex/urban-incidence-manager/security/code-scanning/2) | CodeQL `js/polynomial-redos` | `frontend/packages/api-client/src/session.ts` | High | Fixed before the merge | `/\/+$/` backtracks quadratically on a long run of slashes in the API base URL; a loop removes the trailing slashes instead | #97 |
+| [#3](https://github.com/Dalibex/urban-incidence-manager/security/code-scanning/3) | CodeQL `js/incomplete-multi-character-sanitization` | `docs/architecture/drawio/generate.mjs` | High | Fixed before the merge | A regular expression stripped tags to measure the legend of each page. Not exploitable: the generator writes that text itself and only uses its length. The legend is now built from plain text, so nothing strips tags | #154 |
