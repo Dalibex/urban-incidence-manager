@@ -1,4 +1,4 @@
-import type { IncidentStatus } from './incident-status';
+import { INCIDENT_STATUSES, type IncidentStatus } from './incident-status';
 import type { Role } from './role';
 
 /**
@@ -36,6 +36,19 @@ export const INCIDENT_TRANSITIONS: readonly IncidentTransition[] = [
   { name: 'CLOSURE', from: ['RESOLVED'], to: 'CLOSED', performer: 'OPERATOR' },
   { name: 'REOPENING', from: ['RESOLVED'], to: 'REOPENED', performer: 'OPERATOR' },
 ];
+
+/**
+ * The states no transition leaves (`REJECTED`, `CLOSED` in ADR-0020): for the citizen, the closed
+ * incidents. Derived from the table, so a new transition out of a state reopens it here too.
+ */
+export const FINAL_STATUSES: readonly IncidentStatus[] = INCIDENT_STATUSES.filter(
+  (status) => !INCIDENT_TRANSITIONS.some((transition) => transition.from.includes(status)),
+);
+
+/** The states that can still change, including `RESOLVED`, which an operator may reopen. */
+export const OPEN_STATUSES: readonly IncidentStatus[] = INCIDENT_STATUSES.filter(
+  (status) => !FINAL_STATUSES.includes(status),
+);
 
 /**
  * The user who would make the change. `isAssignedTechnician` tells whether they are the technician

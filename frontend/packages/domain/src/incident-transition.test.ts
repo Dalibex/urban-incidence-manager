@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import { INCIDENT_STATUSES, type IncidentStatus } from './incident-status';
-import { canTransition, type TransitionActor } from './incident-transition';
+import {
+  canTransition,
+  FINAL_STATUSES,
+  OPEN_STATUSES,
+  type TransitionActor,
+} from './incident-transition';
 import { ROLES } from './role';
 
 type Who = 'OPERATOR' | 'ASSIGNED_TECHNICIAN';
@@ -69,5 +74,16 @@ describe('canTransition', () => {
       expect(canTransition('REJECTED', to, administrator)).toBe(false);
       expect(canTransition('CLOSED', to, administrator)).toBe(false);
     }
+  });
+});
+
+describe('FINAL_STATUSES and OPEN_STATUSES', () => {
+  it('make REJECTED and CLOSED the only final states, as ADR-0020 says', () => {
+    expect(FINAL_STATUSES).toEqual(['REJECTED', 'CLOSED']);
+  });
+
+  it('split every status into exactly one of the two groups', () => {
+    expect([...OPEN_STATUSES, ...FINAL_STATUSES].sort()).toEqual([...INCIDENT_STATUSES].sort());
+    expect(OPEN_STATUSES).toContain('RESOLVED');
   });
 });
