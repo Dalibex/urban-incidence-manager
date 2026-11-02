@@ -21,7 +21,13 @@ class IncidentTest {
     @Test
     void aReportStartsInReportedWithItsFirstHistoryEntry() {
         var incident =
-                Incident.report(fixture.citizen, "Pothole", "Deep pothole.", null, REPORTED_AT);
+                Incident.report(
+                        fixture.citizen,
+                        "Pothole",
+                        "Deep pothole.",
+                        null,
+                        IncidentFixture.locationAt(36.7213, -4.4214),
+                        REPORTED_AT);
 
         assertThat(incident.getStatus()).isEqualTo(IncidentStatus.REPORTED);
         assertThat(incident.getCategory()).isNull();
@@ -50,6 +56,7 @@ class IncidentTest {
                                         "Pothole",
                                         "Deep pothole.",
                                         null,
+                                        IncidentFixture.locationAt(36.7213, -4.4214),
                                         REPORTED_AT))
                 .isInstanceOf(InvalidTransitionException.class);
     }
@@ -229,7 +236,13 @@ class IncidentTest {
     @Test
     void validationNeedsCategoryAndPriority() {
         var incident =
-                Incident.report(fixture.citizen, "Pothole", "Deep pothole.", null, REPORTED_AT);
+                Incident.report(
+                        fixture.citizen,
+                        "Pothole",
+                        "Deep pothole.",
+                        null,
+                        IncidentFixture.locationAt(36.7213, -4.4214),
+                        REPORTED_AT);
 
         assertThatThrownBy(
                         () ->

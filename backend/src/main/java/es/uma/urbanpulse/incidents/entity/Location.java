@@ -13,7 +13,9 @@ import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.PrecisionModel;
 
 @Entity
 @Table(name = "location")
@@ -21,6 +23,8 @@ import org.locationtech.jts.geom.Point;
 @Setter
 @NoArgsConstructor
 public class Location {
+
+    public static final GeometryFactory WGS84 = new GeometryFactory(new PrecisionModel(), 4326);
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

@@ -4,6 +4,7 @@ import {
   signIn as signInOnApi,
   signOut as signOutOnApi,
   signUp as signUpOnApi,
+  type ApiClient,
   type ApiResult,
 } from '@urbanpulse/api-client';
 import type { Role } from '@urbanpulse/domain';
@@ -34,6 +35,8 @@ interface SessionValue {
   user: SessionUser | null;
   /** True after the API rejected the refresh token, until the next sign-in. */
   expired: boolean;
+  /** Typed client of the current session; it sends the access token and refreshes on its own. */
+  api: ApiClient;
   signIn: (credentials: Credentials) => Promise<ApiResult<void>>;
   signUp: (registration: Registration) => Promise<ApiResult<void>>;
   signOut: () => Promise<void>;
@@ -89,6 +92,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       restoring,
       user,
       expired,
+      api,
       signIn: async (credentials) => {
         const session = await signInOnApi(api, secureTokenStore, credentials);
         if (!session.ok) {
