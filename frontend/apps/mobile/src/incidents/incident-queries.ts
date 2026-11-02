@@ -1,4 +1,9 @@
-import { getIncident, listIncidents, listIncidentStatusChanges } from '@urbanpulse/api-client';
+import {
+  getIncident,
+  listCategories,
+  listIncidents,
+  listIncidentStatusChanges,
+} from '@urbanpulse/api-client';
 import { FINAL_STATUSES, OPEN_STATUSES, type IncidentStatus } from '@urbanpulse/domain';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 
@@ -14,6 +19,10 @@ export type ReportGroup = 'open' | 'closed';
 const STATUSES: Record<ReportGroup, readonly IncidentStatus[]> = {
   open: OPEN_STATUSES,
   closed: FINAL_STATUSES,
+};
+
+export const categoryKeys = {
+  active: ['categories'] as const,
 };
 
 export const incidentKeys = {
@@ -60,5 +69,14 @@ export function useIncidentHistory(incidentId: string) {
   return useQuery({
     queryKey: incidentKeys.history(incidentId),
     queryFn: () => dataOf(listIncidentStatusChanges(api, incidentId)),
+  });
+}
+
+/** The active categories, for the optional category of the report form. */
+export function useCategories() {
+  const { api } = useSession();
+  return useQuery({
+    queryKey: categoryKeys.active,
+    queryFn: () => dataOf(listCategories(api)),
   });
 }
