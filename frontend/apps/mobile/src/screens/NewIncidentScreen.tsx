@@ -1,13 +1,7 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import {
-  createIncident,
-  listCategories,
-  type ApiFailure,
-  type FieldError,
-  type components,
-} from '@urbanpulse/api-client';
+import { createIncident, type ApiFailure, type FieldError } from '@urbanpulse/api-client';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -28,15 +22,14 @@ import { FormMessage } from '../components/FormMessage';
 import { LocationIndicator } from '../components/LocationIndicator';
 import { TextField } from '../components/TextField';
 import { useIncidentLocation } from '../hooks/useIncidentLocation';
-import { incidentKeys } from '../incidents/incident-queries';
+import { incidentKeys, useCategories } from '../incidents/incident-queries';
 import type { MainTabsParamList } from '../navigation/MainTabs';
+import { ApiCallError } from '../query-client';
 import { categoriesMessage, reportIncidentMessage, UNEXPECTED_ERROR } from '../session/messages';
 import { useSession } from '../session/SessionContext';
 import { screenStyles } from './styles';
 
 type Props = BottomTabScreenProps<MainTabsParamList, 'NewReport'>;
-
-type Category = components['schemas']['CategoryResponse'];
 
 /** Message of the per-field errors that are not shown next to an input (`location.*`). */
 const FIELD_BANNER = 'Check the highlighted fields.';
@@ -58,49 +51,7 @@ export function NewIncidentScreen({ navigation }: Props) {
 
   const submittingRef = useRef(false);
 
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [categoriesLoading, setCategoriesLoading] = useState(true);
-  const [categoriesError, setCategoriesError] = useState<string | null>(null);
-  // Bumped by "Try again" to run the load effect once more.
-  const [categoriesAttempt, setCategoriesAttempt] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    // State changes live in the promise callbacks, not in the effect body, and
-    // `categoriesLoading` is already `true` on mount and after a retry.
-    listCategories(api)
-      .then((result) => {
-        if (cancelled) {
-          return;
-        }
-        if (result.ok) {
-          setCategories(result.data);
-        } else {
-          setCategoriesError(categoriesMessage(result.failure));
-        }
-      })
-      .catch((unexpected: unknown) => {
-        // A bug, not a user mistake: log it and let the user retry.
-        console.error(unexpected);
-        if (!cancelled) {
-          setCategoriesError(UNEXPECTED_ERROR);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setCategoriesLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [api, categoriesAttempt]);
-
-  function retryCategories() {
-    setCategoriesLoading(true);
-    setCategoriesError(null);
-    setCategoriesAttempt((attempt) => attempt + 1);
-  }
+  const categories = useCategories();
 
   const canSubmit =
     !location.isLoading &&
@@ -235,12 +186,21 @@ export function NewIncidentScreen({ navigation }: Props) {
 
         <View style={styles.field}>
           <Text style={styles.label}>Category (optional)</Text>
-          {categoriesLoading ? (
-            <ActivityIndicator />
-          ) : categoriesError ? (
+          {categories.isPending ? (
+            <ActivityIndicator accessibilityLabel="Loading the categories" />
+          ) : categories.isError ? (
             <View style={styles.field}>
-              <Text style={styles.fieldError}>{categoriesError}</Text>
-              <Button label="Try again" variant="secondary" onPress={retryCategories} />
+              <Text style={styles.fieldError}>
+                {categories.error instanceof ApiCallError
+                  ? categoriesMessage(categories.error.failure)
+                  : UNEXPECTED_ERROR}
+              </Text>
+              <Button
+                label={categories.isFetching ? 'Trying again…' : 'Try again'}
+                variant="secondary"
+                disabled={categories.isFetching}
+                onPress={() => void categories.refetch()}
+              />
             </View>
           ) : (
             <ScrollView
@@ -263,7 +223,7 @@ export function NewIncidentScreen({ navigation }: Props) {
                   None
                 </Text>
               </Pressable>
-              {categories.map((category) => {
+              {categories.data.map((category) => {
                 const selected = categoryId === category.id;
                 return (
                   <Pressable
