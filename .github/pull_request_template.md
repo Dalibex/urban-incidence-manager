@@ -52,6 +52,8 @@ Before requesting a review:
 - [ ] If the change touches them, they are updated in this pull request: the OpenAPI contract, the
       permission matrix (`docs/security.md`), the database diagram and the C4 model
       (`workspace.dsl` and the regenerated draw.io file).
+- [ ] Every security alert raised on this pull request (CodeQL, Dependabot) is fixed or dismissed,
+      with its row in *Security findings* (`docs/security.md`).
 - [ ] I have updated the documentation where necessary.
 - [ ] I have not included credentials or sensitive information.
 - [ ] This pull request contains only changes related to this task.

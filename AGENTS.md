@@ -268,6 +268,7 @@ Especially important cases for UrbanPulse:
 - Record in `CHANGELOG.md`, under `[Unreleased]` and in the same PR, only the changes users can notice: features, changes to behavior, the API, configuration or environment variables, removals, and fixes of released bugs. Never documentation, ADRs, refactorings, tests, CI or tooling. `Fixed` is only for bugs of a released version; if a change alters something still under `[Unreleased]`, edit that entry instead of adding a contradictory one. Rules in *Changelog* of `CONTRIBUTING.md`.
 - Do not overwrite others' changes or include generated files, secrets, or changes unrelated to the task.
 - Keep implementation, tests, and contract synchronized. Do not disable validations or controls to make CI pass.
+- When GitHub raises a security alert (CodeQL, Dependabot), fix it or dismiss it with its reason, and add its row to *Security findings* in `docs/security.md` in the same PR.
 - Creating commits, publishing branches, merging PRs, or deploying must be within the authorized scope of the assignment.
 
 ### Before delivery
