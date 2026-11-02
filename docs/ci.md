@@ -398,7 +398,7 @@ In **Settings → Rules → Rulesets → New ruleset → New branch ruleset**:
 | Target branches | **Include default branch** |
 | Restrict deletions | ✅ |
 | Require linear history | ✅ (fits with squash) |
-| Require a pull request before merging | ✅ · *Required approvals*: 1 · *Allowed merge methods*: **Squash** |
+| Require a pull request before merging | ✅ · *Required approvals*: 1 · *Allowed merge methods*: **Squash** · *Dismiss stale approvals* and *Require approval of the most recent push* off: a new review after the approval is a team rule in [CONTRIBUTING](../CONTRIBUTING.md#review-and-merge) |
 | Require status checks to pass | ✅ · *Require branches to be up to date before merging* · add `lint`, `contract`, `frontend`, `test`, `build`, `pr-title` (source: GitHub Actions) |
 | Block force pushes | ✅ |
 

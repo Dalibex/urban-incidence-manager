@@ -58,12 +58,12 @@ them, as a reference; update it whenever the assignment changes.
 | --- | --- | --- |
 | Maintainer | Manages the repository settings, branch rules, releases and long-lived branches | Dalibex |
 | Developer | Implements issues, opens pull requests and answers review comments | Everyone |
-| Reviewer | Reviews pull requests, approves them and performs the merge | Pablit023, AlejandroCuetoDiaz |
+| Reviewer | Reviews pull requests and approves them | Pablit023, AlejandroCuetoDiaz |
 | Tester | Writes the acceptance tests of each feature and validates that it works as described in its issue | Lewas88 |
 | Product owner | Prioritizes issues and plans the milestones | Fjjorda |
 
 A person can hold more than one role, but nobody approves their own pull request. When a reviewer
-opens a pull request, the other reviewer approves it and merges it.
+opens a pull request, the other reviewer approves it.
 
 ### Workflow at a glance
 
@@ -76,8 +76,8 @@ opens a pull request, the other reviewer approves it and merges it.
 4. Mark the pull request **Ready for review** when its tests pass. The cards move to **In review** by
    themselves.
 5. Fix what the CI or the reviewer reports, pushing to the same branch.
-6. The reviewer approves and merges with **Squash and merge**. The issues close and move to **Done**
-   by themselves.
+6. The reviewer approves, and you merge with **Squash and merge**. The issues close and move to
+   **Done** by themselves.
 
 The only card you move by hand is **Backlog → Ready**, when the issue is planned for the sprint.
 
@@ -121,6 +121,10 @@ itself: its tests are written while the feature is built, not after it.
 The `project-status` workflow moves the cards to **In progress** and **In review** from the pull
 request status, so it only works when the description says `Closes #N`. It skips pull requests from
 forks: for those, the team moves the cards by hand. The [CI guide](docs/ci.md) explains it.
+
+A large issue can be split into several pull requests. Each one says `Part of #N` and only the last
+one says `Closes #N`, so the issue stays open until all the work is merged. `Part of` does not link
+the pull request to the issue, so move its card by hand until the last pull request.
 
 ### Testing lifecycle
 
@@ -170,7 +174,9 @@ Name the branch `<type>/<issue>-<short-slug>`, in lowercase with hyphens:
 | `ci/` | CI/CD changes |
 | `chore/` | Maintenance (dependencies, configuration) |
 
-Keep the branch up to date with `main` while you work, and delete it after the merge.
+Update the branch with `main` while you work. Before the merge it must be up to date: the ruleset
+blocks the merge until it is (**Update branch** on the pull request, or merge `main` into your
+branch). Delete the branch after the merge.
 
 ### Commits
 
@@ -204,9 +210,10 @@ See *The hook in every clone* in the [CI guide](docs/ci.md#91-the-hook-in-every-
 - **Linked issue:** write `Closes #N` as plain text in the description, never inside a code block.
   GitHub closes the issue automatically only when the pull request is merged into `main`; for other
   target branches, close it by hand after the merge.
-- Set the same labels and milestone as the issue, and add the `agent-assisted` label when an AI agent
-  created or significantly assisted the change.
-- Before asking for review, run `./mvnw verify` and update the documentation affected by the change.
+- Set the same labels as the issue, its priority label included, and the same milestone. Add the
+  `agent-assisted` label when an AI agent created or significantly assisted the change.
+- Before asking for review, run the checks of the parts you changed (*Before pushing* in the
+  [CI guide](docs/ci.md#81-before-pushing)) and update the documentation affected by the change.
 - Never include secrets, `.env` files or personal data.
 
 #### Required checks
@@ -216,8 +223,10 @@ A pull request can only be merged when these CI jobs pass:
 | Job | Checks |
 | --- | --- |
 | `lint` | No versioned `.env`, same database image everywhere, valid Compose file, formatting |
-| `test` | Unit and integration tests, coverage and static analysis |
-| `build` | Packaging and a smoke test of the application |
+| `contract` | The OpenAPI contract is valid |
+| `frontend` | Formatting, lint, types, tests and build of the web and mobile clients |
+| `test` | Backend unit and integration tests, coverage and static analysis |
+| `build` | Packaging and a smoke test of the backend image |
 | `pr-title` | The pull request title follows Conventional Commits |
 
 The [CI guide](docs/ci.md) explains each job and what to do when one fails.
@@ -232,21 +241,27 @@ diagram and the datasets updated in the same pull request.
 
 1. The author requests a review from a reviewer and fixes the comments with new commits on the same
    branch.
-2. The pull request needs **one approval** and all the required checks in green. Authors never approve
-   their own pull requests.
-3. **The reviewer merges** with **Squash and merge**, keeping the pull request title as the commit
+2. The pull request needs **one approval**, all the required checks in green and the branch up to
+   date with `main`. Authors never approve their own pull requests.
+3. If you push a change that is not trivial after the approval (new behavior, a fix the reviewer has
+   not seen), ask for a new review before merging. The ruleset does not dismiss the approval by
+   itself, so this is your responsibility. Updating the branch with `main` or fixing formatting does
+   not need a new review.
+4. **The author merges** with **Squash and merge**, keeping the pull request title as the commit
    message. Merge commits and rebase merges are not used.
-4. The branch is deleted after the merge. GitHub does it automatically; if it does not, the reviewer
+5. The branch is deleted after the merge. GitHub does it automatically; if it does not, the author
    deletes it.
-5. The issue closes and moves to **Done** by itself. If the pull request did not target `main`, the
+6. The issue closes and moves to **Done** by itself. If the pull request did not target `main`, the
    author closes the issue by hand.
 
 ### Protection of `main`
 
 `main` is protected by a branch ruleset that matches this guide:
 
-- Pull request required, with one approval and squash merge only.
-- Required status checks: `lint`, `test`, `build` and `pr-title`.
+- Pull request required, with one approval and squash merge only. An approval is not dismissed by
+  later pushes (see *Review and merge*).
+- Required status checks: `lint`, `contract`, `frontend`, `test`, `build` and `pr-title`, with the
+  branch up to date with `main`.
 - Linear history, no force pushes and no deletion of the branch.
 
 The maintainer configures it as described in the [CI guide](docs/ci.md#93-protect-main-with-a-ruleset).

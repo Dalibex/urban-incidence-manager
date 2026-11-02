@@ -96,19 +96,11 @@ body:
       options:
         - Not applicable
         - lint
-        - build
-        - test-unit
-        - test-integration
-        - quality
-        - smoke
         - contract
         - frontend
         - test
+        - build
         - pr-title
-        - test-e2e
-        - security
-        - docker
-        - deploy-staging
     validations:
       required: true
 
