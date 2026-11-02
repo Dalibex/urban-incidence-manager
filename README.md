@@ -128,6 +128,7 @@ urban-incidence-manager/
 |   |-- api/
 |   |-- architecture/
 |   |-- api.md
+|   |-- architecture.md
 |   |-- ci.md
 |   |-- database.md
 |   |-- datasets.md
@@ -174,6 +175,7 @@ The diagram is a `.drawio.svg`: GitHub shows it as an image, and draw.io opens i
 - [Testing guide](docs/testing.md)
 - [API guide](docs/api.md) and [OpenAPI contract](docs/api/openapi.yml)
 - [Security guide](docs/security.md)
+- [Architecture overview](docs/architecture.md): drivers and quality attribute scenarios
 - [C4 architecture model](docs/architecture/)
 - [CI guide](docs/ci.md)
 - [Architecture Decision Records](docs/adr/)

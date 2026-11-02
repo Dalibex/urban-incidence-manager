@@ -36,6 +36,14 @@ the current scope and requirements of the project?]
 - **Positives:**
 - **Negatives:**
 
+## How it will be evaluated
+
+- **Metric:** [What is measured, under which conditions: operation, load, data and environment]
+- **Threshold:** [The value that says the decision worked]
+- **Review:** [When it is reviewed, and what would make the team revisit it]
+
+[Link the quality attribute scenario of `docs/architecture.md` that evaluates it, if there is one.]
+
 ## Links Related
 
 - [Related ADR]
