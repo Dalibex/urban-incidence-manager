@@ -7,6 +7,10 @@ backend/mvnw text eol=lf
 *.cmd text eol=crlf
 *.bat text eol=crlf
 
+# Generated from docs/architecture/workspace.dsl: GitHub folds it in pull requests, where the DSL is
+# what gets reviewed.
+docs/architecture/UrbanPulse-C4.drawio linguist-generated=true
+
 *.jar binary
 *.png binary
 *.jpg binary
