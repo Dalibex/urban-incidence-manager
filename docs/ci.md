@@ -82,7 +82,7 @@ Checks the web and mobile clients and the shared packages (ADR-0007). Node only 
 | Formatting (Prettier) | A client file is not formatted | `pnpm format`, commit and push (the hook does it on commit) |
 | Lint (ESLint) | An ESLint error in an app or package | `pnpm lint`, fix the reported lines |
 | Type check (TypeScript) | A type error, often a shared package change that breaks an app | `pnpm typecheck` |
-| Tests | A failing test in an app or package | `pnpm test` |
+| Tests | A failing test in an app or package: Vitest in `apps/web` and `packages/*`, Jest (`jest-expo`) in `apps/mobile` | `pnpm test` |
 | Build (web bundle and mobile export) | The web Vite build or the mobile Expo export fails | `pnpm build` |
 
 One step per check, so the name of the red step tells you what failed. GitHub Actions sets `CI=true`, so test runners never start in watch mode.
