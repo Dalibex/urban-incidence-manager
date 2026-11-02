@@ -31,9 +31,9 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
  * Turns every error of the controllers into the contract's Problem Details body ({@code Problem} in
  * {@code docs/api/openapi.yml}, conventions in {@code docs/api.md}). Spring's own exceptions
  * (unsupported method, missing resource...) come from {@link ResponseEntityExceptionHandler}; this
- * class adds the stable codes, the {@code 422} with {@code errors} and a {@code 500} that reveals
- * nothing. It is also the only place that knows the status of each domain error ({@code
- * shared.error}).
+ * class adds the stable codes, the {@code 422} with {@code errors}, a {@code 500} that reveals
+ * nothing and the {@code traceId} of every body ({@link RequestIdFilter}). It is also the only
+ * place that knows the status of each domain error ({@code shared.error}).
  *
  * <p>The {@code 401} and {@code 403} of the security filters are written by {@code
  * SecurityProblemResponses}, before any controller runs.
@@ -43,6 +43,7 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     static final String CODE = "code";
     static final String ERRORS = "errors";
+    static final String TRACE_ID = "traceId";
     static final String CONCURRENT_MODIFICATION = "CONCURRENT_MODIFICATION";
     private static final URI ABOUT_BLANK = URI.create("about:blank");
 
@@ -233,7 +234,8 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     /**
      * Fills what the contract requires and Spring leaves empty: {@code type} is required in {@code
-     * Problem}, and Spring Framework 7 no longer defaults it to {@code about:blank}.
+     * Problem}, and Spring Framework 7 no longer defaults it to {@code about:blank}. Adds the id of
+     * the request as {@code traceId}, the same as the {@code X-Request-ID} header and the logs.
      */
     private static void complete(ProblemDetail problem, WebRequest request) {
         if (problem.getType() == null) {
@@ -241,6 +243,10 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         }
         if (problem.getInstance() == null) {
             problem.setInstance(URI.create(path(request)));
+        }
+        if (request instanceof ServletWebRequest servlet) {
+            RequestIdFilter.current(servlet.getRequest())
+                    .ifPresent(id -> problem.setProperty(TRACE_ID, id));
         }
     }
 

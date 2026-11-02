@@ -14,6 +14,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -26,18 +27,20 @@ import org.springframework.web.context.request.ServletWebRequest;
 class ApiExceptionHandlerTest {
 
     private static final String PATH = "/api/v1/incidents/3f1c2a9e-7b4d-4c1a-9e2f-5d6b7a8c9d0e";
+    private static final String REQUEST_ID = "handler-test-1";
 
     private final ApiExceptionHandler handler = new ApiExceptionHandler();
 
     @Test
-    void aStaleVersionIsAConflictWithItsCode() {
+    void aStaleVersionIsAConflictWithItsCode() throws Exception {
         var stale = new ObjectOptimisticLockingFailureException(Object.class, UUID.randomUUID());
 
         var problem = handler.handleConcurrentModification(stale, request());
 
         assertThat(problem.getStatus()).isEqualTo(409);
         assertThat(problem.getProperties())
-                .containsEntry(ApiExceptionHandler.CODE, "CONCURRENT_MODIFICATION");
+                .containsEntry(ApiExceptionHandler.CODE, "CONCURRENT_MODIFICATION")
+                .containsEntry(ApiExceptionHandler.TRACE_ID, REQUEST_ID);
         assertThat(problem.getType()).isEqualTo(URI.create("about:blank"));
         assertThat(problem.getInstance()).isEqualTo(URI.create(PATH));
     }
@@ -54,6 +57,7 @@ class ApiExceptionHandlerTest {
         assertThat(problem.getDetail()).isEqualTo("Not from REPORTED.");
         assertThat(problem.getProperties())
                 .containsEntry(ApiExceptionHandler.CODE, "INVALID_TRANSITION")
+                .containsEntry(ApiExceptionHandler.TRACE_ID, REQUEST_ID)
                 .doesNotContainKey(ApiExceptionHandler.ERRORS);
         assertThat(problem.getInstance()).isEqualTo(URI.create(PATH));
     }
@@ -110,8 +114,28 @@ class ApiExceptionHandlerTest {
         assertThat(beanProblem.getProperties()).isEqualTo(domainProblem.getProperties());
     }
 
-    private static ServletWebRequest request() {
-        return new ServletWebRequest(new MockHttpServletRequest("POST", PATH));
+    // T4: 500
+    @Test
+    void anUnexpectedErrorCarriesTheIdAndNothingElse() throws Exception {
+        var problem =
+                handler.handleUnexpected(new IllegalStateException("SELECT secret"), request());
+
+        assertThat(problem.getStatus()).isEqualTo(500);
+        assertThat(problem.getDetail()).doesNotContain("SELECT");
+        assertThat(problem.getProperties()).containsEntry(ApiExceptionHandler.TRACE_ID, REQUEST_ID);
+    }
+
+    /** A request that went through {@link RequestIdFilter} with {@link #REQUEST_ID}. */
+    private ServletWebRequest request() throws Exception {
+        var request = new MockHttpServletRequest("POST", PATH);
+        request.addHeader(RequestIdFilter.HEADER, REQUEST_ID);
+        var seen = new ServletWebRequest[1];
+        new RequestIdFilter()
+                .doFilter(
+                        request,
+                        new MockHttpServletResponse(),
+                        (req, res) -> seen[0] = new ServletWebRequest(request));
+        return seen[0];
     }
 
     private static final class TestRuleViolation extends RuleViolationException {

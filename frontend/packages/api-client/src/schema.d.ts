@@ -293,7 +293,7 @@ export interface components {
              */
             instance?: string;
             /**
-             * @description Correlation identifier of the request, also written to the logs, so a report from a user can be matched with the server side.
+             * @description Id of the request, equal to its `X-Request-ID` response header and written in its log lines, so a report from a user can be matched with the server side.
              * @example 4bf92f3577b34da6a3ce929d0e0e4736
              */
             traceId?: string;
@@ -658,6 +658,7 @@ export interface components {
         /** @description The request is malformed: the body is not valid JSON, a value has the wrong type, or a parameter is out of range (for example `size` over 100). Validation of well-formed data returns `422` instead. */
         BadRequest: {
             headers: {
+                "X-Request-ID": components["headers"]["XRequestId"];
                 [name: string]: unknown;
             };
             content: {
@@ -678,6 +679,7 @@ export interface components {
         /** @description The access token is missing, invalid or expired. */
         Unauthorized: {
             headers: {
+                "X-Request-ID": components["headers"]["XRequestId"];
                 [name: string]: unknown;
             };
             content: {
@@ -697,6 +699,7 @@ export interface components {
         /** @description The user is authenticated but their role or relationship with the resource does not allow this action. */
         Forbidden: {
             headers: {
+                "X-Request-ID": components["headers"]["XRequestId"];
                 [name: string]: unknown;
             };
             content: {
@@ -716,6 +719,7 @@ export interface components {
         /** @description The resource does not exist or the user is not allowed to know that it exists. */
         NotFound: {
             headers: {
+                "X-Request-ID": components["headers"]["XRequestId"];
                 [name: string]: unknown;
             };
             content: {
@@ -735,6 +739,7 @@ export interface components {
         /** @description The request conflicts with the current state of the resource, for example a status transition that is not allowed, a change made on a stale version or a duplicated unique value. `code` says which. */
         Conflict: {
             headers: {
+                "X-Request-ID": components["headers"]["XRequestId"];
                 [name: string]: unknown;
             };
             content: {
@@ -755,6 +760,7 @@ export interface components {
         /** @description The request is well formed but its data does not pass validation. `errors` lists every invalid field, so a form can show them all at once. */
         UnprocessableEntity: {
             headers: {
+                "X-Request-ID": components["headers"]["XRequestId"];
                 [name: string]: unknown;
             };
             content: {
@@ -785,6 +791,7 @@ export interface components {
         /** @description Too many attempts in a short time. `Retry-After` says when to try again. */
         TooManyRequests: {
             headers: {
+                "X-Request-ID": components["headers"]["XRequestId"];
                 "Retry-After": components["headers"]["RetryAfter"];
                 [name: string]: unknown;
             };
@@ -806,6 +813,7 @@ export interface components {
         /** @description Unexpected error. The body never reveals internal details; use `traceId`. */
         InternalServerError: {
             headers: {
+                "X-Request-ID": components["headers"]["XRequestId"];
                 [name: string]: unknown;
             };
             content: {
@@ -835,6 +843,8 @@ export interface components {
     };
     requestBodies: never;
     headers: {
+        /** @description Id of the request, the same as `traceId` in an error body and in the backend logs. The client's own `X-Request-ID` when it was 1 to 64 letters, digits, `.`, `_` or `-`, otherwise a generated one. */
+        XRequestId: string;
         /** @description Seconds to wait before trying again. */
         RetryAfter: number;
     };

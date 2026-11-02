@@ -13,6 +13,12 @@ spring:
     hibernate:
       ddl-auto: validate
 
+# Every log line of a request starts with its id (RequestIdFilter, X-Request-ID), the same as the
+# traceId of its error body, so a report from a user leads to its log lines (Twelve-Factor XI).
+logging:
+  pattern:
+    correlation: "[%X{requestId:-}] "
+
 # OpenAPI documentation (ADR-0008, docs/api.md). Swagger UI renders the contract docs/api/openapi.yml,
 # copied into the jar at build time; /v3/api-docs is generated from the controllers.
 springdoc:
