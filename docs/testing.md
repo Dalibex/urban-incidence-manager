@@ -34,8 +34,9 @@ Test classes are picked up by name:
 - Integration tests never use `docker-compose.yaml`. An `*IT` imports
   `TestcontainersConfiguration`, which starts a throwaway PostGIS container, and Spring connects to
   it with `@ServiceConnection`. They never touch your local data and need no `.env`.
-- The datasets have their own integration tests (`DevelopmentDatasetIT`, `DemoDatasetIT`), each on
-  its own PostGIS container ([database guide](database.md)).
+- The datasets have their own integration tests (`DevelopmentDatasetIT`, `DemoDatasetIT`,
+  `PerformanceDatasetIT`), each on its own PostGIS container ([database guide](database.md)).
+  `PerformanceDatasetIT` generates only 400 incidents; CI never loads the full volume.
 - Coverage: `jacoco.minimum.coverage` in `pom.xml`, 80 % of lines combining unit and integration
   tests. `*Application` is excluded.
 

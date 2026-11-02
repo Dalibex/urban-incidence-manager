@@ -58,16 +58,17 @@ sets the starting point.
 ## 🧪 Data Profiles
 
 A data profile loads sample data for one purpose: the `dev` profile for development
-([development guide](development.md)) and the `demo` profile for the demo
-([datasets guide](datasets.md)). Production starts with no profile and no sample data.
+([development guide](development.md)), and the `demo` profile for the demo and the `perf` profile
+for the quality attribute measurements ([datasets guide](datasets.md)). Production starts with no
+profile and no sample data.
 
 Every data profile follows the same pattern:
 
 - `application-<profile>.yaml` adds `classpath:db/<profile>-data` to the Flyway locations.
 - `db/<profile>-data/R__<profile>_data.sql` is a repeatable migration: Flyway runs it after the
   versioned migrations, and again whenever the file changes.
-- An integration test (`DevelopmentDatasetIT`, `DemoDatasetIT`) loads it on its own PostGIS
-  container and fails if it no longer fits the schema or the lifecycle rules
+- An integration test (`DevelopmentDatasetIT`, `DemoDatasetIT`, `PerformanceDatasetIT`) loads it on
+  its own PostGIS container and fails if it no longer fits the schema or the lifecycle rules
   ([ADR-0020](adr/0020-incident-lifecycle-transitions.md)).
 
 ### When the data reloads
@@ -96,4 +97,4 @@ Every data profile follows the same pattern:
 - Never delete a user of a dataset: set `enabled = false`, because other records may still point to
   it.
 - Do not write `${` in the file: Flyway would read it as a placeholder. Only the placeholders the
-  profile defines on purpose, such as `${demo_password}`, may appear.
+  profile defines on purpose, such as `${demo_password}` or `${perf_incidents}`, may appear.

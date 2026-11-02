@@ -46,8 +46,9 @@ values without quotes.
 | `JWT_SECRET` | — | ✓ | `backend` | Signs the access tokens, at least 32 bytes ([security guide](security.md)). The backend does not start without it |
 | `JWT_ACCESS_TOKEN_TTL` | `PT15M` | | `backend` | Lifetime of an access token |
 | `REFRESH_TOKEN_TTL` | `P14D` | | `backend` | Lifetime of a refresh token |
-| `SPRING_PROFILES_ACTIVE` | empty | | `backend` | Data profile: empty (no sample data, as in production), `dev` or `demo` ([datasets](datasets.md)) |
+| `SPRING_PROFILES_ACTIVE` | empty | | `backend` | Data profile: empty (no sample data, as in production), `dev`, `demo` or `perf` ([datasets](datasets.md)) |
 | `DEMO_PASSWORD` | empty | ✓ | `backend` | Password of the demo users; required with the `demo` profile |
+| `PERF_INCIDENTS` | `100000` | | `backend` | Incidents the `perf` profile generates; leave it commented out in `.env` rather than empty |
 | `TILES_BASE_URL` | `http://localhost:5173/tiles` | | `tiles-builder` | Address the clients load the map from, written into `style.json` |
 | `STORAGE_BASE_PATH` | `/app/storage` | | `backend` | Folder for the evidence files, on the `evidence_data` volume ([ADR-0013](adr/0013-evidence-storage.md)) |
 | `EVIDENCE_MAX_FILE_SIZE` | `10MB` | | `backend` | Maximum size of an evidence file |
