@@ -269,7 +269,7 @@ export function NewIncidentScreen({ navigation }: Props) {
 
         <Button
           label={isSubmitting ? 'Sending…' : 'Submit'}
-          onPress={() => void submit()}
+          onPress={submit}
           disabled={!canSubmit}
         />
       </ScrollView>
