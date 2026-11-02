@@ -5,6 +5,11 @@ spring:
   # no extra setup. Real environment variables win over the file; in a container there is no .env.
   config:
     import: optional:file:.env[.properties]
+  # The API answers in English whatever the client's Accept-Language or the language of the machine:
+  # without this, bean validation writes its messages in the JVM's language (docs/api.md, "Errors").
+  web:
+    locale: en
+    locale-resolver: fixed
   jpa:
     open-in-view: false
     # SQL is not logged by default (it would also be logged in production). To see it locally,
@@ -12,6 +17,12 @@ spring:
     show-sql: false
     hibernate:
       ddl-auto: validate
+
+# Every log line of a request starts with its id (RequestIdFilter, X-Request-ID), the same as the
+# traceId of its error body, so a report from a user leads to its log lines (Twelve-Factor XI).
+logging:
+  pattern:
+    correlation: "[%X{requestId:-}] "
 
 # OpenAPI documentation (ADR-0008, docs/api.md). Swagger UI renders the contract docs/api/openapi.yml,
 # copied into the jar at build time; /v3/api-docs is generated from the controllers.

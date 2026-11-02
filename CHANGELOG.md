@@ -26,9 +26,12 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 - The backend requires the `JWT_SECRET` environment variable, and accepts `JWT_ACCESS_TOKEN_TTL` and `REFRESH_TOKEN_TTL` (#35).
 - Incident lists, their counts, the technician's view and the history use indexes measured on the performance dataset: the operator inbox page goes from about 111 ms to under 1 ms with 100,000 incidents (#132).
+- Every API response carries an `X-Request-ID` header, every error body repeats it as `traceId`, and the backend writes it in the log lines of the request, so a reported error can be found in the logs. A client may send its own id; an unsafe one is replaced. Every error response writes one log line with its status, method and path (#131).
 - Sending a refresh token that was already used or signed out revokes every session of its user, in case someone else holds a copy. Expired refresh tokens are deleted every day once `REFRESH_TOKEN_RETENTION` (30 days by default) has passed since they expired (#125).
 
 ### Fixed
+
+- Validation messages are always in English, whatever the client's `Accept-Language` or the language of the machine that runs the backend (#131).
 
 ## [0.0.1] - 2026-10-26
 

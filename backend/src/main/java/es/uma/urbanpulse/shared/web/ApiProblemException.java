@@ -1,5 +1,6 @@
 package es.uma.urbanpulse.shared.web;
 
+import es.uma.urbanpulse.shared.error.FieldError;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;

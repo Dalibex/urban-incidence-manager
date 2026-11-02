@@ -2,7 +2,7 @@ package es.uma.urbanpulse.incidents.entity;
 
 import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.identity.entity.User;
-import es.uma.urbanpulse.shared.web.FieldError;
+import es.uma.urbanpulse.shared.error.FieldError;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

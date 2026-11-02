@@ -1,5 +1,6 @@
 package es.uma.urbanpulse.shared.security;
 
+import es.uma.urbanpulse.shared.web.RequestIdFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -68,6 +69,7 @@ class SecurityProblemResponses implements AuthenticationEntryPoint, AccessDenied
         problem.put("status", status.value());
         problem.put("detail", detail);
         problem.put("instance", request.getRequestURI());
+        RequestIdFilter.current(request).ifPresent(id -> problem.put("traceId", id));
 
         response.setStatus(status.value());
         response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
