@@ -50,8 +50,8 @@ body:
       description: |
         Each criterion ends with how it is verified: `[CI: <job>]`, `[Manual: T<n>]` or `[Review]`. See `docs/ci.md`.
       value: |
-        - [ ] Criterion 1 [CI: smoke]
-        - [ ] Criterion 2 [CI: test-integration]
+        - [ ] Criterion 1 [CI: build]
+        - [ ] Criterion 2 [CI: test]
         - [ ] Criterion 3 [Review]
     validations:
       required: true

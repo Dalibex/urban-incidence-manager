@@ -134,9 +134,9 @@ workspace "UrbanPulse" "C4 Model" {
                 url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0012-cache-redis.md
             }
 
-            ### 6. CONTAINER: REVERSE PROXY (ADR-0017, PROPOSED)
+            ### 6. CONTAINER: REVERSE PROXY (ADR-0017, ACCEPTED)
             nginx = container "Reverse Proxy / Web Server" "Single published entry point in production: serves the web build and the base map tiles (/tiles/) and proxies /api to the backend." "nginx" {
-                tags "ReverseProxy,Proposed"
+                tags "ReverseProxy"
                 url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0017-reverse-proxy.md
             }
 

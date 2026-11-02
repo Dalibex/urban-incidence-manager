@@ -1,6 +1,17 @@
 # 🛠️ Development Guide
 
-This guide explains how to run the UrbanPulse backend and clients locally and start working on them.
+This guide explains how to run the UrbanPulse backend and clients on your machine and start working
+on them. Other guides cover the rest:
+
+| Guide | What it covers |
+| --- | --- |
+| [Deployment](deployment.md) | The Compose services, their variables and volumes, the backend in Docker, resetting the database, the base map |
+| [Database](database.md) | Migrations, reference data and how the data profiles work |
+| [Datasets and measurements](datasets.md) | The demo and performance datasets, and the quality attribute measurements |
+| [Testing](testing.md) | Backend and client tests |
+| [CI](ci.md) | The CI jobs, the pre-commit hook and the checks to run before pushing |
+| [API](api.md) | The OpenAPI contract and how to add an endpoint |
+| [Security](security.md) | Tokens, sessions, the audit trail and the permission matrix |
 
 ## 🐛 Prerequisites
 
@@ -10,7 +21,7 @@ Install:
 - Docker Engine or Docker Desktop
 - Docker Compose v2
 - Git
-- Node.js 24 and pnpm, for the web and mobile clients (see the *Client Workspace* section)
+- Node.js 24 and pnpm, for the web and mobile clients (see *Client Workspace*)
 - IntelliJ IDEA (optional, recommended)
 
 Maven does not need to be installed globally. The project includes Maven Wrapper.
@@ -55,12 +66,8 @@ container, so no other setup is needed. The backend reads `.env` as a properties
 the values without quotes (`JWT_SECRET=abc...`, not `JWT_SECRET="abc..."`): quotes would become part
 of the secret.
 
-Change `POSTGRES_PORT` (5432) or `BACKEND_PORT` (8080) only if something else on your computer
-already uses that port. `BACKEND_PORT` is only used when the backend runs in Docker (see *Run the
-Backend in Docker*); from the IDE the backend always listens on 8080.
-
-PostgreSQL applies `POSTGRES_DB`, `POSTGRES_USER` and `POSTGRES_PASSWORD` only when it initializes
-an empty volume. If you change them later, see the *Reset the Local Database* section below.
+Every variable is described in the [deployment guide](deployment.md). Change `POSTGRES_PORT` (5432)
+or `BACKEND_PORT` (8080) only if something else on your computer already uses that port.
 
 ## 🍃 Run with IntelliJ IDEA (recommended)
 
@@ -91,136 +98,12 @@ Windows PowerShell:
 
 Stop the application with `Ctrl+C`.
 
-## 🐳 Run the Backend in Docker
+From the IDE or the terminal, the backend listens on port 8080 of every interface, so a phone in
+your local network can reach it. To run it as a container instead, with the same image as the CI,
+see *Run the Backend in Docker* in the [deployment guide](deployment.md).
 
-The backend also runs as a container, from the same image that the CI tests and that is deployed
-([ADR-0011](adr/0011-deployment-12factor.md)). Use it to check that the backend works outside your
-IDE, or when you work on the clients and only need the API. You do not need Java or Maven for this:
-the image compiles the jar.
-
-From `backend/`, with `.env` created as above:
-
-```bash
-docker compose --profile app up --build
-```
-
-This starts the database and the backend. The API listens on `http://localhost:8080`, or on
-`BACKEND_PORT` if you set it in `.env`. Check it with:
-
-Linux or macOS:
-
-```bash
-curl http://localhost:8080/actuator/health
-```
-
-Windows PowerShell (`curl.exe`, because in Windows PowerShell `curl` is an alias of
-`Invoke-WebRequest`):
-
-```powershell
-curl.exe http://localhost:8080/actuator/health
-```
-
-- `--build` rebuilds the image with your current code. Without it, Compose reuses the last image it
-  built. The first build takes a few minutes because it downloads Maven and the dependencies; later
-  builds reuse them.
-- Those downloads and the image layers stay in Docker's build cache, which grows with every build
-  that changes something. `docker system df` shows its size (the *Build Cache* line). To free the
-  space, run `docker builder prune`: it does not touch images, containers or volumes, but the next
-  build takes as long as the first one.
-- The `backend` service belongs to the `app` profile. Without `--profile app`, Compose and the IDE
-  start only the database, so both ways of running the backend keep working. Do not run both at the
-  same time: they use the same port.
-- The port is published on `127.0.0.1`, so the API is only reachable from your computer: the web
-  app, `curl` or an Android emulator (`http://10.0.2.2:8080`). A physical phone cannot reach it;
-  to test the mobile app on a phone, run the backend from the IDE or the terminal instead (see
-  *Client Workspace*).
-- To start it with sample data, set `SPRING_PROFILES_ACTIVE=dev` in `.env` (see *Development
-  Dataset*), or `demo` with `DEMO_PASSWORD` (see *Demo Dataset*). Leave it empty for an empty
-  database, as in production.
-- With `-d` (in the background), follow the logs with `docker compose logs -f backend`.
-- Stop everything with `Ctrl+C`, or with `docker compose --profile app down` if you started it with
-  `-d`. Your data stays in the `postgres-data` volume.
-
-## 🚀 Running Tests
-
-From `backend/`:
-
-Linux or macOS:
-
-```bash
-./mvnw verify
-```
-
-Windows PowerShell:
-
-```powershell
-./mvnw.cmd verify
-```
-
-Docker must be running. Integration tests do not use `docker-compose.yaml`: they start their own
-PostGIS container with Testcontainers (`TestcontainersConfiguration`), so they never touch your
-local data.
-
-Test classes are picked up by name:
-
-- `*Test`: unit tests, no Docker, run by `./mvnw test`.
-- `*IT`: integration tests with the Spring context and PostGIS, run by `./mvnw verify`. Skip them
-  with `-DskipITs`.
-
-HTTP integration tests that call `/api/v1` with MockMvc import `ApiContract.EveryResponse`: every
-response is then validated against its operation and status in
-[`docs/api/openapi.yml`](api/openapi.yml), error bodies included, so a DTO that drifts from the
-contract fails the test. Only the response is checked, so a test may send an invalid request on
-purpose.
-
-`verify` also checks formatting, coverage and SpotBugs. See the [CI guide](ci.md).
-
-## 🐧 Code Formatting
-
-Java code is formatted with google-java-format (AOSP style) through Spotless. Any local `./mvnw`
-build installs a pre-commit hook that formats the staged Java files, so commits are already
-formatted. To format by hand, if needed:
-
-```bash
-./mvnw spotless:apply
-```
-
-If the hook does not run, see the [CI setup guide](ci-setup.md).
-
-## 🗄️ Database Migrations
-
-The schema is created and changed only by Flyway ([ADR-0014](adr/0014-database-migrations-flyway.md)).
-Migrations are plain SQL files in `src/main/resources/db/migration` and run automatically when the
-application starts. Hibernate only validates the entities against the schema.
-
-- Name new files `V<n>__<module>_<description>.sql`, with the next free number, for example
-  `V6__incidents_add_incident_source.sql`.
-- Never edit a migration that has been merged: write a new one, even for a fix.
-- If two branches use the same number, the second one to merge renumbers its migration.
-- Update the [database schema diagram](database.drawio.svg) in the same pull request.
-
-While a migration only exists on your branch, you can still change it: reset your local database
-(see below) so Flyway applies it again from scratch.
-
-### Reference data
-
-The initial categories and departments are inserted by a migration,
-`V7__incidents_insert_reference_data.sql`, so every environment starts with the same rows. Never
-insert them by hand or with a script run from a database client.
-
-- To add or change initial reference data, write a new migration with `INSERT` or `UPDATE`
-  statements and the next free number, for example `V8__incidents_add_graffiti_category.sql`. Do
-  not edit V7 once it is merged.
-- Give each row a fixed `id` (a UUID written in the migration), so the demo data and the tests can
-  refer to it in every environment.
-- To retire a category or a department, set `is_active = false` instead of deleting it: existing
-  incidents and assignments still point to it.
-- Add the new rows to the expected lists of `DatabaseMigrationIT`.
-- Sample users and incidents are not reference data: the development dataset loads them only with
-  the `dev` profile (see *Development Dataset*).
-
-Once administrators can manage categories and departments from the application, a migration only
-sets the starting point.
+Run the tests with `./mvnw verify` ([testing guide](testing.md)). Java code is formatted on commit
+by the pre-commit hook; `./mvnw spotless:apply` formats it by hand ([CI guide](ci.md)).
 
 ## 🧪 Development Dataset
 
@@ -228,14 +111,13 @@ The `dev` Spring profile loads a shared development dataset (#83): a user of eve
 in every status of the lifecycle with their history, and the assignments, comments, attachment
 metadata, urban context, external observations, urban assets and notifications around them. Use it
 to try the API and the clients without creating data by hand. Never activate it outside a developer
-machine: production starts with no profile and no sample data. Among the integration tests, only
-`DevelopmentDatasetIT` uses the profile, on its own PostGIS container.
+machine: production starts with no profile and no sample data.
 
 `application-dev.yaml` adds `classpath:db/dev-data` to the Flyway locations, and
-`db/dev-data/R__dev_data.sql` is a repeatable migration: Flyway runs it after the versioned
-migrations, and again whenever the file changes. Other data profiles, such as the demo dataset
-(#54) and the performance dataset (#84), follow the same pattern: a profile, its own folder and one
-repeatable migration. Only one data profile is active at a time.
+`db/dev-data/R__dev_data.sql` is a repeatable migration. When it reloads, why it cannot be combined
+with another profile and how to change it are explained in *Data Profiles* in the
+[database guide](database.md). The demo and performance datasets are in the
+[datasets guide](datasets.md).
 
 ### Activate it
 
@@ -259,111 +141,9 @@ Every user signs in with the password `urbanpulse-dev`:
 | `dev.admin@example.com` | `ADMINISTRATOR` |
 | `dev.analyst@example.com` | `ANALYST` |
 
-### When the data reloads
-
-- Restarting the backend keeps everything, including what you created yourself.
-- When `R__dev_data.sql` changes (you edit it, or you pull a change to it), the next start runs it
-  again: it deletes every incident and what belongs to it, yours too, and inserts the dataset
-  again. The users and urban assets of the dataset are updated in place by their fixed ids; users
-  you signed up yourself stay.
-- Each developer has their own database (the `postgres-data` volume): what you create or delete
-  never reaches your teammates.
-- Restarting is not enough to undo your changes, because the file did not change. To start again
-  from the dataset, reset the database (see below) and start with the profile.
-
-A database that loaded the dataset does not start without the `dev` profile: Flyway finds that
-`R__dev_data.sql` was applied but is no longer among its migrations, and fails with *Migrations
-have failed validation*. The sample data would still be in it, so to leave the profile, reset the
-database first.
-
-### Change the dataset
-
-- When a migration changes a table the dataset fills, update `R__dev_data.sql` in the same pull
-  request. `DevelopmentDatasetIT` loads it on an empty database and fails if it no longer fits the
-  schema or the lifecycle rules ([ADR-0020](adr/0020-incident-lifecycle-transitions.md)).
-- Give every new row a fixed id that follows the scheme described at the top of the file.
-- Never delete a user of the dataset: set `enabled = false`, because other records may still
-  point to it.
-- Do not write `${` in the file: Flyway would read it as a placeholder.
-
-## 🎬 Demo Dataset
-
-The `demo` Spring profile loads the curated story of the demo (#54): one user per role and fifteen
-incidents in Málaga covering every status, each with a history allowed by
-[ADR-0020](adr/0020-incident-lifecycle-transitions.md). [docs/demo.md](demo.md) lists its users and
-incidents and is the demo script. It is separate from the development dataset: the development
-data keeps the cases developers need (several citizens and technicians, urban context, assets,
-notifications), the demo data tells one story that is easy to follow in front of an audience.
-
-It follows the pattern of the development dataset: `application-demo.yaml` adds
-`classpath:db/demo-data` to the Flyway locations, and `db/demo-data/R__demo_data.sql` is a
-repeatable migration. `DemoDatasetIT` loads it on its own PostGIS container.
-
-- Activate it as the `dev` profile (see *Activate it* above), with `demo` instead of `dev`. To show
-  the mobile app on a phone, run the backend from the IDE or the terminal (see
-  [docs/demo.md](demo.md)).
-- Never activate `dev` and `demo` together: each one empties the incident data before inserting
-  its own. A database that loaded one of them does not start with the other; reset it first (see
-  below).
-- Every demo user signs in with the password in the `DEMO_PASSWORD` environment variable
-  (`backend/.env`, or the environment of the container). The backend does not start with the
-  `demo` profile without it. Flyway passes it to the script as the `demo_password` placeholder and
-  PostgreSQL hashes it with bcrypt (the `pgcrypto` extension, which the script enables), so no
-  password or hash is in the repository. To change the password, reset the database and start
-  again with the new value.
-- The data reloads as the development dataset does (see *When the data reloads* above): restarting
-  keeps what was created during the demo, and only a change to `R__demo_data.sql` or a reset
-  inserts the story again.
-- When a migration changes a table the dataset fills, update `R__demo_data.sql` in the same pull
-  request; `DemoDatasetIT` fails if it no longer fits the schema or the lifecycle rules. Give new
-  rows fixed ids that follow the scheme at the top of the file. Apart from `${demo_password}`, do
-  not write `${` in the file.
-
-## ⚠️ Reset the Local Database
-
-`docker compose down` stops the database and keeps its data in the `postgres-data` volume. To
-delete all local data and start from an empty database:
-
-```bash
-docker compose --profile app down -v
-```
-
-`--profile app` also removes the backend container, if you started it. `-v` also deletes the
-sources downloaded by the base map builder (see below), but not the map files it built.
-
-## 🗺️ Build the Base Map
-
-The maps use our own OpenStreetMap vector tiles of the province of Málaga, not a tile provider
-([ADR-0016](adr/0016-self-hosted-osm-base-map.md)). They are never committed: a one-off process,
-the `tiles-builder` Compose service, builds them. From `backend/`, with Docker running:
-
-```bash
-docker compose --profile tiles run --rm tiles-builder
-```
-
-It writes these files to `frontend/apps/web/public/tiles/`, a folder that Git ignores, and the web
-development server (`pnpm dev:web`) serves them at `http://localhost:5173/tiles/`:
-
-- `malaga.pmtiles`: the vector tiles, zoom 0 to 14, in the OpenMapTiles schema.
-- `style.json`: the map style (OSM Bright), with its sprites and `fonts/`. A map loads it from
-  `http://localhost:5173/tiles/style.json`; it references no external host and needs no key.
-
-How it behaves:
-
-- The first run downloads about 1.5 GB (the Andalucía extract from Geofabrik, water polygons and
-  Natural Earth) into the `tiles-sources` Docker volume. Later runs download only what changed, so
-  run it again whenever you want newer OpenStreetMap data.
-- The new tiles replace the old ones only if the build succeeds, `pmtiles verify` accepts the file
-  and it is not suspiciously small. Otherwise the previous files stay as they were and the command
-  exits with an error; the last `tiles-builder: ERROR` line of the log says which step failed.
-- `TILES_BASE_URL` in `.env` (default `http://localhost:5173/tiles`) is the address written into
-  `style.json`. A phone cannot reach `localhost`: to load the map on a phone, set the address of
-  your machine in the local network, start the web app with `pnpm dev:web --host` and run the
-  builder again.
-- Every version is pinned in `tiles/Dockerfile` (Planetiler, the style, the fonts and the images).
-  To update one, change its version and its checksum together.
-- `docker volume rm urbanpulse_tiles-sources` frees the downloaded sources. The next run downloads
-  them again.
+When `R__dev_data.sql` changes, its users and urban assets are updated in place by their fixed ids;
+incidents are deleted and inserted again (see *When the data reloads* in the
+[database guide](database.md)).
 
 ## 📱 Client Workspace
 
@@ -384,7 +164,9 @@ frontend/
 ```
 
 Apps import the shared packages by name (`@urbanpulse/domain`, `@urbanpulse/ui`,
-`@urbanpulse/api-client`), as source: there is no separate build step for the packages.
+`@urbanpulse/api-client`), as source: there is no separate build step for the packages. The
+`api-client` types are generated from the contract; see *Generated client* in the
+[API guide](api.md).
 
 ### Setup
 
@@ -407,7 +189,7 @@ pnpm install
 
 Always use `pnpm`, never `npm install` or `yarn`: only `pnpm-lock.yaml` is versioned.
 
-### Run the apps
+### Run the web app
 
 From `frontend/`:
 
@@ -419,6 +201,14 @@ The web app opens at `http://localhost:5173`. It calls the API on its own origin
 Vite forwards `/api` to the backend at `http://localhost:8080`, so the browser needs no CORS. To
 use another backend, set `API_PROXY_TARGET` before `pnpm dev:web`. The web keeps the session in
 memory only: reloading the page asks for sign-in again.
+
+The web reads the API through React Query ([ADR-0006](adr/0006-frontend-web-technology.md)): each
+screen calls a hook such as `useIncidentPage` (`apps/web/src/incidents/incident-queries.ts`), which
+caches the result and shares it between screens. Only failures that may pass on their own are
+retried: the API not reachable or a `5xx`; a `4xx` is shown at once. Signing out, or a session
+that expires, empties the cache, so the next user never sees the data of the previous one.
+
+### Run the mobile app
 
 The mobile app needs the API URL in `apps/mobile/.env`, which is not versioned. Copy the example
 and set the address of your machine in the local network:
@@ -433,86 +223,25 @@ pnpm dev:mobile
 
 Expo prints a QR code. Scan it with the **Expo Go** app on a phone in the same network (on an
 iPhone, with the Camera app), or press `a` / `i` to open an Android emulator or iOS simulator. If
-the phone cannot connect (firewall, isolated Wi-Fi), run `pnpm dev:mobile --tunnel`. The mobile app
-only targets Android and iOS (`platforms` in `app.json`); the browser client is `apps/web`. A phone
-or emulator cannot reach the backend through `localhost`: the Android emulator reaches your machine
-at `10.0.2.2`, a phone at its address in the local network. The mobile app keeps the session in
-`expo-secure-store` (Keychain on iOS, Keystore on Android), so it survives a restart.
+the phone cannot connect (firewall, isolated Wi-Fi), run `pnpm dev:mobile --tunnel`. The first load
+is slow because Metro bundles the whole app; later loads reuse it.
 
-### Checks
+- The mobile app only targets Android and iOS (`platforms` in `app.json`); the browser client is
+  `apps/web`.
+- A phone or emulator cannot reach the backend through `localhost`: the Android emulator reaches
+  your machine at `10.0.2.2`, a phone at its address in the local network. A phone cannot reach the
+  backend running in Docker, only one started from the IDE or the terminal (see *Reach the API
+  from a Phone* in the [deployment guide](deployment.md)).
+- The mobile app keeps the session in `expo-secure-store` (Keychain on iOS, Keystore on Android),
+  so it survives a restart.
+- Expo Go is enough for the current screens. The mobile map
+  ([ADR-0016](adr/0016-self-hosted-osm-base-map.md), #60) will need a development build, because
+  MapLibre React Native is a native module that Expo Go does not include.
 
-The same checks as the `frontend` CI job, from `frontend/`:
+### Before pushing
 
-```bash
-pnpm format:check
-```
-
-```bash
-pnpm lint
-```
-
-```bash
-pnpm typecheck
-```
-
-```bash
-pnpm test
-```
-
-```bash
-pnpm build
-```
-
-`pnpm format` fixes the formatting; the pre-commit hook also formats the staged client files.
-
-### Client tests
-
-`pnpm test` runs the `test` script of every app and package. Test files sit next to the code they
-test, as `*.test.ts` or `*.test.tsx`.
-
-- `apps/web` and `packages/*` use Vitest, with Testing Library (`@testing-library/react`) for the
-  web components. Import `describe`, `it`, `expect` and `vi` from `vitest`.
-- `apps/mobile` uses Jest with the `jest-expo` preset (set in the `jest` field of its
-  `package.json`) and `@testing-library/react-native`. Vitest cannot load React Native, which ships
-  untranspiled Flow code; `jest-expo` transforms it and mocks the native modules. `describe`, `it`,
-  `expect` and `jest` are globals, typed by `@types/jest`. `render` and `rerender` return a promise:
-  `await` them. `jest.setup.ts` sets the variables the app reads when it loads, such as
-  `EXPO_PUBLIC_API_BASE_URL`. The timeout per test is 20 s, not Jest's 5 s: with an empty Jest cache,
-  as in CI, the first test of each file also pays for transforming React Native.
-
-To run only the mobile tests, from `frontend/apps/mobile`:
-
-```bash
-pnpm test
-```
-
-Pass a file or a pattern to run fewer tests, for example `pnpm test FormMessage`, or
-`pnpm test --watch` to run them again on every change.
-
-Upgrade `jest-expo` with the Expo SDK (`pnpm exec expo install --fix` in `apps/mobile`), so it matches
-the `expo` and `react-native` versions.
-
-### API client
-
-`frontend/packages/api-client/src/schema.d.ts` is generated from the contract. After changing
-`docs/api/openapi.yml`, regenerate it from `frontend/` and commit the result in the same pull request:
-
-```bash
-pnpm generate:api
-```
-
-Never edit `schema.d.ts` by hand: the `contract` CI job fails if it differs from the contract.
-
-Each operation gets a typed function in `api-client` (`listIncidents`, `getIncident`...) that
-returns an `ApiResult`, so both apps handle failures by `status` and `code`, never by the text.
-
-### Server state on the web
-
-The web reads the API through React Query ([ADR-0006](adr/0006-frontend-web-technology.md)): each
-screen calls a hook such as `useIncidentPage` (`apps/web/src/incidents/incident-queries.ts`), which
-caches the result and shares it between screens. Only failures that may pass on their own are
-retried: the API not reachable or a `5xx`; a `4xx` is shown at once. Signing out, or a session
-that expires, empties the cache, so the next user never sees the data of the previous one.
+Run the checks of the `frontend` CI job and format the code as described in
+[8.1 Before pushing](ci.md#81-before-pushing) in the CI guide. The client tests are in the [testing guide](testing.md).
 
 ## 🔙 Backend Structure
 
@@ -520,34 +249,37 @@ that expires, empties the cache, so the next user never sees the data of the pre
 backend/
 |-- .env.example
 |-- docker-compose.yaml
+|-- Dockerfile
 |-- pom.xml
 |-- mvnw
 |-- mvnw.cmd
 `-- src/
     |-- main/java/es/uma/urbanpulse/
     |   |-- UrbanpulseApplication.java
-    |   |-- identity/        users, roles, login, JWT and refresh tokens, audit log
-    |   |-- incidents/       incidents, location, categories, assignments, comments, attachments
-    |   |-- urbancontext/    external data (Open Data Málaga, OSM, Open-Meteo, TomTom), enrichment
-    |   |-- geospatial/      districts, neighbourhoods, urban assets, spatial queries (PostGIS)
-    |   |-- notifications/   notifications and their delivery (Brevo, Twilio)
-    |   |-- analytics/       read-only indicators and reports
-    |   `-- shared/          cross-cutting configuration, not a module
-    |       `-- security/    SecurityConfig (Spring Security filter chain)
-    |-- main/resources/application.yaml
-    |-- main/resources/db/migration/
+    |   |-- identity/        users, roles, sign-up and sessions, access and refresh tokens, audit trail
+    |   |-- incidents/       incidents, location, categories, lifecycle, assignments, comments, attachments
+    |   |-- urbancontext/    external context of an incident (no provider integrated yet)
+    |   |-- geospatial/      districts, neighbourhoods, urban assets (PostGIS)
+    |   |-- notifications/   notifications (no delivery provider integrated yet)
+    |   |-- analytics/       read-only indicators and reports (empty)
+    |   `-- shared/          cross-cutting code, not a module
+    |       |-- security/    Spring Security filter chain, JWT validation, AuthenticatedUser
+    |       `-- web/         error responses (Problem Details), paging
+    |-- main/resources/
+    |   |-- application.yaml, application-<profile>.yaml
+    |   `-- db/              migration/ and the folder of each data profile
     `-- test/java/es/uma/urbanpulse/
 ```
 
-Each module follows the same plain MVC layout: `controller/`, `dto/`, `entity/`, `mapper/`,
-`repository/`, `service/`, plus `client/` when it calls an external system.
+Each module uses the folders it needs from the same plain MVC layout: `controller/`, `dto/`,
+`entity/`, `mapper/`, `repository/`, `service/`, plus `client/` when it calls an external system.
 
 Modules are packages for organisation only ([ADR-0010](adr/0010-modular-monolith.md)). Any class may
 use another module's services or entities.
 
 Every package has a `package-info.java` that says what it does and which tables it owns.
 
-- Application code: `src/main/java/es/uma/urbanpulse/`.
-- Configuration: `src/main/resources/`.
-- Database migrations: `src/main/resources/db/migration/`.
-- Tests: `src/test/java/es/uma/urbanpulse/`.
+The external providers proposed for weather and traffic (Open-Meteo and TomTom,
+[ADR-0018](adr/0018-weather-and-traffic-providers.md)) and for notification delivery (Brevo and
+Twilio, [ADR-0019](adr/0019-notification-delivery-providers.md)) are not decided yet: both ADRs are
+*Proposed*.
