@@ -25,10 +25,20 @@ class DemoDatasetConfigTest {
     void passesThePasswordToFlywayAndKeepsTheOtherPlaceholders() {
         var flyway = new FluentConfiguration().placeholders(Map.of("other", "value"));
 
-        config.demoPasswordPlaceholder("s3cret 'quoted'").customize(flyway);
+        config.demoPasswordPlaceholder("s3cret").customize(flyway);
 
         assertThat(flyway.getPlaceholders())
-                .containsEntry(DemoDatasetConfig.PASSWORD_PLACEHOLDER, "s3cret 'quoted'")
+                .containsEntry(DemoDatasetConfig.PASSWORD_PLACEHOLDER, "s3cret")
                 .containsEntry("other", "value");
+    }
+
+    @Test
+    void escapesTheQuotesOfThePasswordForTheSqlLiteral() {
+        var flyway = new FluentConfiguration();
+
+        config.demoPasswordPlaceholder("it's mine").customize(flyway);
+
+        assertThat(flyway.getPlaceholders())
+                .containsEntry(DemoDatasetConfig.PASSWORD_PLACEHOLDER, "it''s mine");
     }
 }

@@ -30,9 +30,11 @@ class DemoDatasetConfig {
                     "The demo profile needs DEMO_PASSWORD, the password of the demo users"
                             + " (docs/demo.md)");
         }
+        // The placeholder sits inside a SQL string literal, where a quote is written twice.
+        var sqlLiteral = password.replace("'", "''");
         return configuration -> {
             var placeholders = new HashMap<>(configuration.getPlaceholders());
-            placeholders.put(PASSWORD_PLACEHOLDER, password);
+            placeholders.put(PASSWORD_PLACEHOLDER, sqlLiteral);
             configuration.placeholders(placeholders);
         };
     }

@@ -23,9 +23,10 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 TRUNCATE incident, location, status_change, assignment, comment, attachment, urban_context,
     external_observation, incident_asset, notification CASCADE;
 
--- Dollar quoting keeps the password intact whatever characters it has.
+-- A plain string literal, not dollar quoting: Flyway does not replace placeholders inside
+-- $tag$...$tag$. DemoDatasetConfig doubles the single quotes of the password so it stays intact.
 INSERT INTO users (id, name, email, password_hash, role, enabled)
-SELECT id, name, email, '{bcrypt}' || crypt($demo$${demo_password}$demo$, gen_salt('bf', 10)), role, true
+SELECT id, name, email, '{bcrypt}' || crypt('${demo_password}', gen_salt('bf', 10)), role, true
 FROM (VALUES
     ('e0000000-0000-4000-8000-000000000001'::uuid, 'Ana Fernández', 'demo.citizen@example.com', 'CITIZEN'),
     ('e0000000-0000-4000-8000-000000000002'::uuid, 'Raúl Ortega', 'demo.operator@example.com', 'MUNICIPAL_OPERATOR'),

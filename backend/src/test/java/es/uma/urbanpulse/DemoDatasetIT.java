@@ -12,7 +12,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import javax.sql.DataSource;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -35,9 +38,11 @@ import org.springframework.test.web.servlet.ResultMatcher;
 @ActiveProfiles("demo")
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class DemoDatasetIT {
 
-    static final String PASSWORD = "demo-password-for-the-tests";
+    // With a quote, to check that it reaches the SQL string literal intact.
+    static final String PASSWORD = "demo-password-for-the-test's";
 
     private static final String DATASET = "db/demo-data/R__demo_data.sql";
     private static final String PASSWORD_PLACEHOLDER = "${demo_password}";
@@ -118,9 +123,12 @@ class DemoDatasetIT {
         new DatasetHistories(jdbc).assertEveryHistoryFollowsTheTransitionTable();
     }
 
+    // Last: it hashes the passwords again itself, which would hide a Flyway load that did not
+    // replace the placeholder from the sign-in tests.
     @Test
+    @Order(Integer.MAX_VALUE)
     void runningItAgainCreatesNoDuplicates() throws IOException {
-        var script = datasetScript().replace(PASSWORD_PLACEHOLDER, PASSWORD);
+        var script = datasetScript().replace(PASSWORD_PLACEHOLDER, PASSWORD.replace("'", "''"));
 
         new ResourceDatabasePopulator(
                         new ByteArrayResource(script.getBytes(StandardCharsets.UTF_8)))
@@ -150,6 +158,15 @@ class DemoDatasetIT {
     @Test
     void theDevelopmentPasswordDoesNotOpenADemoAccount() throws Exception {
         signIn("10.54.1.1", demoEmails().getFirst(), "urbanpulse-dev", status().isUnauthorized());
+    }
+
+    @Test
+    void theUnreplacedPlaceholderIsNotThePassword() throws Exception {
+        signIn(
+                "10.54.1.2",
+                demoEmails().getFirst(),
+                PASSWORD_PLACEHOLDER,
+                status().isUnauthorized());
     }
 
     private void signIn(String clientAddress, String email, String password, ResultMatcher expected)
