@@ -8,3 +8,8 @@ packages:
 peerDependencyRules:
   allowedVersions:
     openapi-typescript>typescript: '6'
+
+# Install scripts pnpm may run. @parcel/watcher (a Jest dependency) only compiles from source when
+# asked to; it uses the prebuilt binary of each platform, so its script is not needed.
+allowBuilds:
+  '@parcel/watcher': false

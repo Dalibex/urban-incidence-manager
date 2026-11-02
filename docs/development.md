@@ -396,6 +396,31 @@ pnpm build
 
 `pnpm format` fixes the formatting; the pre-commit hook also formats the staged client files.
 
+### Client tests
+
+`pnpm test` runs the `test` script of every app and package. Test files sit next to the code they
+test, as `*.test.ts` or `*.test.tsx`.
+
+- `apps/web` and `packages/*` use Vitest, with Testing Library (`@testing-library/react`) for the
+  web components. Import `describe`, `it`, `expect` and `vi` from `vitest`.
+- `apps/mobile` uses Jest with the `jest-expo` preset (set in the `jest` field of its
+  `package.json`) and `@testing-library/react-native`. Vitest cannot load React Native, which ships
+  untranspiled Flow code; `jest-expo` transforms it and mocks the native modules. `describe`, `it`,
+  `expect` and `jest` are globals, typed by `@types/jest`. `render` and `rerender` return a promise:
+  `await` them.
+
+To run only the mobile tests, from `frontend/apps/mobile`:
+
+```bash
+pnpm test
+```
+
+Pass a file or a pattern to run fewer tests, for example `pnpm test FormMessage`, or
+`pnpm test --watch` to run them again on every change.
+
+Upgrade `jest-expo` with the Expo SDK (`pnpm exec expo install --fix` in `apps/mobile`), so it matches
+the `expo` and `react-native` versions.
+
 ### API client
 
 `frontend/packages/api-client/src/schema.d.ts` is generated from the contract. After changing
