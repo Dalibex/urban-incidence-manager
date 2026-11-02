@@ -10,37 +10,45 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 /**
- * The entities express the domain rules without depending on HTTP (AGENTS.md, section 4; ADR-0020):
- * no class under an {@code entity} package imports Spring's HTTP types or the web layer of {@code
- * shared} (#131, test case T12 of #142).
+ * Acceptance test of #142, T12: the domain does not depend on HTTP (ADR-0020, AGENTS.md section 4).
+ * No class in an {@code entity} package of any module imports Spring's HTTP types or the web layer
+ * of {@code shared.web}; {@code ApiExceptionHandler} is the only place that maps domain errors to
+ * HTTP (#131). It reads the sources, so it runs as a unit test from {@code backend/}.
  */
 class DomainWithoutHttpTest {
 
     private static final Path SOURCES = Path.of("src/main/java/es/uma/urbanpulse");
+    private static final List<String> FORBIDDEN =
+            List.of("import org.springframework.http", "import es.uma.urbanpulse.shared.web");
 
     @Test
-    void noEntityImportsTheWebLayer() throws IOException {
-        List<String> offending;
+    void noEntityImportsHttpOrTheWebLayer() throws IOException {
+        List<String> offenders;
         try (Stream<Path> files = Files.walk(SOURCES)) {
-            offending =
+            offenders =
                     files.filter(file -> file.getParent().getFileName().toString().equals("entity"))
                             .filter(file -> file.toString().endsWith(".java"))
-                            .filter(DomainWithoutHttpTest::importsTheWebLayer)
-                            .map(Path::toString)
+                            .filter(DomainWithoutHttpTest::importsForbidden)
+                            .map(file -> SOURCES.relativize(file).toString())
                             .toList();
         }
 
-        assertThat(offending).isEmpty();
+        assertThat(offenders).as("entity classes that import HTTP or shared.web").isEmpty();
     }
 
-    private static boolean importsTheWebLayer(Path file) {
+    @Test
+    void readsTheEntityPackages() throws IOException {
+        // Guards the test above: from another working directory it would find nothing and pass.
+        try (Stream<Path> files = Files.walk(SOURCES)) {
+            assertThat(files.filter(file -> file.toString().contains("entity")).count())
+                    .isGreaterThan(10);
+        }
+    }
+
+    private static boolean importsForbidden(Path file) {
         try {
-            return Files.readAllLines(file).stream()
-                    .anyMatch(
-                            line ->
-                                    line.startsWith("import org.springframework.http")
-                                            || line.startsWith(
-                                                    "import es.uma.urbanpulse.shared.web"));
+            var source = Files.readString(file);
+            return FORBIDDEN.stream().anyMatch(source::contains);
         } catch (IOException e) {
             throw new IllegalStateException("Cannot read " + file, e);
         }
