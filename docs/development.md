@@ -135,7 +135,8 @@ curl.exe http://localhost:8080/actuator/health
   to test the mobile app on a phone, run the backend from the IDE or the terminal instead (see
   *Client Workspace*).
 - To start it with sample data, set `SPRING_PROFILES_ACTIVE=dev` in `.env` (see *Development
-  Dataset*). Leave it empty for an empty database, as in production.
+  Dataset*), or `demo` with `DEMO_PASSWORD` (see *Demo Dataset*). Leave it empty for an empty
+  database, as in production.
 - With `-d` (in the background), follow the logs with `docker compose logs -f backend`.
 - Stop everything with `Ctrl+C`, or with `docker compose --profile app down` if you started it with
   `-d`. Your data stays in the `postgres-data` volume.
@@ -284,6 +285,39 @@ database first.
 - Never delete a user of the dataset: set `enabled = false`, because other records may still
   point to it.
 - Do not write `${` in the file: Flyway would read it as a placeholder.
+
+## 🎬 Demo Dataset
+
+The `demo` Spring profile loads the curated story of the demo (#54): one user per role and fifteen
+incidents in Málaga covering every status, each with a history allowed by
+[ADR-0020](adr/0020-incident-lifecycle-transitions.md). [docs/demo.md](demo.md) lists its users and
+incidents and is the demo script. It is separate from the development dataset: the development
+data keeps the cases developers need (several citizens and technicians, urban context, assets,
+notifications), the demo data tells one story that is easy to follow in front of an audience.
+
+It follows the pattern of the development dataset: `application-demo.yaml` adds
+`classpath:db/demo-data` to the Flyway locations, and `db/demo-data/R__demo_data.sql` is a
+repeatable migration. `DemoDatasetIT` loads it on its own PostGIS container.
+
+- Activate it as the `dev` profile (see *Activate it* above), with `demo` instead of `dev`. To show
+  the mobile app on a phone, run the backend from the IDE or the terminal (see
+  [docs/demo.md](demo.md)).
+- Never activate `dev` and `demo` together: each one empties the incident data before inserting
+  its own. A database that loaded one of them does not start with the other; reset it first (see
+  below).
+- Every demo user signs in with the password in the `DEMO_PASSWORD` environment variable
+  (`backend/.env`, or the environment of the container). The backend does not start with the
+  `demo` profile without it. Flyway passes it to the script as the `demo_password` placeholder and
+  PostgreSQL hashes it with bcrypt (the `pgcrypto` extension, which the script enables), so no
+  password or hash is in the repository. To change the password, reset the database and start
+  again with the new value.
+- The data reloads as the development dataset does (see *When the data reloads* above): restarting
+  keeps what was created during the demo, and only a change to `R__demo_data.sql` or a reset
+  inserts the story again.
+- When a migration changes a table the dataset fills, update `R__demo_data.sql` in the same pull
+  request; `DemoDatasetIT` fails if it no longer fits the schema or the lifecycle rules. Give new
+  rows fixed ids that follow the scheme at the top of the file. Apart from `${demo_password}`, do
+  not write `${` in the file.
 
 ## ⚠️ Reset the Local Database
 

@@ -141,6 +141,21 @@ class DatabaseMigrationIT {
     }
 
     @Test
+    void loadsNoDemoDataWithoutTheDemoProfile() {
+        var demoUsers =
+                jdbc.queryForObject(
+                        "SELECT count(*) FROM users WHERE id::text LIKE 'e0000000-%'",
+                        Integer.class);
+        var demoIncidents =
+                jdbc.queryForObject(
+                        "SELECT count(*) FROM incident WHERE id::text LIKE 'e1000000-%'",
+                        Integer.class);
+
+        assertThat(demoUsers).isZero();
+        assertThat(demoIncidents).isZero();
+    }
+
+    @Test
     void rejectsAnUnknownEnumValue() {
         assertThatThrownBy(
                         () ->

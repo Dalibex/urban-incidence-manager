@@ -1,0 +1,6 @@
+# Demo profile (#54, docs/development.md and docs/demo.md). It only adds the demo dataset to the
+# migrations Flyway applies. Never activate it together with the dev profile, or in production.
+# The password of the demo users comes from DEMO_PASSWORD (shared.DemoDatasetConfig).
+spring:
+  flyway:
+    locations: classpath:db/migration,classpath:db/demo-data

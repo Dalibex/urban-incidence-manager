@@ -17,6 +17,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
 - Initial incident categories and departments, loaded by a database migration in every environment (#34).
 - Base map of Málaga built from OpenStreetMap with `docker compose --profile tiles run --rm tiles-builder`, with its own style, fonts and sprites, so the maps need no tile provider and no API key (#38).
 - Operator inbox on the web: every incident, newest first and page by page, and an incident detail with the report, its location ("Not available" when the address or district is unknown) and the full history, internal entries included (#46).
+- Demo dataset behind the `demo` profile: one user per role, whose password comes from `DEMO_PASSWORD`, and fifteen incidents in Málaga in every status. `docs/demo.md` is the demo script (#54).
 
 ### Changed
 
