@@ -151,8 +151,7 @@ class IncidentTransitionTest {
                     .isInstanceOfSatisfying(
                             InvalidTransitionException.class,
                             ex -> {
-                                assertThat(ex.status().value()).isEqualTo(409);
-                                assertThat(ex.code()).contains("INVALID_TRANSITION");
+                                assertThat(ex.code()).isEqualTo("INVALID_TRANSITION");
                             });
             assertThat(incident.getStatus()).isEqualTo(from);
             assertThat(incident.getStatusChanges()).hasSize(historyBefore);

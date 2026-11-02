@@ -6,7 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import es.uma.urbanpulse.identity.entity.Role;
-import es.uma.urbanpulse.shared.web.FieldError;
+import es.uma.urbanpulse.shared.error.FieldError;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import org.junit.jupiter.api.Test;
@@ -223,8 +223,7 @@ class IncidentTest {
                 .isInstanceOfSatisfying(
                         InvalidIncidentDataException.class,
                         ex -> {
-                            assertThat(ex.status().value()).isEqualTo(422);
-                            assertThat(ex.code()).contains("VALIDATION_FAILED");
+                            assertThat(ex.code()).isEqualTo("VALIDATION_FAILED");
                             assertThat(ex.fieldErrors())
                                     .extracting(FieldError::field)
                                     .containsExactly("reason");
@@ -322,7 +321,6 @@ class IncidentTest {
                 .isInstanceOfSatisfying(
                         InvalidIncidentDataException.class,
                         ex -> {
-                            assertThat(ex.status().value()).isEqualTo(422);
                             assertThat(ex.fieldErrors())
                                     .extracting(FieldError::field)
                                     .containsExactly("priorityReason");
