@@ -407,7 +407,9 @@ test, as `*.test.ts` or `*.test.tsx`.
   `package.json`) and `@testing-library/react-native`. Vitest cannot load React Native, which ships
   untranspiled Flow code; `jest-expo` transforms it and mocks the native modules. `describe`, `it`,
   `expect` and `jest` are globals, typed by `@types/jest`. `render` and `rerender` return a promise:
-  `await` them.
+  `await` them. `jest.setup.ts` sets the variables the app reads when it loads, such as
+  `EXPO_PUBLIC_API_BASE_URL`. The timeout per test is 20 s, not Jest's 5 s: with an empty Jest cache,
+  as in CI, the first test of each file also pays for transforming React Native.
 
 To run only the mobile tests, from `frontend/apps/mobile`:
 

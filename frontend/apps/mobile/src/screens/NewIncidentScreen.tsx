@@ -6,6 +6,7 @@ import {
   type FieldError,
   type components,
 } from '@urbanpulse/api-client';
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -27,6 +28,7 @@ import { FormMessage } from '../components/FormMessage';
 import { LocationIndicator } from '../components/LocationIndicator';
 import { TextField } from '../components/TextField';
 import { useIncidentLocation } from '../hooks/useIncidentLocation';
+import { incidentKeys } from '../incidents/incident-queries';
 import type { MainTabsParamList } from '../navigation/MainTabs';
 import { categoriesMessage, reportIncidentMessage, UNEXPECTED_ERROR } from '../session/messages';
 import { useSession } from '../session/SessionContext';
@@ -45,6 +47,7 @@ const FIELD_BANNER = 'Check the highlighted fields.';
  */
 export function NewIncidentScreen({ navigation }: Props) {
   const { api } = useSession();
+  const queryClient = useQueryClient();
   const location = useIncidentLocation();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -140,6 +143,8 @@ export function NewIncidentScreen({ navigation }: Props) {
         showProblems(result.failure, result.fieldErrors);
         return;
       }
+      // The new report must show in "My reports" without waiting for the cache to go stale.
+      void queryClient.invalidateQueries({ queryKey: incidentKeys.all });
       setTitle('');
       setDescription('');
       setCategoryId(null);

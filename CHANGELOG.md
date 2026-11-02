@@ -16,6 +16,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
 - The incident detail gives staff its `version`. Lifecycle actions will send it back, and a change made on an incident someone else changed meanwhile answers `409` with the code `CONCURRENT_MODIFICATION` instead of overwriting it (#101).
 - Initial incident categories and departments, loaded by a database migration in every environment (#34).
 - Operator inbox on the web: every incident, newest first and page by page, and an incident detail with the report, its location ("Not available" when the address or district is unknown) and the full history, internal entries included (#46).
+- *My reports* on the mobile app: the citizen's own incidents, open or closed, newest first and loaded as the list scrolls, and a detail with its location ("Not available" when the address or district is unknown) and the history visible to the citizen, where an information request shows as a message from the city council. Pull down to refresh; signing out forgets the loaded incidents (#45).
 
 ### Changed
 

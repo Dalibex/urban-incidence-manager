@@ -1,15 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import type { NavigatorScreenParams } from '@react-navigation/native';
 import { colors } from '@urbanpulse/ui';
 import type { ComponentProps } from 'react';
 
-import { MyReportsScreen } from '../screens/MyReportsScreen';
 import { NewIncidentScreen } from '../screens/NewIncidentScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import { MyReportsStack, type MyReportsStackParamList } from './MyReportsStack';
 
 export type MainTabsParamList = {
   NewReport: undefined;
-  MyReports: undefined;
+  MyReports: NavigatorScreenParams<MyReportsStackParamList> | undefined;
   Profile: undefined;
 };
 
@@ -38,8 +39,9 @@ export function MainTabs() {
       />
       <Tab.Screen
         name="MyReports"
-        component={MyReportsScreen}
-        options={{ title: 'My reports', tabBarIcon: tabIcon('list') }}
+        component={MyReportsStack}
+        // The stack shows its own header, with the back button of the detail.
+        options={{ title: 'My reports', headerShown: false, tabBarIcon: tabIcon('list') }}
       />
       <Tab.Screen
         name="Profile"
