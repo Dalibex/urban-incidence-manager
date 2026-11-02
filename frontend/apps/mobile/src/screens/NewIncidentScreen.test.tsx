@@ -4,7 +4,7 @@ import { act, fireEvent, screen, userEvent, waitFor } from '@testing-library/rea
 import { Alert } from 'react-native';
 
 import { useIncidentLocation, type UseIncidentLocationResult } from '../hooks/useIncidentLocation';
-import { incidentKeys } from '../incidents/incident-queries';
+import { categoryKeys, incidentKeys } from '../incidents/incident-queries';
 import type { MainTabsParamList } from '../navigation/MainTabs';
 import { failed, ok, renderWithQueries } from '../test-utils';
 import { NewIncidentScreen } from './NewIncidentScreen';
@@ -123,6 +123,17 @@ describe('NewIncidentScreen', () => {
       await fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
 
       expect(await screen.findByRole('button', { name: 'Street lighting' })).toBeOnTheScreen();
+    });
+
+    it('keeps the loaded categories when a refresh fails', async () => {
+      const { queryClient } = await renderScreen();
+      await screen.findByRole('button', { name: 'Street lighting' });
+      mockedListCategories.mockResolvedValue(failed({ kind: 'network' }));
+
+      await act(() => queryClient.refetchQueries({ queryKey: categoryKeys.active }));
+
+      expect(screen.getByRole('button', { name: 'Street lighting' })).toBeOnTheScreen();
+      expect(screen.queryByText(/UrbanPulse cannot be reached/)).not.toBeOnTheScreen();
     });
 
     it('still lets the citizen report when they cannot be loaded', async () => {

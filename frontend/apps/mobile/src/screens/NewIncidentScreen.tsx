@@ -186,9 +186,10 @@ export function NewIncidentScreen({ navigation }: Props) {
 
         <View style={styles.field}>
           <Text style={styles.label}>Category (optional)</Text>
+          {/* Loaded categories stay on screen when a later refresh fails. */}
           {categories.isPending ? (
             <ActivityIndicator accessibilityLabel="Loading the categories" />
-          ) : categories.isError ? (
+          ) : categories.data === undefined ? (
             <View style={styles.field}>
               <Text style={styles.fieldError}>
                 {categories.error instanceof ApiCallError
