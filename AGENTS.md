@@ -35,7 +35,7 @@ State at the end of Sprint 1. Backend: Spring Boot with PostgreSQL/PostGIS throu
 
 ### Functional scope map
 
-The identifiers correspond to the case study. This map does not mean that all functions are implemented or that they belong to the first delivery.
+The identifiers correspond to the case study. This map does not mean that all functions are implemented or that they belong to the first delivery. The priority of each requirement, the issues that cover it in the MVP and the screens of each role are in `docs/requirements.md`; the GitHub milestones are the plan.
 
 | Requirements | Scope                                                                                               |
 | ------------ | --------------------------------------------------------------------------------------------------- |
@@ -126,7 +126,7 @@ Do not change the stack or introduce components because they are popular. An arc
 | `backend/`                | Spring Boot backend (`pom.xml`, `mvnw`, `Dockerfile`, `docker-compose.yaml`). |
 | `docs/adr/`               | Architectural decisions.                                       |
 | `docs/api/openapi.yml`    | OpenAPI 3.1 contract, source of truth of the API (`docs/api.md`). |
-| `docs/`                   | Guides: `development`, `deployment`, `database`, `datasets`, `demo`, `testing`, `ci`, `api`, `security`; C4 model in `docs/architecture/`. |
+| `docs/`                   | Guides: `requirements`, `development`, `deployment`, `database`, `datasets`, `demo`, `testing`, `ci`, `api`, `security`; C4 model in `docs/architecture/`. |
 | `tiles/`                  | Base map builder, a one-off process (ADR-0016).                |
 | `.github/`                | CI workflows, issue and PR templates.                          |
 | `.githooks/`              | Versioned Git hooks (pre-commit formatting).                   |
