@@ -62,6 +62,15 @@ class DatabaseMigrationIT {
                     "Parks and Gardens",
                     "Mobility");
 
+    // The indexes of the main queries (#132), measured in docs/database.md, "Indexes".
+    private static final List<String> MAIN_QUERY_INDEXES =
+            List.of(
+                    "ix_incident_reporter_reported_at",
+                    "ix_incident_reported_at",
+                    "ix_incident_status_reported_at",
+                    "ix_assignment_active_technician",
+                    "ix_status_change_incident_id");
+
     @Autowired private Flyway flyway;
 
     @Autowired private JdbcTemplate jdbc;
@@ -93,6 +102,16 @@ class DatabaseMigrationIT {
                         String.class);
 
         assertThat(tables).containsAll(SCHEMA_TABLES);
+    }
+
+    @Test
+    void createsTheIndexesOfTheMainQueries() {
+        var indexes =
+                jdbc.queryForList(
+                        "SELECT indexname FROM pg_indexes WHERE schemaname = 'public'",
+                        String.class);
+
+        assertThat(indexes).containsAll(MAIN_QUERY_INDEXES);
     }
 
     @Test
