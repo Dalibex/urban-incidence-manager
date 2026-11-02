@@ -191,7 +191,7 @@ Make small, focused commits with a clear description, for example `feat(incident
 registration endpoint` instead of `changes`.
 
 Java files are formatted automatically by the pre-commit hook, which any local `./mvnw` build installs.
-See the [CI setup guide](docs/ci-setup.md) if it does not run.
+See *The hook in every clone* in the [CI guide](docs/ci.md#91-the-hook-in-every-clone) if it does not run.
 
 ### Pull requests
 
@@ -225,8 +225,8 @@ The [CI guide](docs/ci.md) explains each job and what to do when one fails.
 #### Database changes
 
 If the pull request changes the database schema, follow the migration rules in the
-[development guide](docs/development.md): a new Flyway migration, never an edited one, and the schema
-diagram updated in the same pull request.
+[database guide](docs/database.md): a new Flyway migration, never an edited one, and the schema
+diagram and the datasets updated in the same pull request.
 
 ### Review and merge
 
@@ -249,7 +249,7 @@ diagram updated in the same pull request.
 - Required status checks: `lint`, `test`, `build` and `pr-title`.
 - Linear history, no force pushes and no deletion of the branch.
 
-The maintainer configures it as described in the [CI setup guide](docs/ci-setup.md#4-protect-main-with-a-ruleset).
+The maintainer configures it as described in the [CI guide](docs/ci.md#93-protect-main-with-a-ruleset).
 
 ### Versioning
 

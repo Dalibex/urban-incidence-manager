@@ -45,7 +45,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_ACCESS_TOKEN_TTL: ${JWT_ACCESS_TOKEN_TTL:-PT15M}
       REFRESH_TOKEN_TTL: ${REFRESH_TOKEN_TTL:-P14D}
-      # Data profile (docs/development.md): empty for no sample data, dev for the development dataset,
+      # Data profile (docs/datasets.md): empty for no sample data, dev for the development dataset,
       # demo for the demo dataset, which also needs DEMO_PASSWORD (docs/demo.md).
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-}
       DEMO_PASSWORD: ${DEMO_PASSWORD:-}
@@ -63,7 +63,7 @@ services:
 
   tiles-builder:
     # One-off admin process (12-factor XII, ADR-0016) that builds the base map of Málaga. It belongs
-    # to the "tiles" profile, so `up` never starts it. Run it by hand (docs/development.md):
+    # to the "tiles" profile, so `up` never starts it. Run it by hand (docs/deployment.md):
     #   docker compose --profile tiles run --rm tiles-builder
     profiles: [tiles]
     build: ../tiles

@@ -89,7 +89,7 @@ Windows PowerShell:
 
 Spring Boot detects `docker-compose.yaml`, starts PostgreSQL/PostGIS, waits until the database is healthy, and configures the connection.
 
-To run the backend as a container instead, with the same image as the CI, use `docker compose --profile app up --build` (see the [development guide](docs/development.md)).
+To run the backend as a container instead, with the same image as the CI, use `docker compose --profile app up --build` (see the [deployment guide](docs/deployment.md)).
 
 ## 🚀 Testing
 
@@ -123,9 +123,16 @@ urban-incidence-manager/
 |-- docs/
 |   |-- adr/
 |   |-- api/
-|   |-- ci-setup.md
+|   |-- architecture/
+|   |-- api.md
 |   |-- ci.md
-|   `-- development.md
+|   |-- database.md
+|   |-- datasets.md
+|   |-- demo.md
+|   |-- deployment.md
+|   |-- development.md
+|   |-- security.md
+|   `-- testing.md
 |-- frontend/
 |   |-- apps/
 |   |   |-- web/
@@ -153,11 +160,14 @@ The diagram is a `.drawio.svg`: GitHub shows it as an image, and draw.io opens i
 ## 📚 Documentation
 
 - [Development guide](docs/development.md)
-- Deployment guide **TBC**
+- [Deployment guide](docs/deployment.md) (local Compose stack for now)
+- [Database guide](docs/database.md) and [database schema](docs/database.drawio.svg)
+- [Datasets and measurements](docs/datasets.md) and [demo script](docs/demo.md)
+- [Testing guide](docs/testing.md)
 - [API guide](docs/api.md) and [OpenAPI contract](docs/api/openapi.yml)
+- [Security guide](docs/security.md)
 - [C4 architecture model](docs/architecture/)
-- [Database schema](docs/database.drawio.svg)
-- [CI guide](docs/ci.md) and [CI setup](docs/ci-setup.md)
+- [CI guide](docs/ci.md)
 - [Architecture Decision Records](docs/adr/)
 - [Changelog](CHANGELOG.md)
 - [Contributing guide](CONTRIBUTING.md)
