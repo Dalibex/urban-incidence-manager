@@ -10,6 +10,7 @@ import es.uma.urbanpulse.incidents.entity.Department;
 import es.uma.urbanpulse.incidents.entity.Incident;
 import es.uma.urbanpulse.incidents.entity.IncidentStatus;
 import es.uma.urbanpulse.incidents.entity.IncidentTransition;
+import es.uma.urbanpulse.incidents.entity.Location;
 import es.uma.urbanpulse.incidents.entity.Priority;
 import es.uma.urbanpulse.incidents.entity.PrioritySource;
 import es.uma.urbanpulse.incidents.entity.StatusChange;
@@ -18,6 +19,7 @@ import es.uma.urbanpulse.incidents.repository.IncidentRepository;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.locationtech.jts.geom.Coordinate;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
@@ -40,7 +42,12 @@ class IncidentLifecyclePersistenceIT extends PersistenceTestSupport {
 
         Incident incident =
                 Incident.report(
-                        citizen, "Street light off", "Off since Monday.", null, REPORTED_AT);
+                        citizen,
+                        "Street light off",
+                        "Off since Monday.",
+                        null,
+                        locationAt(36.7213, -4.4214),
+                        REPORTED_AT);
         incident.classify(persistedCategory(), REPORTED_AT);
         incident.prioritize(
                 Priority.LOW, "Side street", PrioritySource.MANUAL, operator, REPORTED_AT);
@@ -86,6 +93,12 @@ class IncidentLifecyclePersistenceIT extends PersistenceTestSupport {
         category.setName("Lighting");
         entityManager.persist(category);
         return category;
+    }
+
+    private static Location locationAt(double latitude, double longitude) {
+        Location location = new Location();
+        location.setCoordinates(Location.WGS84.createPoint(new Coordinate(longitude, latitude)));
+        return location;
     }
 
     private Department persistedDepartment() {

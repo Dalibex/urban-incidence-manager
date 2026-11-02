@@ -15,6 +15,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -106,6 +107,9 @@ public class Incident {
     @OneToMany(mappedBy = "incident", cascade = CascadeType.PERSIST)
     private List<Assignment> assignments = new ArrayList<>();
 
+    @OneToOne(mappedBy = "incident", cascade = CascadeType.PERSIST, fetch = FetchType.LAZY)
+    private Location location;
+
     /**
      * A citizen reports an incident: it starts in {@code REPORTED} with its first history entry,
      * which has no previous status (ADR-0020, row "— → REPORTED"). The location is a separate
@@ -115,10 +119,16 @@ public class Incident {
      * @throws InvalidTransitionException if the reporter is not a citizen
      */
     public static Incident report(
-            User reporter, String title, String description, Category category, Instant now) {
+            User reporter,
+            String title,
+            String description,
+            Category category,
+            Location location,
+            Instant now) {
         Objects.requireNonNull(reporter, "reporter");
         Objects.requireNonNull(title, "title");
         Objects.requireNonNull(description, "description");
+        Objects.requireNonNull(location, "location");
         if (reporter.getRole() != Role.CITIZEN) {
             throw InvalidTransitionException.reportOnlyByCitizens();
         }
@@ -130,6 +140,8 @@ public class Incident {
         incident.status = IncidentStatus.REPORTED;
         incident.reportedAt = utc(now);
         incident.updatedAt = incident.reportedAt;
+        incident.location = location;
+        location.setIncident(incident);
         incident.statusChanges.add(
                 new StatusChange(
                         incident, reporter, incident.reportedAt, null, IncidentStatus.REPORTED));

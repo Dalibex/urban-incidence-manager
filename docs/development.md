@@ -134,6 +134,8 @@ curl.exe http://localhost:8080/actuator/health
   app, `curl` or an Android emulator (`http://10.0.2.2:8080`). A physical phone cannot reach it;
   to test the mobile app on a phone, run the backend from the IDE or the terminal instead (see
   *Client Workspace*).
+- To start it with sample data, set `SPRING_PROFILES_ACTIVE=dev` in `.env` (see *Development
+  Dataset*). Leave it empty for an empty database, as in production.
 - With `-d` (in the background), follow the logs with `docker compose logs -f backend`.
 - Stop everything with `Ctrl+C`, or with `docker compose --profile app down` if you started it with
   `-d`. Your data stays in the `postgres-data` volume.
@@ -163,6 +165,12 @@ Test classes are picked up by name:
 - `*Test`: unit tests, no Docker, run by `./mvnw test`.
 - `*IT`: integration tests with the Spring context and PostGIS, run by `./mvnw verify`. Skip them
   with `-DskipITs`.
+
+HTTP integration tests that call `/api/v1` with MockMvc import `ApiContract.EveryResponse`: every
+response is then validated against its operation and status in
+[`docs/api/openapi.yml`](api/openapi.yml), error bodies included, so a DTO that drifts from the
+contract fails the test. Only the response is checked, so a test may send an invalid request on
+purpose.
 
 `verify` also checks formatting, coverage and SpotBugs. See the [CI guide](ci.md).
 
@@ -207,10 +215,75 @@ insert them by hand or with a script run from a database client.
 - To retire a category or a department, set `is_active = false` instead of deleting it: existing
   incidents and assignments still point to it.
 - Add the new rows to the expected lists of `DatabaseMigrationIT`.
-- Demo users and incidents are not reference data: they are loaded separately (#54).
+- Sample users and incidents are not reference data: the development dataset loads them only with
+  the `dev` profile (see *Development Dataset*).
 
 Once administrators can manage categories and departments from the application, a migration only
 sets the starting point.
+
+## 🧪 Development Dataset
+
+The `dev` Spring profile loads a shared development dataset (#83): a user of every role, incidents
+in every status of the lifecycle with their history, and the assignments, comments, attachment
+metadata, urban context, external observations, urban assets and notifications around them. Use it
+to try the API and the clients without creating data by hand. Never activate it outside a developer
+machine: production starts with no profile and no sample data. Among the integration tests, only
+`DevelopmentDatasetIT` uses the profile, on its own PostGIS container.
+
+`application-dev.yaml` adds `classpath:db/dev-data` to the Flyway locations, and
+`db/dev-data/R__dev_data.sql` is a repeatable migration: Flyway runs it after the versioned
+migrations, and again whenever the file changes. Other data profiles, such as the demo dataset
+(#54) and the performance dataset (#84), follow the same pattern: a profile, its own folder and one
+repeatable migration. Only one data profile is active at a time.
+
+### Activate it
+
+- IntelliJ IDEA: in the run configuration of `UrbanpulseApplication`, set **Active profiles** to
+  `dev`.
+- Terminal, from `backend/`: `./mvnw spring-boot:run -Dspring-boot.run.profiles=dev` (Windows
+  PowerShell: `./mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=dev"`).
+- Docker: set `SPRING_PROFILES_ACTIVE=dev` in `.env` and run `docker compose --profile app up
+  --build`. The variable only reaches the container: the IDE and `./mvnw` read `.env` as a
+  properties file and do not activate a profile from it, so use the options above there.
+
+Every user signs in with the password `urbanpulse-dev`:
+
+| Email | Role |
+| --- | --- |
+| `dev.citizen@example.com` | `CITIZEN` |
+| `dev.citizen2@example.com` | `CITIZEN` |
+| `dev.operator@example.com` | `MUNICIPAL_OPERATOR` |
+| `dev.technician@example.com` | `TECHNICIAN` |
+| `dev.technician2@example.com` | `TECHNICIAN` |
+| `dev.admin@example.com` | `ADMINISTRATOR` |
+| `dev.analyst@example.com` | `ANALYST` |
+
+### When the data reloads
+
+- Restarting the backend keeps everything, including what you created yourself.
+- When `R__dev_data.sql` changes (you edit it, or you pull a change to it), the next start runs it
+  again: it deletes every incident and what belongs to it, yours too, and inserts the dataset
+  again. The users and urban assets of the dataset are updated in place by their fixed ids; users
+  you signed up yourself stay.
+- Each developer has their own database (the `postgres-data` volume): what you create or delete
+  never reaches your teammates.
+- Restarting is not enough to undo your changes, because the file did not change. To start again
+  from the dataset, reset the database (see below) and start with the profile.
+
+A database that loaded the dataset does not start without the `dev` profile: Flyway finds that
+`R__dev_data.sql` was applied but is no longer among its migrations, and fails with *Migrations
+have failed validation*. The sample data would still be in it, so to leave the profile, reset the
+database first.
+
+### Change the dataset
+
+- When a migration changes a table the dataset fills, update `R__dev_data.sql` in the same pull
+  request. `DevelopmentDatasetIT` loads it on an empty database and fails if it no longer fits the
+  schema or the lifecycle rules ([ADR-0020](adr/0020-incident-lifecycle-transitions.md)).
+- Give every new row a fixed id that follows the scheme described at the top of the file.
+- Never delete a user of the dataset: set `enabled = false`, because other records may still
+  point to it.
+- Do not write `${` in the file: Flyway would read it as a placeholder.
 
 ## ⚠️ Reset the Local Database
 
@@ -358,6 +431,31 @@ pnpm build
 
 `pnpm format` fixes the formatting; the pre-commit hook also formats the staged client files.
 
+### Client tests
+
+`pnpm test` runs the `test` script of every app and package. Test files sit next to the code they
+test, as `*.test.ts` or `*.test.tsx`.
+
+- `apps/web` and `packages/*` use Vitest, with Testing Library (`@testing-library/react`) for the
+  web components. Import `describe`, `it`, `expect` and `vi` from `vitest`.
+- `apps/mobile` uses Jest with the `jest-expo` preset (set in the `jest` field of its
+  `package.json`) and `@testing-library/react-native`. Vitest cannot load React Native, which ships
+  untranspiled Flow code; `jest-expo` transforms it and mocks the native modules. `describe`, `it`,
+  `expect` and `jest` are globals, typed by `@types/jest`. `render` and `rerender` return a promise:
+  `await` them.
+
+To run only the mobile tests, from `frontend/apps/mobile`:
+
+```bash
+pnpm test
+```
+
+Pass a file or a pattern to run fewer tests, for example `pnpm test FormMessage`, or
+`pnpm test --watch` to run them again on every change.
+
+Upgrade `jest-expo` with the Expo SDK (`pnpm exec expo install --fix` in `apps/mobile`), so it matches
+the `expo` and `react-native` versions.
+
 ### API client
 
 `frontend/packages/api-client/src/schema.d.ts` is generated from the contract. After changing
@@ -368,6 +466,17 @@ pnpm generate:api
 ```
 
 Never edit `schema.d.ts` by hand: the `contract` CI job fails if it differs from the contract.
+
+Each operation gets a typed function in `api-client` (`listIncidents`, `getIncident`...) that
+returns an `ApiResult`, so both apps handle failures by `status` and `code`, never by the text.
+
+### Server state on the web
+
+The web reads the API through React Query ([ADR-0006](adr/0006-frontend-web-technology.md)): each
+screen calls a hook such as `useIncidentPage` (`apps/web/src/incidents/incident-queries.ts`), which
+caches the result and shares it between screens. Only failures that may pass on their own are
+retried: the API not reachable or a `5xx`; a `4xx` is shown at once. Signing out, or a session
+that expires, empties the cache, so the next user never sees the data of the previous one.
 
 ## 🔙 Backend Structure
 

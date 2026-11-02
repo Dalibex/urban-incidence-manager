@@ -36,3 +36,25 @@ export function signUpMessage(failure: ApiFailure): string {
       return 'The account could not be created. Try again in a moment.';
   }
 }
+
+/** The category is optional, so the message says the report can still be sent. */
+export function categoriesMessage(failure: ApiFailure): string {
+  if (failure.kind === 'network') {
+    return NETWORK;
+  }
+  return 'The categories could not be loaded. You can report without one or try again.';
+}
+
+/** Only for failures without per-field errors: a `422` is shown next to the invalid fields. */
+export function reportIncidentMessage(failure: ApiFailure): string {
+  if (failure.kind === 'network') {
+    return NETWORK;
+  }
+  if (failure.status === 403) {
+    return 'This account cannot report incidents.';
+  }
+  if (failure.status === 429) {
+    return TOO_MANY;
+  }
+  return 'The incident could not be reported. Try again in a moment.';
+}

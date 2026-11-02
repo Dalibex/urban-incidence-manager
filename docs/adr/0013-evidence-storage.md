@@ -1,6 +1,6 @@
 # ADR-0013: Local volume behind a StorageService interface for evidences
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision Makers:** Project Team
 - **Date:** 2026-10-07
 
@@ -37,6 +37,19 @@ accessed through an application-level **`StorageService` interface**.
   implementation of the same interface, adopted only when there is an observable problem, a
   testable hypothesis and a new ADR (AGENTS.md section 4).
 
+### Evidence Policy
+
+- **Accepted types:** JPEG, PNG and WebP, detected from the file content (magic bytes), not from the extension or the declared Content-Type.
+- **Limits:** Maximum size per file from configuration (`EVIDENCE_MAX_FILE_SIZE`, default 10 MB); maximum files per incident from configuration (`EVIDENCE_MAX_FILES_PER_INCIDENT`, default 5).
+- **Migration strategy:** A database migration (V9) replaces `attachment.storage_url` with `storage_key` (unique) and adds `content_hash` (SHA-256). Merged migrations are never edited (ADR-0014).
+- **Security:** Files are served only through an authorised endpoint; a storage key is never a public URL.
+
+## How it will be evaluated
+
+- **Metric:** $p_{95}$ upload time of a 5 MB photo from a phone on the demo LAN.
+- **Threshold:** Under 3 s.
+- **Review Trigger:** When a second backend replica is required (triggers architectural review for S3-compatible object storage).
+
 ## Considered Options
 
 - **Bytea columns in PostgreSQL** — No extra storage, but large binaries bloat the relational
@@ -71,4 +84,3 @@ accessed through an application-level **`StorageService` interface**.
 
 - [ADR-0001: Use PostgreSQL for primary database](0001-database.md)
 - [ADR-0011: Deployment and 12-factor configuration](0011-deployment-12factor.md)
-- [ADR-0017: nginx as the single entry point](0017-reverse-proxy.md)

@@ -929,7 +929,8 @@ components:
     IncidentResponse:
       type: object
       description: >-
-        Full incident. `priority` is staff-only: it is absent in the responses to a citizen.
+        Full incident. `priority` and `version` are staff-only: they are absent in the responses to a
+        citizen.
       required:
         [id, title, description, status, category, location, reportedAt, updatedAt, closedAt]
       properties:
@@ -970,6 +971,14 @@ components:
           format: date-time
           description: When the incident was closed. `null` while it is not closed.
           examples: [null]
+        version:
+          type: integer
+          minimum: 0
+          description: >-
+            Staff only. Changes every time the incident changes. Lifecycle actions send back the
+            version the client read; if the incident changed since then, they answer `409` with
+            the code `CONCURRENT_MODIFICATION` (ADR-0020).
+          examples: [3]
 
     StatusChangeActor:
       type: object
@@ -1089,7 +1098,8 @@ components:
     Conflict:
       description: >-
         The request conflicts with the current state of the resource, for example a status
-        transition that is not allowed or a duplicated unique value. `code` says which.
+        transition that is not allowed, a change made on a stale version or a duplicated unique
+        value. `code` says which.
       content:
         application/problem+json:
           schema:

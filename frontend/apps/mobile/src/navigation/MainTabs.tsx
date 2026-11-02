@@ -4,7 +4,7 @@ import { colors } from '@urbanpulse/ui';
 import type { ComponentProps } from 'react';
 
 import { MyReportsScreen } from '../screens/MyReportsScreen';
-import { NewReportScreen } from '../screens/NewReportScreen';
+import { NewIncidentScreen } from '../screens/NewIncidentScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 
 export type MainTabsParamList = {
@@ -33,7 +33,7 @@ export function MainTabs() {
     >
       <Tab.Screen
         name="NewReport"
-        component={NewReportScreen}
+        component={NewIncidentScreen}
         options={{ title: 'New', headerTitle: 'New report', tabBarIcon: tabIcon('add-circle') }}
       />
       <Tab.Screen

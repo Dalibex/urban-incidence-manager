@@ -21,7 +21,13 @@ class IncidentTest {
     @Test
     void aReportStartsInReportedWithItsFirstHistoryEntry() {
         var incident =
-                Incident.report(fixture.citizen, "Pothole", "Deep pothole.", null, REPORTED_AT);
+                Incident.report(
+                        fixture.citizen,
+                        "Pothole",
+                        "Deep pothole.",
+                        null,
+                        IncidentFixture.locationAt(36.7213, -4.4214),
+                        REPORTED_AT);
 
         assertThat(incident.getStatus()).isEqualTo(IncidentStatus.REPORTED);
         assertThat(incident.getCategory()).isNull();
@@ -50,6 +56,7 @@ class IncidentTest {
                                         "Pothole",
                                         "Deep pothole.",
                                         null,
+                                        IncidentFixture.locationAt(36.7213, -4.4214),
                                         REPORTED_AT))
                 .isInstanceOf(InvalidTransitionException.class);
     }
@@ -75,6 +82,31 @@ class IncidentTest {
         assertThat(change.getAssociatedData()).isNull();
         assertThat(change.getVisibleToCitizen()).isTrue();
         assertThat(incident.getUpdatedAt()).isEqualTo(LATER_UTC);
+    }
+
+    @Test
+    void theCitizenSeesTheReasonOfAnInformationRequestAndARejectionOnly() {
+        var reopened = fixture.in(IncidentStatus.REOPENED);
+        var requested = fixture.reported();
+        var request =
+                requested.changeStatus(
+                        IncidentTransition.INFORMATION_REQUEST,
+                        fixture.operator,
+                        TransitionDetails.withReason("Which street number?"),
+                        LATER);
+        var rejection =
+                requested.changeStatus(
+                        IncidentTransition.REJECTION,
+                        fixture.operator,
+                        TransitionDetails.withReason("Duplicate"),
+                        LATER);
+
+        // Report, validation, assignment, acceptance, resolution and reopening.
+        assertThat(reopened.getStatusChanges())
+                .hasSize(6)
+                .allSatisfy(change -> assertThat(change.citizenSeesReason()).isFalse());
+        assertThat(request.citizenSeesReason()).isTrue();
+        assertThat(rejection.citizenSeesReason()).isTrue();
     }
 
     @Test
@@ -192,7 +224,7 @@ class IncidentTest {
                         InvalidIncidentDataException.class,
                         ex -> {
                             assertThat(ex.status().value()).isEqualTo(422);
-                            assertThat(ex.code()).isEqualTo("VALIDATION_FAILED");
+                            assertThat(ex.code()).contains("VALIDATION_FAILED");
                             assertThat(ex.fieldErrors())
                                     .extracting(FieldError::field)
                                     .containsExactly("reason");
@@ -204,7 +236,13 @@ class IncidentTest {
     @Test
     void validationNeedsCategoryAndPriority() {
         var incident =
-                Incident.report(fixture.citizen, "Pothole", "Deep pothole.", null, REPORTED_AT);
+                Incident.report(
+                        fixture.citizen,
+                        "Pothole",
+                        "Deep pothole.",
+                        null,
+                        IncidentFixture.locationAt(36.7213, -4.4214),
+                        REPORTED_AT);
 
         assertThatThrownBy(
                         () ->

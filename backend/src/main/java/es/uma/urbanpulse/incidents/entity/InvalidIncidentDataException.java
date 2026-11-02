@@ -17,6 +17,13 @@ public class InvalidIncidentDataException extends ApiProblemException {
 
     private final List<FieldError> fieldErrors;
 
+    public static InvalidIncidentDataException invalidCategory() {
+        return new InvalidIncidentDataException(
+                List.of(
+                        new FieldError(
+                                "categoryId", "The category does not exist or is not active.")));
+    }
+
     InvalidIncidentDataException(List<FieldError> fieldErrors) {
         super(
                 HttpStatus.UNPROCESSABLE_CONTENT,
