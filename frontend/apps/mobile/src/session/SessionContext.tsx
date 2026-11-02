@@ -7,6 +7,7 @@ import {
   type ApiClient,
   type ApiResult,
 } from '@urbanpulse/api-client';
+import { useQueryClient } from '@tanstack/react-query';
 import type { Role } from '@urbanpulse/domain';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
@@ -51,6 +52,8 @@ if (!API_BASE_URL) {
 }
 
 export function SessionProvider({ children }: { children: ReactNode }) {
+  // The cached incidents belong to the user who read them: they go away with the session.
+  const queryClient = useQueryClient();
   const [restoring, setRestoring] = useState(true);
   const [user, setUser] = useState<SessionUser | null>(null);
   const [expired, setExpired] = useState(false);
@@ -58,6 +61,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     createApiClient(API_BASE_URL, {
       tokenStore: secureTokenStore,
       onSessionExpired: () => {
+        queryClient.clear();
         setUser(null);
         setExpired(true);
       },
@@ -120,12 +124,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           await signOutOnApi(api, secureTokenStore);
         } finally {
           // The tokens are gone either way. A refresh rejected while signing out is not an expiry.
+          queryClient.clear();
           setUser(null);
           setExpired(false);
         }
       },
     }),
-    [api, restoring, user, expired],
+    [api, queryClient, restoring, user, expired],
   );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

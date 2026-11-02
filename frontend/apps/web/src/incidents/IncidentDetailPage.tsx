@@ -1,5 +1,5 @@
 import type { components } from '@urbanpulse/api-client';
-import { statusColor } from '@urbanpulse/ui';
+import { formatInstant, historyEventLabel, NOT_AVAILABLE, statusColor } from '@urbanpulse/ui';
 import type { CSSProperties, ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
 
@@ -10,7 +10,7 @@ import { useIncident, useIncidentHistory } from './incident-queries';
 import { IncidentActions } from './IncidentActions';
 import styles from './Incidents.module.css';
 import { LoadFailure } from './LoadFailure';
-import { NOT_AVAILABLE, PRIORITY_LABELS, formatInstant, historyEventLabel } from './labels';
+import { PRIORITY_LABELS } from './labels';
 import { StatusBadge } from './StatusBadge';
 
 type Incident = components['schemas']['IncidentResponse'];
