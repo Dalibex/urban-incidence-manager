@@ -19,4 +19,14 @@
         <Package name="~es\.uma\.urbanpulse\.[a-z]+\.entity" />
         <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2" />
     </Match>
+
+    <!--
+      SpotBugs takes a type for mutable when it declares a method named like a mutator, and
+      RefreshTokenRepository declares deleteExpiredBefore (#125). The services keep the repository
+      that Spring injects: sharing that singleton is dependency injection, not exposed state.
+    -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP2" />
+        <Field type="es.uma.urbanpulse.identity.repository.RefreshTokenRepository" />
+    </Match>
 </FindBugsFilter>

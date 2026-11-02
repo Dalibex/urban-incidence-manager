@@ -7,15 +7,21 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * Lifetime of the refresh tokens and the rate limits of sign-in and sign-up (docs/security.md).
  *
  * @param refreshTokenTtl how long a refresh token works ({@code REFRESH_TOKEN_TTL})
+ * @param refreshTokenRetention how long an expired refresh token is kept before the clean-up
+ *     deletes it ({@code REFRESH_TOKEN_RETENTION})
  * @param signInAttempts failed sign-ins allowed per email and client address in each window
  * @param signUpAttempts sign-ups allowed per client address in each window
  */
 @ConfigurationProperties("urbanpulse.security")
 public record AccountSecurityProperties(
-        Duration refreshTokenTtl, AttemptLimit signInAttempts, AttemptLimit signUpAttempts) {
+        Duration refreshTokenTtl,
+        Duration refreshTokenRetention,
+        AttemptLimit signInAttempts,
+        AttemptLimit signUpAttempts) {
 
     public AccountSecurityProperties {
         requirePositive(refreshTokenTtl, "urbanpulse.security.refresh-token-ttl");
+        requirePositive(refreshTokenRetention, "urbanpulse.security.refresh-token-retention");
         if (signInAttempts == null || signUpAttempts == null) {
             throw new IllegalArgumentException(
                     "urbanpulse.security.sign-in-attempts and sign-up-attempts are required");
