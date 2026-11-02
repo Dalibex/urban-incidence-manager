@@ -4,6 +4,7 @@
 #   lint → repository hygiene (.env, Compose, image parity) and formatting (Spotless check)
 #   contract → the OpenAPI contract docs/api/openapi.yml is valid and follows docs/api.md (Redocly),
 #              and the generated frontend/packages/api-client types match it
+#   architecture → the C4 draw.io file is the one docs/architecture/workspace.dsl generates
 #   frontend → client workspace in frontend/ (ADR-0007): format, lint, type-check, test and build with pnpm
 #   test → unit (*Test) + integration (*IT, Testcontainers) tests, coverage gate and SpotBugs
 #   build → builds the backend image (ONE jar per commit inside), smoke-tests the container against
@@ -135,6 +136,37 @@ jobs:
             echo "::error title=api-client::The generated types differ from the committed ones. Run pnpm generate:api from $FRONTEND_DIR/ and commit the result."
             echo "$changes"
             git --no-pager diff --stat -- packages/api-client
+            exit 1
+          fi
+
+  # C4 model: docs/architecture/workspace.dsl is the source and UrbanPulse-C4.drawio is generated
+  # from it, never edited by hand (CONTRIBUTING, Architecture changes). The generator gives the same
+  # bytes for the same DSL, so regenerating and diffing finds both mistakes.
+  architecture:
+    name: architecture
+    runs-on: ubuntu-latest
+    # The generator image downloads Structurizr and a Java runtime on every run.
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      # Structurizr refuses to export a DSL that is not valid, so this step also validates it.
+      - name: Regenerate the draw.io file from workspace.dsl
+        run: |
+          if ! docker compose -f docs/architecture/compose.yaml run --rm -T drawio; then
+            echo "::error file=docs/architecture/workspace.dsl,title=C4 model::The draw.io file could not be generated; the log above says why (usually workspace.dsl is not valid). Run docker compose -f docs/architecture/compose.yaml run --rm drawio from the repository root."
+            exit 1
+          fi
+
+      # git status and not git diff: it also sees a draw.io file deleted from the repository, which
+      # the generator writes back as an untracked file.
+      - name: draw.io file is up to date with workspace.dsl
+        run: |
+          changes=$(git status --porcelain -- docs/architecture)
+          if [ -n "$changes" ]; then
+            echo "::error file=docs/architecture/UrbanPulse-C4.drawio,title=C4 model::UrbanPulse-C4.drawio is not the file workspace.dsl generates: it was edited by hand, deleted or not regenerated. Run docker compose -f docs/architecture/compose.yaml run --rm drawio from the repository root and commit the result."
+            echo "$changes"
+            git --no-pager diff --stat -- docs/architecture
             exit 1
           fi
 
