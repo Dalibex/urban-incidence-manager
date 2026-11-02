@@ -36,19 +36,19 @@ Compose reads `backend/.env`, which is never committed. Create it from `backend/
 *Create the Local Environment File* in the [development guide](development.md) explains. Write the
 values without quotes.
 
-| Variable | Default | Secret | Used by | What it is |
+| Variable | In `.env.example` | Secret | Used by | What it is |
 | --- | --- | --- | --- | --- |
 | `POSTGRES_DB` | `urbanpulse` | | `postgres`, `backend` | Database name |
 | `POSTGRES_USER` | `urbanpulse` | | `postgres`, `backend` | Database user |
 | `POSTGRES_PASSWORD` | `change_me` | ✓ | `postgres`, `backend` | Database password; change it |
 | `POSTGRES_PORT` | `5432` | | `postgres` | Port on your machine |
 | `BACKEND_PORT` | `8080` | | `backend` | Port on your machine; inside the container the API always listens on 8080 |
-| `JWT_SECRET` | — | ✓ | `backend` | Signs the access tokens, at least 32 bytes ([security guide](security.md)). The backend does not start without it |
+| `JWT_SECRET` | empty | ✓ | `backend` | Signs the access tokens, at least 32 bytes ([security guide](security.md)). The backend does not start without it |
 | `JWT_ACCESS_TOKEN_TTL` | `PT15M` | | `backend` | Lifetime of an access token |
 | `REFRESH_TOKEN_TTL` | `P14D` | | `backend` | Lifetime of a refresh token |
 | `SPRING_PROFILES_ACTIVE` | empty | | `backend` | Data profile: empty (no sample data, as in production), `dev`, `demo` or `perf` ([datasets](datasets.md)) |
 | `DEMO_PASSWORD` | empty | ✓ | `backend` | Password of the demo users; required with the `demo` profile |
-| `PERF_INCIDENTS` | `100000` | | `backend` | Incidents the `perf` profile generates; leave it commented out in `.env` rather than empty |
+| `PERF_INCIDENTS` | commented out | | `backend` | Incidents the `perf` profile generates, 100000 when it is not set. Leave it commented out rather than empty |
 | `TILES_BASE_URL` | `http://localhost:5173/tiles` | | `tiles-builder` | Address the clients load the map from, written into `style.json` |
 | `STORAGE_BASE_PATH` | `/app/storage` | | `backend` | Folder for the evidence files, on the `evidence_data` volume ([ADR-0013](adr/0013-evidence-storage.md)) |
 | `EVIDENCE_MAX_FILE_SIZE` | `10MB` | | `backend` | Maximum size of an evidence file |

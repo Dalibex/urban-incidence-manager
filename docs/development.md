@@ -7,7 +7,7 @@ on them. Other guides cover the rest:
 | --- | --- |
 | [Deployment](deployment.md) | The Compose services, their variables and volumes, the backend in Docker, resetting the database, the base map |
 | [Database](database.md) | Migrations, reference data and how the data profiles work |
-| [Datasets and measurements](datasets.md) | The demo dataset and the quality attribute measurements |
+| [Datasets and measurements](datasets.md) | The demo and performance datasets, and the quality attribute measurements |
 | [Testing](testing.md) | Backend and client tests |
 | [CI](ci.md) | The CI jobs, the pre-commit hook and the checks to run before pushing |
 | [API](api.md) | The OpenAPI contract and how to add an endpoint |
@@ -116,7 +116,7 @@ machine: production starts with no profile and no sample data.
 `application-dev.yaml` adds `classpath:db/dev-data` to the Flyway locations, and
 `db/dev-data/R__dev_data.sql` is a repeatable migration. When it reloads, why it cannot be combined
 with another profile and how to change it are explained in *Data Profiles* in the
-[database guide](database.md). Other datasets, such as the demo dataset, are in the
+[database guide](database.md). The demo and performance datasets are in the
 [datasets guide](datasets.md).
 
 ### Activate it
@@ -240,8 +240,8 @@ is slow because Metro bundles the whole app; later loads reuse it.
 
 ### Before pushing
 
-Run the checks of the `frontend` CI job and format the code as described in *Before pushing* in the
-[CI guide](ci.md). The client tests are in the [testing guide](testing.md).
+Run the checks of the `frontend` CI job and format the code as described in
+[8.1 Before pushing](ci.md#81-before-pushing) in the CI guide. The client tests are in the [testing guide](testing.md).
 
 ## 🔙 Backend Structure
 

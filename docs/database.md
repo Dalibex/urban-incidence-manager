@@ -19,8 +19,8 @@ jobs.
 
 - Name it `V<n>__<module>_<description>.sql`: the next free number, the module that owns the
   tables ([ADR-0010](adr/0010-modular-monolith.md)) and a description in lowercase with
-  underscores, for example `V10__incidents_add_incident_source.sql`. `ls db/migration` shows the
-  last number.
+  underscores, for example `V10__incidents_add_incident_source.sql`. The last file in
+  `db/migration` has the highest number in use.
 - Write SQL keywords in uppercase and identifiers and types in lowercase (`varchar`, `uuid`,
   `timestamptz`), like the existing migrations.
 - Update the [schema diagram](database.drawio.svg) in the same pull request.
@@ -93,6 +93,8 @@ Every data profile follows the same pattern:
 
 ### Change a dataset
 
+- Any change to the file, even to a comment, reloads the dataset on the next start of every
+  teammate who uses that profile. Change it only when the data needs it.
 - Give every new row a fixed id that follows the scheme described at the top of its file.
 - Never delete a user of a dataset: set `enabled = false`, because other records may still point to
   it.

@@ -290,15 +290,32 @@ Then, in the ruleset, replace `test` with `test-unit`, `test-integration` and `q
 
 ### 8.1 Before pushing
 
+Backend, from `backend/` (needs Docker); it covers `lint` and `test`:
+
 ```bash
-./mvnw verify          # lint + test, same as the CI (needs Docker)
+./mvnw verify
 ```
 
-For the clients and the contract (Redocly from the repository root, pnpm from `frontend/`):
+Clients, from `frontend/`; they cover `frontend`:
 
 ```bash
-cd frontend && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build   # frontend
-npx @redocly/cli@2.71.0 lint && cd frontend && pnpm generate:api                             # contract (then git status: nothing changed)
+pnpm format:check
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+Contract, only if you changed `docs/api/openapi.yml`; it covers `contract`. From the repository root:
+
+```bash
+npx @redocly/cli@2.71.0 lint
+```
+
+Then, from `frontend/`, regenerate the client types and commit them if `git status` shows a change:
+
+```bash
+pnpm generate:api
 ```
 
 The pre-commit hook formats what you commit; to format by hand, run `./mvnw spotless:apply` from `backend/` and `pnpm format` from `frontend/`.
@@ -386,22 +403,3 @@ In **Settings → Rules → Rulesets → New ruleset → New branch ruleset**:
 | Block force pushes | ✅ |
 
 A second ruleset, `release-tags`, protects the `v*` tags: they cannot be deleted, moved or force-pushed.
-
-### 9.4 Reproduce the smoke test by hand
-
-The `build` job starts the jar with environment variables only. To reproduce it outside Docker Compose (PowerShell; in bash use `export`), from `backend/`:
-
-```powershell
-docker run -d --name smoke-db -p 5432:5432 -e POSTGRES_DB=urbanpulse -e POSTGRES_USER=urbanpulse -e POSTGRES_PASSWORD=smoke postgis/postgis:18-3.6
-./mvnw "-Dspotless.check.skip=true" -DskipTests package
-$env:SERVER_PORT="9090"
-$env:JWT_SECRET="smoke-test-secret-of-at-least-thirty-two-bytes"
-$env:SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5432/urbanpulse"
-$env:SPRING_DATASOURCE_USERNAME="urbanpulse"
-$env:SPRING_DATASOURCE_PASSWORD="smoke"
-java -jar (Get-ChildItem target\*.jar | Where-Object Name -notlike "*.original").FullName
-# in another terminal:
-curl.exe -i http://localhost:9090/actuator/health      # 200 and "status":"UP"
-```
-
-When you are done: `docker rm -f smoke-db` and close that terminal (the `$env:` variables only live in it). Stop the local Compose database first if it already uses port 5432.
