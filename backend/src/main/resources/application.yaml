@@ -33,6 +33,9 @@ urbanpulse:
     # Refresh tokens and rate limits (docs/security.md). The limits are kept in memory: valid with
     # one backend replica only.
     refresh-token-ttl: ${REFRESH_TOKEN_TTL:P14D}
+    # Expired refresh tokens are deleted once this long has passed since they expired, by a job
+    # that runs every day at 03:00 UTC (RefreshTokenCleanup).
+    refresh-token-retention: ${REFRESH_TOKEN_RETENTION:P30D}
     sign-in-attempts:
       max: 5
       window: PT15M
