@@ -126,7 +126,7 @@ Do not change the stack or introduce components because they are popular. An arc
 | `backend/`                | Spring Boot backend (`pom.xml`, `mvnw`, `Dockerfile`, `docker-compose.yaml`). |
 | `docs/adr/`               | Architectural decisions.                                       |
 | `docs/api/openapi.yml`    | OpenAPI 3.1 contract, source of truth of the API (`docs/api.md`). |
-| `docs/`                   | Guides: `requirements`, `development`, `deployment`, `database`, `datasets`, `demo`, `testing`, `ci`, `api`, `security`; C4 model in `docs/architecture/`. |
+| `docs/`                   | Guides: `requirements`, `development`, `deployment`, `database`, `datasets`, `demo`, `testing`, `ci`, `api`, `security`; C4 model in `docs/architecture/` (`workspace.dsl` is the source; the draw.io file is generated from it). |
 | `tiles/`                  | Base map builder, a one-off process (ADR-0016).                |
 | `.github/`                | CI workflows, issue and PR templates.                          |
 | `.githooks/`              | Versioned Git hooks (pre-commit formatting).                   |
@@ -268,6 +268,7 @@ Especially important cases for UrbanPulse:
 - Record in `CHANGELOG.md`, under `[Unreleased]` and in the same PR, only the changes users can notice: features, changes to behavior, the API, configuration or environment variables, removals, and fixes of released bugs. Never documentation, ADRs, refactorings, tests, CI or tooling. `Fixed` is only for bugs of a released version; if a change alters something still under `[Unreleased]`, edit that entry instead of adding a contradictory one. Rules in *Changelog* of `CONTRIBUTING.md`.
 - Do not overwrite others' changes or include generated files, secrets, or changes unrelated to the task.
 - Keep implementation, tests, and contract synchronized. Do not disable validations or controls to make CI pass.
+- When GitHub raises a security alert (CodeQL, Dependabot), fix it or dismiss it with its reason, and add its row to *Security findings* in `docs/security.md` in the same PR.
 - Creating commits, publishing branches, merging PRs, or deploying must be within the authorized scope of the assignment.
 
 ### Before delivery
@@ -300,6 +301,8 @@ Client commands run from `frontend/` with pnpm (Node from `frontend/.nvmrc`, pnp
 | `pnpm dev:web` / `pnpm dev:mobile` | Run the web app (Vite) or the mobile app (Expo). |
 | `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` | The checks of the `frontend` CI job. `pnpm format` fixes formatting. |
 | `pnpm generate:api` | Regenerate `frontend/packages/api-client` after changing `docs/api/openapi.yml`. |
+
+After changing `docs/architecture/workspace.dsl`, regenerate the draw.io file from the repository root with `docker compose -f docs/architecture/compose.yaml run --rm drawio` (needs Docker); never edit `UrbanPulse-C4.drawio` by hand.
 
 Tests are described in `docs/testing.md` and the CI pipeline in `docs/ci.md`.
 

@@ -224,6 +224,7 @@ A pull request can only be merged when these CI jobs pass:
 | --- | --- |
 | `lint` | No versioned `.env`, same database image everywhere, valid Compose file, formatting |
 | `contract` | The OpenAPI contract is valid |
+| `architecture` | The C4 model is valid and its draw.io file is the one it generates |
 | `frontend` | Formatting, lint, types, tests and build of the web and mobile clients |
 | `test` | Backend unit and integration tests, coverage and static analysis |
 | `build` | Packaging and a smoke test of the backend image |
@@ -236,6 +237,20 @@ The [CI guide](docs/ci.md) explains each job and what to do when one fails.
 If the pull request changes the database schema, follow the migration rules in the
 [database guide](docs/database.md): a new Flyway migration, never an edited one, and the schema
 diagram and the datasets updated in the same pull request.
+
+#### Architecture changes
+
+The C4 model is [`docs/architecture/workspace.dsl`](docs/architecture/workspace.dsl). If the pull
+request adds, removes or changes a container, a component, a relationship, a deployment node or the
+status of an ADR shown in the model, update `workspace.dsl` and regenerate
+`docs/architecture/UrbanPulse-C4.drawio` in the same pull request, from the repository root:
+
+```bash
+docker compose -f docs/architecture/compose.yaml run --rm drawio
+```
+
+The draw.io file is an output of the DSL: never edit it by hand, because the next regeneration
+overwrites the change.
 
 ### Review and merge
 
@@ -260,7 +275,7 @@ diagram and the datasets updated in the same pull request.
 
 - Pull request required, with one approval and squash merge only. An approval is not dismissed by
   later pushes (see *Review and merge*).
-- Required status checks: `lint`, `contract`, `frontend`, `test`, `build` and `pr-title`, with the
+- Required status checks: `lint`, `contract`, `architecture`, `frontend`, `test`, `build` and `pr-title`, with the
   branch up to date with `main`.
 - Linear history, no force pushes and no deletion of the branch.
 

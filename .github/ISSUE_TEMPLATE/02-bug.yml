@@ -97,6 +97,7 @@ body:
         - Not applicable
         - lint
         - contract
+        - architecture
         - frontend
         - test
         - build

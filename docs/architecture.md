@@ -75,11 +75,39 @@ same REST API and a set of TypeScript packages ([ADR-0007](adr/0007-client-appli
 Where to look for more:
 
 - **Structure:** the [C4 model](architecture/) (`workspace.dsl`), with the system context, the
-  containers and the components of the backend, the web app, the mobile app and the database.
+  containers, the components of the backend, the web app, the mobile app and the database, the
+  deployment in development and on a single host, and two dynamic views: sign-in with refresh
+  rotation and reporting an incident. See *C4 Model* below.
 - **Decisions:** the [ADRs](adr/). Check each status: 0018 and 0019 are only *Proposed*.
 - **API:** the [OpenAPI contract](api/openapi.yml) and the [API guide](api.md).
 - **Deployment:** the [deployment guide](deployment.md).
 - **Data:** the [database guide](database.md) and the [datasets](datasets.md).
+
+## 🗺️ C4 Model
+
+[`architecture/workspace.dsl`](architecture/workspace.dsl) (Structurizr DSL) is the only source of
+the model. It shows the decided architecture, so it includes containers that accepted ADRs decide
+but are not built yet (see *Built* above); the deployment views show what runs where.
+
+[`architecture/UrbanPulse-C4.drawio`](architecture/UrbanPulse-C4.drawio) is generated from it, one
+page per view, for readers without Structurizr. Never edit it by hand: change the DSL and, from the
+repository root, run
+
+```bash
+docker compose -f docs/architecture/compose.yaml run --rm drawio
+```
+
+The generator (`architecture/drawio/`) exports the workspace with Structurizr, lays out each view
+with Graphviz and writes the file; it needs only Docker. The `architecture` CI job regenerates it
+and fails if the committed file differs ([CI guide](ci.md#architecture--c4-model)).
+
+To browse the model in Structurizr, run this from the repository root and open
+`http://localhost:8080` (*Diagrams* lists every view). It saves `workspace.json` and `.structurizr/`
+next to the DSL; Git ignores both.
+
+```bash
+docker run -it --rm -p 8080:8080 -v "$PWD/docs/architecture:/usr/local/structurizr" structurizr/structurizr:2026.09.19 local
+```
 
 ## 📐 Quality Attribute Scenarios
 
