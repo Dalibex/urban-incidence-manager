@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 
 import { InboxPage } from '../incidents/InboxPage';
 import { PlaceholderPage } from '../pages/PlaceholderPage';
-import { PATHS } from './access';
+import { OPERATOR_ROLES, PATHS } from './access';
 
 /** A screen of the signed-in area. The navbar links to the sections the user's role can open. */
 export interface Section {
@@ -19,7 +19,7 @@ export const SECTIONS: readonly Section[] = [
   {
     path: PATHS.inbox,
     label: 'Inbox',
-    roles: ['MUNICIPAL_OPERATOR'],
+    roles: OPERATOR_ROLES,
     element: <InboxPage />,
   },
   {
