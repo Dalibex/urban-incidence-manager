@@ -1,8 +1,8 @@
 /**
- * Notifications module: notifications created on incident status changes and their delivery status.
- * Channels {@code EMAIL} (Brevo), {@code SMS} (Twilio) and {@code APP} (stored only), each behind a
- * {@code NotificationSender} (ADR-0019).
+ * Notifications module: notifications created on incident status changes and their delivery status,
+ * on the channels {@code EMAIL}, {@code SMS} and {@code APP}. Only the entities exist; the delivery
+ * providers are proposed in ADR-0019, not decided.
  *
- * <p>Decisions: ADR-0010, ADR-0019 ({@code docs/adr/}).
+ * <p>Decisions: ADR-0010 ({@code docs/adr/}).
  */
 package es.uma.urbanpulse.notifications;
