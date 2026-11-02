@@ -25,6 +25,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - The backend requires the `JWT_SECRET` environment variable, and accepts `JWT_ACCESS_TOKEN_TTL` and `REFRESH_TOKEN_TTL` (#35).
+- Incident lists, their counts, the technician's view and the history use indexes measured on the performance dataset: the operator inbox page goes from about 111 ms to under 1 ms with 100,000 incidents (#132).
 - Sending a refresh token that was already used or signed out revokes every session of its user, in case someone else holds a copy. Expired refresh tokens are deleted every day once `REFRESH_TOKEN_RETENTION` (30 days by default) has passed since they expired (#125).
 
 ### Fixed
