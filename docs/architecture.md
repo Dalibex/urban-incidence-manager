@@ -113,7 +113,7 @@ docker run -it --rm -p 8080:8080 -v "$PWD/docs/architecture:/usr/local/structuri
 
 | ID | Quality attribute | Scenario | Status |
 | --- | --- | --- | --- |
-| QA-1 | Performance | The incident list and detail with the large dataset | Database part measured; HTTP part not yet |
+| QA-1 | Performance | The incident list and detail with the large dataset | Met on a developer laptop; not yet on the demo machine |
 | QA-2 | Resilience | An incident is created while an external source is down | Holds by construction; no test yet |
 | QA-3 | Security | Sign-in attempts over the limit are rejected | Tested on every pull request |
 | QA-4 | Availability, durability | A backend restart loses no confirmed data or evidence | Shutdown tested in CI; data check manual |
@@ -150,9 +150,20 @@ docker run -it --rm -p 8080:8080 -v "$PWD/docs/architecture:/usr/local/structuri
 Conditions and the rest of the queries (the counts, the technician detail) are in the
 [database guide](database.md#main-queries).
 
-**HTTP: not measured yet.** The team has not chosen a load testing tool, and the measurement needs
-the `perf` dataset loaded on the machine the demo runs on, not on a developer laptop. Until then,
-QA-1 is only met for the database part.
+**First measurement (HTTP, 2026-11-03, #155).** With the k6 script
+`backend/load-tests/qa1-incidents.js`, every operation of every role has a p95 under 30 ms and no
+request failed:
+
+| Operation | p95, slowest role |
+| --- | --- |
+| List, page of 20 | 27.5 ms (technician) |
+| Detail | 4.9 ms (citizen, administrator) |
+| History | 6.2 ms (citizen) |
+
+How to run it, the conditions and every role are in *Load test of QA-1* in the
+[datasets guide](datasets.md#load-test-of-qa-1). It was measured on a developer laptop with the
+backend, the database and k6 on the same machine. QA-1 asks for the machine the demo runs on, so it
+must be measured again there once that machine exists.
 
 ### QA-2: Create an incident while an external source is down (RF26)
 
