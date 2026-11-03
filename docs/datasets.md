@@ -136,5 +136,78 @@ or repeated, so every measurement records:
 | Result | Percentiles (p50, p95, p99), never only the average |
 | Date and commit | When and on which commit it was measured |
 
-No measurements have been recorded yet. The query plans that justify the indexes of the main
-queries are in *Indexes* in the [database guide](database.md).
+The query plans that justify the indexes of the main queries are in *Indexes* in the
+[database guide](database.md).
+
+### Load test of QA-1
+
+`backend/load-tests/qa1-incidents.js` is the HTTP part of QA-1 ([architecture](architecture.md)): a
+[k6](https://grafana.com/docs/k6/) script. It signs in as `perf.citizen1`, `perf.operator1`,
+`perf.admin1` and `perf.technician1`, and keeps the incidents of each one's first page, so each role
+only opens incidents it may read. The analyst is left out because `GET /incidents` answers `403`
+to it. Then 5 virtual users per role (20 in all) repeat for 5 minutes:
+
+1. open the first page of their list (`GET /incidents?page=0&size=20`);
+2. wait 1 second;
+3. open the detail and the history of one of those incidents;
+4. wait 1 second.
+
+The run fails when an operation of a role has a p95 of 500 ms or more, or when any request fails.
+
+Run it against the backend in Docker with the `perf` dataset loaded. First start the stack on an
+empty database, from `backend/`, with `SPRING_PROFILES_ACTIVE=perf` in `.env` (*Activate it*
+above):
+
+```bash
+docker compose --profile app up --build -d
+```
+
+Then run k6 from its image, in the network of the stack. Nothing needs to be installed:
+
+```bash
+docker run --rm -i --network urbanpulse_default -e BASE_URL=http://backend:8080/api/v1 grafana/k6:1.0.0 run - < load-tests/qa1-incidents.js
+```
+
+`DURATION`, `VUS_PER_ROLE`, `THINK_TIME` (seconds) and `P95_MS` change the load and the target the
+same way, with `-e`. Warm up first with one full run that is not recorded: after a one-minute
+warm-up, the next run was still up to twice as slow in the operations of a few milliseconds (run 1
+below). Each record keeps every field listed above.
+
+The k6 summary prints p50 (`med`), p95, p99 and the maximum of each operation and role. A failed
+target makes k6 exit with code `99` and name the crossed threshold, for example:
+
+```text
+✗ 'p(95)<500' p(95)=...
+level=error msg="thresholds on metrics 'http_req_duration{role:operator,operation:list}' have been crossed"
+```
+
+#### QA-1, 2026-11-03 (#155)
+
+| Field | Value |
+| --- | --- |
+| Operation | The script above: the list, the detail and the history, as citizen, operator, administrator and technician |
+| Data | `perf` profile, 100,000 incidents (486,871 status changes, 5,055 users) |
+| Load | 20 virtual users (5 per role) with 1 s between screens, for 5 minutes: about 30 requests per second, 8,903 requests per run. A one-minute warm-up and run 1 were not recorded |
+| Environment | Developer laptop, not the demo machine: AMD Ryzen 5 4600H, 15.4 GB, Windows 11, Docker Desktop 29.8.2 (12 CPUs, 7.4 GB). Backend image and PostgreSQL 18.6 with PostGIS 3.6 in the Compose stack, k6 1.0.0 in a container on the same machine |
+| Date and commit | 2026-11-03, runs at 13:40 and 13:46 UTC, `d3152c4` |
+
+Result, in milliseconds. No request failed in either run.
+
+| Role | Operation | p50 | p95 | p99 | p95, second run |
+| --- | --- | --- | --- | --- | --- |
+| Citizen | List | 6.0 | 8.1 | 12.0 | 7.2 |
+| Citizen | Detail | 3.8 | 4.9 | 8.4 | 4.4 |
+| Citizen | History | 4.5 | 6.2 | 12.2 | 5.2 |
+| Operator | List | 16.9 | 25.2 | 34.2 | 24.3 |
+| Operator | Detail | 3.6 | 4.8 | 6.5 | 4.4 |
+| Operator | History | 4.3 | 5.9 | 7.8 | 5.3 |
+| Administrator | List | 17.2 | 24.1 | 35.4 | 24.2 |
+| Administrator | Detail | 3.5 | 4.9 | 6.8 | 4.3 |
+| Administrator | History | 4.3 | 5.9 | 7.0 | 5.2 |
+| Technician | List | 18.3 | 27.5 | 42.1 | 27.3 |
+| Technician | Detail | 3.6 | 4.6 | 5.5 | 4.4 |
+| Technician | History | 4.4 | 5.9 | 8.6 | 5.4 |
+
+Every p95 is far under 500 ms; the slowest is the technician's list, at 28 ms. The two runs are within
+20 % of each other in every operation. Run 1, right after the one-minute warm-up, was slower: up to
+14 ms in the citizen's list and 9 ms in the detail.
