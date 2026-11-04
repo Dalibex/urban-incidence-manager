@@ -4,6 +4,8 @@
 
 This file guides development agents working on UrbanPulse. It must be placed at the repository root and maintained alongside the code.
 
+It holds two things: the **rules** that do not change from one pull request to the next, and a **map** of where the information that does change lives. It does not record the state of the project: what is built, the plan, the decisions and the measurements are in the documents of section 2, and the code wins over any of them. A pull request updates this file only when it changes a rule or moves one of those documents.
+
 - Read these instructions before modifying the project. Also consult the `AGENTS.md` files applicable to the working folder.
 - Follow the assignment instructions and the team's accepted decisions. If they contradict this document, point out the discrepancy and update the documentation when appropriate.
 - Distinguish product requirements, technical proposals, and accepted decisions. Do not present a proposal as a decision already made.
@@ -16,11 +18,29 @@ UrbanPulse is a cloud platform for managing urban incidents. It combines citizen
 
 The **incident** is the central entity. External urban data enriches that entity and its operational context; it does not constitute an independent product. The platform assists responsible people and does not replace their decision in sensitive actions.
 
-The product includes a web client and a mobile application that consume a shared API. The teaching case starts from a simple monolith with Spring Boot and PostgreSQL. The accepted technologies and deployment are recorded in the ADRs (see section 4).
+The product includes a web client for staff and a mobile application for citizens that consume a shared API. The teaching case starts from a simple monolith with Spring Boot and PostgreSQL. The accepted technologies and deployment are recorded in the ADRs (see section 4).
 
-### Current state
+### Where to find the current information
 
-State at the end of Sprint 1. Backend: Spring Boot with PostgreSQL/PostGIS through Docker Compose and a container image (`backend/Dockerfile`, Compose `backend` service in the `app` profile); the database schema created by Flyway migrations (`backend/src/main/resources/db/migration`, diagram in `docs/database.drawio.svg`); Spring Security as a JWT resource server (rules and permission matrix in `docs/security.md`). The ten operations of the OpenAPI contract (`docs/api/openapi.yml`) are implemented: sign up, sign in, refresh, sign out, current user, categories, and create, list, read and history of incidents, filtered by role. The packages of the six ADR-0010 modules (`identity`, `incidents`, `urbancontext`, `geospatial`, `notifications`, `analytics`) exist under `es.uma.urbanpulse`, with the JPA entities and repositories of the schema (`analytics` only has its `package-info.java`). `identity` has the token issuer (`AccessTokenService`), sign-up and sessions with in-memory attempt limits, the append-only audit trail (`AuditService`), and the one-off process that creates the first administrator (`bootstrap-admin` profile, `docs/deployment.md`). `incidents` has reporting (`IncidentReportService`), reads by role (`IncidentQueryService`) and the lifecycle service (`IncidentLifecycleService`, ADR-0020 transitions with optimistic locking and `CONCURRENT_MODIFICATION`), but no endpoint changes the status yet. `shared` holds `shared.security` (filter chains, JWT validation, the `AuthenticatedUser` principal), `shared.web` (Problem errors) and the UTC `Clock`. Sample data loads behind the `dev`, `demo` and `perf` profiles (`docs/datasets.md`), and the self-hosted base map is built by the `tiles/` one-off process (ADR-0016). Clients (`frontend/`: `apps/web`, `apps/mobile`, `packages/domain`, `packages/ui`, `packages/api-client`): `api-client` is generated from the contract and refreshes the session through a `TokenStore` each app implements (memory on the web, `expo-secure-store` on mobile); `domain` has the roles, statuses and the ADR-0020 transition table. The web app (staff) has the React Router route table with a role guard, the operator inbox and the incident detail, with TanStack Query for server state; its other screens are placeholders. The mobile app (citizens) has sign-in, sign-up, reporting an incident with its position, and "My reports" with detail and history. Evidence, notifications, urban context, assignment and the status-changing actions are not implemented. Do not describe any requirement below as implemented unless the code shows it.
+Read the source before relying on any summary, including this file. Do not describe a requirement as implemented unless the code shows it.
+
+| Question | Source |
+| --- | --- |
+| What is built today | The status in `README.md` and the status of each requirement in `docs/requirements.md`; then the code |
+| What is planned, and when | The GitHub milestones and their issues; each issue's *Out of scope* and `Planned: #N` |
+| Requirements, priorities and screens per role | `docs/requirements.md` |
+| Decisions and their status | `docs/adr/`: read the `Status:` line of each ADR |
+| Architecture, quality scenarios and accepted risks | `docs/architecture.md`; structure in the C4 model, `docs/architecture/workspace.dsl` |
+| API contract and its conventions | `docs/api/openapi.yml`, `docs/api.md` |
+| Authentication, permission matrix and security limits | `docs/security.md` |
+| Schema, migrations and data profiles | `docs/database.md`, `docs/database.drawio.svg`, `backend/src/main/resources/db/migration` |
+| Sample datasets and measurements | `docs/datasets.md`, `docs/demo.md` |
+| Local setup and commands | `docs/development.md` |
+| Deployment, environment variables and volumes | `docs/deployment.md` |
+| Twelve-Factor evidence | `docs/twelve-factor.md` |
+| Tests and CI | `docs/testing.md`, `docs/ci.md` |
+| Team workflow: issues, sub-issues, testing, review, done | `CONTRIBUTING.md` |
+| Changes per version | `CHANGELOG.md` |
 
 ### Actors
 
@@ -35,7 +55,7 @@ State at the end of Sprint 1. Backend: Spring Boot with PostgreSQL/PostGIS throu
 
 ### Functional scope map
 
-The identifiers correspond to the case study. This map does not mean that all functions are implemented or that they belong to the first delivery. The priority of each requirement, the issues that cover it in the MVP and the screens of each role are in `docs/requirements.md`; the GitHub milestones are the plan.
+The identifiers correspond to the case study. This map does not mean that all functions are implemented or that they belong to the first delivery. The priority of each requirement, the issues that cover it and the screens of each role are in `docs/requirements.md`; the GitHub milestones are the plan.
 
 | Requirements | Scope                                                                                               |
 | ------------ | --------------------------------------------------------------------------------------------------- |
@@ -86,34 +106,23 @@ The evolutionary scope includes model training and evaluation, hotspot detection
 
 States defined in the teaching case: `REPORTED`, `VALIDATED`, `REJECTED`, `ASSIGNED`, `IN PROGRESS`, `RESOLVED`, `REOPENED`, and `CLOSED`.
 
-The document lists states, but does not specify a complete transition matrix. The transition matrix is in ADR-0020 (`docs/adr/0020-incident-lifecycle-transitions.md`, accepted), and the code follows it (`Incident.changeStatus` in the backend, `packages/domain` in the clients): do not assume that any change outside it is valid. The code uses `IN_PROGRESS` for the case study's `IN PROGRESS`; keep the contract consistent.
+The document lists states, but does not specify a complete transition matrix. The transition matrix is in ADR-0020 (`docs/adr/0020-incident-lifecycle-transitions.md`), and the code follows it (`Incident.changeStatus` in the backend, `packages/domain` in the clients): do not assume that any change outside it is valid. The code uses `IN_PROGRESS` for the case study's `IN PROGRESS`; keep the contract consistent.
 
 Centralize transition validation. When status and history are modified in the same database, persist them in a transaction. An invalid transition must not leave partial changes. If there is concurrent editing, adopt the necessary conflict control and test that behavior.
 
 ## 4. Architecture and organization
 
-### Accepted decisions
+### Decisions
 
-The ADRs in `docs/adr/` are the source of truth. Check each ADR status before relying on it.
+The ADRs in `docs/adr/` are the source of truth. Read the `Status:` line of an ADR before relying on it: a *Proposed* ADR is not a decision, so do not implement it as if it were accepted. Whether a decided component is built yet is in the *Built* column of `docs/architecture.md`.
 
-| ADR | Decision |
-| --- | -------- |
-| 0001, 0003 | PostgreSQL as the primary database, with PostGIS for geospatial data. |
-| 0002, 0009 | Málaga open data as the primary urban data source, OpenStreetMap for map data and fallback. |
-| 0004 | Authentication strategy. |
-| 0005, 0006, 0007 | React Native (mobile), React (web), and the shared client architecture. |
-| 0008 | Spring Boot backend exposing a REST API, contract first with OpenAPI. |
-| 0010 | Modular monolith: one deployable, one schema, modules are packages that organize the code by feature, with no application events between them. |
-| 0011 | Docker Compose deployment and 12-factor configuration. |
-| 0012 | Redis as cache layer. Not built yet: the rate-limit counters live in memory while there is one replica; the ADR lists when Redis comes in. |
-| 0013 | Evidence files outside the database, on a volume, with server-generated keys and type and size limits. |
-| 0014 | Versioned schema migrations with Flyway (plain SQL in `db/migration`, never edit a merged migration). |
-| 0015 | CI with check-only jobs and pre-commit formatting. |
-| 0016 | Self-hosted OSM base map (PMTiles rebuilt every two weeks) rendered with MapLibre. |
-| 0020 | Incident lifecycle transitions: one explicit table of transitions and the roles allowed for each, owned by `incidents`; an information request keeps the incident `REPORTED`. |
-| 0021 | TOTP second factor for staff accounts (implemented by #57). |
+The foundations, which the rest builds on:
 
-Proposed, not accepted: 0018 (Open-Meteo and TomTom as weather and traffic providers), 0019 (Brevo and Twilio as notification delivery providers). Do not implement them as if they were accepted.
+- A modular monolith (ADR-0010): one Spring Boot deployable, one PostgreSQL schema with PostGIS, and modules that are packages organizing the code by feature, with no application events between them.
+- A REST API designed contract first with OpenAPI (ADR-0008).
+- Schema changes only through versioned Flyway migrations (ADR-0014).
+- A web client (React) and a mobile client (React Native) sharing TypeScript packages (ADR-0005, ADR-0006, ADR-0007).
+- Docker Compose on one host, configured by environment variables (ADR-0011).
 
 Kubernetes, Terraform, queues, and microservices remain extensions conditioned on a demonstrated need.
 
@@ -121,19 +130,14 @@ Do not change the stack or introduce components because they are popular. An arc
 
 ### Repository structure
 
-| Path                      | Purpose                                                        |
-| ------------------------- | -------------------------------------------------------------- |
-| `backend/`                | Spring Boot backend (`pom.xml`, `mvnw`, `Dockerfile`, `docker-compose.yaml`). |
-| `docs/adr/`               | Architectural decisions.                                       |
-| `docs/api/openapi.yml`    | OpenAPI 3.1 contract, source of truth of the API (`docs/api.md`). |
-| `docs/`                   | Guides: `requirements`, `development`, `deployment`, `database`, `datasets`, `demo`, `testing`, `ci`, `api`, `security`; C4 model in `docs/architecture/` (`workspace.dsl` is the source; the draw.io file is generated from it). |
-| `tiles/`                  | Base map builder, a one-off process (ADR-0016).                |
-| `.github/`                | CI workflows, issue and PR templates.                          |
-| `.githooks/`              | Versioned Git hooks (pre-commit formatting).                   |
-| `frontend/`               | Client pnpm workspace (ADR-0007): `package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`, `.nvmrc`. |
-| `frontend/apps/web/`      | Web client: React + Vite (ADR-0006).                           |
-| `frontend/apps/mobile/`   | Mobile client: React Native + Expo (ADR-0005).                 |
-| `frontend/packages/`      | Shared client packages: `domain`, `ui`, `api-client` (ADR-0007). |
+| Path         | Purpose                                                                 |
+| ------------ | ----------------------------------------------------------------------- |
+| `backend/`   | Spring Boot backend, its Dockerfile and the Compose file.               |
+| `frontend/`  | Client pnpm workspace: `apps/web`, `apps/mobile` and `packages/*`.      |
+| `docs/`      | Guides, ADRs, the API contract and the C4 model (see section 2).        |
+| `tiles/`     | Base map builder, a one-off process.                                    |
+| `.github/`   | CI workflows, issue and pull request templates.                         |
+| `.githooks/` | Versioned Git hooks (pre-commit formatting).                            |
 
 The repository root only holds what is shared (README, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `CHANGELOG.md`, `LICENSE`, CI, hooks). Do not create empty folders to anticipate future modules.
 
@@ -164,7 +168,7 @@ The repository root only holds what is shared (README, `CONTRIBUTING.md`, `CODE_
 
 ## 6. Backend, API, and persistence
 
-- Consult and update the OpenAPI contract (`docs/api/openapi.yml`) when changing public behavior, following the conventions of `docs/api.md`. Describe inputs, DTOs, errors, permissions, examples, and responses. Validate it with `npx @redocly/cli@2.71.0 lint` (the `contract` CI job).
+- Consult and update the OpenAPI contract (`docs/api/openapi.yml`) when changing public behavior, following the conventions of `docs/api.md`. Describe inputs, DTOs, errors, permissions, examples, and responses. Validate it with the lint command in `docs/api.md`, the same one the `contract` CI job runs.
 - Use coherent resources, HTTP methods, and status codes. Define pagination, limits, and filters for listings; avoid queries without a default limit.
 - Separate public DTOs from persistent entities. Do not expose internal fields, hashes, full relationships, or unrelated data through accidental serialization.
 - Validate inputs and business rules on the server. Client validation improves the experience, but does not protect the API.
@@ -224,6 +228,7 @@ Test the behavior and risks of the change; avoid tests that only reproduce the i
 - Interaction or end-to-end tests for critical web and mobile flows, according to the available tools.
 - For fixes, add a regression when necessary to demonstrate that the problem is resolved.
 - Avoid real time, execution order, and external services in tests that must be deterministic. Use a controllable clock when the date affects behavior.
+- Cover the failure and limit cases that apply to the change, from the list in *Failure and limit cases* of `CONTRIBUTING.md`; a case that does not apply says why.
 - Run the checks appropriate to the change. If you cannot run them, indicate what is missing and why; do not state that they passed.
 - Documentation-only changes require reviewing content, references, and format; they do not require unrelated application tests.
 
@@ -254,15 +259,15 @@ Especially important cases for UrbanPulse:
 
 ### Before changing code
 
-1. Read the README, development guide, and relevant accepted ADRs, if they exist.
-2. Identify the task, the affected requirement, and its acceptance criteria.
+1. Read the README, the development guide, the issue and the relevant accepted ADRs.
+2. Identify the task, the affected requirement, its acceptance criteria, its failure and limit cases and its *Out of scope*.
 3. Review nearby code, tests, contract, and existing conventions.
 4. Identify authorization, consistency, privacy, and compatibility boundaries.
 5. Decide the minimum change that solves the problem. Point out only the pending decisions that truly condition the implementation.
 
 ### During work
 
-- Follow GitHub Flow and the team workflow in `CONTRIBUTING.md` when the assignment includes Git work: small branches, PR linked to the issue, squash merge, and stable main.
+- Follow GitHub Flow and the team workflow in `CONTRIBUTING.md` when the assignment includes Git work: small branches, a pull request per issue or sub-issue, squash merge, and stable main.
 - Use the agreed prefixes, `<type>/<issue>-<slug>`, for example `feature/42-incident-registration` or `fix/57-incident-authorization`.
 - Use Conventional Commits when commits are requested: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `ci:`, or `chore:`.
 - Record in `CHANGELOG.md`, under `[Unreleased]` and in the same PR, only the changes users can notice: features, changes to behavior, the API, configuration or environment variables, removals, and fixes of released bugs. Never documentation, ADRs, refactorings, tests, CI or tooling. `Fixed` is only for bugs of a released version; if a change alters something still under `[Unreleased]`, edit that entry instead of adding a contradictory one. Rules in *Changelog* of `CONTRIBUTING.md`.
@@ -271,27 +276,33 @@ Especially important cases for UrbanPulse:
 - When GitHub raises a security alert (CodeQL, Dependabot), fix it or dismiss it with its reason, and add its row to *Security findings* in `docs/security.md` in the same PR.
 - Creating commits, publishing branches, merging PRs, or deploying must be within the authorized scope of the assignment.
 
+### Proposals and findings
+
+- **Never let an inconsistency or an error pass.** When you find one in the code or in the documentation, even outside the task, tell the user: what it is, `file:line` and what fails because of it. Do not fix it inside a pull request whose issue does not cover it; write it under *Noticed, not done* instead.
+- **Propose only what is needed.** Before proposing anything, answer: which acceptance criterion, failure case or concrete failure scenario requires it? If there is none, write one line under *Noticed, not done* in the pull request, and do not build it or open an issue for it.
+- Do not propose new components, dependencies, abstractions, documents or refactors without an observable problem. Say what happens if it is not done.
+- Do not present a preference as a finding. A finding needs `file:line` and a concrete failure.
+- Before reporting, check the current `main` and the open issues and pull requests. Do not report what is already planned in a milestone or listed in *Accepted Risks* of `docs/architecture.md`.
+- At most 10 high and medium findings per review, and a one-line list for the low ones. Severity and the rest of the review rules are in *Sprint review* of `CONTRIBUTING.md`.
+
 ### Before delivery
 
 1. Review the diff and remove accidental changes.
 2. Run the applicable tests, lint, build, and checks using the repository's real commands.
-3. Update documentation and examples when system usage changes. If the task delivers a change users can notice, verify that its entry is already in `CHANGELOG.md`.
+3. Check the pull request against *When a pull request is done* in `CONTRIBUTING.md`: documents that describe the changed behavior, the status in the README and in `docs/requirements.md`, and `CHANGELOG.md` when users can notice the change.
 4. In a relevant architectural change, update C4, ADR, and associated tests.
 5. Report what changed, how it was verified, and what decisions or limitations remain pending.
 
 ### Command discovery
 
-Backend commands run from `backend/` with Maven Wrapper (`./mvnw.cmd` on Windows). Docker must be running for integration tests.
+Backend commands run from `backend/` with Maven Wrapper (`./mvnw.cmd` on Windows). Docker must be running for integration tests. The rest are in `docs/development.md` and `docs/testing.md`.
 
 | Command | Purpose |
 | ------- | ------- |
 | `./mvnw spring-boot:run` | Run the backend; Spring Boot starts PostGIS from `docker-compose.yaml` (needs `.env`). |
-| `./mvnw spring-boot:run -Dspring-boot.run.profiles=dev` | Same with the development dataset (`docs/development.md`). |
-| `docker compose --profile app up --build` | Run the backend image with the database (`docs/deployment.md`). |
 | `./mvnw test` | Unit tests (`*Test`), no Docker. |
 | `./mvnw verify` | Unit and integration tests (`*IT`, Testcontainers), formatting, coverage, and SpotBugs. |
-| `./mvnw verify -DskipITs` | Same without integration tests. |
-| `./mvnw spotless:apply` | Format Java code (google-java-format AOSP). |
+| `./mvnw spotless:apply` | Format Java code. |
 
 Client commands run from `frontend/` with pnpm (Node from `frontend/.nvmrc`, pnpm from `packageManager`):
 
@@ -302,16 +313,15 @@ Client commands run from `frontend/` with pnpm (Node from `frontend/.nvmrc`, pnp
 | `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` | The checks of the `frontend` CI job. `pnpm format` fixes formatting. |
 | `pnpm generate:api` | Regenerate `frontend/packages/api-client` after changing `docs/api/openapi.yml`. |
 
-After changing `docs/architecture/workspace.dsl`, regenerate the draw.io file from the repository root with `docker compose -f docs/architecture/compose.yaml run --rm drawio` (needs Docker); never edit `UrbanPulse-C4.drawio` by hand.
-
-Tests are described in `docs/testing.md` and the CI pipeline in `docs/ci.md`.
+The C4 draw.io file is generated from `docs/architecture/workspace.dsl`; never edit it by hand (*C4 Model* in `docs/architecture.md`).
 
 ## 12. Documentation and decisions
 
 - The README describes the current state and decisions: purpose, scope, summarized architecture, requirements, installation, execution, tests, and useful links.
 - `CHANGELOG.md` records, by version, the changes users can notice (see section 11); it is updated in the same PR as the change, never afterward.
-- Keep detailed architecture, development, and deployment documentation in `docs/` if that is the agreed organization.
+- Keep detailed architecture, development, and deployment documentation in `docs/`.
+- A document describes what is built. What is documented but not built says `Planned: #N`, and a field the backend does not send does not appear in the contract's examples.
 - An ADR records context, alternatives, decision, consequences, and status. Number files consistently; a replaced decision preserves its history.
 - C4 explains structure and relationships: context and containers at the beginning; components and deployment when they provide useful information. A C4 container does not necessarily imply a Docker container.
 - Quality goals must define measurement conditions. For example, a p95 lower than 500 ms needs to specify operations, load, data, and environment; it is a proposal until accepted.
-- Keep this `AGENTS.md` updated with agreements. It does not preserve rejected proposals as mandatory rules.
+- Keep this `AGENTS.md` to rules and the map of section 2. Do not copy into it state that another document owns. It does not preserve rejected proposals as mandatory rules.
