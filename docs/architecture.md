@@ -228,6 +228,20 @@ only correct with one replica; [ADR-0012](adr/0012-cache-redis.md) says when the
 container (the data is in the volumes), but the no-loss check has not been recorded yet, and the
 evidence part waits for #44.
 
+## ⚖️ Accepted Risks
+
+Known limits the team accepts for now. A review does not report them (*Sprint review* in
+`CONTRIBUTING.md`); each one is revisited when its source says.
+
+| Risk | Effect | Source |
+| --- | --- | --- |
+| The sign-in and sign-up rate-limit counters live in the backend process | A restart resets them, and they are only correct with one replica | [Security guide](security.md), *Rate limits*; [ADR-0012](adr/0012-cache-redis.md) |
+| The sign-in limit is per email and address | One address can still try 5 passwords on each of many emails | [Security guide](security.md), *Rate limits* |
+| Clients behind one public address share the rate limits | A university wifi shares the 10 sign-ups per hour, and someone on the same network can block a person's sign-in | #200 |
+| The API documentation is public (`/swagger-ui.html`, `/v3/api-docs`, `/openapi.yml`) | Anyone can read the contract, which is public by design | [Security guide](security.md), *Permission matrix*; [API guide](api.md) says how to turn it off |
+| The audit trigger guards against mistakes, not against the database owner | Someone with the owner or superuser account can disable it; a user who appears in the audit trail cannot be deleted | [Security guide](security.md), *Audit trail* |
+| Everything runs on one machine | If the machine stops, the whole system stops; with #199, nginx is also the single entry point, but keeps no data | [ADR-0011](adr/0011-deployment-12factor.md), #199 |
+
 ## 📋 ADRs Without a Measurable Evaluation
 
 ADR-0013, ADR-0014, ADR-0017, ADR-0020 and ADR-0021 state a metric and a threshold, and ADR-0016
