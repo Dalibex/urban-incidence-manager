@@ -124,12 +124,25 @@ body:
       placeholder: "#12, RF09"
 
   - type: textarea
+    id: failure_cases
+    attributes:
+      label: Failure and limit cases
+      description: |
+        Optional. The cases of *Failure and limit cases* in `CONTRIBUTING.md` that the fix must keep working. A case that does not apply says why.
+
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of scope
+      description: Optional. What the fix does not change.
+
+  - type: textarea
     id: closing_criteria
     attributes:
       label: Closing criteria
       value: |
-        - [ ] A test reproduces the bug and fails before the fix.
-        - [ ] The test passes after the fix (branch `fix/...`, commit `fix: ...`).
+        - [ ] A test reproduces the bug: it fails on the code without the fix.
+        - [ ] The test passes with the fix (branch `fix/...`, commit `fix: ...`).
         - [ ] The affected CI jobs are green.
     validations:
       required: true
