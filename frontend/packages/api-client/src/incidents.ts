@@ -5,6 +5,7 @@ import type { components, operations } from './schema';
 type Category = components['schemas']['CategoryResponse'];
 type CreateIncidentRequest = components['schemas']['CreateIncidentRequest'];
 type IncidentResponse = components['schemas']['IncidentResponse'];
+type UpdateIncidentRequest = components['schemas']['UpdateIncidentRequest'];
 type Schemas = components['schemas'];
 
 /** One invalid field of a `422` problem body (`Problem.errors` items). */
@@ -26,6 +27,22 @@ export function createIncident(
   body: CreateIncidentRequest,
 ): Promise<CreateIncidentResult> {
   return callForm(() => client.POST('/incidents', { body }), 'the created incident');
+}
+
+/**
+ * Sets or corrects the category and the priority of an incident (#47). Send the `version` the
+ * detail returned: a stale one answers `409` with `CONCURRENT_MODIFICATION`, and the incident must
+ * be reloaded before deciding again.
+ */
+export function updateIncident(
+  client: ApiClient,
+  incidentId: string,
+  body: UpdateIncidentRequest,
+): Promise<FormResult<IncidentResponse>> {
+  return callForm(
+    () => client.PATCH('/incidents/{incidentId}', { params: { path: { incidentId } }, body }),
+    'the incident',
+  );
 }
 
 async function callForm<T>(
