@@ -252,8 +252,9 @@ A pull request is ready for review when:
 - every case of the `[Test]` that this pull request covers, and every failure and limit case of its
   issue that applies, is covered;
 - the documents that describe the changed behavior change in the same pull request. If it adds or
-  removes an endpoint, a screen, a profile, a variable or a module, that includes the status in the
-  README and the status of the requirement in `docs/requirements.md`;
+  removes an endpoint, a screen, a profile, a variable or a module, that includes *Current Scope* in
+  the README and the status of the requirement in `docs/requirements.md`, and a screen or action a user
+  can see also changes its section of `docs/user-guide.md`;
 - every behavior it describes in `docs/security.md` or `docs/api.md` has a test that checks it;
 - what it documents without being built says `Planned: #N`, and a field the backend does not send
   does not appear in the contract's examples;

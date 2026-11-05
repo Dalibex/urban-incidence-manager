@@ -1,0 +1,198 @@
+# 🧭 User Guide
+
+How each role uses UrbanPulse: where to sign in, what each screen shows and what to do in it. It
+only describes screens and actions that are built; one that is not says `Planned: #N`, and what it
+will do is in *Screens per Role* of the [requirements](requirements.md). How to start the apps is in
+the [development guide](development.md) and the [demo script](demo.md).
+
+| Status | Meaning |
+| --- | --- |
+| Built | Every screen of the role works as described here |
+| Partial | Some screens or actions work; the rest say `Planned: #N` |
+| Planned | The role can sign in, but its screens are not built |
+
+## 📋 Summary
+
+| Role | App | Status |
+| --- | --- | --- |
+| [Citizen](#-citizen-mobile-app) | Mobile | Built |
+| [Municipal operator](#-municipal-operator-web) | Web | Partial |
+| [Technician](#-technician-web) | Web | Planned |
+| [Administrator](#-administrator-web) | Web | Partial |
+| [Analyst](#-analyst-web) | Web | Planned |
+
+## 🚪 Before You Start
+
+### Which app
+
+Citizens use the **mobile app**; municipal staff (operators, technicians, administrators and
+analysts) use the **website**. Each app only lets in its own people:
+
+- A citizen who signs in on the website sees *Use the UrbanPulse mobile app*.
+- A staff account that signs in on the phone sees *Use the UrbanPulse website* and a *Sign out*
+  button.
+
+The API checks every permission again, so this is a convenience, not the protection (see the
+[permission matrix](security.md#permission-matrix)).
+
+### Getting an account
+
+| Who | How |
+| --- | --- |
+| Citizen | *Create an account* on the sign-in screen of the mobile app (see [Sign up](#sign-up)) |
+| Staff | An administrator creates the account with its role (Planned: #40) |
+| First administrator of a new deployment | Created once by the people who run the server ([deployment guide](deployment.md#-create-the-first-administrator)) |
+| Trying the apps | The sample accounts of the [demo script](demo.md#the-story) (one per role) or of *Development Dataset* in the [development guide](development.md) |
+
+## 🔑 Signing In and Out
+
+Both apps ask for the email and the password. After signing in, each role lands on its own screen:
+
+| Role | Lands on |
+| --- | --- |
+| Citizen (mobile) | *New*, the report form |
+| Municipal operator | *Inbox* |
+| Technician | *Work queue* |
+| Administrator | *Users* |
+| Analyst | *Reports* |
+
+What the sign-in messages mean:
+
+| Message | What to do |
+| --- | --- |
+| *The email or the password is not correct.* | Check both; the message does not say which one is wrong, on purpose |
+| *Too many attempts. Wait a few minutes and try again.* | Too many failed attempts with one email; wait and try again ([rate limits](security.md#rate-limits)) |
+| *This account is disabled.* | Ask an administrator (staff) or the city council (citizens) to enable it |
+| *UrbanPulse cannot be reached. Check your connection and try again.* | The device has no connection, or the server is down |
+| *Your session has expired. Sign in again.* | The session ended; sign in again, nothing you saved is lost |
+
+**How long you stay signed in:**
+
+- **Website:** while the tab is open. The session is kept in memory only, so **reloading the page,
+  opening a link in a new tab or closing the browser signs you out**. This is on purpose: no other
+  script on the page can read a session that is not stored ([security guide](security.md)).
+- **Mobile app:** on that phone until you sign out from *Profile*; the session is kept in the
+  phone's secure storage.
+
+*Sign out* (in the top bar of the website, in *Profile* on the phone) ends the session on that
+device only; your other devices stay signed in.
+
+## 📱 Citizen (Mobile App)
+
+Three tabs: *New*, *My reports* and *Profile*.
+
+### Sign up
+
+1. On the sign-in screen, tap *Create an account*.
+2. Enter your full name, your email and a password, and tap *Create account*. The form says what
+   a valid password needs.
+3. The app says *Your account is ready. Sign in to continue.* and takes you back to sign in.
+
+If the email already has an account, the app says so: sign in instead.
+
+### Report an incident
+
+1. Open the *New* tab. The first time, the phone asks whether UrbanPulse may use your location:
+   allow it. Without it you cannot report; the screen shows *Location is needed* and an
+   *Open settings* button to allow it later.
+2. Check the accuracy under the form (for example *Accuracy: 12 m*). Outdoors it is usually a few
+   metres; indoors it can be much worse. Tap *Refresh* to read the position again before sending.
+3. Write a **title** (a short summary) and a **description** (what happens and where). Both are
+   required.
+4. Choose a **category** if one fits. It is optional: staff classify the report if you leave it
+   empty. If the categories cannot be loaded, you can still report without one.
+5. Tap *Submit*. The app confirms with *Incident reported. Follow its progress in "My reports".*
+
+The report is accepted even when the address, neighbourhood or district cannot be worked out at
+that moment: they show as *Not available* until they are known.
+
+- Planned: attach photos (#44); choose or correct the position on a map (#60).
+
+### Follow your reports
+
+*My reports* lists your incidents, newest first, in two groups:
+
+- **Open:** still being handled.
+- **Closed:** finished, either closed or rejected.
+
+Scroll down to load more. Tap a report to see:
+
+- **Details:** its category (*Not set yet* when nobody has classified it), when it was reported,
+  when it was last updated and, once closed, when it was closed.
+- **Location:** address, neighbourhood, district, coordinates and accuracy; *Not available* when
+  a value is not known.
+- **History:** each change of status with its date. A rejection shows its **reason**. When the
+  city needs more details, the entry shows a *Message from the city council*.
+
+You only see what the city shares with you: internal notes of the staff, priorities and who made
+each change are not shown to citizens.
+
+### Profile
+
+Your name and email, and *Sign out*.
+
+## 🗂️ Municipal Operator (Web)
+
+The menu at the top shows *Inbox*. Planned: *Map* (#53).
+
+### Inbox
+
+Every incident, newest first, a page at a time, with the date it was reported, title, category,
+status and priority. A category or priority that is not set shows *Not classified* or *Not set*.
+
+- *Previous* and *Next* change the page. The page is part of the address (`/inbox?page=2`), so you
+  can bookmark it or send it to a colleague.
+- *Manage* opens the detail of that incident.
+- Everything works with the keyboard: *Tab* moves between the links and buttons, *Enter* opens
+  them.
+- Planned: filters (#58).
+
+### Incident detail
+
+- **Report:** the description, category, priority, when it was reported, its last change and,
+  once closed, when it was closed.
+- **Location:** address, neighbourhood, district, coordinates and the accuracy the phone reported
+  (for example *within 12.5 m*). A value that is not known says *Not available*: it is never left
+  empty or guessed.
+- **History:** every change of status, oldest first, with who made it and the reason. Entries the
+  citizen does not see are marked *Internal*.
+- **Actions:** the actions allowed for the status of the incident. When there are none, it says
+  *No actions are available for this incident yet.* Planned: #47, #48, #49, #50, #52.
+
+*Back to the inbox* returns to the list. An incident that does not exist shows
+*Incident not found*.
+
+Dates are shown in Málaga time.
+
+### When something fails
+
+If the incidents cannot be loaded, the page says so and offers *Try again*; it says whether the
+server could not be reached or answered with an error. The app retries a few times on its own
+before showing it.
+
+## 🔧 Technician (Web)
+
+The menu shows *Work queue*. Planned: #51.
+
+## 🛡️ Administrator (Web)
+
+The menu shows *Users*, where you land, and *Inbox*.
+
+- **Inbox and incident detail:** an administrator can do everything an operator can
+  ([ADR-0020](adr/0020-incident-lifecycle-transitions.md)), so see
+  [Municipal Operator](#-municipal-operator-web).
+- **Users:** planned: #40.
+- **Audit log:** planned: #41.
+
+## 📊 Analyst (Web)
+
+The menu shows *Reports*. Planned: #42.
+
+## ✍️ Keeping This Guide Up to Date
+
+A pull request that adds or changes a screen or an action updates its section here, removes its
+`Planned` mark and, when a role has all its screens, changes its status in the summary (*When a pull
+request is done* in the [contributing guide](../CONTRIBUTING.md)). Write what a user sees and does,
+with the words of the screen. Leave out how it is built (the [development guide](development.md)),
+what is planned (the [requirements](requirements.md)) and limits that another document owns, such
+as the sign-in attempts (the [security guide](security.md)): link to them instead.
