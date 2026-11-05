@@ -49,6 +49,10 @@ export interface paths {
          *     emails have an account (sign-up does, with `EMAIL_ALREADY_EXISTS`). `ACCOUNT_DISABLED` is
          *     only returned when the password is right.
          *
+         *     `PASSWORD_CHANGE_REQUIRED` is also only returned when the password is right, so a wrong
+         *     password does not reveal that an account has to change it. The client then calls
+         *     `createPasswordChange` and signs in again. Planned: #165.
+         *
          *     Roles: public.
          */
         post: operations["createSession"];
@@ -115,6 +119,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/password-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change the password with the current one
+         * @description Planned: #165.
+         *
+         *     Replaces the password, clears the obligation to change it, revokes every refresh token of
+         *     the user and records a `CHANGE_PASSWORD` audit entry without any password, in one
+         *     transaction. It is public because an account that must change its password has no tokens
+         *     yet, so the current password is the credential. It works for every account, whether it is
+         *     obliged to change the password or not.
+         *
+         *     A wrong current password and an unknown email get the same `401`, in a comparable time, so
+         *     this operation does not reveal which emails have an account. Failed attempts are rate
+         *     limited like sign-in. Of two changes at once with the same current password, one succeeds
+         *     and the other gets `401`.
+         *
+         *     Roles: public.
+         */
+        post: operations["createPasswordChange"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/me": {
         parameters: {
             query?: never;
@@ -130,6 +167,139 @@ export interface paths {
          *     Roles: any authenticated user.
          */
         get: operations["getCurrentUser"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the users
+         * @description Planned: #191.
+         *
+         *     Paginated users of every role, enabled or not.
+         *
+         *     Sortable properties: `name`, `email`. Default `name,asc`; `id` is always added as the last
+         *     criterion so the order is stable between pages.
+         *
+         *     Roles: `ADMINISTRATOR`.
+         */
+        get: operations["listUsers"];
+        put?: never;
+        /**
+         * Create a staff account
+         * @description Planned: #191.
+         *
+         *     Creates an enabled staff account with the initial password the administrator typed. The
+         *     user must change it at the first sign-in (#165). Citizens sign up by themselves, so the
+         *     role `CITIZEN` returns `422`. It records a `CREATE_USER` audit entry.
+         *
+         *     Roles: `ADMINISTRATOR`.
+         */
+        post: operations["createUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a user
+         * @description Planned: #191.
+         *
+         *     Roles: `ADMINISTRATOR`.
+         */
+        get: operations["getUser"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change the name or role of a user, or disable or enable the account
+         * @description Planned: #191.
+         *
+         *     Only the properties present in the body change. There is no `DELETE`: users are referenced
+         *     by incidents, history and the audit trail, so an account is disabled instead.
+         *
+         *     A role change or a disabled account takes effect at the next refresh. Disabling revokes the
+         *     refresh tokens of the user in the same transaction. Each kind of change records its audit
+         *     entry (`UPDATE_USER`, `CHANGE_ROLE`, `DISABLE_USER`, `ENABLE_USER`); a name change records
+         *     which field changed, never its value.
+         *
+         *     Administrators cannot change their own role or disable themselves: it returns `422`. Of two
+         *     changes at once, both apply one after the other.
+         *
+         *     Roles: `ADMINISTRATOR`.
+         */
+        patch: operations["updateUser"];
+        trace?: never;
+    };
+    "/technicians": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the active technicians
+         * @description Planned: #190.
+         *
+         *     Enabled technicians, ordered by name, for the assignment form. It is a short list of staff,
+         *     so it is not paginated. It returns only what the form needs, without emails.
+         *
+         *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`.
+         */
+        get: operations["listTechnicians"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/audit-entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the audit trail
+         * @description Planned: #41.
+         *
+         *     Paginated entries of the audit trail (RF18): who did what, when and on which record. The
+         *     trail is append-only, so this collection has no operation to create, change or delete an
+         *     entry; entries are written by the operations they record (docs/security.md).
+         *
+         *     `actor.name` and `target.label` are read when the listing is requested, not when the entry
+         *     was written: a user renamed later shows their current name.
+         *
+         *     Sortable property: `instant`. Default `instant,desc` (newest first); `id` is always added as
+         *     the last criterion so the order is stable between pages.
+         *
+         *     Roles: `ADMINISTRATOR`.
+         */
+        get: operations["listAuditEntries"];
         put?: never;
         post?: never;
         delete?: never;
@@ -179,6 +349,10 @@ export interface paths {
          *
          *     Sortable properties: `reportedAt`, `updatedAt`. Default `reportedAt,desc` (newest first);
          *     `id` is always added as the last criterion so the order is stable between pages.
+         *
+         *     Filters always apply inside what the caller may see, so they never widen it. `status` is
+         *     open to every role that can list. The other filters are planned in #182: they are for staff,
+         *     and a `CITIZEN` who uses one gets `403`. An unknown parameter returns `400`.
          */
         get: operations["listIncidents"];
         put?: never;
@@ -218,6 +392,472 @@ export interface paths {
          *     `ADMINISTRATOR`. `ANALYST` gets `403`.
          */
         get: operations["getIncident"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Classify an incident
+         * @description Planned: #47.
+         *
+         *     Sets or corrects the category and the priority; send at least one of them. It is not a
+         *     lifecycle action, so it adds no history entry: each change records a `CLASSIFY_INCIDENT`
+         *     audit entry with the previous and new values, in the same transaction. The server records
+         *     the actor and the source `MANUAL` of the priority.
+         *
+         *     A priority needs its justification in `priorityReason`, or the request returns `422`.
+         *
+         *     `409` with `CONCURRENT_MODIFICATION` if `version` is stale, or with
+         *     `CLASSIFICATION_NOT_ALLOWED` if the incident is `REJECTED` or `CLOSED`. Nothing changes.
+         *
+         *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`.
+         */
+        patch: operations["updateIncident"];
+        trace?: never;
+    };
+    "/incidents/{incidentId}/classification-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the classification changes of an incident
+         * @description Planned: #47.
+         *
+         *     The category and priority changes of one incident, for the timeline of its detail. They are
+         *     not status changes, so they are not in `listIncidentStatusChanges` (ADR-0020). This operation
+         *     reads the `CLASSIFY_INCIDENT` entries of the audit trail: the same records as
+         *     `listAuditEntries`, with no second copy, shown for another purpose. It exposes nothing else
+         *     from the trail.
+         *
+         *     Category names are read when the listing is requested. Each change holds only the values
+         *     that changed.
+         *
+         *     Sortable property: `instant`. Default `instant,asc` (oldest first, as the history); `id` is
+         *     always added as the last criterion so the order is stable between pages. An incident never
+         *     classified returns `200` with an empty page.
+         *
+         *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`, `TECHNICIAN` (actively assigned; any other
+         *     technician gets `404`). `CITIZEN` and `ANALYST` get `403`.
+         */
+        get: operations["listIncidentClassificationChanges"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/incidents/{incidentId}/validation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Validate a reported incident
+         * @description Planned: #188.
+         *
+         *     `REPORTED` to `VALIDATED`. The category and the priority must already be set with
+         *     `updateIncident`, or the request returns `422`. The citizen sees the status.
+         *
+         *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`.
+         */
+        post: operations["createIncidentValidation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/incidents/{incidentId}/rejection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reject a reported incident
+         * @description Planned: #188.
+         *
+         *     `REPORTED` to `REJECTED`, which is final. `reason` is required, and the citizen sees the
+         *     status and the reason, so it must not hold internal data.
+         *
+         *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`.
+         */
+        post: operations["createIncidentRejection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/incidents/{incidentId}/information-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask the citizen for more information
+         * @description Planned: #188.
+         *
+         *     The incident stays `REPORTED` and the request is one more entry of its history. `reason` is
+         *     the message to the citizen and is required; the citizen sees it. The citizen's reply is out
+         *     of the MVP.
+         *
+         *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`.
+         */
+        post: operations["createIncidentInformationRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/incidents/{incidentId}/assignments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Assign an incident to a department and, optionally, a technician
+         * @description Planned: #184.
+         *
+         *     `VALIDATED`, `REOPENED` or `ASSIGNED` to `ASSIGNED`. A reassignment deactivates the previous
+         *     assignment and keeps it. The assignment, the status and the history change in one
+         *     transaction, and there is never more than one active assignment.
+         *
+         *     Without a technician the incident stays in nobody's queue, and it cannot be accepted until a
+         *     reassignment adds one. An inactive or unknown department, or a user who is not an active
+         *     technician, returns `422`.
+         *
+         *     The citizen sees the status, never the technician. There is no `Location` header because an
+         *     assignment has no read operation of its own.
+         *
+         *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`.
+         */
+        post: operations["createIncidentAssignment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/incidents/{incidentId}/acceptance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept an assigned incident
+         * @description Planned: #186.
+         *
+         *     `ASSIGNED` to `IN_PROGRESS`. The citizen sees the status. A technician who is not the one of
+         *     the active assignment gets `404`, also after a reassignment.
+         *
+         *     Roles: `TECHNICIAN` (actively assigned).
+         */
+        post: operations["createIncidentAcceptance"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/incidents/{incidentId}/resolution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve an incident in progress
+         * @description Planned: #186.
+         *
+         *     `IN_PROGRESS` to `RESOLVED`. `reason` holds the resolution notes and is required. The citizen
+         *     sees the status, not the notes. A technician who is not the one of the active assignment
+         *     gets `404`.
+         *
+         *     Roles: `TECHNICIAN` (actively assigned).
+         */
+        post: operations["createIncidentResolution"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/incidents/{incidentId}/closure": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Close a resolved incident
+         * @description Planned: #52.
+         *
+         *     `RESOLVED` to `CLOSED`, which is final, and sets `closedAt`. The citizen sees the status.
+         *
+         *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`.
+         */
+        post: operations["createIncidentClosure"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/incidents/{incidentId}/reopening": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reopen a resolved incident
+         * @description Planned: #52.
+         *
+         *     `RESOLVED` to `REOPENED`, after which it can be assigned again. `reason` is required. The
+         *     citizen sees the status, not the reason.
+         *
+         *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`.
+         */
+        post: operations["createIncidentReopening"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/incidents/{incidentId}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the internal comments of an incident
+         * @description Planned: #50.
+         *
+         *     Paginated comments. In the MVP every comment is internal, so citizens never get one, in this
+         *     or any other response.
+         *
+         *     Sortable property: `createdAt`. Default `createdAt,asc` (oldest first, as the history); `id`
+         *     is always added as the last criterion so the order is stable between pages.
+         *
+         *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`, `TECHNICIAN` (actively assigned; any other
+         *     technician gets `404`). `CITIZEN` and `ANALYST` get `403`.
+         */
+        get: operations["listIncidentComments"];
+        put?: never;
+        /**
+         * Add an internal comment to an incident
+         * @description Planned: #50.
+         *
+         *     The author is the user of the access token. There is no `Location` header because a comment
+         *     has no read operation of its own: it appears in `listIncidentComments`.
+         *
+         *     Roles: the same as `listIncidentComments`, with the same `404` rule.
+         */
+        post: operations["createIncidentComment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/incidents/{incidentId}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the photos of an incident
+         * @description Planned: #192.
+         *
+         *     Metadata of the photos, oldest first. The limit of files per incident bounds it, so it is not
+         *     paginated. It never holds a storage key or a public URL: the file is read with
+         *     `getAttachmentContent`, after authorisation.
+         *
+         *     Roles: `CITIZEN` (own incidents), `TECHNICIAN` (actively assigned), `MUNICIPAL_OPERATOR`,
+         *     `ADMINISTRATOR`. An incident the user may not see returns `404`. `ANALYST` gets `403`.
+         */
+        get: operations["listIncidentAttachments"];
+        put?: never;
+        /**
+         * Upload a photo to an incident
+         * @description Planned: #192.
+         *
+         *     One JPEG, PNG or WebP photo per request. The type is detected from the content, never from
+         *     the file name or the declared `Content-Type`. The size and the number of files per incident
+         *     come from configuration (`EVIDENCE_MAX_FILE_SIZE`, `EVIDENCE_MAX_FILES_PER_INCIDENT`).
+         *
+         *     A file over the size limit returns `413`. Another type, or too many files, returns `422`.
+         *
+         *     The same content uploaded again to the same incident, such as a retry, stores nothing new
+         *     and returns `200` with the existing attachment, so a client can retry safely.
+         *
+         *     If the storage fails, it returns `500`, no attachment is recorded and the incident stays as
+         *     it was.
+         *
+         *     Roles: `CITIZEN` (own incidents, only while `REPORTED`; later it returns `409` with the code
+         *     `ATTACHMENT_NOT_ALLOWED`), `TECHNICIAN` (actively assigned), `MUNICIPAL_OPERATOR`,
+         *     `ADMINISTRATOR`. An incident the user may not see returns `404`. `ANALYST` gets `403`.
+         */
+        post: operations["createIncidentAttachment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attachments/{attachmentId}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download a photo
+         * @description Planned: #192.
+         *
+         *     The file, with the type detected when it was uploaded. An opaque identifier does not replace
+         *     authorisation: the same rules as `listIncidentAttachments` apply to the incident of the
+         *     attachment, with the same `404` rule.
+         *
+         *     Roles: the same as `listIncidentAttachments`.
+         */
+        get: operations["getAttachmentContent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/departments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the active departments
+         * @description Planned: #184.
+         *
+         *     Active departments, ordered by name, for the assignment form and the staff filters. It is a
+         *     short reference list managed by administrators, so it is not paginated.
+         *
+         *     Roles: `MUNICIPAL_OPERATOR`, `TECHNICIAN`, `ADMINISTRATOR`.
+         */
+        get: operations["listDepartments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/incident-locations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the positions of incidents for the map
+         * @description Planned: #195.
+         *
+         *     A lightweight list for the map, with the same filters and the same scope as `listIncidents`
+         *     and an optional bounding box. It is not paginated, because the map needs one answer for the
+         *     whole view: the server caps the number of items, puts the most relevant first (priority, then
+         *     newest) and sets `truncated` when it left some out. An empty result is `200`.
+         *
+         *     The bounding box takes all four parameters or none. It uses named limits instead of a list of
+         *     four numbers, so its order cannot be mistaken. A minimum over its maximum, a value out of
+         *     range or only some of the four returns `400`. A box across the antimeridian is not supported:
+         *     the service covers Málaga.
+         *
+         *     These data are live and are not cached.
+         *
+         *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR` (every incident), `TECHNICIAN` (active
+         *     assignments). `CITIZEN` and `ANALYST` get `403`.
+         */
+        get: operations["listIncidentLocations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/incident-reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get an operational report of incidents
+         * @description Planned: #42.
+         *
+         *     Incidents reported in the period, counted with their current status and grouped by
+         *     `groupBy`. `Accept: application/json` returns it for the screen and `Accept: text/csv` as a
+         *     file with the same rows. Errors stay `application/problem+json` in both cases.
+         *
+         *     `from` and `to` are required (`400` if one is missing). `from` must be earlier than `to` and
+         *     the period may not exceed 366 days, or the request returns `422`. A period without incidents
+         *     returns `200` with no rows, and a CSV with only its header.
+         *
+         *     It holds no personal data. In the CSV, a group that is not available says `Not available`,
+         *     decimals use a dot, the encoding is UTF-8 with a BOM, and a text cell starting with `=`, `+`,
+         *     `-`, `@`, a tab or a carriage return is escaped with a leading `'`.
+         *
+         *     Roles: `ANALYST`, `ADMINISTRATOR`.
+         */
+        get: operations["getIncidentReport"];
         put?: never;
         post?: never;
         delete?: never;
@@ -429,6 +1069,160 @@ export interface components {
              */
             email: string;
             role: components["schemas"]["Role"];
+            /** @description Whether the account can sign in. Planned: #191. It is optional only until then, because the backend does not send it yet; that pull request makes it required. */
+            enabled?: boolean;
+        };
+        /** @description One page of users. */
+        UserPageResponse: {
+            content: components["schemas"]["UserResponse"][];
+            page: components["schemas"]["PageMetadata"];
+        };
+        /** @description Data to create a staff account. */
+        CreateUserRequest: {
+            /**
+             * @description Full name. It may not be blank.
+             * @example Pedro Gómez
+             */
+            name: string;
+            /**
+             * Format: email
+             * @description Email used to sign in, stored in lower case and unique.
+             * @example pedro.gomez@example.com
+             */
+            email: string;
+            /**
+             * Format: password
+             * @description Initial password, under the same rules as in `createRegistration`. It stops working when the user changes it at the first sign-in.
+             * @example correct-horse-battery
+             */
+            password: string;
+            /** @description A staff role. `CITIZEN` returns `422`. */
+            role: components["schemas"]["Role"];
+        };
+        /** @description The properties to change; the absent ones stay as they are. */
+        UpdateUserRequest: {
+            /**
+             * @description Full name. It may not be blank.
+             * @example Pedro Gómez
+             */
+            name?: string;
+            role?: components["schemas"]["Role"];
+            /**
+             * @description `false` disables the account and `true` enables it again.
+             * @example false
+             */
+            enabled?: boolean;
+        };
+        /** @description An enabled technician, as the assignment form shows it. */
+        TechnicianSummary: {
+            /**
+             * Format: uuid
+             * @example 7c2e4b1a-9d3f-4e8a-b6c5-1f0a2d3e4b5c
+             */
+            id: string;
+            /** @example Pedro Gómez */
+            name: string;
+        };
+        /** @description The credentials of the account and its new password. */
+        CreatePasswordChangeRequest: {
+            /**
+             * Format: email
+             * @example pedro.gomez@example.com
+             */
+            email: string;
+            /**
+             * Format: password
+             * @example correct-horse-battery
+             */
+            currentPassword: string;
+            /**
+             * Format: password
+             * @description Under the same rules as in `createRegistration`. It must differ from the current one, or the request returns `422`.
+             * @example another-long-passphrase
+             */
+            newPassword: string;
+        };
+        /**
+         * @description What an audit entry records (docs/security.md, "Audit trail"). A value is never renamed or removed, because old entries keep it; new ones are added with the feature that records them.
+         * @example CHANGE_ROLE
+         * @enum {string}
+         */
+        AuditAction: "CREATE_USER" | "UPDATE_USER" | "CHANGE_ROLE" | "DISABLE_USER" | "ENABLE_USER" | "CHANGE_PASSWORD" | "CLASSIFY_INCIDENT";
+        /**
+         * @description The kind of record an audit entry is about.
+         * @example USER
+         * @enum {string}
+         */
+        AuditTargetType: "USER" | "INCIDENT";
+        /** @description Who made the change. It has no role on purpose: the trail does not store the role the actor had at that moment, and their current role could be a different one. */
+        AuditActor: {
+            /**
+             * Format: uuid
+             * @example 7c2e4b1a-9d3f-4e8a-b6c5-1f0a2d3e4b5c
+             */
+            id: string;
+            /** @example Lucía Martín */
+            name: string;
+        };
+        /** @description The record the entry is about. */
+        AuditTarget: {
+            type: components["schemas"]["AuditTargetType"];
+            /**
+             * Format: uuid
+             * @example 2b8d4f6a-1c3e-4a5b-9d7f-0e2c4a6b8d1f
+             */
+            id: string;
+            /**
+             * @description Current name of the user or title of the incident, to recognise the record without its id. `null` when the record no longer exists.
+             * @example Pedro Gómez
+             */
+            label: string | null;
+        };
+        /** @description A value recorded in an entry; entries only hold scalars. */
+        AuditValue: string | number | boolean | null;
+        /** @description The values the change replaced (`before`) and the ones it set (`after`), by field. A side that does not exist, such as the `before` of a creation, is an empty object; a field that had no value is `null`, not left out. Never holds passwords, tokens, names or emails. */
+        AuditDetails: {
+            /**
+             * @example {
+             *       "role": "TECHNICIAN"
+             *     }
+             */
+            before: {
+                [key: string]: components["schemas"]["AuditValue"];
+            };
+            /**
+             * @example {
+             *       "role": "MUNICIPAL_OPERATOR"
+             *     }
+             */
+            after: {
+                [key: string]: components["schemas"]["AuditValue"];
+            };
+        };
+        /** @description One entry of the audit trail (RF18). */
+        AuditEntryResponse: {
+            /**
+             * Format: uuid
+             * @example 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d
+             */
+            id: string;
+            /**
+             * Format: date-time
+             * @description When the change happened (UTC).
+             * @example 2026-11-02T09:58:31Z
+             */
+            instant: string;
+            actor: components["schemas"]["AuditActor"];
+            action: components["schemas"]["AuditAction"];
+            /** @description `null` when the action is not about a single record. */
+            target: components["schemas"]["AuditTarget"] | null;
+            /** @description `null` when the entry has no details. */
+            details: components["schemas"]["AuditDetails"] | null;
+        };
+        /** @description One page of audit entries. */
+        AuditEntryPageResponse: {
+            content: components["schemas"]["AuditEntryResponse"][];
+            page: components["schemas"]["PageMetadata"];
         };
         /**
          * @description Lifecycle status (ADR-0020). `IN_PROGRESS` is the "IN PROGRESS" status of the case study.
@@ -575,7 +1369,7 @@ export interface components {
             content: components["schemas"]["IncidentSummaryResponse"][];
             page: components["schemas"]["PageMetadata"];
         };
-        /** @description Full incident. `priority` and `version` are staff-only: they are absent in the responses to a citizen. */
+        /** @description Full incident. `priority`, `priorityReason`, `assignment` and `version` are staff-only: they are absent in the responses to a citizen. */
         IncidentResponse: {
             /**
              * Format: uuid
@@ -589,6 +1383,10 @@ export interface components {
             status: components["schemas"]["IncidentStatus"];
             /** @description Staff only. `null` while the incident has no priority. */
             priority?: components["schemas"]["Priority"] | null;
+            /** @description Staff only. Justification of the current priority. `null` while the incident has no priority. Planned: #47. */
+            priorityReason?: string | null;
+            /** @description Staff only. The active assignment. `null` while the incident has none. Previous assignments are not listed here. Planned: #184. */
+            assignment?: components["schemas"]["AssignmentResponse"] | null;
             /** @description `null` while the incident has no category. */
             category: components["schemas"]["CategorySummary"] | null;
             location: components["schemas"]["IncidentLocation"];
@@ -653,8 +1451,302 @@ export interface components {
              */
             visibleToCitizen?: boolean;
         };
+        /** @description The classification to change, with at least one of `categoryId` and `priority`. The absent ones stay as they are. */
+        UpdateIncidentRequest: {
+            version: components["schemas"]["IncidentVersion"];
+            /**
+             * Format: uuid
+             * @description An active category. An unknown or inactive one returns `422`.
+             * @example a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d
+             */
+            categoryId?: string;
+            priority?: components["schemas"]["Priority"];
+            /**
+             * @description Why this priority. Required with `priority`, and not accepted without it.
+             * @example The street is dark near a school.
+             */
+            priorityReason?: string;
+        };
+        /** @description Classification values of an incident at one moment. A property is present only if that value changed; `null` means it had no value. */
+        ClassificationValues: {
+            category?: components["schemas"]["CategorySummary"] | null;
+            priority?: components["schemas"]["Priority"] | null;
+            /**
+             * @description Justification of the priority.
+             * @example The street is dark near a school.
+             */
+            priorityReason?: string | null;
+        };
+        /** @description One change of the category or the priority of an incident. Only staff get it. */
+        ClassificationChangeResponse: {
+            /**
+             * Format: uuid
+             * @description Identifier of the audit entry.
+             * @example 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d
+             */
+            id: string;
+            /**
+             * Format: date-time
+             * @description When the change happened (UTC).
+             * @example 2026-11-02T10:30:00Z
+             */
+            instant: string;
+            actor: components["schemas"]["AuditActor"];
+            before: components["schemas"]["ClassificationValues"];
+            after: components["schemas"]["ClassificationValues"];
+        };
+        /** @description One page of classification changes. */
+        ClassificationChangePageResponse: {
+            content: components["schemas"]["ClassificationChangeResponse"][];
+            page: components["schemas"]["PageMetadata"];
+        };
+        /**
+         * @description The `version` of the incident the client read. If the incident changed since then, the request returns `409` with the code `CONCURRENT_MODIFICATION` and changes nothing.
+         * @example 3
+         */
+        IncidentVersion: number;
+        /** @description A lifecycle action that needs no data besides the version. */
+        IncidentActionRequest: {
+            version: components["schemas"]["IncidentVersion"];
+            /**
+             * @description Optional note that only staff see (ADR-0020).
+             * @example Checked on site.
+             */
+            reason?: string;
+        };
+        /** @description A lifecycle action that needs a text. Its operation says what `reason` means and who sees it. */
+        IncidentReasonRequest: {
+            version: components["schemas"]["IncidentVersion"];
+            /**
+             * @description The reason, the message to the citizen or the resolution notes. Blank returns `422`.
+             * @example Duplicate of the report at number 12.
+             */
+            reason: string;
+        };
+        /** @description Department that incidents can be assigned to. */
+        DepartmentResponse: {
+            /**
+             * Format: uuid
+             * @example d1e2f3a4-b5c6-4d7e-8f9a-0b1c2d3e4f5a
+             */
+            id: string;
+            /** @example Street lighting service */
+            name: string;
+        };
+        /** @description Who becomes responsible for the incident. */
+        CreateAssignmentRequest: {
+            version: components["schemas"]["IncidentVersion"];
+            /**
+             * Format: uuid
+             * @description An active department from `listDepartments`.
+             * @example d1e2f3a4-b5c6-4d7e-8f9a-0b1c2d3e4f5a
+             */
+            departmentId: string;
+            /**
+             * Format: uuid
+             * @description An active technician from `listTechnicians`. Absent to assign the department only.
+             * @example 7c2e4b1a-9d3f-4e8a-b6c5-1f0a2d3e4b5c
+             */
+            technicianId?: string;
+            /**
+             * @description Team inside the department. Absent if there is none.
+             * @example Night shift
+             */
+            team?: string;
+        };
+        /** @description An assignment of an incident. Only staff get it. */
+        AssignmentResponse: {
+            /**
+             * Format: uuid
+             * @example e5f6a7b8-c9d0-4e1f-a2b3-c4d5e6f7a8b9
+             */
+            id: string;
+            department: components["schemas"]["DepartmentResponse"];
+            /** @description `null` when it is assigned to the department only. */
+            technician: components["schemas"]["TechnicianSummary"] | null;
+            /**
+             * @description `null` when there is no team.
+             * @example Night shift
+             */
+            team: string | null;
+            /**
+             * Format: date-time
+             * @example 2026-11-02T11:20:00Z
+             */
+            assignedAt: string;
+        };
+        /** @description An internal comment. */
+        CreateCommentRequest: {
+            /**
+             * @description The comment. Blank or too long returns `422`.
+             * @example The access is through the back street.
+             */
+            text: string;
+        };
+        /** @description An internal comment on an incident. */
+        CommentResponse: {
+            /**
+             * Format: uuid
+             * @example f6a7b8c9-d0e1-4f2a-b3c4-d5e6f7a8b9c0
+             */
+            id: string;
+            author: components["schemas"]["StatusChangeActor"];
+            /** @example The access is through the back street. */
+            text: string;
+            /**
+             * Format: date-time
+             * @example 2026-11-02T12:05:00Z
+             */
+            createdAt: string;
+        };
+        /** @description One page of comments. */
+        CommentPageResponse: {
+            content: components["schemas"]["CommentResponse"][];
+            page: components["schemas"]["PageMetadata"];
+        };
+        /** @description The photo to upload. */
+        CreateAttachmentRequest: {
+            /**
+             * Format: binary
+             * @description A JPEG, PNG or WebP image.
+             */
+            file: string;
+        };
+        /** @description Metadata of a stored photo. It never holds the storage key or a public URL (ADR-0013). */
+        AttachmentResponse: {
+            /**
+             * Format: uuid
+             * @example c4d5e6f7-a8b9-4c0d-9e1f-2a3b4c5d6e7f
+             */
+            id: string;
+            /**
+             * @description Name of the file on the device, only to show it. It is never used as a path.
+             * @example street-light.jpg
+             */
+            fileName: string;
+            /**
+             * @description The type detected from the content.
+             * @example image/jpeg
+             * @enum {string}
+             */
+            contentType: "image/jpeg" | "image/png" | "image/webp";
+            /**
+             * Format: int64
+             * @description Size of the file in bytes.
+             * @example 2483115
+             */
+            size: number;
+            /**
+             * Format: date-time
+             * @example 2026-11-02T10:00:12Z
+             */
+            uploadedAt: string;
+        };
+        /** @description An incident on the map. The side panel reads the rest with `getIncident`. */
+        IncidentPosition: {
+            /**
+             * Format: uuid
+             * @example 3f1c2a9e-7b4d-4c1a-9e2f-5d6b7a8c9d0e
+             */
+            id: string;
+            status: components["schemas"]["IncidentStatus"];
+            /** @description `null` while the incident has no priority. */
+            priority: components["schemas"]["Priority"] | null;
+            /**
+             * Format: double
+             * @description WGS 84 latitude in decimal degrees.
+             * @example 36.7213
+             */
+            latitude: number;
+            /**
+             * Format: double
+             * @description WGS 84 longitude in decimal degrees.
+             * @example -4.4214
+             */
+            longitude: number;
+        };
+        /** @description The positions for the map, with no more than the server's cap. */
+        IncidentLocationListResponse: {
+            content: components["schemas"]["IncidentPosition"][];
+            /**
+             * @description `true` when more incidents match than the cap allows, so some are left out.
+             * @example false
+             */
+            truncated: boolean;
+        };
+        /**
+         * @description How a report groups the incidents. `department` uses the active assignment.
+         * @example category
+         * @enum {string}
+         */
+        IncidentReportGrouping: "status" | "category" | "priority" | "department" | "district";
+        /** @description One group of a report, only for groups with incidents. `total` is the sum of `open`, `closed` and `rejected`; `open` counts every status that is not final, including `RESOLVED`. */
+        IncidentReportRow: {
+            /**
+             * @description The status, priority, or name of the category, department or district. `null` means "not available", for example an incident without a district; it goes last.
+             * @example Street lighting
+             */
+            group: string | null;
+            /**
+             * Format: int64
+             * @example 12
+             */
+            total: number;
+            /**
+             * Format: int64
+             * @example 5
+             */
+            open: number;
+            /**
+             * Format: int64
+             * @example 6
+             */
+            closed: number;
+            /**
+             * Format: int64
+             * @example 1
+             */
+            rejected: number;
+            /**
+             * Format: double
+             * @description Median hours from reported to closed, of the closed incidents. `null` when none is closed, never `0`.
+             * @example 18.5
+             */
+            resolutionHoursP50: number | null;
+            /**
+             * Format: double
+             * @description 95th percentile of the same hours. `null` when none is closed, never `0`.
+             * @example 40.25
+             */
+            resolutionHoursP95: number | null;
+        };
+        /** @description An operational report. Status and priority go in their declared order and the others alphabetically. It is not paginated: the groups are few by nature. */
+        IncidentReportResponse: {
+            rows: components["schemas"]["IncidentReportRow"][];
+        };
     };
     responses: {
+        /** @description The file is over the size limit. Code: `FILE_TOO_LARGE`. */
+        ContentTooLarge: {
+            headers: {
+                "X-Request-ID": components["headers"]["XRequestId"];
+                [name: string]: unknown;
+            };
+            content: {
+                /**
+                 * @example {
+                 *       "type": "about:blank",
+                 *       "title": "Content Too Large",
+                 *       "status": 413,
+                 *       "code": "FILE_TOO_LARGE",
+                 *       "detail": "The file is over the size limit.",
+                 *       "instance": "/api/v1/incidents/3f1c2a9e-7b4d-4c1a-9e2f-5d6b7a8c9d0e/attachments",
+                 *       "traceId": "4bf92f3577b34da6a3ce929d0e0e4736"
+                 *     }
+                 */
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description The request is malformed: the body is not valid JSON, a value has the wrong type, or a parameter is out of range (for example `size` over 100). Validation of well-formed data returns `422` instead. */
         BadRequest: {
             headers: {
@@ -834,6 +1926,22 @@ export interface components {
     parameters: {
         /** @description Identifier of the incident. */
         IncidentId: string;
+        /** @description Identifier of the user. */
+        UserId: string;
+        /** @description Identifier of the attachment. */
+        AttachmentId: string;
+        /** @description Only incidents in one of these statuses. Repeat it for several values (`?status=REPORTED&status=VALIDATED`). Absent means every status. */
+        StatusFilter: components["schemas"]["IncidentStatus"][];
+        /** @description Only incidents in one of these categories. Repeat it for several values. */
+        CategoryIdFilter: string[];
+        /** @description Only incidents with one of these priorities. Repeat it for several values. */
+        PriorityFilter: components["schemas"]["Priority"][];
+        /** @description Only incidents reported at or after this instant (UTC, included). It must be earlier than `reportedTo`, or the request returns `400`. */
+        ReportedFromFilter: string;
+        /** @description Only incidents reported before this instant (UTC, excluded). */
+        ReportedToFilter: string;
+        /** @description Only incidents whose active assignment is in one of these departments. Repeat it for several values. A previous assignment does not count. */
+        DepartmentIdFilter: string[];
         /** @description Page number, starting at 0. */
         Page: number;
         /** @description Items per page. A value over 100 returns `400`; it is never silently reduced. */
@@ -943,23 +2051,12 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description The credentials are right but the account is disabled. Code: `ACCOUNT_DISABLED`. */
+            /** @description The credentials are right but no session can start: the account is disabled, code `ACCOUNT_DISABLED`, or its password must change first, code `PASSWORD_CHANGE_REQUIRED` (planned: #165). */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    /**
-                     * @example {
-                     *       "type": "about:blank",
-                     *       "title": "Forbidden",
-                     *       "status": 403,
-                     *       "code": "ACCOUNT_DISABLED",
-                     *       "detail": "This account is disabled.",
-                     *       "instance": "/api/v1/sessions",
-                     *       "traceId": "4bf92f3577b34da6a3ce929d0e0e4736"
-                     *     }
-                     */
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
@@ -1035,6 +2132,72 @@ export interface operations {
             500: components["responses"]["InternalServerError"];
         };
     };
+    createPasswordChange: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePasswordChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description The password changed. The client signs in with the new one. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description The email or the current password is wrong. Code: `INVALID_CREDENTIALS`. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "type": "about:blank",
+                     *       "title": "Unauthorized",
+                     *       "status": 401,
+                     *       "code": "INVALID_CREDENTIALS",
+                     *       "detail": "The email or the password is not correct.",
+                     *       "instance": "/api/v1/password-changes",
+                     *       "traceId": "4bf92f3577b34da6a3ce929d0e0e4736"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The credentials are right but the account is disabled. Code: `ACCOUNT_DISABLED`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "type": "about:blank",
+                     *       "title": "Forbidden",
+                     *       "status": 403,
+                     *       "code": "ACCOUNT_DISABLED",
+                     *       "detail": "This account is disabled.",
+                     *       "instance": "/api/v1/password-changes",
+                     *       "traceId": "4bf92f3577b34da6a3ce929d0e0e4736"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
     getCurrentUser: {
         parameters: {
             query?: never;
@@ -1054,6 +2217,217 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    listUsers: {
+        parameters: {
+            query?: {
+                /** @description Page number, starting at 0. */
+                page?: components["parameters"]["Page"];
+                /** @description Items per page. A value over 100 returns `400`; it is never silently reduced. */
+                size?: components["parameters"]["Size"];
+                /** @description Sort criterion as `property,asc` or `property,desc`. Each listing documents the properties it accepts and its default; an unknown property returns `400`. */
+                sort?: components["parameters"]["Sort"];
+                /** @description Only users whose name contains this text, ignoring case. */
+                name?: string;
+                /** @description Only users whose email contains this text, ignoring case. */
+                email?: string;
+                /** @description Only users with one of these roles. Repeat it for several values (`?role=TECHNICIAN&role=ANALYST`). Absent means every role. */
+                role?: components["schemas"]["Role"][];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of users. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserPageResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    createUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateUserRequest"];
+            };
+        };
+        responses: {
+            /** @description The account was created. `Location` points to it and the body repeats it. */
+            201: {
+                headers: {
+                    /** @description URL of the new user. */
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description An account with this email already exists. Code: `EMAIL_ALREADY_EXISTS`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "type": "about:blank",
+                     *       "title": "Conflict",
+                     *       "status": 409,
+                     *       "code": "EMAIL_ALREADY_EXISTS",
+                     *       "detail": "An account with this email already exists.",
+                     *       "instance": "/api/v1/users",
+                     *       "traceId": "4bf92f3577b34da6a3ce929d0e0e4736"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    getUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Identifier of the user. */
+                userId: components["parameters"]["UserId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The user. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    updateUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Identifier of the user. */
+                userId: components["parameters"]["UserId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateUserRequest"];
+            };
+        };
+        responses: {
+            /** @description The user after the change. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    listTechnicians: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The enabled technicians. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TechnicianSummary"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    listAuditEntries: {
+        parameters: {
+            query?: {
+                /** @description Page number, starting at 0. */
+                page?: components["parameters"]["Page"];
+                /** @description Items per page. A value over 100 returns `400`; it is never silently reduced. */
+                size?: components["parameters"]["Size"];
+                /** @description Sort criterion as `property,asc` or `property,desc`. Each listing documents the properties it accepts and its default; an unknown property returns `400`. */
+                sort?: components["parameters"]["Sort"];
+                /** @description Only entries at or after this instant (UTC, included). Together with `to` it must be earlier than `to`, or the request returns `400`. */
+                from?: string;
+                /** @description Only entries before this instant (UTC, excluded), so consecutive ranges (`to` of one equal to `from` of the next) never count an entry twice. */
+                to?: string;
+                /** @description Only entries made by this user. */
+                actorId?: string;
+                /** @description Only entries of one of these actions. Repeat it for several values (`?action=CREATE_USER&action=CHANGE_ROLE`). Absent means every action. */
+                action?: components["schemas"]["AuditAction"][];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of audit entries. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditEntryPageResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             500: components["responses"]["InternalServerError"];
         };
     };
@@ -1089,7 +2463,17 @@ export interface operations {
                 /** @description Sort criterion as `property,asc` or `property,desc`. Each listing documents the properties it accepts and its default; an unknown property returns `400`. */
                 sort?: components["parameters"]["Sort"];
                 /** @description Only incidents in one of these statuses. Repeat it for several values (`?status=REPORTED&status=VALIDATED`). Absent means every status. */
-                status?: components["schemas"]["IncidentStatus"][];
+                status?: components["parameters"]["StatusFilter"];
+                /** @description Only incidents in one of these categories. Repeat it for several values. */
+                categoryId?: components["parameters"]["CategoryIdFilter"];
+                /** @description Only incidents with one of these priorities. Repeat it for several values. */
+                priority?: components["parameters"]["PriorityFilter"];
+                /** @description Only incidents reported at or after this instant (UTC, included). It must be earlier than `reportedTo`, or the request returns `400`. */
+                reportedFrom?: components["parameters"]["ReportedFromFilter"];
+                /** @description Only incidents reported before this instant (UTC, excluded). */
+                reportedTo?: components["parameters"]["ReportedToFilter"];
+                /** @description Only incidents whose active assignment is in one of these departments. Repeat it for several values. A previous assignment does not count. */
+                departmentId?: components["parameters"]["DepartmentIdFilter"];
             };
             header?: never;
             path?: never;
@@ -1168,6 +2552,627 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    updateIncident: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Identifier of the incident. */
+                incidentId: components["parameters"]["IncidentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateIncidentRequest"];
+            };
+        };
+        responses: {
+            /** @description The incident after the change, with its new `version`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    listIncidentClassificationChanges: {
+        parameters: {
+            query?: {
+                /** @description Page number, starting at 0. */
+                page?: components["parameters"]["Page"];
+                /** @description Items per page. A value over 100 returns `400`; it is never silently reduced. */
+                size?: components["parameters"]["Size"];
+                /** @description Sort criterion as `property,asc` or `property,desc`. Each listing documents the properties it accepts and its default; an unknown property returns `400`. */
+                sort?: components["parameters"]["Sort"];
+            };
+            header?: never;
+            path: {
+                /** @description Identifier of the incident. */
+                incidentId: components["parameters"]["IncidentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of classification changes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassificationChangePageResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    createIncidentValidation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Identifier of the incident. */
+                incidentId: components["parameters"]["IncidentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IncidentActionRequest"];
+            };
+        };
+        responses: {
+            /** @description The incident after the change, with its new `version`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    createIncidentRejection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Identifier of the incident. */
+                incidentId: components["parameters"]["IncidentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IncidentReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description The incident after the change, with its new `version`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    createIncidentInformationRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Identifier of the incident. */
+                incidentId: components["parameters"]["IncidentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IncidentReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description The incident after the change, with its new `version`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    createIncidentAssignment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Identifier of the incident. */
+                incidentId: components["parameters"]["IncidentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAssignmentRequest"];
+            };
+        };
+        responses: {
+            /** @description The assignment was created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssignmentResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    createIncidentAcceptance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Identifier of the incident. */
+                incidentId: components["parameters"]["IncidentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IncidentActionRequest"];
+            };
+        };
+        responses: {
+            /** @description The incident after the change, with its new `version`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    createIncidentResolution: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Identifier of the incident. */
+                incidentId: components["parameters"]["IncidentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IncidentReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description The incident after the change, with its new `version`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    createIncidentClosure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Identifier of the incident. */
+                incidentId: components["parameters"]["IncidentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IncidentActionRequest"];
+            };
+        };
+        responses: {
+            /** @description The incident after the change, with its new `version`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    createIncidentReopening: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Identifier of the incident. */
+                incidentId: components["parameters"]["IncidentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IncidentReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description The incident after the change, with its new `version`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    listIncidentComments: {
+        parameters: {
+            query?: {
+                /** @description Page number, starting at 0. */
+                page?: components["parameters"]["Page"];
+                /** @description Items per page. A value over 100 returns `400`; it is never silently reduced. */
+                size?: components["parameters"]["Size"];
+                /** @description Sort criterion as `property,asc` or `property,desc`. Each listing documents the properties it accepts and its default; an unknown property returns `400`. */
+                sort?: components["parameters"]["Sort"];
+            };
+            header?: never;
+            path: {
+                /** @description Identifier of the incident. */
+                incidentId: components["parameters"]["IncidentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of comments. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentPageResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    createIncidentComment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Identifier of the incident. */
+                incidentId: components["parameters"]["IncidentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCommentRequest"];
+            };
+        };
+        responses: {
+            /** @description The comment was created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    listIncidentAttachments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Identifier of the incident. */
+                incidentId: components["parameters"]["IncidentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The metadata of the photos. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttachmentResponse"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    createIncidentAttachment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Identifier of the incident. */
+                incidentId: components["parameters"]["IncidentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["CreateAttachmentRequest"];
+            };
+        };
+        responses: {
+            /** @description This content was already attached to the incident. Nothing new was stored. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttachmentResponse"];
+                };
+            };
+            /** @description The photo was stored. `Location` points to its content. */
+            201: {
+                headers: {
+                    /** @description URL of the content of the new attachment. */
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttachmentResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["ContentTooLarge"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    getAttachmentContent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Identifier of the attachment. */
+                attachmentId: components["parameters"]["AttachmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                    "image/png": string;
+                    "image/webp": string;
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    listDepartments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The active departments. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DepartmentResponse"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    listIncidentLocations: {
+        parameters: {
+            query?: {
+                /** @description Only incidents in one of these statuses. Repeat it for several values (`?status=REPORTED&status=VALIDATED`). Absent means every status. */
+                status?: components["parameters"]["StatusFilter"];
+                /** @description Only incidents in one of these categories. Repeat it for several values. */
+                categoryId?: components["parameters"]["CategoryIdFilter"];
+                /** @description Only incidents with one of these priorities. Repeat it for several values. */
+                priority?: components["parameters"]["PriorityFilter"];
+                /** @description Only incidents reported at or after this instant (UTC, included). It must be earlier than `reportedTo`, or the request returns `400`. */
+                reportedFrom?: components["parameters"]["ReportedFromFilter"];
+                /** @description Only incidents reported before this instant (UTC, excluded). */
+                reportedTo?: components["parameters"]["ReportedToFilter"];
+                /** @description Only incidents whose active assignment is in one of these departments. Repeat it for several values. A previous assignment does not count. */
+                departmentId?: components["parameters"]["DepartmentIdFilter"];
+                /** @description South limit of the bounding box, WGS 84 latitude in decimal degrees. */
+                minLatitude?: number;
+                /** @description West limit of the bounding box, WGS 84 longitude in decimal degrees. */
+                minLongitude?: number;
+                /** @description North limit of the bounding box, WGS 84 latitude in decimal degrees. */
+                maxLatitude?: number;
+                /** @description East limit of the bounding box, WGS 84 longitude in decimal degrees. */
+                maxLongitude?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The positions, the most relevant first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentLocationListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    getIncidentReport: {
+        parameters: {
+            query: {
+                /** @description Start of the period (UTC, included). */
+                from: string;
+                /** @description End of the period (UTC, excluded). */
+                to: string;
+                /** @description How to group the rows. An unknown value returns `400`. */
+                groupBy: components["schemas"]["IncidentReportGrouping"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The report. */
+            200: {
+                headers: {
+                    /** @description Only with `text/csv`, so the browser downloads the file. */
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentReportResponse"];
+                    /**
+                     * @example group,total,open,closed,rejected,resolutionHoursP50,resolutionHoursP95
+                     *     Street lighting,12,5,6,1,18.5,40.25
+                     *     Not available,3,3,0,0,,
+                     */
+                    "text/csv": string;
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
             500: components["responses"]["InternalServerError"];
         };
     };

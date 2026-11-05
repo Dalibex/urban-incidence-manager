@@ -19,7 +19,7 @@ Any change to public behaviour (a new endpoint, a new field, a different status 
 | Header | `openapi`, `info`, `servers` | Local backend `http://localhost:8080/api/v1` and same origin `/api/v1` (Swagger UI served by the backend, or the reverse proxy in [ADR-0017](adr/0017-reverse-proxy.md)). Staging is added when it exists. |
 | Security | `components.securitySchemes.bearerAuth` + global `security` | JWT access token in `Authorization: Bearer <token>` ([ADR-0004](adr/0004-authentication-strategy.md)). Applies to **every** operation unless it opts out. |
 | Error body | `components.schemas.Problem` (+ `FieldError`) | [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) Problem Details, `application/problem+json`: `type`, `title`, `status`, `code`, `detail`, `instance`, `traceId`, and `errors` for validation failures. |
-| Error responses | `components.responses` | `BadRequest` (400), `Unauthorized` (401), `Forbidden` (403), `NotFound` (404), `Conflict` (409), `UnprocessableEntity` (422), `TooManyRequests` (429), `InternalServerError` (500). |
+| Error responses | `components.responses` | `BadRequest` (400), `Unauthorized` (401), `Forbidden` (403), `NotFound` (404), `Conflict` (409), `ContentTooLarge` (413), `UnprocessableEntity` (422), `TooManyRequests` (429), `InternalServerError` (500). |
 | Listings | `components.parameters` + `components.schemas.PageMetadata` | `Page`, `Size` and `Sort` parameters and the `page` object of every paginated response ([Listings](#listings)). |
 | Tags | `tags` | One per backend module ([ADR-0010](adr/0010-modular-monolith.md)): `identity`, `incidents`, `geospatial`, `urbancontext`, `notifications`, `analytics`. |
 
@@ -30,6 +30,25 @@ The Sprint 1 operations were agreed ahead of their implementation in #93:
 | `identity` | `createRegistration`, `createSession`, `refreshSession`, `deleteCurrentSession`, `getCurrentUser` | #35 |
 | `incidents` | `listIncidents`, `getIncident`, `listIncidentStatusChanges` | #37 |
 | `incidents` | `createIncident`, `listCategories` | #43 |
+
+The committed Sprint 2 operations were agreed ahead in #204. Each one says `Planned: #N` in its description until the issue that implements it removes the mark:
+
+| Module | Operations | Implemented in |
+|---|---|---|
+| `identity` | `createPasswordChange`, and `PASSWORD_CHANGE_REQUIRED` in `createSession` | #165 |
+| `identity` | `listTechnicians` | #190 |
+| `identity` | `listUsers`, `createUser`, `getUser`, `updateUser`, and `enabled` in `UserResponse` | #191 |
+| `identity` | `listAuditEntries` | #41 |
+| `incidents` | The staff filters of `listIncidents` | #182 |
+| `incidents` | `updateIncident`, `listIncidentClassificationChanges`, and `priorityReason` in `IncidentResponse` | #47 |
+| `incidents` | `createIncidentValidation`, `createIncidentRejection`, `createIncidentInformationRequest` | #188 |
+| `incidents` | `createIncidentAssignment`, `listDepartments`, and `assignment` in `IncidentResponse` | #184 |
+| `incidents` | `createIncidentAcceptance`, `createIncidentResolution` | #186 |
+| `incidents` | `createIncidentClosure`, `createIncidentReopening` | #52 |
+| `incidents` | `listIncidentComments`, `createIncidentComment` | #50 |
+| `incidents` | `listIncidentAttachments`, `createIncidentAttachment`, `getAttachmentContent` | #192 |
+| `incidents` | `listIncidentLocations` | #195 |
+| `analytics` | `getIncidentReport` | #42 |
 
 ## 3. Conventions
 
@@ -104,8 +123,9 @@ Every operation lists the shared responses that can really happen, with `$ref`:
 | 403 | `#/components/responses/Forbidden` | The operation depends on the role or on the relationship with the resource |
 | 404 | `#/components/responses/NotFound` | The path has an identifier |
 | 409 | `#/components/responses/Conflict` | The operation changes state that can conflict (status transitions, stale version, unique values) |
+| 413 | `#/components/responses/ContentTooLarge` | The operation receives a file with a size limit |
 | 422 | `#/components/responses/UnprocessableEntity` | The operation has a body whose data is validated (blank title, coordinates out of range, short password); `errors` lists every invalid field |
-| 429 | `#/components/responses/TooManyRequests` | The operation is rate limited (today `createSession` and `createRegistration`) |
+| 429 | `#/components/responses/TooManyRequests` | The operation is rate limited (today `createSession` and `createRegistration`; `createPasswordChange` is planned in #165) |
 | 500 | `#/components/responses/InternalServerError` | Every operation |
 
 `400` means "I cannot read this request"; `422` means "I can read it, but the data is not valid". A form shows `422` errors next to each field; a `400` is a client bug.
@@ -130,7 +150,11 @@ Do not define a new error body. If an error needs extra information, add an opti
 | `TOO_MANY_ATTEMPTS` | 429 | `createSession`, `createRegistration` | Rate limited; see `Retry-After` |
 | `INVALID_REFRESH_TOKEN` | 401 | `refreshSession` | Unknown, expired, revoked or reused refresh token: sign in again |
 | `INVALID_TRANSITION` | 409 | Lifecycle actions (Sprint 2) | The transition is not allowed (ADR-0020) |
-| `CONCURRENT_MODIFICATION` | 409 | Lifecycle actions (Sprint 2) | The incident changed since the client read its `version`: reload it and decide again (ADR-0020) |
+| `CONCURRENT_MODIFICATION` | 409 | Lifecycle actions and `updateIncident` (Sprint 2) | The incident changed since the client read its `version`: reload it and decide again (ADR-0020) |
+| `PASSWORD_CHANGE_REQUIRED` | 403 | `createSession` (planned: #165) | Right credentials, but the password must change first |
+| `CLASSIFICATION_NOT_ALLOWED` | 409 | `updateIncident` (planned: #47) | The incident is `REJECTED` or `CLOSED` |
+| `ATTACHMENT_NOT_ALLOWED` | 409 | `createIncidentAttachment` (planned: #192) | A citizen can only upload while the incident is `REPORTED` |
+| `FILE_TOO_LARGE` | 413 | `createIncidentAttachment` (planned: #192) | The file is over the size limit |
 
 Add a row in the same PR that introduces a new code.
 
@@ -174,6 +198,8 @@ The contract is stricter than Spring's defaults, and the acceptance tests follow
 - **Validation.** A failed `@Valid` body returns `400` by default. The shared `@RestControllerAdvice` translates it to `422` with `VALIDATION_FAILED` and `errors`.
 
 ## 4. How to add an endpoint
+
+An operation agreed ahead (see [2. What the contract defines](#2-what-the-contract-defines)) is already in the contract: start at step 7, remove its `Planned: #N` mark in the pull request that builds it, and if you find a real difference, correct the contract in that pull request and tell the client streams. The steps below are for an operation that is not there yet.
 
 1. **Branch from the feature issue** and edit `docs/api/openapi.yml` **before** writing the controller.
 2. **Add the path** under `paths`, following the conventions above. Example:
