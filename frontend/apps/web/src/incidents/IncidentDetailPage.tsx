@@ -64,7 +64,7 @@ function IncidentDetail({ incident }: { incident: Incident }) {
         <StatusBadge status={incident.status} />
       </header>
       <div className={styles.detail}>
-        <IncidentActions />
+        <IncidentActions incident={incident} />
         <div>
           <ReportPanel incident={incident} />
           <LocationPanel location={incident.location} />
@@ -93,6 +93,9 @@ function ReportPanel({ incident }: { incident: Incident }) {
             <span className={styles.muted}>Not set</span>
           )}
         </Fact>
+        {incident.priorityReason && (
+          <Fact label="Why this priority">{incident.priorityReason}</Fact>
+        )}
         <Fact label="Reported">
           <Instant value={incident.reportedAt} />
         </Fact>
