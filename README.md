@@ -136,7 +136,8 @@ urban-incidence-manager/
 |   |-- deployment.md
 |   |-- development.md
 |   |-- security.md
-|   `-- testing.md
+|   |-- testing.md
+|   `-- twelve-factor.md
 |-- frontend/
 |   |-- apps/
 |   |   |-- web/
@@ -178,6 +179,7 @@ The diagram is a `.drawio.svg`: GitHub shows it as an image, and draw.io opens i
 - [Architecture overview](docs/architecture.md): drivers and quality attribute scenarios
 - [C4 architecture model](docs/architecture/)
 - [CI guide](docs/ci.md)
+- [Twelve-factor traceability](docs/twelve-factor.md): how each factor is applied and how to check it
 - [Architecture Decision Records](docs/adr/)
 - [Changelog](CHANGELOG.md)
 - [Contributing guide](CONTRIBUTING.md)
