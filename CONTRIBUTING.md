@@ -62,21 +62,24 @@ them, as a reference; update it whenever the assignment changes.
 | Tester | Writes the acceptance tests of each feature and validates that it works as described in its issue | Lewas88 |
 | Product owner | Prioritizes issues and plans the milestones | Fjjorda |
 
-A person can hold more than one role, but nobody approves their own pull request. When a reviewer
-opens a pull request, the other reviewer approves it.
+A person can hold more than one role, but nobody approves their own pull request: a reviewer other
+than its author approves it. When no reviewer can review in time and the pull request cannot wait,
+for example a critical fix, another team member who is not its author may approve it, and says why
+in the review.
 
 ### Workflow at a glance
 
 1. Pick an issue from the **Ready** column of the project board and assign it to yourself.
 2. Create a branch from the latest `main`, push the first commit and open a **draft** pull request
-   that closes the issue and its `[Test]` sub-issue (`Closes #N`), so the tester can add the
-   acceptance tests to it (see [Testing lifecycle](#testing-lifecycle)). Both cards move to
-   **In progress** by themselves.
+   that closes its issue (`Closes #N`) and, if it is the last pull request of that issue, its
+   `[Test]` (see [Sub-issues](#sub-issues)). The tester adds the acceptance tests to it (see
+   [Testing lifecycle](#testing-lifecycle)). The cards move to **In progress** by themselves.
 3. Commit small changes with Conventional Commits.
-4. Mark the pull request **Ready for review** when its tests pass. The cards move to **In review** by
+4. Mark the pull request **Ready for review** when it is done (see
+   [When a pull request is done](#when-a-pull-request-is-done)). The cards move to **In review** by
    themselves.
 5. Fix what the CI or the reviewer reports, pushing to the same branch.
-6. The reviewer approves, and you merge with **Squash and merge**. The issues close and move to
+6. A reviewer approves, and you merge with **Squash and merge**. The issues close and move to
    **Done** by themselves.
 
 The only card you move by hand is **Backlog → Ready**, when the issue is planned for the sprint.
@@ -105,8 +108,12 @@ or `priority: low` to order the work. The issue joins the project board in **Bac
 the issues opened by people outside the team in the same way, or close them with a reason.
 
 Record dependencies in the issue's **Relationships**, with **Blocked by**, so the board shows which
-issues can start. A `[Test]` sub-issue is blocked by the same issues as its parent, not by the parent
-itself: its tests are written while the feature is built, not after it.
+issues can start. A `[Test]` issue has no **Blocked by**: it is worked on inside the draft pull
+request of its feature, while the feature is built.
+
+Every feature, bug and task names, in its *Failure and limit cases* field, the cases of
+[Failure and limit cases](#failure-and-limit-cases) that apply to it, and in *Out of scope* what it
+does not do.
 
 #### Project board
 
@@ -122,35 +129,55 @@ The `project-status` workflow moves the cards to **In progress** and **In review
 request status, so it only works when the description says `Closes #N`. It skips pull requests from
 forks: for those, the team moves the cards by hand. The [CI guide](docs/ci.md) explains it.
 
-A large issue can be split into several pull requests. Each one says `Part of #N` and only the last
-one says `Closes #N`, so the issue stays open until all the work is merged. `Part of` does not link
-the pull request to the issue, so move its card by hand until the last pull request.
+#### Sub-issues
+
+Split an issue into sub-issues when its pieces have different blockers, or when someone else waits
+for one of them.
+
+- Each sub-issue has its own pull request, which says `Closes #<sub-issue>`.
+- The parent stays open until every sub-issue is done. The last pull request also says
+  `Closes #<parent>` and `Closes #<test>`.
+- There is one `[Test]` per parent. Each sub-issue lists which cases of that `[Test]` it covers,
+  and the tester adds them to the sub-issue's pull request.
 
 ### Testing lifecycle
 
 Each feature or task that changes behavior has a `[Test]` sub-issue whose table of test cases is the
-specification of the feature. We follow acceptance test-driven development (ATDD): the acceptance tests
-are written first, from the issue and the [OpenAPI contract](docs/api/openapi.yml), and the feature is
-implemented until they pass.
+specification of the feature, written from the issue and the [OpenAPI contract](docs/api/openapi.yml).
+The code and the acceptance tests are written in parallel on the same draft pull request, so
+neither waits for the other: the developer works from the issue, the tester from the `[Test]` and
+the contract, and each one starts as soon as they can. What is fixed is the end, not the order:
+the pull request is reviewed only when both are complete.
 
 | Step | Who | What |
 | --- | --- | --- |
-| 1. Start | Developer | Creates the branch and opens a **draft** pull request that closes both issues. |
-| 2. Red | Tester | Adds the automated acceptance tests (HTTP, integration, contract) to the same branch. They fail until the feature exists. |
-| 3. Green | Developer | Implements the feature until they pass, with their own unit tests for the internal logic. |
-| 4. Complete | Tester | Adds edge cases, runs the manual cases on the pull request's commit and leaves the evidence in a comment. |
-| 5. Review | Developer | Marks the pull request as ready for review. |
+| 1. Start | Developer | Creates the branch and opens a **draft** pull request from the first commit, for every issue that has testing. |
+| 2. Build | Developer | Implements the feature, with unit tests for the internal logic. |
+| 3. Test | Tester | At the same time, adds the acceptance tests to the draft pull request: HTTP, integration, contract and components. |
+| 4. Evidence | Tester | Runs the manual cases on the pull request's commit and leaves the evidence in a comment. |
+| 5. Review | Developer | Marks it ready for review when every case of the `[Test]` that this pull request covers is covered and the checks pass. |
 
-- A feature is merged only with its tests, so the feature and its `[Test]` issue close together.
+- A feature is merged only with its tests.
 - The tester and the developer push to the same branch: pull before pushing and avoid editing the same
   files at the same time.
 - Failing tests never reach `main`: the required checks block the merge until they pass.
-- In the web and mobile clients, component tests may be written alongside the screen instead of
-  before it, because the interface changes while it is built.
-- The contract of an endpoint is merged before or with its implementation
-  ([API guide](docs/api.md)). A `[Test]` sub-issue that tests an endpoint is blocked by the issue
-  that writes its contract, not by the back-end issues its parent waits for: the acceptance tests
-  only need the contract to be written.
+- The contract of an endpoint is merged before or with its implementation ([API guide](docs/api.md)).
+
+### Failure and limit cases
+
+Acceptance criteria that only describe the case where everything goes well leave the rest untested.
+Every feature, bug fix or task that changes behavior, and its `[Test]`, cover the cases of this list
+that apply; a case that does not apply says why:
+
+- no network or a timeout, and a `5xx`;
+- `401`, `403`, `404`, `409`, `422` and `429`;
+- a double submission;
+- the app closes halfway;
+- start-up without network;
+- two people change the same thing at once.
+
+`401` with a session refresh is tested once, in `api-client`. Each endpoint only tests `401`
+without a token, so the same thing is not tested many times.
 
 ### Branches
 
@@ -201,9 +228,10 @@ See *The hook in every clone* in the [CI guide](docs/ci.md#91-the-hook-in-every-
 
 ### Pull requests
 
-- One issue per pull request, plus its `[Test]` sub-issue. Keep it small enough to review in one sitting.
+- One issue or sub-issue per pull request; the last one of an issue also closes its parent and its
+  `[Test]` (see [Sub-issues](#sub-issues)). Keep it small enough to review in one sitting.
 - Open it as a **draft** as soon as you push the first commit, and mark it **Ready for review** when
-  its tests pass. The cards on the board follow the pull request status.
+  it is done. The cards on the board follow the pull request status.
 - Fill in the [pull request template](.github/pull_request_template.md).
 - **Title:** a Conventional Commit, such as `feat(incidents): add incident registration endpoint`. The
   `pr-title` job rejects anything else, and with squash merge the title becomes the commit on `main`.
@@ -215,6 +243,22 @@ See *The hook in every clone* in the [CI guide](docs/ci.md#91-the-hook-in-every-
 - Before asking for review, run the checks of the parts you changed (*Before pushing* in the
   [CI guide](docs/ci.md#81-before-pushing)) and update the documentation affected by the change.
 - Never include secrets, `.env` files or personal data.
+
+#### When a pull request is done
+
+A pull request is ready for review when:
+
+- the required checks pass, and `CHANGELOG.md` has its entry if users can notice the change;
+- every case of the `[Test]` that this pull request covers, and every failure and limit case of its
+  issue that applies, is covered;
+- the documents that describe the changed behavior change in the same pull request. If it adds or
+  removes an endpoint, a screen, a profile, a variable or a module, that includes the status in the
+  README and the status of the requirement in `docs/requirements.md`;
+- every behavior it describes in `docs/security.md` or `docs/api.md` has a test that checks it;
+- what it documents without being built says `Planned: #N`, and a field the backend does not send
+  does not appear in the contract's examples;
+- ideas that are not part of the issue are one line each under *Noticed, not done* in the pull
+  request, and are not built there.
 
 #### Required checks
 
@@ -268,6 +312,34 @@ overwrites the change.
    deletes it.
 6. The issue closes and moves to **Done** by itself. If the pull request did not target `main`, the
    author closes the issue by hand.
+
+A review is judged against the acceptance criteria, this guide and `AGENTS.md`. A finding needs a
+`file:line` and a concrete failure; a style preference is not a finding.
+
+### Sprint review
+
+Each pull request is reviewed against its issue, so once per sprint someone reviews the whole. The
+review has an end:
+
+- **Scope:** only the diff since the previous release (`git diff <release>..origin/main`), plus a
+  short checklist: the seven cases of section 9 of `AGENTS.md`, consistency between the documents and
+  the code, `CHANGELOG.md` and the status of the ADRs.
+- **Judged against:** the acceptance criteria, this guide and `AGENTS.md`, not style preferences.
+- **Excluded:** what is already planned in a milestone and what is in *Accepted Risks* of the
+  [architecture overview](docs/architecture.md).
+- **Threshold:** only high and medium findings, each with a `file:line` and a concrete failure
+  scenario, become issues. Low ones go to one single improvements issue or to the backlog.
+- **Verification:** before being reported, each finding is checked against the current `main` and
+  the open issues and pull requests.
+- **Stop:** one review pass and one verification pass. A second review only re-checks the list and
+  does not look for new findings; whatever appears later goes to the next sprint.
+- **Decision:** the product owner chooses which findings enter the sprint.
+
+| Severity | Meaning |
+| --- | --- |
+| High | Breaks a flow, loses data or opens a security hole |
+| Medium | Incorrect behavior with a workaround, or a document that contradicts the code |
+| Low | Anything else |
 
 ### Protection of `main`
 

@@ -6,8 +6,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        Create this issue as a **sub-issue** of the functional issue it verifies.
-        Mark it as **blocked by** the same issues as its parent, not by the parent itself.
+        Create this issue as a **sub-issue** of the functional issue it verifies, one per parent.
+        It has no **Blocked by**: its tests are added to the draft pull request of the feature (*Testing lifecycle* in `CONTRIBUTING.md`).
         The implementation PR is not merged until these tests exist and pass.
 
   - type: input
@@ -53,6 +53,29 @@ body:
         | T2 | Edge case |  |  |  |
         | T3 | Error case |  |  |  |
         | T4 | Permissions (unauthorised role) |  |  |  |
+    validations:
+      required: true
+
+  - type: textarea
+    id: failure_cases
+    attributes:
+      label: Failure and limit cases
+      description: |
+        One row per case of *Failure and limit cases* in `CONTRIBUTING.md`: the test case that covers it, or why it does not apply. `401` with a session refresh is tested once, in `api-client`; here only `401` without a token.
+      value: |
+        | Case | Covered by | Or why it does not apply |
+        |---|---|---|
+        | No network or timeout, `5xx` |  |  |
+        | `401` without a token |  |  |
+        | `403` |  |  |
+        | `404` |  |  |
+        | `409` |  |  |
+        | `422` |  |  |
+        | `429` |  |  |
+        | Double submission |  |  |
+        | The app closes halfway |  |  |
+        | Start-up without network |  |  |
+        | Two people change the same thing at once |  |  |
     validations:
       required: true
 

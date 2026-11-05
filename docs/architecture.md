@@ -38,7 +38,7 @@ In the order the team prioritises them when two of them conflict:
    at all, and relevant actions keep their actor, instant and reason.
 4. **Performance of the lists** (inbox, *My reports*, work queue) as the data grows, since they are
    the screens every user opens first.
-5. **Maintainability** by a team of five students working in one-week sprints.
+5. **Maintainability** by a team of five students working in short sprints.
 6. **Cost:** the demo runs at zero cost.
 
 ### Constraints
@@ -50,7 +50,9 @@ In the order the team prioritises them when two of them conflict:
   self-hosted to avoid a tile provider ([ADR-0016](adr/0016-self-hosted-osm-base-map.md)).
 - **One machine:** the whole system runs with Docker Compose on one VM, with one backend replica
   ([ADR-0011](adr/0011-deployment-12factor.md)).
-- **Time:** one week per sprint; the MVP is Sprint 1 and Sprint 2, until 2026-11-10.
+- **Time:** the MVP is Sprint 1 (one week, until 2026-11-03) and Sprint 2 (two weeks, until
+  2026-11-17). Sprint 3, from 2026-11-18 to 2026-11-24, is for the remaining requirements, and a
+  reserve week until 2026-12-01 is for delays and fixes.
 - **Data sources:** Málaga open data and OpenStreetMap, with their usage policies
   ([ADR-0002](adr/0002-open-street-map.md), [ADR-0009](adr/0009-urban-data-source.md)).
 
@@ -227,6 +229,20 @@ only correct with one replica; [ADR-0012](adr/0012-cache-redis.md) says when the
 **Status.** The clean stop is met on every pull request. The backend keeps no state in its
 container (the data is in the volumes), but the no-loss check has not been recorded yet, and the
 evidence part waits for #44.
+
+## ⚖️ Accepted Risks
+
+Known limits the team accepts for now. A review does not report them (*Sprint review* in
+`CONTRIBUTING.md`); each one is revisited when its source says.
+
+| Risk | Effect | Source |
+| --- | --- | --- |
+| The sign-in and sign-up rate-limit counters live in the backend process | A restart resets them, and they are only correct with one replica | [Security guide](security.md), *Rate limits*; [ADR-0012](adr/0012-cache-redis.md) |
+| The sign-in limit is per email and address | One address can still try 5 passwords on each of many emails | [Security guide](security.md), *Rate limits* |
+| Clients behind one public address share the rate limits | A university wifi shares the 10 sign-ups per hour, and someone on the same network can block a person's sign-in | #200 |
+| The API documentation is public (`/swagger-ui.html`, `/v3/api-docs`, `/openapi.yml`) | Anyone can read the contract, which is public by design | [Security guide](security.md), *Permission matrix*; [API guide](api.md) says how to turn it off |
+| The audit trigger guards against mistakes, not against the database owner | Someone with the owner or superuser account can disable it; a user who appears in the audit trail cannot be deleted | [Security guide](security.md), *Audit trail* |
+| Everything runs on one machine | If the machine stops, the whole system stops; with #199, nginx is also the single entry point, but keeps no data | [ADR-0011](adr/0011-deployment-12factor.md), #199 |
 
 ## 📋 ADRs Without a Measurable Evaluation
 
