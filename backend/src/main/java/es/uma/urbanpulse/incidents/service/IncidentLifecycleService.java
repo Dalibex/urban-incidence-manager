@@ -69,11 +69,14 @@ public class IncidentLifecycleService {
      * before its data, in the order of ADR-0020, and an unknown id in the data is a {@code 422}
      * like any other invalid data.
      *
+     * @param expectedVersion as the request sent it; missing or negative is a {@code 422} on {@code
+     *     version}, checked here and not with Bean Validation so that a role that may not make the
+     *     change still gets {@code 403} first (ADR-0020)
      * @param details looks up the data; it may throw {@link InvalidIncidentDataException}
      */
     public IncidentResponse changeStatus(
             UUID incidentId,
-            int expectedVersion,
+            Integer expectedVersion,
             IncidentTransition transition,
             Supplier<TransitionDetails> details,
             UUID userId,
@@ -86,7 +89,10 @@ public class IncidentLifecycleService {
                         .orElseThrow(() -> new IncidentNotFoundException(incidentId));
         // Checked before the transition: a stale caller must reload, even if the change would
         // still be allowed in the new status.
-        if (incident.getVersion() != expectedVersion) {
+        if (expectedVersion == null || expectedVersion < 0) {
+            throw InvalidIncidentDataException.invalidVersion();
+        }
+        if (incident.getVersion().intValue() != expectedVersion.intValue()) {
             throw new ObjectOptimisticLockingFailureException(Incident.class, incidentId);
         }
         var actor =
@@ -94,8 +100,7 @@ public class IncidentLifecycleService {
                         .orElseThrow(
                                 () -> new IllegalStateException("User " + userId + " not found"));
 
-        incident.checkAllowed(transition, actor);
-        incident.changeStatus(transition, actor, details.get(), clock.instant());
+        incident.changeStatus(transition, actor, details, clock.instant());
         // Writes now, so a change committed by someone else after the read above fails here, and
         // the response carries the new version.
         incidents.flush();

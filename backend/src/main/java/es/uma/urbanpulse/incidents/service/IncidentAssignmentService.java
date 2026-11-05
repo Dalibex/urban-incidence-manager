@@ -6,12 +6,16 @@ import es.uma.urbanpulse.identity.repository.UserRepository;
 import es.uma.urbanpulse.incidents.dto.CreateAssignmentRequest;
 import es.uma.urbanpulse.incidents.dto.IncidentResponse;
 import es.uma.urbanpulse.incidents.entity.Department;
+import es.uma.urbanpulse.incidents.entity.Incident;
 import es.uma.urbanpulse.incidents.entity.IncidentTransition;
 import es.uma.urbanpulse.incidents.entity.InvalidIncidentDataException;
 import es.uma.urbanpulse.incidents.entity.TransitionDetails;
 import es.uma.urbanpulse.incidents.repository.DepartmentRepository;
 import es.uma.urbanpulse.shared.error.FieldError;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +29,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 public class IncidentAssignmentService {
+
+    // The fields of CreateAssignmentRequest, in the order its errors are listed.
+    private static final List<String> FIELDS = List.of("departmentId", "technicianId", "team");
 
     private final IncidentLifecycleService lifecycle;
     private final DepartmentRepository departments;
@@ -61,17 +68,20 @@ public class IncidentAssignmentService {
     }
 
     /**
-     * Looks up the department and the technician. An id that points to nothing is refused here; a
-     * missing department, an inactive one or a user who is not an active technician is refused by
-     * the entity, with the same fields.
+     * Looks up the department and the technician. An id that points to nothing is refused here,
+     * together with whatever else is wrong in the request, so the {@code 422} lists every invalid
+     * field at once. The rest (a missing or inactive department, a user who is not an active
+     * technician, the team) is checked by the domain with {@link Incident#assignmentErrors}.
      */
     private TransitionDetails details(CreateAssignmentRequest request) {
-        var unknown = new ArrayList<FieldError>();
+        var unknown = new LinkedHashMap<String, FieldError>();
         Department department = null;
         if (request.departmentId() != null) {
             department = departments.findById(request.departmentId()).orElse(null);
             if (department == null) {
-                unknown.add(new FieldError("departmentId", "The department does not exist."));
+                unknown.put(
+                        "departmentId",
+                        new FieldError("departmentId", "The department does not exist."));
             }
         }
         User technician = null;
@@ -80,12 +90,21 @@ public class IncidentAssignmentService {
             if (technician == null) {
                 // The same message as a user who is not a technician: the operator only needs to
                 // choose another one, and the API does not reveal which user ids exist.
-                unknown.add(new FieldError("technicianId", "Choose an active technician."));
+                unknown.put(
+                        "technicianId",
+                        new FieldError("technicianId", "Choose an active technician."));
             }
         }
+        var details = TransitionDetails.assignment(department, technician, request.team());
         if (!unknown.isEmpty()) {
-            throw InvalidIncidentDataException.unknownReferences(unknown);
+            var invalid = new ArrayList<>(unknown.values());
+            // An unknown department reads as a missing one to the domain: its error is replaced.
+            Incident.assignmentErrors(details).stream()
+                    .filter(error -> !unknown.containsKey(error.field()))
+                    .forEach(invalid::add);
+            invalid.sort(Comparator.comparingInt(error -> FIELDS.indexOf(error.field())));
+            throw InvalidIncidentDataException.unknownReferences(invalid);
         }
-        return TransitionDetails.assignment(department, technician, request.team());
+        return details;
     }
 }

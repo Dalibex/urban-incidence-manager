@@ -339,6 +339,86 @@ class IncidentAssignmentApiIT {
         expectInvalid(
                 assign(operator, incident, Map.of("version", -1, "departmentId", department)),
                 "version");
+        // The version is checked after the incident is found (ADR-0020).
+        assign(operator, UUID.randomUUID(), Map.of("departmentId", department))
+                .andExpect(status().isNotFound());
+        assertUnchanged(incident, "VALIDATED");
+    }
+
+    @Test
+    void anUnknownIdIsListedWithTheOtherInvalidFields() throws Exception {
+        UUID incident = incident("VALIDATED");
+        UUID closed = department("Closed department " + UUID.randomUUID(), false);
+
+        String unknownDepartment =
+                assign(
+                                operator,
+                                incident,
+                                Map.of(
+                                        "version",
+                                        0,
+                                        "departmentId",
+                                        UUID.randomUUID(),
+                                        "technicianId",
+                                        citizen,
+                                        "team",
+                                        "  "))
+                        .andExpect(status().isUnprocessableContent())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString();
+        String unknownTechnician =
+                assign(
+                                operator,
+                                incident,
+                                Map.of(
+                                        "version",
+                                        0,
+                                        "departmentId",
+                                        closed,
+                                        "technicianId",
+                                        UUID.randomUUID(),
+                                        "team",
+                                        "  "))
+                        .andExpect(status().isUnprocessableContent())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString();
+
+        List<String> fields = JsonPath.read(unknownDepartment, "$.errors[*].field");
+        List<String> messages = JsonPath.read(unknownDepartment, "$.errors[*].message");
+        assertThat(fields).containsExactly("departmentId", "technicianId", "team");
+        assertThat(messages.getFirst()).isEqualTo("The department does not exist.");
+        assertThat(JsonPath.<List<String>>read(unknownTechnician, "$.errors[*].field"))
+                .containsExactly("departmentId", "technicianId", "team");
+        assertUnchanged(incident, "VALIDATED");
+    }
+
+    @Test
+    void theHistoryKeepsTheTeamOfTheAssignment() throws Exception {
+        UUID incident = incident("VALIDATED");
+
+        // Written by hand: json() does not escape the quotes of the team.
+        mvc.perform(
+                        post(path(incident))
+                                .header(
+                                        HttpHeaders.AUTHORIZATION,
+                                        tokens.bearer(operator, Role.MUNICIPAL_OPERATOR))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {"version": 0, "departmentId": "%s", "team": "Turno \\"noche\\""}
+                                        """
+                                                .formatted(department)))
+                .andExpect(status().isOk());
+
+        assertThat(
+                        jdbc.queryForObject(
+                                "SELECT associated_data ->> 'team' FROM status_change"
+                                        + " WHERE incident_id = ? AND new_status = 'ASSIGNED'",
+                                String.class,
+                                incident))
+                .isEqualTo("Turno \"noche\"");
     }
 
     @Test
@@ -395,12 +475,15 @@ class IncidentAssignmentApiIT {
         Map<String, Object> body = Map.of("version", 0, "departmentId", department);
 
         for (Role role : List.of(Role.TECHNICIAN, Role.CITIZEN, Role.ANALYST)) {
-            mvc.perform(
-                            post(path(incident))
-                                    .header(HttpHeaders.AUTHORIZATION, tokens.bearer(role))
-                                    .contentType(MediaType.APPLICATION_JSON)
-                                    .content(json(body)))
-                    .andExpect(status().isForbidden());
+            // ADR-0020: 403 comes first, also when the body would be a 422.
+            for (String content : List.of(json(body), "{}", json(Map.of("team", " ")))) {
+                mvc.perform(
+                                post(path(incident))
+                                        .header(HttpHeaders.AUTHORIZATION, tokens.bearer(role))
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(content))
+                        .andExpect(status().isForbidden());
+            }
         }
         mvc.perform(
                         post(path(incident))

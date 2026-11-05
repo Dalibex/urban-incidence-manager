@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Supplier;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -161,10 +162,32 @@ public class Incident {
      */
     public StatusChange changeStatus(
             IncidentTransition transition, User actor, TransitionDetails details, Instant now) {
+        Objects.requireNonNull(details, "details");
+        return changeStatus(transition, actor, () -> details, now);
+    }
+
+    /**
+     * The same, for a transition whose data the caller has to look up first, such as the department
+     * and the technician of an assignment. {@code details} runs only after the status and the actor
+     * have been checked, so a transition that is not allowed is refused before its data, in the
+     * order of ADR-0020.
+     *
+     * @param details looks up the data; it may throw {@link InvalidIncidentDataException}
+     */
+    public StatusChange changeStatus(
+            IncidentTransition transition,
+            User actor,
+            Supplier<TransitionDetails> details,
+            Instant now) {
         Objects.requireNonNull(transition, "transition");
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(details, "details");
         checkAllowed(transition, actor);
+        return apply(transition, actor, Objects.requireNonNull(details.get(), "details"), now);
+    }
+
+    private StatusChange apply(
+            IncidentTransition transition, User actor, TransitionDetails details, Instant now) {
         requireData(transition, details);
 
         var instant = utc(now);
@@ -191,18 +214,7 @@ public class Incident {
         return change;
     }
 
-    /**
-     * Checks that the table allows the transition from the current status and for this actor, the
-     * checks {@link #changeStatus} makes before the data. A caller that has to look up the data
-     * first (an assignment loads its department and technician) calls it before, so a transition
-     * that is not allowed is refused before its data, in the order of ADR-0020.
-     *
-     * @throws InvalidTransitionException if the table does not allow it from the current status or
-     *     for this actor
-     */
-    public void checkAllowed(IncidentTransition transition, User actor) {
-        Objects.requireNonNull(transition, "transition");
-        Objects.requireNonNull(actor, "actor");
+    private void checkAllowed(IncidentTransition transition, User actor) {
         if (!transition.startsFrom(status)) {
             throw InvalidTransitionException.fromStatus(status, transition.target());
         }
@@ -278,27 +290,7 @@ public class Incident {
             invalid.add(new FieldError("reason", "This change needs a reason."));
         }
         if (transition == IncidentTransition.ASSIGNMENT) {
-            if (details.department() == null) {
-                invalid.add(new FieldError("departmentId", "An assignment needs a department."));
-            } else if (!Boolean.TRUE.equals(details.department().getIsActive())) {
-                invalid.add(new FieldError("departmentId", "The department is not active."));
-            }
-            // Only an active technician can accept the incident later (ADR-0020).
-            var technician = details.technician();
-            if (technician != null
-                    && (technician.getRole() != Role.TECHNICIAN
-                            || !Boolean.TRUE.equals(technician.getEnabled()))) {
-                invalid.add(new FieldError("technicianId", "Choose an active technician."));
-            }
-            var team = details.team();
-            if (team != null && (team.isBlank() || team.length() > Assignment.TEAM_MAX_LENGTH)) {
-                invalid.add(
-                        new FieldError(
-                                "team",
-                                "The team needs between 1 and "
-                                        + Assignment.TEAM_MAX_LENGTH
-                                        + " characters."));
-            }
+            invalid.addAll(assignmentErrors(details));
         }
         if (transition == IncidentTransition.VALIDATION) {
             if (category == null) {
@@ -317,21 +309,81 @@ public class Incident {
     }
 
     /**
-     * Internal data of the transition, never shown to citizens (ADR-0020). Built by hand because it
-     * only holds a fixed action name and UUIDs, which need no escaping.
+     * What is wrong with the data of an assignment, in the order of the fields of {@code
+     * CreateAssignmentRequest}; empty when it is valid. A service that finds an id pointing to
+     * nothing uses it to report that error together with the rest.
+     *
+     * @param details the department is {@code null} when it is missing, the technician when the
+     *     incident is assigned to the department only
+     */
+    public static List<FieldError> assignmentErrors(TransitionDetails details) {
+        var invalid = new ArrayList<FieldError>();
+        if (details.department() == null) {
+            invalid.add(new FieldError("departmentId", "An assignment needs a department."));
+        } else if (!Boolean.TRUE.equals(details.department().getIsActive())) {
+            invalid.add(new FieldError("departmentId", "The department is not active."));
+        }
+        // Only an active technician can accept the incident later (ADR-0020).
+        var technician = details.technician();
+        if (technician != null
+                && (technician.getRole() != Role.TECHNICIAN
+                        || !Boolean.TRUE.equals(technician.getEnabled()))) {
+            invalid.add(new FieldError("technicianId", "Choose an active technician."));
+        }
+        // Counted in characters (code points), like maxLength in the contract, not in UTF-16 units.
+        var team = details.team();
+        if (team != null
+                && (team.isBlank()
+                        || team.codePointCount(0, team.length()) > Assignment.TEAM_MAX_LENGTH)) {
+            invalid.add(
+                    new FieldError(
+                            "team",
+                            "The team needs between 1 and "
+                                    + Assignment.TEAM_MAX_LENGTH
+                                    + " characters."));
+        }
+        return invalid;
+    }
+
+    /**
+     * Internal data of the transition, never shown to citizens (ADR-0020). Built by hand: it holds
+     * a fixed action name, UUIDs and the team, the only free text, which is escaped.
      */
     private static String associatedData(IncidentTransition transition, TransitionDetails details) {
         return switch (transition) {
             case INFORMATION_REQUEST -> INFORMATION_REQUESTED;
-            case ASSIGNMENT ->
-                    details.technician() == null
-                            ? "{\"departmentId\": \"%s\"}".formatted(details.department().getId())
-                            : "{\"departmentId\": \"%s\", \"technicianId\": \"%s\"}"
-                                    .formatted(
-                                            details.department().getId(),
-                                            details.technician().getId());
+            case ASSIGNMENT -> {
+                var data =
+                        new StringBuilder("{\"departmentId\": \"")
+                                .append(details.department().getId())
+                                .append('"');
+                if (details.technician() != null) {
+                    data.append(", \"technicianId\": \"")
+                            .append(details.technician().getId())
+                            .append('"');
+                }
+                if (details.team() != null) {
+                    data.append(", \"team\": ").append(jsonString(details.team()));
+                }
+                yield data.append('}').toString();
+            }
             default -> null;
         };
+    }
+
+    /** The text as a JSON string: quotes, backslashes and control characters escaped. */
+    private static String jsonString(String text) {
+        var json = new StringBuilder("\"");
+        for (char c : text.toCharArray()) {
+            if (c == '"' || c == '\\') {
+                json.append('\\').append(c);
+            } else if (c < 0x20) {
+                json.append("\\u%04x".formatted((int) c));
+            } else {
+                json.append(c);
+            }
+        }
+        return json.append('"').toString();
     }
 
     private static boolean sameUser(User one, User other) {

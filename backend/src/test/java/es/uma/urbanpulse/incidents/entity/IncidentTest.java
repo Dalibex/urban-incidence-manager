@@ -9,6 +9,7 @@ import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.shared.error.FieldError;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 
 /** What each transition records, and the data it needs (ADR-0020). */
@@ -335,22 +336,72 @@ class IncidentTest {
     }
 
     @Test
-    void checkAllowedRefusesAStatusTheTransitionDoesNotStartFrom() {
-        var incident = fixture.reported();
+    void aTransitionThatIsNotAllowedDoesNotLookUpItsData() {
+        Supplier<TransitionDetails> notLookedUp =
+                () -> {
+                    throw new AssertionError("The data was looked up");
+                };
 
         assertThatThrownBy(
                         () ->
-                                incident.checkAllowed(
-                                        IncidentTransition.ASSIGNMENT, fixture.operator))
+                                fixture.reported()
+                                        .changeStatus(
+                                                IncidentTransition.ASSIGNMENT,
+                                                fixture.operator,
+                                                notLookedUp,
+                                                LATER))
                 .isInstanceOfSatisfying(
                         InvalidTransitionException.class,
                         ex -> assertThat(ex.code()).isEqualTo("INVALID_TRANSITION"));
         assertThatThrownBy(
                         () ->
                                 fixture.in(IncidentStatus.VALIDATED)
-                                        .checkAllowed(
-                                                IncidentTransition.ASSIGNMENT, fixture.technician))
+                                        .changeStatus(
+                                                IncidentTransition.ASSIGNMENT,
+                                                fixture.technician,
+                                                notLookedUp,
+                                                LATER))
                 .isInstanceOf(InvalidTransitionException.class);
+    }
+
+    @Test
+    void theTeamIsCountedInCharactersLikeTheContract() {
+        // One emoji is one character but two UTF-16 units.
+        var incident = fixture.in(IncidentStatus.VALIDATED);
+        incident.changeStatus(
+                IncidentTransition.ASSIGNMENT,
+                fixture.operator,
+                TransitionDetails.assignment(
+                        fixture.department,
+                        fixture.technician,
+                        "\uD83D\uDE92".repeat(Assignment.TEAM_MAX_LENGTH)),
+                LATER);
+        assertThat(incident.activeAssignment()).isPresent();
+
+        assertAssignmentRejectedOn(
+                TransitionDetails.assignment(
+                        fixture.department,
+                        fixture.technician,
+                        "\uD83D\uDE92".repeat(Assignment.TEAM_MAX_LENGTH + 1)),
+                "team");
+    }
+
+    @Test
+    void theHistoryOfAnAssignmentKeepsTheTeamEscaped() {
+        var incident = fixture.in(IncidentStatus.VALIDATED);
+
+        var change =
+                incident.changeStatus(
+                        IncidentTransition.ASSIGNMENT,
+                        fixture.operator,
+                        TransitionDetails.assignment(fixture.department, null, "A \"B\" \\ C\n"),
+                        LATER);
+
+        assertThat(change.getAssociatedData())
+                .isEqualTo(
+                        "{\"departmentId\": \""
+                                + fixture.department.getId()
+                                + "\", \"team\": \"A \\\"B\\\" \\\\ C\\u000a\"}");
     }
 
     @Test

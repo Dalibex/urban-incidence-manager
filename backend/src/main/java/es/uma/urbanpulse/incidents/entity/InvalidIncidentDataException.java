@@ -26,6 +26,12 @@ public class InvalidIncidentDataException extends InvalidDataException {
         return new InvalidIncidentDataException(fieldErrors);
     }
 
+    /** The {@code version} of a status change is missing or negative. */
+    public static InvalidIncidentDataException invalidVersion() {
+        return new InvalidIncidentDataException(
+                List.of(new FieldError("version", "Send the version of the incident you read.")));
+    }
+
     InvalidIncidentDataException(List<FieldError> fieldErrors) {
         super(fieldErrors);
     }
