@@ -69,7 +69,8 @@ class DatabaseMigrationIT {
                     "ix_incident_reported_at",
                     "ix_incident_status_reported_at",
                     "ix_assignment_active_technician",
-                    "ix_status_change_incident_id");
+                    "ix_status_change_incident_id",
+                    "ix_assignment_incident_id");
 
     @Autowired private Flyway flyway;
 
