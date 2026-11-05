@@ -7,6 +7,10 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Technicians accept an assigned incident (`POST /incidents/{incidentId}/acceptance`, `ASSIGNED` to `IN_PROGRESS`) and resolve it with their notes (`POST /incidents/{incidentId}/resolution`, `IN_PROGRESS` to `RESOLVED`) on the API. Only the technician of the active assignment can act; anyone else's incident answers `404`. The citizen sees the new status, not the notes. A lifecycle reason has at most 2,000 characters (#186).
+
 ## [0.1.0] - 2026-11-03
 
 End of Sprint 1: a citizen signs up on the mobile app, reports an incident with its position and sees it in their list, and an operator signs in on the web app and sees it in the inbox and its detail. The web app still runs only with the Vite development server.
