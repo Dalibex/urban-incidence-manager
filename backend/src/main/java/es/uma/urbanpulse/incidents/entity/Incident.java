@@ -237,6 +237,18 @@ public class Incident {
         }
     }
 
+    /**
+     * Whether the category and the priority may still change: not on a {@code REJECTED} or {@code
+     * CLOSED} incident (ADR-0020, "Classification is not a transition").
+     *
+     * @throws ClassificationNotAllowedException if they may not
+     */
+    public void checkClassifiable() {
+        if (status == IncidentStatus.REJECTED || status == IncidentStatus.CLOSED) {
+            throw new ClassificationNotAllowedException(status);
+        }
+    }
+
     /** Sets or changes the category. Validation needs it (ADR-0020). */
     public void classify(Category category, Instant now) {
         this.category = Objects.requireNonNull(category, "category");

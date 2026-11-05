@@ -541,6 +541,23 @@ class IncidentTest {
         assertThat(incident.getAssignments()).isEmpty();
     }
 
+    @Test
+    void onlyARejectedOrClosedIncidentCannotBeClassified() {
+        for (var status : IncidentStatus.values()) {
+            var incident = fixture.in(status);
+            if (status == IncidentStatus.REJECTED || status == IncidentStatus.CLOSED) {
+                assertThatThrownBy(incident::checkClassifiable)
+                        .isInstanceOfSatisfying(
+                                ClassificationNotAllowedException.class,
+                                ex ->
+                                        assertThat(ex.code())
+                                                .isEqualTo("CLASSIFICATION_NOT_ALLOWED"));
+            } else {
+                incident.checkClassifiable();
+            }
+        }
+    }
+
     /** The technician's transition is refused on its reason and adds nothing to the history. */
     private void assertReasonRejected(
             Incident incident, IncidentTransition transition, String reason) {
