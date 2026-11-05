@@ -1,6 +1,6 @@
 # ADR-0012: Use Redis as cache layer
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR-0022](0022-redis-from-measurements.md)
 - **Decision Makers:** Project Team
 - **Date:** 2026-10-06
 
