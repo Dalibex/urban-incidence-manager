@@ -539,9 +539,7 @@ export interface paths {
         put?: never;
         /**
          * Assign an incident to a department and, optionally, a technician
-         * @description Planned: #184.
-         *
-         *     `VALIDATED`, `REOPENED` or `ASSIGNED` to `ASSIGNED`. A reassignment deactivates the previous
+         * @description `VALIDATED`, `REOPENED` or `ASSIGNED` to `ASSIGNED`. A reassignment deactivates the previous
          *     assignment and keeps it. The assignment, the status and the history change in one
          *     transaction, and there is never more than one active assignment.
          *
@@ -780,9 +778,7 @@ export interface paths {
         };
         /**
          * List the active departments
-         * @description Planned: #184.
-         *
-         *     Active departments, ordered by name, for the assignment form and the staff filters. It is a
+         * @description Active departments, ordered by name, for the assignment form and the staff filters. It is a
          *     short reference list managed by administrators, so it is not paginated.
          *
          *     Roles: `MUNICIPAL_OPERATOR`, `TECHNICIAN`, `ADMINISTRATOR`.
@@ -1384,7 +1380,7 @@ export interface components {
             priority?: components["schemas"]["Priority"] | null;
             /** @description Staff only. Justification of the current priority. `null` while the incident has no priority. Planned: #47. */
             priorityReason?: string | null;
-            /** @description Staff only. The active assignment. `null` while the incident has none. Previous assignments are not listed here. Planned: #184. */
+            /** @description Staff only. The active assignment. `null` while the incident has none. Previous assignments are not listed here. */
             assignment?: components["schemas"]["AssignmentResponse"] | null;
             /** @description `null` while the incident has no category. */
             category: components["schemas"]["CategorySummary"] | null;

@@ -15,7 +15,6 @@ import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 /**
  * An assignment of an incident to a department and, optionally, one of its technicians. Created
@@ -44,8 +43,11 @@ public class Assignment {
     @JoinColumn(name = "technician_id")
     private User technician;
 
+    /** Longest team name an assignment accepts ({@code CreateAssignmentRequest.team}). */
+    public static final int TEAM_MAX_LENGTH = 100;
+
     // Free text, not part of the lifecycle rules (ADR-0020 only needs department and technician).
-    @Setter private String team;
+    private String team;
 
     @Column(name = "assigned_at", nullable = false)
     private OffsetDateTime assignedAt;
@@ -56,12 +58,18 @@ public class Assignment {
 
     /**
      * @param technician {@code null} when the incident is assigned to the department only
+     * @param team {@code null} when none is given
      */
     Assignment(
-            Incident incident, Department department, User technician, OffsetDateTime assignedAt) {
+            Incident incident,
+            Department department,
+            User technician,
+            String team,
+            OffsetDateTime assignedAt) {
         this.incident = incident;
         this.department = department;
         this.technician = technician;
+        this.team = team;
         this.assignedAt = assignedAt;
     }
 

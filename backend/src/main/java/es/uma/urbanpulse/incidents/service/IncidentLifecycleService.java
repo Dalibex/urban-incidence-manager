@@ -11,6 +11,7 @@ import es.uma.urbanpulse.incidents.entity.TransitionDetails;
 import es.uma.urbanpulse.incidents.repository.IncidentRepository;
 import java.time.Clock;
 import java.util.UUID;
+import java.util.function.Supplier;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,6 +59,25 @@ public class IncidentLifecycleService {
             TransitionDetails details,
             UUID userId,
             Role role) {
+        return changeStatus(incidentId, expectedVersion, transition, () -> details, userId, role);
+    }
+
+    /**
+     * The same, for a transition whose data the caller has to look up first, such as the department
+     * and the technician of an assignment. {@code details} runs only after the incident, its {@code
+     * version} and the transition have been checked, so a stale or forbidden change is refused
+     * before its data, in the order of ADR-0020, and an unknown id in the data is a {@code 422}
+     * like any other invalid data.
+     *
+     * @param details looks up the data; it may throw {@link InvalidIncidentDataException}
+     */
+    public IncidentResponse changeStatus(
+            UUID incidentId,
+            int expectedVersion,
+            IncidentTransition transition,
+            Supplier<TransitionDetails> details,
+            UUID userId,
+            Role role) {
         var incident =
                 incidents
                         .findOne(
@@ -74,7 +94,8 @@ public class IncidentLifecycleService {
                         .orElseThrow(
                                 () -> new IllegalStateException("User " + userId + " not found"));
 
-        incident.changeStatus(transition, actor, details, clock.instant());
+        incident.checkAllowed(transition, actor);
+        incident.changeStatus(transition, actor, details.get(), clock.instant());
         // Writes now, so a change committed by someone else after the read above fails here, and
         // the response carries the new version.
         incidents.flush();

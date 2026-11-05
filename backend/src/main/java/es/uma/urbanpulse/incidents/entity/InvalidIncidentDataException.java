@@ -18,6 +18,14 @@ public class InvalidIncidentDataException extends InvalidDataException {
                                 "categoryId", "The category does not exist or is not active.")));
     }
 
+    /**
+     * Ids in the request that point to nothing, such as an unknown department: found by the service
+     * that looks them up, before the entity can check the data.
+     */
+    public static InvalidIncidentDataException unknownReferences(List<FieldError> fieldErrors) {
+        return new InvalidIncidentDataException(fieldErrors);
+    }
+
     InvalidIncidentDataException(List<FieldError> fieldErrors) {
         super(fieldErrors);
     }

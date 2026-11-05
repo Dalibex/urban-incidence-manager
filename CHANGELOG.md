@@ -7,6 +7,10 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Assignment of an incident on the API: an operator or administrator assigns a validated or reopened incident to an active department and, optionally, an active technician and a team, or reassigns an assigned one. The previous assignment is kept, inactive, and a change made on an incident someone else changed meanwhile answers `409` with `CONCURRENT_MODIFICATION`. Staff see the active assignment in the incident detail; citizens only see that it is assigned. The active departments are listed for staff (#184).
+
 ## [0.1.0] - 2026-11-03
 
 End of Sprint 1: a citizen signs up on the mobile app, reports an incident with its position and sees it in their list, and an operator signs in on the web app and sees it in the inbox and its detail. The web app still runs only with the Vite development server.

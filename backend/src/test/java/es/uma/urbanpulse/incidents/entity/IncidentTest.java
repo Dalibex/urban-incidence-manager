@@ -307,6 +307,53 @@ class IncidentTest {
     }
 
     @Test
+    void anAssignmentKeepsItsTeam() {
+        var incident = fixture.in(IncidentStatus.VALIDATED);
+
+        incident.changeStatus(
+                IncidentTransition.ASSIGNMENT,
+                fixture.operator,
+                TransitionDetails.assignment(fixture.department, fixture.technician, "Night shift"),
+                LATER);
+
+        assertThat(incident.getAssignments())
+                .singleElement()
+                .extracting(Assignment::getTeam)
+                .isEqualTo("Night shift");
+    }
+
+    @Test
+    void aTeamCannotBeBlankOrTooLong() {
+        assertAssignmentRejectedOn(
+                TransitionDetails.assignment(fixture.department, fixture.technician, " "), "team");
+        assertAssignmentRejectedOn(
+                TransitionDetails.assignment(
+                        fixture.department,
+                        fixture.technician,
+                        "x".repeat(Assignment.TEAM_MAX_LENGTH + 1)),
+                "team");
+    }
+
+    @Test
+    void checkAllowedRefusesAStatusTheTransitionDoesNotStartFrom() {
+        var incident = fixture.reported();
+
+        assertThatThrownBy(
+                        () ->
+                                incident.checkAllowed(
+                                        IncidentTransition.ASSIGNMENT, fixture.operator))
+                .isInstanceOfSatisfying(
+                        InvalidTransitionException.class,
+                        ex -> assertThat(ex.code()).isEqualTo("INVALID_TRANSITION"));
+        assertThatThrownBy(
+                        () ->
+                                fixture.in(IncidentStatus.VALIDATED)
+                                        .checkAllowed(
+                                                IncidentTransition.ASSIGNMENT, fixture.technician))
+                .isInstanceOf(InvalidTransitionException.class);
+    }
+
+    @Test
     void aPriorityNeedsItsJustification() {
         var incident = fixture.reported();
 

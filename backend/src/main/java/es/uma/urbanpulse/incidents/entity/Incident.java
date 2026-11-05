@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -163,12 +164,7 @@ public class Incident {
         Objects.requireNonNull(transition, "transition");
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(details, "details");
-        if (!transition.startsFrom(status)) {
-            throw InvalidTransitionException.fromStatus(status, transition.target());
-        }
-        if (!mayPerform(transition, actor)) {
-            throw InvalidTransitionException.notAllowedFor(transition);
-        }
+        checkAllowed(transition, actor);
         requireData(transition, details);
 
         var instant = utc(now);
@@ -179,7 +175,12 @@ public class Incident {
         if (transition == IncidentTransition.ASSIGNMENT) {
             assignments.stream().filter(Assignment::isActive).forEach(Assignment::deactivate);
             assignments.add(
-                    new Assignment(this, details.department(), details.technician(), instant));
+                    new Assignment(
+                            this,
+                            details.department(),
+                            details.technician(),
+                            details.team(),
+                            instant));
         }
         if (transition == IncidentTransition.CLOSURE) {
             closedAt = instant;
@@ -188,6 +189,26 @@ public class Incident {
         updatedAt = instant;
         statusChanges.add(change);
         return change;
+    }
+
+    /**
+     * Checks that the table allows the transition from the current status and for this actor, the
+     * checks {@link #changeStatus} makes before the data. A caller that has to look up the data
+     * first (an assignment loads its department and technician) calls it before, so a transition
+     * that is not allowed is refused before its data, in the order of ADR-0020.
+     *
+     * @throws InvalidTransitionException if the table does not allow it from the current status or
+     *     for this actor
+     */
+    public void checkAllowed(IncidentTransition transition, User actor) {
+        Objects.requireNonNull(transition, "transition");
+        Objects.requireNonNull(actor, "actor");
+        if (!transition.startsFrom(status)) {
+            throw InvalidTransitionException.fromStatus(status, transition.target());
+        }
+        if (!mayPerform(transition, actor)) {
+            throw InvalidTransitionException.notAllowedFor(transition);
+        }
     }
 
     /** Sets or changes the category. Validation needs it (ADR-0020). */
@@ -230,6 +251,11 @@ public class Incident {
         return Collections.unmodifiableList(assignments);
     }
 
+    /** The active assignment; empty while the incident has none. There is never more than one. */
+    public Optional<Assignment> activeAssignment() {
+        return assignments.stream().filter(Assignment::isActive).findFirst();
+    }
+
     /** Whether the user is the technician of the active assignment (ADR-0020). */
     public boolean isAssignedTo(User technician) {
         return assignments.stream()
@@ -263,6 +289,15 @@ public class Incident {
                     && (technician.getRole() != Role.TECHNICIAN
                             || !Boolean.TRUE.equals(technician.getEnabled()))) {
                 invalid.add(new FieldError("technicianId", "Choose an active technician."));
+            }
+            var team = details.team();
+            if (team != null && (team.isBlank() || team.length() > Assignment.TEAM_MAX_LENGTH)) {
+                invalid.add(
+                        new FieldError(
+                                "team",
+                                "The team needs between 1 and "
+                                        + Assignment.TEAM_MAX_LENGTH
+                                        + " characters."));
             }
         }
         if (transition == IncidentTransition.VALIDATION) {
