@@ -26,7 +26,7 @@ public class InvalidIncidentDataException extends InvalidDataException {
         return new InvalidIncidentDataException(fieldErrors);
     }
 
-    /** The {@code version} of a status change is missing or negative. */
+    /** The {@code version} of a status change or a classification is missing or negative. */
     public static InvalidIncidentDataException invalidVersion() {
         return new InvalidIncidentDataException(
                 List.of(new FieldError("version", "Send the version of the incident you read.")));
@@ -34,5 +34,13 @@ public class InvalidIncidentDataException extends InvalidDataException {
 
     InvalidIncidentDataException(List<FieldError> fieldErrors) {
         super(fieldErrors);
+    }
+
+    /**
+     * Every invalid field of a classification: the category the service looks up, and the priority
+     * and its justification ({@link Incident#priorityErrors}), reported at once.
+     */
+    public static InvalidIncidentDataException of(List<FieldError> fieldErrors) {
+        return new InvalidIncidentDataException(fieldErrors);
     }
 }

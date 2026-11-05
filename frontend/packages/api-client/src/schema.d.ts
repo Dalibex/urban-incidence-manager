@@ -400,9 +400,7 @@ export interface paths {
         head?: never;
         /**
          * Classify an incident
-         * @description Planned: #47.
-         *
-         *     Sets or corrects the category and the priority; send at least one of them. It is not a
+         * @description Sets or corrects the category and the priority; send at least one of them. It is not a
          *     lifecycle action, so it adds no history entry: each change records a `CLASSIFY_INCIDENT`
          *     audit entry with the previous and new values, in the same transaction. The server records
          *     the actor and the source `MANUAL` of the priority.
@@ -1375,7 +1373,7 @@ export interface components {
             status: components["schemas"]["IncidentStatus"];
             /** @description Staff only. `null` while the incident has no priority. */
             priority?: components["schemas"]["Priority"] | null;
-            /** @description Staff only. Justification of the current priority. `null` while the incident has no priority. Planned: #47. */
+            /** @description Staff only. Justification of the current priority. `null` while the incident has no priority. */
             priorityReason?: string | null;
             /** @description Staff only. The active assignment. `null` while the incident has none. Previous assignments are not listed here. */
             assignment?: components["schemas"]["AssignmentResponse"] | null;
