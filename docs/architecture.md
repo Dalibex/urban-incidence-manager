@@ -38,7 +38,7 @@ In the order the team prioritises them when two of them conflict:
    at all, and relevant actions keep their actor, instant and reason.
 4. **Performance of the lists** (inbox, *My reports*, work queue) as the data grows, since they are
    the screens every user opens first.
-5. **Maintainability** by a team of five students working in one-week sprints.
+5. **Maintainability** by a team of five students working in short sprints.
 6. **Cost:** the demo runs at zero cost.
 
 ### Constraints
@@ -50,7 +50,9 @@ In the order the team prioritises them when two of them conflict:
   self-hosted to avoid a tile provider ([ADR-0016](adr/0016-self-hosted-osm-base-map.md)).
 - **One machine:** the whole system runs with Docker Compose on one VM, with one backend replica
   ([ADR-0011](adr/0011-deployment-12factor.md)).
-- **Time:** one week per sprint; the MVP is Sprint 1 and Sprint 2, until 2026-11-10.
+- **Time:** the MVP is Sprint 1 (one week, until 2026-11-03) and Sprint 2 (two weeks, until
+  2026-11-17). Sprint 3, from 2026-11-18 to 2026-11-24, is for the remaining requirements, and a
+  reserve week until 2026-12-01 is for delays and fixes.
 - **Data sources:** Málaga open data and OpenStreetMap, with their usage policies
   ([ADR-0002](adr/0002-open-street-map.md), [ADR-0009](adr/0009-urban-data-source.md)).
 

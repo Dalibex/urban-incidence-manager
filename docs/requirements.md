@@ -31,7 +31,7 @@ reason.
 
 ## 📌 Requirements
 
-**In the MVP** says how much of the requirement the MVP (Sprint 1 and Sprint 2, until 2026-11-10)
+**In the MVP** says how much of the requirement the MVP (Sprint 1 and Sprint 2, until 2026-11-17)
 covers: *Yes*, *Partly* (the note says what is left out), *Stretch* (planned only if there is time)
 or *No* (after the MVP). Whether an issue is finished is in GitHub, not here.
 
@@ -181,5 +181,5 @@ changed.
   comes in), the same pull request updates the requirement's row.
 - **A new priority** is a team decision: record the old and the new value in *Changes From the
   Original Prioritization*, with the reason.
-- **After the MVP** (from 2026-11-11), the requirements marked *No*, *Partly* or *Stretch* are
+- **After the MVP** (from 2026-11-18), the requirements marked *No*, *Partly* or *Stretch* are
   prioritized for the next delivery and get their issues.
