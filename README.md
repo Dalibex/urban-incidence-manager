@@ -1,8 +1,13 @@
 # 🏙️ UrbanPulse
 
+[![CI](https://github.com/Dalibex/urban-incidence-manager/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Dalibex/urban-incidence-manager/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Dalibex/urban-incidence-manager?include_prereleases&sort=semver)](https://github.com/Dalibex/urban-incidence-manager/releases)
+[![License](https://img.shields.io/github/license/Dalibex/urban-incidence-manager)](LICENSE)
+
 UrbanPulse is a platform for managing urban incidents reported by citizens and enriching them with contextual data from the city of Malaga.
 
-> **Status:** Early development (Sprint 1). Citizens can sign up, report an incident from the mobile app and follow their reports; operators see the incidents in a web inbox. Validating, assigning and resolving incidents, evidence, notifications and urban context are not implemented yet.
+> [!NOTE]
+> **In development.** What is built is in [Current Scope](#-current-scope), the status of each requirement in the [requirements](docs/requirements.md), and how to use the apps in the [user guide](docs/user-guide.md).
 
 ## 🎯 Purpose
 
