@@ -1,40 +1,58 @@
 package es.uma.urbanpulse.incidents.service;
 
 import es.uma.urbanpulse.identity.entity.AuditAction;
+import es.uma.urbanpulse.identity.entity.AuditLog;
+import es.uma.urbanpulse.identity.entity.AuditTargetType;
 import es.uma.urbanpulse.identity.entity.Role;
+import es.uma.urbanpulse.identity.repository.AuditLogRepository;
 import es.uma.urbanpulse.identity.repository.UserRepository;
 import es.uma.urbanpulse.identity.service.AuditService;
 import es.uma.urbanpulse.identity.service.AuditTarget;
+import es.uma.urbanpulse.incidents.dto.CategorySummary;
+import es.uma.urbanpulse.incidents.dto.ClassificationChangeResponse;
 import es.uma.urbanpulse.incidents.dto.IncidentResponse;
 import es.uma.urbanpulse.incidents.dto.UpdateIncidentRequest;
 import es.uma.urbanpulse.incidents.entity.Category;
 import es.uma.urbanpulse.incidents.entity.ClassificationNotAllowedException;
 import es.uma.urbanpulse.incidents.entity.Incident;
 import es.uma.urbanpulse.incidents.entity.InvalidIncidentDataException;
+import es.uma.urbanpulse.incidents.entity.Priority;
 import es.uma.urbanpulse.incidents.entity.PrioritySource;
 import es.uma.urbanpulse.incidents.repository.CategoryRepository;
 import es.uma.urbanpulse.incidents.repository.IncidentRepository;
 import es.uma.urbanpulse.shared.error.FieldError;
+import es.uma.urbanpulse.shared.web.PageResponse;
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import org.springframework.data.domain.Pageable;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Classifies an incident: sets or corrects its category and its priority (#47, RF10). It is not a
  * lifecycle action, so it adds no history entry (ADR-0020): each change records a {@code
  * CLASSIFY_INCIDENT} audit entry with the values it replaced and the ones it set, in the same
- * transaction.
+ * transaction, and the classification changes of an incident are read back from those entries, with
+ * no second copy.
  */
 @Service
 @Transactional
 public class IncidentClassificationService {
 
-    // The keys of the audit details.
+    // The keys of the audit details, and of ClassificationValues in the response.
     private static final String CATEGORY_ID = "categoryId";
+    private static final String CATEGORY = "category";
     private static final String PRIORITY = "priority";
     private static final String PRIORITY_REASON = "priorityReason";
 
@@ -42,6 +60,8 @@ public class IncidentClassificationService {
     private final CategoryRepository categories;
     private final UserRepository users;
     private final AuditService audit;
+    private final AuditLogRepository auditLogs;
+    private final JsonMapper jsonMapper;
     private final Clock clock;
 
     IncidentClassificationService(
@@ -49,11 +69,15 @@ public class IncidentClassificationService {
             CategoryRepository categories,
             UserRepository users,
             AuditService audit,
+            AuditLogRepository auditLogs,
+            JsonMapper jsonMapper,
             Clock clock) {
         this.incidents = incidents;
         this.categories = categories;
         this.users = users;
         this.audit = audit;
+        this.auditLogs = auditLogs;
+        this.jsonMapper = jsonMapper;
         this.clock = clock;
     }
 
@@ -134,6 +158,56 @@ public class IncidentClassificationService {
     }
 
     /**
+     * The classification changes of the incident, from its {@code CLASSIFY_INCIDENT} audit entries.
+     * The names of their categories are read in one query for the whole page.
+     *
+     * @throws IncidentNotFoundException if it does not exist or the caller may not see it
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<ClassificationChangeResponse> changes(
+            UUID incidentId, UUID userId, Role role, Pageable page) {
+        visibleIncident(incidentId, userId, role);
+        var entries =
+                auditLogs.findByActionAndTargetTypeAndTargetId(
+                        AuditAction.CLASSIFY_INCIDENT, AuditTargetType.INCIDENT, incidentId, page);
+        var details =
+                entries.getContent().stream()
+                        .collect(
+                                Collectors.toMap(
+                                        AuditLog::getId,
+                                        entry -> jsonMapper.readTree(entry.getDetails())));
+        var categoryIds = new HashSet<UUID>();
+        details.values()
+                .forEach(
+                        detail ->
+                                List.of(detail.path("before"), detail.path("after"))
+                                        .forEach(
+                                                side -> {
+                                                    var id = side.get(CATEGORY_ID);
+                                                    if (id != null && !id.isNull()) {
+                                                        categoryIds.add(
+                                                                UUID.fromString(id.asString()));
+                                                    }
+                                                }));
+        Map<UUID, Category> names =
+                categories.findAllById(categoryIds).stream()
+                        .collect(Collectors.toMap(Category::getId, Function.identity()));
+
+        return PageResponse.of(
+                entries,
+                entry -> {
+                    var detail = details.get(entry.getId());
+                    return new ClassificationChangeResponse(
+                            entry.getId(),
+                            entry.getInstant().toInstant(),
+                            new ClassificationChangeResponse.AuditActor(
+                                    entry.getActor().getId(), entry.getActor().getName()),
+                            values(detail.path("before"), names),
+                            values(detail.path("after"), names));
+                });
+    }
+
+    /**
      * The active category of the request, or {@code null} when it sends none. Every invalid field
      * of the request is reported here, at once.
      */
@@ -160,6 +234,34 @@ public class IncidentClassificationService {
             throw InvalidIncidentDataException.of(invalid);
         }
         return category;
+    }
+
+    /** {@code ClassificationValues}: one side of an entry, with the category by its name. */
+    private static Map<String, Object> values(JsonNode side, Map<UUID, Category> categoriesById) {
+        var values = new LinkedHashMap<String, Object>();
+        if (side.has(CATEGORY_ID)) {
+            var id = side.get(CATEGORY_ID);
+            values.put(
+                    CATEGORY,
+                    id.isNull() ? null : summary(UUID.fromString(id.asString()), categoriesById));
+        }
+        if (side.has(PRIORITY)) {
+            var priority = side.get(PRIORITY);
+            values.put(PRIORITY, priority.isNull() ? null : Priority.valueOf(priority.asString()));
+        }
+        if (side.has(PRIORITY_REASON)) {
+            var reason = side.get(PRIORITY_REASON);
+            values.put(PRIORITY_REASON, reason.isNull() ? null : reason.asString());
+        }
+        return values;
+    }
+
+    private static CategorySummary summary(UUID id, Map<UUID, Category> categoriesById) {
+        // Categories are deactivated, never deleted, so every id of the trail is still there.
+        var category =
+                Objects.requireNonNull(
+                        categoriesById.get(id), () -> "Category " + id + " of the audit trail");
+        return new CategorySummary(category.getId(), category.getName());
     }
 
     private Incident visibleIncident(UUID incidentId, UUID userId, Role role) {

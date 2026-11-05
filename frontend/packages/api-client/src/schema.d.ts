@@ -424,9 +424,7 @@ export interface paths {
         };
         /**
          * List the classification changes of an incident
-         * @description Planned: #47.
-         *
-         *     The category and priority changes of one incident, for the timeline of its detail. They are
+         * @description The category and priority changes of one incident, for the timeline of its detail. They are
          *     not status changes, so they are not in `listIncidentStatusChanges` (ADR-0020). This operation
          *     reads the `CLASSIFY_INCIDENT` entries of the audit trail: the same records as
          *     `listAuditEntries`, with no second copy, shown for another purpose. It exposes nothing else

@@ -14,6 +14,7 @@ import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.shared.security.TestTokens;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -31,7 +32,7 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Tests of #70 for {@code updateIncident} (#47).
+ * Tests of #70 for {@code updateIncident} and {@code listIncidentClassificationChanges} (#47).
  *
  * <p>The data is inserted with SQL on the Flyway schema and every check goes through HTTP; every
  * response is also validated against the contract ({@link ApiContract}). Each test runs in a
@@ -55,6 +56,7 @@ class IncidentClassificationApiIT {
     private UUID citizen;
     private UUID operator;
     private UUID administrator;
+    private UUID technician;
     private UUID lighting;
     private UUID roads;
 
@@ -63,6 +65,7 @@ class IncidentClassificationApiIT {
         citizen = user(Role.CITIZEN, "Carmen Citizen");
         operator = user(Role.MUNICIPAL_OPERATOR, "Olga Operator");
         administrator = user(Role.ADMINISTRATOR, "Adrián Admin");
+        technician = user(Role.TECHNICIAN, "Tomás Technician");
         lighting = category("Lighting " + UUID.randomUUID(), true);
         roads = category("Roads " + UUID.randomUUID(), true);
     }
@@ -416,6 +419,159 @@ class IncidentClassificationApiIT {
                 .andExpect(jsonPath("$.priority").doesNotExist());
     }
 
+    // T16: in order, with actor, instant and only the values that changed.
+    @Test
+    void theChangesAreListedOldestFirstWithTheNamesOfTheirCategories() throws Exception {
+        UUID incident = unclassifiedIncident("REPORTED");
+        classify(
+                        operator,
+                        incident,
+                        Map.of(
+                                "version",
+                                0,
+                                "categoryId",
+                                lighting,
+                                "priority",
+                                "LOW",
+                                "priorityReason",
+                                REASON))
+                .andExpect(status().isOk());
+        classify(
+                        administrator,
+                        incident,
+                        Map.of("version", versionOf(incident), "categoryId", roads))
+                .andExpect(status().isOk());
+
+        String body =
+                changes(operator, incident, "")
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.page.totalElements").value(2))
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString();
+
+        assertThat(JsonPath.<List<String>>read(body, "$.content[*].id"))
+                .containsExactlyElementsOf(
+                        auditEntries(incident).stream().map(e -> e.get("id").toString()).toList());
+        assertThat((String) JsonPath.read(body, "$.content[0].actor.id"))
+                .isEqualTo(operator.toString());
+        assertThat((String) JsonPath.read(body, "$.content[0].actor.name"))
+                .isEqualTo("Olga Operator");
+        assertThat((Object) JsonPath.read(body, "$.content[0].before.category")).isNull();
+        assertThat((Object) JsonPath.read(body, "$.content[0].before.priority")).isNull();
+        assertThat((String) JsonPath.read(body, "$.content[0].after.category.name"))
+                .startsWith("Lighting");
+        assertThat((String) JsonPath.read(body, "$.content[0].after.priority")).isEqualTo("LOW");
+        assertThat((String) JsonPath.read(body, "$.content[0].after.priorityReason"))
+                .isEqualTo(REASON);
+        // Only the category changed the second time.
+        assertThat(JsonPath.<Map<String, Object>>read(body, "$.content[1].before"))
+                .containsOnlyKeys("category");
+        assertThat((String) JsonPath.read(body, "$.content[1].before.category.name"))
+                .startsWith("Lighting");
+        assertThat((String) JsonPath.read(body, "$.content[1].after.category.name"))
+                .startsWith("Roads");
+        assertThat((String) JsonPath.read(body, "$.content[1].actor.name"))
+                .isEqualTo("Adrián Admin");
+        assertThat((String) JsonPath.read(body, "$.content[0].instant"))
+                .isLessThanOrEqualTo(JsonPath.read(body, "$.content[1].instant"));
+    }
+
+    // T17
+    @Test
+    void staffAndTheAssignedTechnicianReadTheChanges() throws Exception {
+        UUID incident = unclassifiedIncident("ASSIGNED");
+        UUID otherTechnician = user(Role.TECHNICIAN, "Teresa Technician");
+        assign(incident, technician);
+
+        for (UUID reader : List.of(operator, administrator, technician)) {
+            changes(reader, incident, "").andExpect(status().isOk());
+        }
+        changes(otherTechnician, incident, "").andExpect(status().isNotFound());
+        for (Role role : List.of(Role.CITIZEN, Role.ANALYST)) {
+            mvc.perform(
+                            get(changesPath(incident))
+                                    .header(HttpHeaders.AUTHORIZATION, tokens.bearer(role)))
+                    .andExpect(status().isForbidden());
+        }
+        mvc.perform(get(changesPath(incident))).andExpect(status().isUnauthorized());
+        changes(operator, UUID.randomUUID(), "").andExpect(status().isNotFound());
+    }
+
+    // T18
+    @Test
+    void anIncidentNeverClassifiedHasAnEmptyPage() throws Exception {
+        changes(operator, classifiedIncident("REPORTED"), "")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(0))
+                .andExpect(jsonPath("$.page.totalElements").value(0));
+    }
+
+    // T19
+    @Test
+    void onlyTheClassificationEntriesOfThisIncidentAreListed() throws Exception {
+        UUID incident = unclassifiedIncident("REPORTED");
+        UUID other = unclassifiedIncident("REPORTED");
+        classify(operator, incident, Map.of("version", 0, "categoryId", lighting))
+                .andExpect(status().isOk());
+        classify(operator, other, Map.of("version", 0, "categoryId", roads))
+                .andExpect(status().isOk());
+        // Another action about the same id, and an entry without a target.
+        auditEntry("UPDATE_USER", "USER", incident);
+        auditEntry("CREATE_USER", null, null);
+
+        changes(operator, incident, "")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].after.category.id").value(lighting.toString()));
+    }
+
+    // T20
+    @Test
+    void theChangesArePagedWithoutRepeatingOrMissingAny() throws Exception {
+        UUID incident = unclassifiedIncident("REPORTED");
+        var priorities = List.of("LOW", "MEDIUM", "HIGH", "LOW", "MEDIUM");
+        for (String priority : priorities) {
+            classify(
+                            operator,
+                            incident,
+                            Map.of(
+                                    "version",
+                                    versionOf(incident),
+                                    "priority",
+                                    priority,
+                                    "priorityReason",
+                                    REASON))
+                    .andExpect(status().isOk());
+        }
+
+        var seen = new ArrayList<String>();
+        for (int page = 0; page < 3; page++) {
+            String body =
+                    changes(operator, incident, "?size=2&page=" + page)
+                            .andExpect(status().isOk())
+                            .andExpect(jsonPath("$.page.totalPages").value(3))
+                            .andReturn()
+                            .getResponse()
+                            .getContentAsString();
+            seen.addAll(JsonPath.<List<String>>read(body, "$.content[*].id"));
+        }
+        assertThat(seen)
+                .containsExactlyElementsOf(
+                        auditEntries(incident).stream().map(e -> e.get("id").toString()).toList());
+
+        String newest =
+                changes(operator, incident, "?sort=instant,desc&size=1")
+                        .andExpect(status().isOk())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString();
+        assertThat(JsonPath.<List<String>>read(newest, "$.content[*].id"))
+                .containsExactly(seen.getLast());
+        changes(operator, incident, "?size=101").andExpect(status().isBadRequest());
+        changes(operator, incident, "?sort=priority,asc").andExpect(status().isBadRequest());
+    }
+
     private ResultActions classify(UUID caller, UUID incident, Map<String, Object> body)
             throws Exception {
         return mvc.perform(
@@ -423,6 +579,12 @@ class IncidentClassificationApiIT {
                         .header(HttpHeaders.AUTHORIZATION, bearer(caller))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(body)));
+    }
+
+    private ResultActions changes(UUID caller, UUID incident, String query) throws Exception {
+        return mvc.perform(
+                get(changesPath(incident) + query)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(caller)));
     }
 
     private String bearer(UUID userId) {
@@ -456,6 +618,10 @@ class IncidentClassificationApiIT {
 
     private static String path(UUID incident) {
         return INCIDENTS + "/" + incident;
+    }
+
+    private static String changesPath(UUID incident) {
+        return path(incident) + "/classification-changes";
     }
 
     // The bodies only hold numbers, UUIDs, enums and plain text without quotes.
@@ -536,6 +702,31 @@ class IncidentClassificationApiIT {
                 "INSERT INTO location (incident_id, coordinates) VALUES"
                         + " (?, ST_SetSRID(ST_MakePoint(-4.4214, 36.7213), 4326)::geography)",
                 incident);
+    }
+
+    private void assign(UUID incident, UUID assignedTechnician) {
+        UUID department =
+                jdbc.queryForObject(
+                        "INSERT INTO department (name) VALUES (?) RETURNING id",
+                        UUID.class,
+                        "Street lighting " + UUID.randomUUID());
+        jdbc.update(
+                "INSERT INTO assignment (incident_id, department_id, technician_id, assigned_at)"
+                        + " VALUES (?, ?, ?, ?)",
+                incident,
+                department,
+                assignedTechnician,
+                Timestamp.from(MONDAY));
+    }
+
+    private void auditEntry(String action, String targetType, UUID targetId) {
+        jdbc.update(
+                "INSERT INTO audit_log (actor_id, instant, action, target_type, target_id, details)"
+                        + " VALUES (?, now(), ?, ?, ?, '{\"before\": {}, \"after\": {}}'::jsonb)",
+                administrator,
+                action,
+                targetType,
+                targetId);
     }
 
     private int versionOf(UUID incident) {

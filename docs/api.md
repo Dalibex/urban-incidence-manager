@@ -40,7 +40,6 @@ The committed Sprint 2 operations were agreed ahead in #204. Each one says `Plan
 | `identity` | `listUsers`, `createUser`, `getUser`, `updateUser`, and `enabled` in `UserResponse` | #191 |
 | `identity` | `listAuditEntries` | #41 |
 | `incidents` | The staff filters of `listIncidents` | #182 |
-| `incidents` | `updateIncident`, `listIncidentClassificationChanges`, and `priorityReason` in `IncidentResponse` | #47 |
 | `incidents` | `createIncidentValidation`, `createIncidentRejection`, `createIncidentInformationRequest` | #188 |
 | `incidents` | `createIncidentAssignment`, `listDepartments`, and `assignment` in `IncidentResponse` | #184 |
 | `incidents` | `createIncidentClosure`, `createIncidentReopening` | #52 |
