@@ -18,10 +18,10 @@ import es.uma.urbanpulse.incidents.entity.Location;
 import es.uma.urbanpulse.incidents.entity.Priority;
 import es.uma.urbanpulse.incidents.entity.PrioritySource;
 import es.uma.urbanpulse.incidents.entity.TransitionDetails;
+import es.uma.urbanpulse.incidents.service.IncidentFilter;
 import es.uma.urbanpulse.incidents.service.IncidentNotFoundException;
 import es.uma.urbanpulse.incidents.service.IncidentQueryService;
 import java.time.Instant;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -46,6 +46,8 @@ class IncidentQueryServiceIT extends PersistenceTestSupport {
     private static final Instant WEDNESDAY = Instant.parse("2026-11-04T09:00:00Z");
     private static final PageRequest FIRST_PAGE =
             PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "reportedAt").and(Sort.by("id")));
+    private static final IncidentFilter NO_FILTER =
+            new IncidentFilter(Set.of(), Set.of(), Set.of(), null, null, Set.of());
     private static final GeometryFactory WGS84 = new GeometryFactory(new PrecisionModel(), 4326);
 
     @Autowired private IncidentQueryService queries;
@@ -113,7 +115,13 @@ class IncidentQueryServiceIT extends PersistenceTestSupport {
                 queries.list(
                         citizen.getId(),
                         Role.CITIZEN,
-                        EnumSet.of(IncidentStatus.REPORTED),
+                        new IncidentFilter(
+                                Set.of(IncidentStatus.REPORTED),
+                                Set.of(),
+                                Set.of(),
+                                null,
+                                null,
+                                Set.of()),
                         FIRST_PAGE);
 
         assertThat(page.content())
@@ -200,7 +208,7 @@ class IncidentQueryServiceIT extends PersistenceTestSupport {
     }
 
     private List<UUID> listedIds(UUID userId, Role role) {
-        return queries.list(userId, role, Set.of(), FIRST_PAGE).content().stream()
+        return queries.list(userId, role, NO_FILTER, FIRST_PAGE).content().stream()
                 .map(
                         summary ->
                                 switch (summary) {
