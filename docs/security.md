@@ -95,7 +95,7 @@ Known limits:
 
 - The counters live in the backend process. That is correct with one replica (ADR-0011); with more,
   each replica would allow the full limit and they would have to move to a shared store such as
-  Redis (ADR-0012). A restart resets them.
+  Redis (ADR-0022). A restart resets them.
 - The key is the email and the address, so one address can still try 5 passwords on each of many
   emails (password spraying), and the counters of one window grow with every email tried. A global
   limit per address is the next step if that becomes a problem.
