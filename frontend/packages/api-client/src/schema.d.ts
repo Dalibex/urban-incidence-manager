@@ -571,9 +571,7 @@ export interface paths {
         put?: never;
         /**
          * Accept an assigned incident
-         * @description Planned: #186.
-         *
-         *     `ASSIGNED` to `IN_PROGRESS`. The citizen sees the status. A technician who is not the one of
+         * @description `ASSIGNED` to `IN_PROGRESS`. The citizen sees the status. A technician who is not the one of
          *     the active assignment gets `404`, also after a reassignment.
          *
          *     Roles: `TECHNICIAN` (actively assigned).
@@ -596,9 +594,7 @@ export interface paths {
         put?: never;
         /**
          * Resolve an incident in progress
-         * @description Planned: #186.
-         *
-         *     `IN_PROGRESS` to `RESOLVED`. `reason` holds the resolution notes and is required. The citizen
+         * @description `IN_PROGRESS` to `RESOLVED`. `reason` holds the resolution notes and is required. The citizen
          *     sees the status, not the notes. A technician who is not the one of the active assignment
          *     gets `404`.
          *
