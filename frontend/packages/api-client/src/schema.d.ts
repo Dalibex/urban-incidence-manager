@@ -549,8 +549,7 @@ export interface paths {
          *     reassignment adds one. An inactive or unknown department, or a user who is not an active
          *     technician, returns `422`.
          *
-         *     The citizen sees the status, never the technician. There is no `Location` header because an
-         *     assignment has no read operation of its own.
+         *     The citizen sees the status, never the technician.
          *
          *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`.
          */
@@ -2742,13 +2741,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The assignment was created. */
-            201: {
+            /** @description The incident after the change, with its new `version` and its active `assignment`. */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AssignmentResponse"];
+                    "application/json": components["schemas"]["IncidentResponse"];
                 };
             };
             400: components["responses"]["BadRequest"];

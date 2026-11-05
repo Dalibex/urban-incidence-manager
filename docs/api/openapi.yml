@@ -913,6 +913,7 @@ paths:
   # --- incidents: lifecycle actions (ADR-0020) ---------------------------------------------------
   # Each one is checked in the order of ADR-0020: role (403), incident the caller can see (404),
   # stale version (409 CONCURRENT_MODIFICATION), transition (409 INVALID_TRANSITION), data (422).
+  # Each one answers 200 with the incident, so the client has the version for its next action.
 
   /incidents/{incidentId}/validation:
     post:
@@ -1057,8 +1058,7 @@ paths:
         reassignment adds one. An inactive or unknown department, or a user who is not an active
         technician, returns `422`.
 
-        The citizen sees the status, never the technician. There is no `Location` header because an
-        assignment has no read operation of its own.
+        The citizen sees the status, never the technician.
 
         Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`.
       parameters:
@@ -1070,12 +1070,12 @@ paths:
             schema:
               $ref: "#/components/schemas/CreateAssignmentRequest"
       responses:
-        "201":
-          description: The assignment was created.
+        "200":
+          description: The incident after the change, with its new `version` and its active `assignment`.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AssignmentResponse"
+                $ref: "#/components/schemas/IncidentResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
