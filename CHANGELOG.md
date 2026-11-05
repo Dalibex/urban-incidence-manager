@@ -7,6 +7,14 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Filters on the incident list of the API for staff: category, priority, reporting dates and the department of the active assignment, combinable with each other and with the status, and always inside what each role may see. A citizen can only filter by status; any other filter answers `403`. Filtering by department and sorting by `updatedAt` use indexes measured on the performance dataset (#182).
+
+### Changed
+
+- The incident list of the API answers `400` to an unknown query parameter or one without a value, instead of ignoring it (#182).
+
 ## [0.1.0] - 2026-11-03
 
 End of Sprint 1: a citizen signs up on the mobile app, reports an incident with its position and sees it in their list, and an operator signs in on the web app and sees it in the inbox and its detail. The web app still runs only with the Vite development server.
