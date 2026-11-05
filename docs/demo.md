@@ -3,7 +3,7 @@
 How to start UrbanPulse with the demo dataset and walk through it. The demo runs on the same
 Compose stack, code and configuration as development; only the `demo` Spring profile adds the
 curated story (#54). Every step names the issue that delivers it: a step whose issue is not merged
-yet cannot be shown.
+yet cannot be shown. What each screen does beyond this story is in the [user guide](user-guide.md).
 
 ## The Story
 

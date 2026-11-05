@@ -82,6 +82,9 @@ does not mean the requirement is implemented.
 
 ## 🖥️ Screens per Role
 
+What each role gets, built or planned. How to use what is built, step by step, is in the
+[user guide](user-guide.md).
+
 Staff use the **web app** and citizens the **mobile app** (ADR-0005, ADR-0006). A citizen who signs
 in on the web gets a notice to use the phone; staff who sign in on the phone get a notice to use the
 web. Every screen is also protected by the API: hiding a menu entry is not access control
