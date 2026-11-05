@@ -42,7 +42,10 @@ public class IncidentLifecycleService {
     /**
      * Applies the transition to the incident, as the given user.
      *
-     * @param expectedVersion the {@code version} of the incident the caller read
+     * @param expectedVersion the {@code version} of the incident the caller read, as the request
+     *     sent it; missing or negative is a {@code 422} on {@code version}, checked here and not
+     *     with Bean Validation so that a role that may not make the change still gets {@code 403}
+     *     first (ADR-0020)
      * @return the incident after the change, with its new {@code version}
      * @throws IncidentNotFoundException if it does not exist or the caller may not see it
      * @throws ObjectOptimisticLockingFailureException if the incident changed since the caller read
@@ -53,7 +56,7 @@ public class IncidentLifecycleService {
      */
     public IncidentResponse changeStatus(
             UUID incidentId,
-            int expectedVersion,
+            Integer expectedVersion,
             IncidentTransition transition,
             TransitionDetails details,
             UUID userId,
@@ -66,7 +69,10 @@ public class IncidentLifecycleService {
                         .orElseThrow(() -> new IncidentNotFoundException(incidentId));
         // Checked before the transition: a stale caller must reload, even if the change would
         // still be allowed in the new status.
-        if (incident.getVersion() != expectedVersion) {
+        if (expectedVersion == null || expectedVersion < 0) {
+            throw InvalidIncidentDataException.invalidVersion();
+        }
+        if (incident.getVersion().intValue() != expectedVersion.intValue()) {
             throw new ObjectOptimisticLockingFailureException(Incident.class, incidentId);
         }
         var actor =

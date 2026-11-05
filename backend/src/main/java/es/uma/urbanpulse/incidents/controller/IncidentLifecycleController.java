@@ -6,7 +6,6 @@ import es.uma.urbanpulse.incidents.entity.IncidentTransition;
 import es.uma.urbanpulse.incidents.entity.TransitionDetails;
 import es.uma.urbanpulse.incidents.service.IncidentLifecycleService;
 import es.uma.urbanpulse.shared.security.AuthenticatedUser;
-import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -37,7 +36,7 @@ class IncidentLifecycleController {
     IncidentResponse accept(
             @AuthenticationPrincipal AuthenticatedUser user,
             @PathVariable UUID incidentId,
-            @Valid @RequestBody IncidentActionRequest request) {
+            @RequestBody IncidentActionRequest request) {
         return change(user, incidentId, request, IncidentTransition.ACCEPTANCE);
     }
 
@@ -46,7 +45,7 @@ class IncidentLifecycleController {
     IncidentResponse resolve(
             @AuthenticationPrincipal AuthenticatedUser user,
             @PathVariable UUID incidentId,
-            @Valid @RequestBody IncidentActionRequest request) {
+            @RequestBody IncidentActionRequest request) {
         return change(user, incidentId, request, IncidentTransition.RESOLUTION);
     }
 

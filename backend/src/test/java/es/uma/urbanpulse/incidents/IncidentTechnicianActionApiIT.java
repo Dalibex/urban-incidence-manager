@@ -279,6 +279,22 @@ class IncidentTechnicianActionApiIT {
         assertUnchanged(toResolve, "IN_PROGRESS", 0, 2);
     }
 
+    // ADR-0020, "Errors": the body is checked after the role and the access, so a role that may not
+    // act gets 403 and another technician 404 even when the version is missing.
+    @Test
+    void anInvalidVersionIsCheckedAfterTheRoleAndTheAccess() throws Exception {
+        UUID incident = assignedTo(technician, "ASSIGNED");
+
+        for (String action : ACTIONS) {
+            expectForbidden(act(citizen, incident, action, "{}"));
+            expectNotFound(act(otherTechnician, incident, action, "{}"));
+            expectUnprocessable(act(technician, incident, action, "{}"), "version");
+            expectUnprocessable(act(technician, incident, action, "{\"version\": -1}"), "version");
+        }
+
+        assertUnchanged(incident, "ASSIGNED", 0, 2);
+    }
+
     // T11: once the incident is reassigned, the former technician can no longer act on it.
     @Test
     void aReassignedTechnicianGetsNotFound() throws Exception {
