@@ -112,6 +112,30 @@ body:
       required: true
 
   - type: textarea
+    id: failure_cases
+    attributes:
+      label: Failure and limit cases
+      description: |
+        The cases of *Failure and limit cases* in `CONTRIBUTING.md` that apply, and what must happen in each. A case that does not apply says why.
+      value: |
+        - No network or timeout, `5xx`:
+        - `401`, `403`, `404`, `409`, `422`, `429`:
+        - Double submission:
+        - The app closes halfway:
+        - Start-up without network:
+        - Two people change the same thing at once:
+    validations:
+      required: true
+
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of scope
+      description: What this issue does not do, with the issue that does it if there is one.
+    validations:
+      required: true
+
+  - type: textarea
     id: tests
     attributes:
       label: Tests

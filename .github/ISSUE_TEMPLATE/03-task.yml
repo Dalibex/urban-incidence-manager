@@ -45,6 +45,23 @@ body:
       required: true
 
   - type: textarea
+    id: failure_cases
+    attributes:
+      label: Failure and limit cases
+      description: |
+        The cases of *Failure and limit cases* in `CONTRIBUTING.md` that apply, and what must happen in each. A case that does not apply says why. Write "None: no behavior changes" for a task without behavior.
+    validations:
+      required: true
+
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of scope
+      description: What this task does not do, with the issue that does it if there is one.
+    validations:
+      required: true
+
+  - type: textarea
     id: verification
     attributes:
       label: Verification
