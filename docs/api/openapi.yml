@@ -1049,8 +1049,6 @@ paths:
       operationId: createIncidentAssignment
       summary: Assign an incident to a department and, optionally, a technician
       description: |
-        Planned: #184.
-
         `VALIDATED`, `REOPENED` or `ASSIGNED` to `ASSIGNED`. A reassignment deactivates the previous
         assignment and keeps it. The assignment, the status and the history change in one
         transaction, and there is never more than one active assignment.
@@ -1491,8 +1489,6 @@ paths:
       operationId: listDepartments
       summary: List the active departments
       description: |
-        Planned: #184.
-
         Active departments, ordered by name, for the assignment form and the staff filters. It is a
         short reference list managed by administrators, so it is not paginated.
 
@@ -2537,7 +2533,7 @@ components:
         assignment:
           description: >-
             Staff only. The active assignment. `null` while the incident has none. Previous
-            assignments are not listed here. Planned: #184.
+            assignments are not listed here.
           oneOf:
             - $ref: "#/components/schemas/AssignmentResponse"
             - type: "null"

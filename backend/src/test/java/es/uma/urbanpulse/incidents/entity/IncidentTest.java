@@ -9,6 +9,8 @@ import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.shared.error.FieldError;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 
 /** What each transition records, and the data it needs (ADR-0020). */
@@ -358,6 +360,121 @@ class IncidentTest {
         assertAssignmentRejectedOn(
                 TransitionDetails.assignment(fixture.department, disabledTechnician),
                 "technicianId");
+    }
+
+    @Test
+    void anAssignmentKeepsItsTeam() {
+        var incident = fixture.in(IncidentStatus.VALIDATED);
+
+        incident.changeStatus(
+                IncidentTransition.ASSIGNMENT,
+                fixture.operator,
+                TransitionDetails.assignment(fixture.department, fixture.technician, "Night shift"),
+                LATER);
+
+        assertThat(incident.getAssignments())
+                .singleElement()
+                .extracting(Assignment::getTeam)
+                .isEqualTo("Night shift");
+    }
+
+    @Test
+    void aTeamCannotBeBlankOrTooLong() {
+        assertAssignmentRejectedOn(
+                TransitionDetails.assignment(fixture.department, fixture.technician, " "), "team");
+        assertAssignmentRejectedOn(
+                TransitionDetails.assignment(
+                        fixture.department,
+                        fixture.technician,
+                        "x".repeat(Assignment.TEAM_MAX_LENGTH + 1)),
+                "team");
+    }
+
+    @Test
+    void aTeamOfNoBreakSpacesIsBlankLikeInTheContract() {
+        // The \S of the contract (ECMA-262) treats these as white space; String.isBlank does not.
+        for (String blank : List.of("\u00A0", "\u00A0 \u202F", "\uFEFF", "\u3000\u2028")) {
+            assertAssignmentRejectedOn(
+                    TransitionDetails.assignment(fixture.department, fixture.technician, blank),
+                    "team");
+        }
+        var incident = fixture.in(IncidentStatus.VALIDATED);
+        incident.changeStatus(
+                IncidentTransition.ASSIGNMENT,
+                fixture.operator,
+                TransitionDetails.assignment(
+                        fixture.department, fixture.technician, "\u00A0A\u00A0"),
+                LATER);
+        assertThat(incident.activeAssignment().orElseThrow().getTeam()).isEqualTo("\u00A0A\u00A0");
+    }
+
+    @Test
+    void aTransitionThatIsNotAllowedDoesNotLookUpItsData() {
+        Supplier<TransitionDetails> notLookedUp =
+                () -> {
+                    throw new AssertionError("The data was looked up");
+                };
+
+        assertThatThrownBy(
+                        () ->
+                                fixture.reported()
+                                        .changeStatus(
+                                                IncidentTransition.ASSIGNMENT,
+                                                fixture.operator,
+                                                notLookedUp,
+                                                LATER))
+                .isInstanceOfSatisfying(
+                        InvalidTransitionException.class,
+                        ex -> assertThat(ex.code()).isEqualTo("INVALID_TRANSITION"));
+        assertThatThrownBy(
+                        () ->
+                                fixture.in(IncidentStatus.VALIDATED)
+                                        .changeStatus(
+                                                IncidentTransition.ASSIGNMENT,
+                                                fixture.technician,
+                                                notLookedUp,
+                                                LATER))
+                .isInstanceOf(InvalidTransitionException.class);
+    }
+
+    @Test
+    void theTeamIsCountedInCharactersLikeTheContract() {
+        // One emoji is one character but two UTF-16 units.
+        var incident = fixture.in(IncidentStatus.VALIDATED);
+        incident.changeStatus(
+                IncidentTransition.ASSIGNMENT,
+                fixture.operator,
+                TransitionDetails.assignment(
+                        fixture.department,
+                        fixture.technician,
+                        "\uD83D\uDE92".repeat(Assignment.TEAM_MAX_LENGTH)),
+                LATER);
+        assertThat(incident.activeAssignment()).isPresent();
+
+        assertAssignmentRejectedOn(
+                TransitionDetails.assignment(
+                        fixture.department,
+                        fixture.technician,
+                        "\uD83D\uDE92".repeat(Assignment.TEAM_MAX_LENGTH + 1)),
+                "team");
+    }
+
+    @Test
+    void theHistoryOfAnAssignmentKeepsTheTeamEscaped() {
+        var incident = fixture.in(IncidentStatus.VALIDATED);
+
+        var change =
+                incident.changeStatus(
+                        IncidentTransition.ASSIGNMENT,
+                        fixture.operator,
+                        TransitionDetails.assignment(fixture.department, null, "A \"B\" \\ C\n"),
+                        LATER);
+
+        assertThat(change.getAssociatedData())
+                .isEqualTo(
+                        "{\"departmentId\": \""
+                                + fixture.department.getId()
+                                + "\", \"team\": \"A \\\"B\\\" \\\\ C\\u000a\"}");
     }
 
     @Test
