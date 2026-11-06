@@ -34,7 +34,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 
 /**
  * Acceptance tests of #71 (T3 to T13) for the operator's actions on a reported incident of #188:
- * {@code createIncidentValidation}.
+ * {@code createIncidentValidation} and {@code createIncidentRejection}.
  *
  * <p>They are written from the issues, the contract ({@code docs/api/openapi.yml}), {@code
  * docs/security.md} and ADR-0020, not from the implementation: the data is inserted with SQL on the
@@ -53,7 +53,8 @@ class IncidentOperatorActionApiIT {
 
     private static final String INCIDENTS = "/api/v1/incidents";
     private static final String VALIDATION = "validation";
-    private static final String[] ACTIONS = {VALIDATION};
+    private static final String REJECTION = "rejection";
+    private static final String[] ACTIONS = {VALIDATION, REJECTION};
 
     /** Every status but {@code REPORTED}, the only one these actions start from (ADR-0020). */
     private static final String[] OTHER_STATUSES = {
@@ -62,6 +63,8 @@ class IncidentOperatorActionApiIT {
 
     private static final Instant REPORTED_AT = Instant.parse("2026-11-02T09:00:00Z");
     private static final String VALIDATION_NOTE = "Checked with the street lighting map: lamp 118.";
+    private static final String REJECTION_REASON =
+            "This streetlight belongs to a private estate; please contact its owners.";
 
     @Autowired private MockMvc mvc;
     @Autowired private JdbcTemplate jdbc;
@@ -172,6 +175,53 @@ class IncidentOperatorActionApiIT {
         assertUnchanged(withoutPriority, "REPORTED", 0, 1);
     }
 
+    // T4: an operator rejects with a reason: REPORTED to REJECTED, which is final. Rejecting does
+    // not
+    // need a classification, so a report that is not an incident can be rejected straight away.
+    @Test
+    void anOperatorRejectsWithAReason() throws Exception {
+        UUID incident = reported(false, false);
+        int version = versionOf(incident);
+
+        act(operator, incident, REJECTION, body(version, REJECTION_REASON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("REJECTED"))
+                .andExpect(jsonPath("$.version").value(version + 1));
+
+        assertThat(statusOf(incident)).isEqualTo("REJECTED");
+        assertThat(historyCount(incident)).isEqualTo(2);
+        assertThat(lastHistoryEntry(incident))
+                .containsEntry("previous_status", "REPORTED")
+                .containsEntry("new_status", "REJECTED")
+                .containsEntry("actor_id", operator)
+                .containsEntry("reason", REJECTION_REASON)
+                .containsEntry("visible_to_citizen", true);
+    }
+
+    // T4 and T11: rejecting without a reason, or with a blank one, is 422 and changes nothing.
+    @Test
+    void rejectingWithoutAReasonIsUnprocessable() throws Exception {
+        UUID incident = classified("REPORTED");
+
+        for (String reason : new String[] {null, "", " \n ", "\u00A0\u202F"}) {
+            expectUnprocessable(act(administrator, incident, REJECTION, body(0, reason)), "reason");
+        }
+
+        assertUnchanged(incident, "REPORTED", 0, 1);
+    }
+
+    // T4: the reason has the limit of the contract (maxLength 2000).
+    @Test
+    void aRejectionReasonOverTheLimitIsUnprocessable() throws Exception {
+        UUID incident = classified("REPORTED");
+
+        expectUnprocessable(
+                act(operator, incident, REJECTION, body(0, "a".repeat(2001))), "reason");
+        assertUnchanged(incident, "REPORTED", 0, 1);
+
+        act(operator, incident, REJECTION, body(0, "a".repeat(2000))).andExpect(status().isOk());
+    }
+
     // T6: an incident that is no longer REPORTED cannot be acted on: 409, nothing changes.
     @Test
     void anIncidentThatIsNotReportedIsAConflict() throws Exception {
@@ -217,8 +267,8 @@ class IncidentOperatorActionApiIT {
         assertUnchanged(incident, "REPORTED", 1, 1);
     }
 
-    // T10: two operators validate the same version; the second one is refused, so the history has
-    // one validation. IncidentLifecycleServiceIT covers two requests that really overlap.
+    // T10: two operators act on the same version; the second one is refused, so the history has
+    // one change. IncidentLifecycleServiceIT covers two requests that really overlap.
     @Test
     void theSecondOfTwoOperatorsOnTheSameVersionIsAConflict() throws Exception {
         UUID incident = classified("REPORTED");
@@ -231,6 +281,22 @@ class IncidentOperatorActionApiIT {
 
         assertUnchanged(incident, "VALIDATED", version + 1, 2);
         assertThat(lastHistoryEntry(incident)).containsEntry("actor_id", operator);
+    }
+
+    // T10: one operator validates and another rejects what they read before: only the validation
+    // is kept.
+    @Test
+    void aRejectionAfterAValidationOnTheSameVersionIsAConflict() throws Exception {
+        UUID incident = classified("REPORTED");
+        int version = versionOf(incident);
+
+        act(operator, incident, VALIDATION, body(version, null)).andExpect(status().isOk());
+        act(otherOperator, incident, REJECTION, body(version, REJECTION_REASON))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CONCURRENT_MODIFICATION"));
+
+        assertUnchanged(incident, "VALIDATED", version + 1, 2);
+        assertThat(lastHistoryEntry(incident)).containsEntry("reason", null);
     }
 
     // ADR-0020, "Errors": a missing or negative version is invalid data, so it is a 422 only after
@@ -271,6 +337,25 @@ class IncidentOperatorActionApiIT {
         assertThat(entries)
                 .allSatisfy(
                         entry -> assertThat(entry).doesNotContainKeys("actor", "visibleToCitizen"));
+    }
+
+    // T4 and T12: the citizen sees the rejection with its reason, but not who rejected it.
+    @Test
+    void theCitizenSeesTheRejectionReasonButNotTheActor() throws Exception {
+        UUID incident = classified("REPORTED");
+
+        act(operator, incident, REJECTION, body(versionOf(incident), REJECTION_REASON))
+                .andExpect(status().isOk());
+
+        List<Map<String, Object>> entries = citizenHistory(incident);
+        assertThat(entries)
+                .extracting(entry -> entry.get("newStatus"))
+                .containsExactly("REPORTED", "REJECTED");
+        assertThat(entries.get(1)).containsEntry("reason", REJECTION_REASON);
+        assertThat(entries)
+                .allSatisfy(
+                        entry -> assertThat(entry).doesNotContainKeys("actor", "visibleToCitizen"));
+        assertThat(citizenHistoryText(incident)).doesNotContain(operator.toString());
     }
 
     // T13: an incident that does not exist is a 404; without a token it is a 401.
@@ -360,13 +445,15 @@ class IncidentOperatorActionApiIT {
 
     /** The history as the reporter reads it. */
     private List<Map<String, Object>> citizenHistory(UUID incident) throws Exception {
-        String history =
-                mvc.perform(as(citizen, get(INCIDENTS + "/" + incident + "/status-changes")))
-                        .andExpect(status().isOk())
-                        .andReturn()
-                        .getResponse()
-                        .getContentAsString();
-        return JsonPath.read(history, "$");
+        return JsonPath.read(citizenHistoryText(incident), "$");
+    }
+
+    private String citizenHistoryText(UUID incident) throws Exception {
+        return mvc.perform(as(citizen, get(INCIDENTS + "/" + incident + "/status-changes")))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
     }
 
     private ResultActions act(UUID caller, UUID incident, String action, String body)
@@ -387,6 +474,7 @@ class IncidentOperatorActionApiIT {
     private static String validBody(String action, int version) {
         return switch (action) {
             case VALIDATION -> body(version, null);
+            case REJECTION -> body(version, REJECTION_REASON);
             default -> throw new IllegalArgumentException(action);
         };
     }

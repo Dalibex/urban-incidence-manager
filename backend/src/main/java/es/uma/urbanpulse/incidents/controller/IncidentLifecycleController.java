@@ -40,6 +40,15 @@ class IncidentLifecycleController {
         return change(user, incidentId, request, IncidentTransition.VALIDATION);
     }
 
+    @PostMapping("/rejection")
+    @PreAuthorize("hasAnyRole('MUNICIPAL_OPERATOR', 'ADMINISTRATOR')")
+    IncidentResponse reject(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @PathVariable UUID incidentId,
+            @RequestBody IncidentActionRequest request) {
+        return change(user, incidentId, request, IncidentTransition.REJECTION);
+    }
+
     @PostMapping("/acceptance")
     @PreAuthorize("hasRole('TECHNICIAN')")
     IncidentResponse accept(

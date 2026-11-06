@@ -958,8 +958,6 @@ paths:
       operationId: createIncidentRejection
       summary: Reject a reported incident
       description: |
-        Planned: #188.
-
         `REPORTED` to `REJECTED`, which is final. `reason` is required, and the citizen sees the
         status and the reason, so it must not hold internal data.
 

@@ -483,9 +483,7 @@ export interface paths {
         put?: never;
         /**
          * Reject a reported incident
-         * @description Planned: #188.
-         *
-         *     `REPORTED` to `REJECTED`, which is final. `reason` is required, and the citizen sees the
+         * @description `REPORTED` to `REJECTED`, which is final. `reason` is required, and the citizen sees the
          *     status and the reason, so it must not hold internal data.
          *
          *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`.
