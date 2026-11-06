@@ -13,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>The counters live in this process. That is only correct with one backend replica, which is the
  * deployment of ADR-0011; with several replicas each one would allow the limit, and the counters
- * would have to move to a shared store such as Redis (ADR-0012). A restart resets them.
+ * would have to move to a shared store such as Redis (ADR-0022). A restart resets them.
  */
 class AttemptLimiter {
 
