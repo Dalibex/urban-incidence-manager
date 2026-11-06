@@ -358,7 +358,7 @@ public class Incident {
         // Counted in characters (code points), like maxLength in the contract, not in UTF-16 units.
         var team = details.team();
         if (team != null
-                && (team.isBlank()
+                && (onlyWhiteSpace(team)
                         || team.codePointCount(0, team.length()) > Assignment.TEAM_MAX_LENGTH)) {
             invalid.add(
                     new FieldError(
@@ -417,6 +417,22 @@ public class Incident {
 
     private static boolean isBlank(String text) {
         return text == null || text.isBlank();
+    }
+
+    /**
+     * Whether the text has no character that the {@code pattern: "\\S"} of the contract accepts.
+     * JSON Schema patterns use the {@code \s} of ECMA-262, which also counts no-break spaces such
+     * as U+00A0 and U+FEFF; {@link String#isBlank} does not.
+     */
+    private static boolean onlyWhiteSpace(String text) {
+        return text.codePoints()
+                .allMatch(
+                        c ->
+                                Character.getType(c) == Character.SPACE_SEPARATOR
+                                        || (c >= '\t' && c <= '\r')
+                                        || c == 0x2028
+                                        || c == 0x2029
+                                        || c == 0xFEFF);
     }
 
     private static OffsetDateTime utc(Instant instant) {

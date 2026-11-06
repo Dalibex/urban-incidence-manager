@@ -9,6 +9,7 @@ import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.shared.error.FieldError;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 
@@ -387,6 +388,24 @@ class IncidentTest {
                         fixture.technician,
                         "x".repeat(Assignment.TEAM_MAX_LENGTH + 1)),
                 "team");
+    }
+
+    @Test
+    void aTeamOfNoBreakSpacesIsBlankLikeInTheContract() {
+        // The \S of the contract (ECMA-262) treats these as white space; String.isBlank does not.
+        for (String blank : List.of("\u00A0", "\u00A0 \u202F", "\uFEFF", "\u3000\u2028")) {
+            assertAssignmentRejectedOn(
+                    TransitionDetails.assignment(fixture.department, fixture.technician, blank),
+                    "team");
+        }
+        var incident = fixture.in(IncidentStatus.VALIDATED);
+        incident.changeStatus(
+                IncidentTransition.ASSIGNMENT,
+                fixture.operator,
+                TransitionDetails.assignment(
+                        fixture.department, fixture.technician, "\u00A0A\u00A0"),
+                LATER);
+        assertThat(incident.activeAssignment().orElseThrow().getTeam()).isEqualTo("\u00A0A\u00A0");
     }
 
     @Test
