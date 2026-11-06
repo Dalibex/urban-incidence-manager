@@ -148,13 +148,15 @@ The menu and the sign-in open it on the reports waiting for a review: the status
   applies at once and goes back to the first page. The department is the one the incident is
   assigned to now. The district filter is planned (#59).
 - *Previous* and *Next* change the page. The filters and the page are part of the address
-  (`/inbox?status=REPORTED&page=2`), so you can bookmark them or send them to a colleague. A value
+  (`/inbox?status=REPORTED&page=2`), so you can bookmark them or send them to a colleague. If the
+  link or a reload asks you to sign in first, the inbox opens with those filters afterwards. A value
   in the address that is not valid, such as an unknown status, is left out.
 - *Manage* opens the detail of that incident, and *Back to the inbox* returns to the same filters
   and page.
 - When no incident matches, the page says so and offers *Clear filters*.
 - Everything works with the keyboard: *Tab* moves between the filters, links and buttons, *Enter*
-  opens them.
+  opens them. A day can be typed; it applies once its year has four digits. After *Clear filters*,
+  the focus goes to the first filter.
 
 ### Incident detail
 
