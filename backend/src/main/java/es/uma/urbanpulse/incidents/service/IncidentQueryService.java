@@ -5,15 +5,13 @@ import es.uma.urbanpulse.incidents.dto.IncidentResponse;
 import es.uma.urbanpulse.incidents.dto.IncidentSummaryResponse;
 import es.uma.urbanpulse.incidents.dto.StatusChangeResponse;
 import es.uma.urbanpulse.incidents.entity.Incident;
-import es.uma.urbanpulse.incidents.entity.IncidentStatus;
 import es.uma.urbanpulse.incidents.repository.IncidentRepository;
 import es.uma.urbanpulse.incidents.repository.StatusChangeRepository;
 import es.uma.urbanpulse.shared.web.PageResponse;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,17 +33,17 @@ public class IncidentQueryService {
     }
 
     /**
-     * @param statuses only incidents in one of these; empty for every status
+     * @throws AccessDeniedException if a citizen uses a staff filter: ignoring it would give a
+     *     misleading list, and accepting {@code priority} would reveal a staff-only value
      */
     public PageResponse<IncidentSummaryResponse> list(
-            UUID userId, Role role, Set<IncidentStatus> statuses, Pageable page) {
-        var visible = IncidentReadAccess.visibleTo(userId, role);
-        Specification<Incident> filter =
-                statuses.isEmpty()
-                        ? visible
-                        : visible.and((incident, query, cb) -> incident.get("status").in(statuses));
+            UUID userId, Role role, IncidentFilter filter, Pageable page) {
+        if (role == Role.CITIZEN && filter.usesStaffFilters()) {
+            throw new AccessDeniedException("Citizens can only filter their reports by status.");
+        }
+        var visible = IncidentReadAccess.visibleTo(userId, role).and(filter.specification());
         return PageResponse.of(
-                incidents.findAll(filter, page),
+                incidents.findAll(visible, page),
                 incident -> IncidentSummaryResponse.of(incident, role));
     }
 
