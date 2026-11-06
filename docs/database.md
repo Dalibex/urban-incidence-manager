@@ -103,8 +103,34 @@ SELECT i.id, i.title, i.status, i.reported_at, l.address
  OFFSET 0 ROWS FETCH FIRST 20 ROWS ONLY;
 ```
 
-When a new query or filter is added (the filters of #58, for example), measure it the same way and
-add its index, with its row in the table, in a new migration.
+When a new query or filter is added, measure it the same way and add its index, with its row in a
+table here, in a new migration.
+
+### Staff Filters
+
+`V11__incidents_index_staff_filters.sql` (#182) adds the indexes the filters of the incident list
+need. The queries are those of the operator, who sees every incident, so nothing else narrows them.
+
+| Query | Index | Before | After |
+| --- | --- | --- | --- |
+| Department with 7,058 active assignments, page of 20 | `ix_assignment_active_department` | 22.6 ms, scans of `ix_assignment_active_technician` for each incident | 1.7 ms, index-only scan |
+| Department with 30,997 active assignments, page of 20 | `ix_assignment_active_department` | 4.4 ms, the same scans | 0.6 ms, index-only scan |
+| Every incident sorted by `updatedAt`, page of 20 | `ix_incident_updated_at` | 10.9 ms, seq scan of `incident` and a sort | 0.1 ms, index scan |
+| `REPORTED` sorted by `updatedAt`, page of 20 | `ix_incident_updated_at` | 5.0 ms, bitmap scan and a sort | 1.2 ms, index scan |
+
+Conditions: the same data and method as *Main Queries*, on PostgreSQL 18.6 with PostGIS 3.6 in
+Docker Desktop (16 CPUs, 15.2 GB), on commit `284142a` plus this change, on 2026-11-05.
+
+What the measurements decided:
+
+- The category, priority and date filters need no index: their pages take under 1.1 ms with
+  `ix_incident_reported_at`, which PostgreSQL walks newest first until it has 20 rows. A week of
+  incidents also counts in 0.2 ms with it.
+- Their counts read the whole `incident` table, about 13 ms for one category or one priority. An
+  index per filter would only serve that count, so they are left as they are.
+- The count of a department does not improve: 10 and 15 ms with the index, against 10 and 13 ms
+  without it, because it still checks every incident. Only its page does.
+- The two indexes take 8 MB in total with this volume.
 
 ### Integrity
 

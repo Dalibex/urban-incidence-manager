@@ -9,7 +9,13 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Filters on the incident list of the API for staff: category, priority, reporting dates and the department of the active assignment, combinable with each other and with the status, and always inside what each role may see. A citizen can only filter by status; any other filter answers `403`. Filtering by department and sorting by `updatedAt` use indexes measured on the performance dataset (#182).
+- Technicians accept an assigned incident (`POST /incidents/{incidentId}/acceptance`, `ASSIGNED` to `IN_PROGRESS`) and resolve it with their notes (`POST /incidents/{incidentId}/resolution`, `IN_PROGRESS` to `RESOLVED`) on the API. Only the technician of the active assignment can act; anyone else's incident answers `404`. The citizen sees the new status, not the notes. A lifecycle reason has at most 2,000 characters (#186).
 - Photos of an incident on the API: upload one JPEG, PNG or WebP photo at a time, list the photos of an incident and download each one. The type is read from the content, never from the file name. Uploading the same photo again to the same incident returns the one already stored instead of a copy, so a client can retry safely. A photo over `EVIDENCE_MAX_FILE_SIZE` answers `413`, one more than `EVIDENCE_MAX_FILES_PER_INCIDENT` answers `422`, and a citizen can only add photos while the incident is `REPORTED`. Who can see a photo is who can see its incident (#192).
+
+### Changed
+
+- The incident list of the API answers `400` to an unknown query parameter or one without a value, instead of ignoring it (#182).
 
 ## [0.1.0] - 2026-11-03
 

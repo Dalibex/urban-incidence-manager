@@ -18,6 +18,12 @@ public class InvalidIncidentDataException extends InvalidDataException {
                                 "categoryId", "The category does not exist or is not active.")));
     }
 
+    /** The {@code version} of a status change is missing or negative. */
+    public static InvalidIncidentDataException invalidVersion() {
+        return new InvalidIncidentDataException(
+                List.of(new FieldError("version", "Send the version of the incident you read.")));
+    }
+
     /**
      * The incident already has as many photos as {@code EVIDENCE_MAX_FILES_PER_INCIDENT} allows.
      */

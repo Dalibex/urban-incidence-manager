@@ -42,7 +42,11 @@ public class IncidentLifecycleService {
     /**
      * Applies the transition to the incident, as the given user.
      *
-     * @param expectedVersion the {@code version} of the incident the caller read
+     * @param expectedVersion the {@code version} of the incident the caller read, as the request
+     *     sent it. Missing or negative is invalid data: a {@code 422} on {@code version}, answered
+     *     only when the transition would be allowed, after the role, the access and the transition
+     *     (ADR-0020). It is checked here and not with Bean Validation, which would answer before
+     *     the role.
      * @return the incident after the change, with its new {@code version}
      * @throws IncidentNotFoundException if it does not exist or the caller may not see it
      * @throws ObjectOptimisticLockingFailureException if the incident changed since the caller read
@@ -53,7 +57,7 @@ public class IncidentLifecycleService {
      */
     public IncidentResponse changeStatus(
             UUID incidentId,
-            int expectedVersion,
+            Integer expectedVersion,
             IncidentTransition transition,
             TransitionDetails details,
             UUID userId,
@@ -64,15 +68,21 @@ public class IncidentLifecycleService {
                                 IncidentReadAccess.visibleTo(userId, role)
                                         .and(IncidentReadAccess.withId(incidentId)))
                         .orElseThrow(() -> new IncidentNotFoundException(incidentId));
-        // Checked before the transition: a stale caller must reload, even if the change would
-        // still be allowed in the new status.
-        if (incident.getVersion() != expectedVersion) {
-            throw new ObjectOptimisticLockingFailureException(Incident.class, incidentId);
-        }
         var actor =
                 users.findById(userId)
                         .orElseThrow(
                                 () -> new IllegalStateException("User " + userId + " not found"));
+        if (expectedVersion == null || expectedVersion < 0) {
+            // Without a version there is no conflict to detect: like any other invalid data, it
+            // is a 422 only if the transition itself is allowed.
+            incident.checkAllowed(transition, actor);
+            throw InvalidIncidentDataException.invalidVersion();
+        }
+        // Checked before the transition: a stale caller must reload, even if the change would
+        // still be allowed in the new status.
+        if (incident.getVersion().intValue() != expectedVersion.intValue()) {
+            throw new ObjectOptimisticLockingFailureException(Incident.class, incidentId);
+        }
 
         incident.changeStatus(transition, actor, details, clock.instant());
         // Writes now, so a change committed by someone else after the read above fails here, and

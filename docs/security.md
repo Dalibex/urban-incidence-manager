@@ -95,7 +95,7 @@ Known limits:
 
 - The counters live in the backend process. That is correct with one replica (ADR-0011); with more,
   each replica would allow the full limit and they would have to move to a shared store such as
-  Redis (ADR-0012). A restart resets them.
+  Redis (ADR-0022). A restart resets them.
 - The key is the email and the address, so one address can still try 5 passwords on each of many
   emails (password spraying), and the counters of one window grow with every email tried. A global
   limit per address is the next step if that becomes a problem.
@@ -215,6 +215,8 @@ operation; the note says when the answer also depends on the resource. A role no
 | `POST /incidents` | | ✓ | | | | |
 | `GET /incidents/{id}` | | own | ✓ | assigned | ✓ | |
 | `GET /incidents/{id}/status-changes` | | own, citizen view | ✓ | assigned | ✓ | |
+| `POST /incidents/{id}/acceptance` | | | | assigned | | |
+| `POST /incidents/{id}/resolution` | | | | assigned | | |
 | `GET /incidents/{id}/attachments` | | own | ✓ | assigned | ✓ | |
 | `POST /incidents/{id}/attachments` | | own, only while `REPORTED` | ✓ | assigned | ✓ | |
 | `GET /attachments/{id}/content` | | own | ✓ | assigned | ✓ | |
@@ -224,9 +226,12 @@ Outside `/api/v1` only `/actuator/health/**` and the API documentation (`/openap
 
 "own" and "assigned" are checked by the service with the data of the resource, not by the role:
 being authenticated or knowing an id never gives access to an incident (see `AGENTS.md`, section 6).
-Listings only return the caller's incidents; reading one that is not theirs answers `404`. A photo
-follows the rule of its incident: the id of an attachment is not a public URL, and a photo of an
-incident the caller may not see answers `404` too (ADR-0013).
+Listings only return the caller's incidents; reading one that is not theirs answers `404`. The
+filters of `GET /incidents` apply inside that scope, so they never widen it. A `CITIZEN` may only
+filter by `status`: any other filter answers `403`, because ignoring it would give a misleading list
+and accepting `priority` would reveal a staff-only value by trying values. A photo follows the rule
+of its incident: the id of an attachment is not a public URL, and a photo of an incident the caller
+may not see answers `404` too (ADR-0013).
 
 ## Protecting a new endpoint
 

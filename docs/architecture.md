@@ -72,7 +72,7 @@ same REST API and a set of TypeScript packages ([ADR-0007](adr/0007-client-appli
 | Tiles builder | One-off process that builds the base map | [ADR-0016](adr/0016-self-hosted-osm-base-map.md) | Yes |
 | Evidence storage | Docker volume behind a storage interface | [ADR-0013](adr/0013-evidence-storage.md) | Yes, in the API (#192); the clients with #193, #194 |
 | Reverse proxy | nginx, the single published entry point | [ADR-0017](adr/0017-reverse-proxy.md) | No, #134 |
-| Cache | Redis | [ADR-0012](adr/0012-cache-redis.md) | No, until one of its triggers happens |
+| Cache | Redis | [ADR-0022](adr/0022-redis-from-measurements.md), which supersedes [ADR-0012](adr/0012-cache-redis.md) | No, until a measurement or a second replica asks for it |
 
 Where to look for more:
 
@@ -204,7 +204,8 @@ saved, not before.
 (`concurrentAttemptsNeverGoPastTheLimit`). The limits are in the [security guide](security.md).
 
 **Status.** Met. Known limits: the counters live in memory, so a restart resets them and they are
-only correct with one replica; [ADR-0012](adr/0012-cache-redis.md) says when they move to Redis.
+only correct with one replica; [ADR-0022](adr/0022-redis-from-measurements.md) says when they move
+to Redis.
 
 ### QA-4: A backend restart loses no confirmed data or evidence (ADR-0011, ADR-0013)
 
@@ -237,7 +238,7 @@ Known limits the team accepts for now. A review does not report them (*Sprint re
 
 | Risk | Effect | Source |
 | --- | --- | --- |
-| The sign-in and sign-up rate-limit counters live in the backend process | A restart resets them, and they are only correct with one replica | [Security guide](security.md), *Rate limits*; [ADR-0012](adr/0012-cache-redis.md) |
+| The sign-in and sign-up rate-limit counters live in the backend process | A restart resets them, and they are only correct with one replica | [Security guide](security.md), *Rate limits*; [ADR-0022](adr/0022-redis-from-measurements.md) |
 | The sign-in limit is per email and address | One address can still try 5 passwords on each of many emails | [Security guide](security.md), *Rate limits* |
 | Clients behind one public address share the rate limits | A university wifi shares the 10 sign-ups per hour, and someone on the same network can block a person's sign-in | #200 |
 | The API documentation is public (`/swagger-ui.html`, `/v3/api-docs`, `/openapi.yml`) | Anyone can read the contract, which is public by design | [Security guide](security.md), *Permission matrix*; [API guide](api.md) says how to turn it off |
@@ -246,10 +247,11 @@ Known limits the team accepts for now. A review does not report them (*Sprint re
 
 ## 📋 ADRs Without a Measurable Evaluation
 
-ADR-0013, ADR-0014, ADR-0017, ADR-0020 and ADR-0021 state a metric and a threshold, and ADR-0016
-has thresholds for size and build time ("smooth on a mid-range phone" is not measurable yet).
-ADR-0018 and ADR-0019 are only *Proposed*. The accepted ADRs below have no measurable evaluation;
-the scenario that would evaluate each one:
+ADR-0013, ADR-0014, ADR-0017, ADR-0020, ADR-0021 and ADR-0022 state a metric and a threshold,
+and ADR-0016 has thresholds for size and build time ("smooth on a mid-range phone" is not
+measurable yet). ADR-0018 and ADR-0019 are only *Proposed*, and ADR-0012 is superseded by
+ADR-0022. The accepted ADRs below have no measurable evaluation; the scenario that would evaluate
+each one:
 
 | ADR | Scenario that would evaluate it |
 | --- | --- |
@@ -260,7 +262,6 @@ the scenario that would evaluate each one:
 | [0008](adr/0008-backend.md) Spring Boot, contract first | 100 % of the HTTP test responses validated against the contract (`ApiContract.EveryResponse`, [testing guide](testing.md)) |
 | [0010](adr/0010-modular-monolith.md) Modular monolith | A feature of one module changes the files of that module only; review the pull requests of Sprint 2 and count the exceptions |
 | [0011](adr/0011-deployment-12factor.md) Compose and Twelve-Factor | QA-4, plus the image that passed CI is the one deployed (same digest), configured only by environment variables |
-| [0012](adr/0012-cache-redis.md) Redis | QA-1: Redis is added only when a measurement misses its target or one of the triggers of the ADR happens |
 | [0015](adr/0015-ci-pipeline-and-pre-commit-formatting.md) CI | The pipeline of a pull request finishes in under 15 minutes at p95, and no formatting failure reaches the CI when the hook is installed |
 
 Adding the evaluation to the ADR itself, or writing it in a new one, is left to the owner of each
