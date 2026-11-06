@@ -199,6 +199,39 @@ class DatabaseMigrationIT {
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
+    // #192: two uploads of the same content to one incident cannot both be stored.
+    @Test
+    void rejectsTheSameContentTwiceOnOneIncident() {
+        UUID reporter =
+                jdbc.queryForObject(
+                        "INSERT INTO users (name, email, password_hash, role)"
+                                + " VALUES ('Ana', 'ana@example.com', 'hash', 'CITIZEN') RETURNING id",
+                        UUID.class);
+        UUID incident =
+                jdbc.queryForObject(
+                        "INSERT INTO incident (reporter_id, title, description, status, reported_at,"
+                                + " updated_at) VALUES (?, 'Pothole', 'Deep pothole', 'REPORTED',"
+                                + " now(), now()) RETURNING id",
+                        UUID.class,
+                        reporter);
+        String attachment =
+                "INSERT INTO attachment (incident_id, uploader_id, file_name, file_type, file_size,"
+                        + " storage_key, content_hash, uploaded_at)"
+                        + " VALUES (?, ?, 'photo.jpg', 'image/jpeg', 10, ?, ?, now())";
+        String hash = "a".repeat(64);
+        jdbc.update(attachment, incident, reporter, UUID.randomUUID().toString(), hash);
+
+        assertThatThrownBy(
+                        () ->
+                                jdbc.update(
+                                        attachment,
+                                        incident,
+                                        reporter,
+                                        UUID.randomUUID().toString(),
+                                        hash))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
     @Test
     void rejectsAnIncidentWhoseReporterDoesNotExist() {
         assertThatThrownBy(
