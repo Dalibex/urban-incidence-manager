@@ -460,9 +460,7 @@ export interface paths {
         put?: never;
         /**
          * Validate a reported incident
-         * @description Planned: #188.
-         *
-         *     `REPORTED` to `VALIDATED`. The category and the priority must already be set with
+         * @description `REPORTED` to `VALIDATED`. The category and the priority must already be set with
          *     `updateIncident`, or the request returns `422`. The citizen sees the status.
          *
          *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`.

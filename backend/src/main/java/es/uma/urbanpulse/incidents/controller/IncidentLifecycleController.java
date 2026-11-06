@@ -31,6 +31,15 @@ class IncidentLifecycleController {
         this.lifecycle = lifecycle;
     }
 
+    @PostMapping("/validation")
+    @PreAuthorize("hasAnyRole('MUNICIPAL_OPERATOR', 'ADMINISTRATOR')")
+    IncidentResponse validate(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @PathVariable UUID incidentId,
+            @RequestBody IncidentActionRequest request) {
+        return change(user, incidentId, request, IncidentTransition.VALIDATION);
+    }
+
     @PostMapping("/acceptance")
     @PreAuthorize("hasRole('TECHNICIAN')")
     IncidentResponse accept(
