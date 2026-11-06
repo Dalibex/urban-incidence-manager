@@ -350,9 +350,10 @@ export interface paths {
          *     Sortable properties: `reportedAt`, `updatedAt`. Default `reportedAt,desc` (newest first);
          *     `id` is always added as the last criterion so the order is stable between pages.
          *
-         *     Filters always apply inside what the caller may see, so they never widen it. `status` is
-         *     open to every role that can list. The other filters are planned in #182: they are for staff,
-         *     and a `CITIZEN` who uses one gets `403`. An unknown parameter returns `400`.
+         *     Filters always apply inside what the caller may see, so they never widen it, and every
+         *     filter used must match. `status` is open to every role that can list. The other filters are
+         *     for staff: a `CITIZEN` who uses one gets `403`. An unknown parameter, or one without a value
+         *     (`?categoryId=`), returns `400`.
          */
         get: operations["listIncidents"];
         put?: never;
@@ -1931,9 +1932,9 @@ export interface components {
         CategoryIdFilter: string[];
         /** @description Only incidents with one of these priorities. Repeat it for several values. */
         PriorityFilter: components["schemas"]["Priority"][];
-        /** @description Only incidents reported at or after this instant (UTC, included). It must be earlier than `reportedTo`, or the request returns `400`. */
+        /** @description Only incidents reported at or after this instant (included). An RFC 3339 date-time with its offset (`Z` for UTC; `+` encoded as `%2B` in the URL); without an offset it returns `400`. It must be earlier than `reportedTo`, or the request returns `400`. */
         ReportedFromFilter: string;
-        /** @description Only incidents reported before this instant (UTC, excluded). */
+        /** @description Only incidents reported before this instant (excluded). The same format as `reportedFrom`. */
         ReportedToFilter: string;
         /** @description Only incidents whose active assignment is in one of these departments. Repeat it for several values. A previous assignment does not count. */
         DepartmentIdFilter: string[];
@@ -2463,9 +2464,9 @@ export interface operations {
                 categoryId?: components["parameters"]["CategoryIdFilter"];
                 /** @description Only incidents with one of these priorities. Repeat it for several values. */
                 priority?: components["parameters"]["PriorityFilter"];
-                /** @description Only incidents reported at or after this instant (UTC, included). It must be earlier than `reportedTo`, or the request returns `400`. */
+                /** @description Only incidents reported at or after this instant (included). An RFC 3339 date-time with its offset (`Z` for UTC; `+` encoded as `%2B` in the URL); without an offset it returns `400`. It must be earlier than `reportedTo`, or the request returns `400`. */
                 reportedFrom?: components["parameters"]["ReportedFromFilter"];
-                /** @description Only incidents reported before this instant (UTC, excluded). */
+                /** @description Only incidents reported before this instant (excluded). The same format as `reportedFrom`. */
                 reportedTo?: components["parameters"]["ReportedToFilter"];
                 /** @description Only incidents whose active assignment is in one of these departments. Repeat it for several values. A previous assignment does not count. */
                 departmentId?: components["parameters"]["DepartmentIdFilter"];
@@ -3095,9 +3096,9 @@ export interface operations {
                 categoryId?: components["parameters"]["CategoryIdFilter"];
                 /** @description Only incidents with one of these priorities. Repeat it for several values. */
                 priority?: components["parameters"]["PriorityFilter"];
-                /** @description Only incidents reported at or after this instant (UTC, included). It must be earlier than `reportedTo`, or the request returns `400`. */
+                /** @description Only incidents reported at or after this instant (included). An RFC 3339 date-time with its offset (`Z` for UTC; `+` encoded as `%2B` in the URL); without an offset it returns `400`. It must be earlier than `reportedTo`, or the request returns `400`. */
                 reportedFrom?: components["parameters"]["ReportedFromFilter"];
-                /** @description Only incidents reported before this instant (UTC, excluded). */
+                /** @description Only incidents reported before this instant (excluded). The same format as `reportedFrom`. */
                 reportedTo?: components["parameters"]["ReportedToFilter"];
                 /** @description Only incidents whose active assignment is in one of these departments. Repeat it for several values. A previous assignment does not count. */
                 departmentId?: components["parameters"]["DepartmentIdFilter"];

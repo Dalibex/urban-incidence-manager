@@ -223,7 +223,10 @@ Outside `/api/v1` only `/actuator/health/**` and the API documentation (`/openap
 
 "own" and "assigned" are checked by the service with the data of the resource, not by the role:
 being authenticated or knowing an id never gives access to an incident (see `AGENTS.md`, section 6).
-Listings only return the caller's incidents; reading one that is not theirs answers `404`.
+Listings only return the caller's incidents; reading one that is not theirs answers `404`. The
+filters of `GET /incidents` apply inside that scope, so they never widen it. A `CITIZEN` may only
+filter by `status`: any other filter answers `403`, because ignoring it would give a misleading list
+and accepting `priority` would reveal a staff-only value by trying values.
 
 ## Protecting a new endpoint
 
