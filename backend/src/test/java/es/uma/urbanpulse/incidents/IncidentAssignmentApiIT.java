@@ -339,10 +339,17 @@ class IncidentAssignmentApiIT {
         expectInvalid(
                 assign(operator, incident, Map.of("version", -1, "departmentId", department)),
                 "version");
-        // The version is checked after the incident is found (ADR-0020).
+        // A missing or negative version is invalid data (ADR-0020): it comes after the incident
+        // is found and after the transition, so a status that cannot be assigned is still a 409.
         assign(operator, UUID.randomUUID(), Map.of("departmentId", department))
                 .andExpect(status().isNotFound());
+        UUID reported = incident("REPORTED");
+        expectConflict(assign(operator, reported, Map.of()), "INVALID_TRANSITION");
+        expectConflict(
+                assign(operator, reported, Map.of("version", -1, "departmentId", department)),
+                "INVALID_TRANSITION");
         assertUnchanged(incident, "VALIDATED");
+        assertUnchanged(reported, "REPORTED");
     }
 
     @Test

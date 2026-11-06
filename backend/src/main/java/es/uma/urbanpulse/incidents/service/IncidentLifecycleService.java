@@ -74,8 +74,7 @@ public class IncidentLifecycleService {
      * like any other invalid data.
      *
      * @param expectedVersion as the request sent it; missing or negative is a {@code 422} on {@code
-     *     version}, checked here and not with Bean Validation so that a role that may not make the
-     *     change still gets {@code 403} first (ADR-0020)
+     *     version}, answered only when the transition would be allowed, as in the other overload
      * @param details looks up the data; it may throw {@link InvalidIncidentDataException}
      */
     public IncidentResponse changeStatus(
