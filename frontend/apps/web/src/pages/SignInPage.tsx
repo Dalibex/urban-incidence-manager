@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
-import { Navigate } from 'react-router';
+import { Navigate, useLocation } from 'react-router';
 
-import { PATHS } from '../routing/access';
+import { signInReturnPath } from '../routing/access';
 import { useSession } from '../session/SessionContext';
 import styles from './Page.module.css';
 import { UNEXPECTED_SIGN_IN_ERROR, signInMessage } from './sign-in-messages';
@@ -10,13 +10,14 @@ const ERROR_ID = 'sign-in-error';
 
 export function SignInPage() {
   const { user, expired, signIn } = useSession();
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (user) {
-    return <Navigate to={PATHS.home} replace />;
+    return <Navigate to={signInReturnPath(location.state)} replace />;
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {

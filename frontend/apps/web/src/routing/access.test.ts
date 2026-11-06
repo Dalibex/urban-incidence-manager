@@ -1,7 +1,7 @@
 import { ROLES } from '@urbanpulse/domain';
 import { describe, expect, it } from 'vitest';
 
-import { PATHS, inboxReturnPath, landingPath, routeAccess } from './access';
+import { PATHS, inboxReturnPath, landingPath, routeAccess, signInReturnPath } from './access';
 
 describe('routeAccess', () => {
   it('sends a visitor without a session to sign in', () => {
@@ -44,5 +44,18 @@ describe('inboxReturnPath', () => {
   it('goes to the default inbox after a direct link', () => {
     expect(inboxReturnPath(null)).toBe(`${PATHS.inbox}?status=REPORTED`);
     expect(inboxReturnPath({ inboxSearch: 42 })).toBe(`${PATHS.inbox}?status=REPORTED`);
+  });
+});
+
+describe('signInReturnPath', () => {
+  it('goes back to the screen that asked for the sign-in, with its address', () => {
+    expect(signInReturnPath({ returnTo: `${PATHS.inbox}?priority=HIGH` })).toBe(
+      `${PATHS.inbox}?priority=HIGH`,
+    );
+  });
+
+  it("goes to the user's own screen when the sign-in was opened directly", () => {
+    expect(signInReturnPath(null)).toBe(PATHS.home);
+    expect(signInReturnPath({ returnTo: 42 })).toBe(PATHS.home);
   });
 });

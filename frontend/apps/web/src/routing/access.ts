@@ -36,6 +36,21 @@ export function inboxReturnPath(state: unknown): string {
   return typeof search === 'string' ? PATHS.inbox + search : INBOX_DEFAULT_PATH;
 }
 
+/** Navigation state of the sign-in, so it can lead back to the screen that asked for it. */
+export interface SignInReturn {
+  returnTo: string;
+}
+
+/**
+ * Where the sign-in goes once there is a session: the screen that sent the user to it, with its
+ * address (a reload or a link to a filtered inbox, #78 T7), or `/`, which leads to their own screen.
+ */
+export function signInReturnPath(state: unknown): string {
+  const returnTo =
+    typeof state === 'object' && state !== null && 'returnTo' in state ? state.returnTo : undefined;
+  return typeof returnTo === 'string' ? returnTo : PATHS.home;
+}
+
 /** Path of the detail page of one incident. */
 export function incidentPath(incidentId: string): string {
   return PATHS.incident.replace(':incidentId', encodeURIComponent(incidentId));
