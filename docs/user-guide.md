@@ -137,15 +137,24 @@ The menu at the top shows *Inbox*. Planned: *Map* (#53).
 
 ### Inbox
 
-Every incident, newest first, a page at a time, with the date it was reported, title, category,
+The incidents, newest first, a page at a time, with the date it was reported, title, category,
 status and priority. A category or priority that is not set shows *Not classified* or *Not set*.
 
-- *Previous* and *Next* change the page. The page is part of the address (`/inbox?page=2`), so you
-  can bookmark it or send it to a colleague.
-- *Manage* opens the detail of that incident.
-- Everything works with the keyboard: *Tab* moves between the links and buttons, *Enter* opens
-  them.
-- Planned: filters (#58).
+The menu and the sign-in open it on the reports waiting for a review: the status filter is set to
+*Reported*. *Clear filters* lists every incident.
+
+- **Filters:** status, category, priority, department and the days it was reported (*Reported
+  from* and *to*, both included, in Málaga time). They combine with each other, and each change
+  applies at once and goes back to the first page. The department is the one the incident is
+  assigned to now. The district filter is planned (#59).
+- *Previous* and *Next* change the page. The filters and the page are part of the address
+  (`/inbox?status=REPORTED&page=2`), so you can bookmark them or send them to a colleague. A value
+  in the address that is not valid, such as an unknown status, is left out.
+- *Manage* opens the detail of that incident, and *Back to the inbox* returns to the same filters
+  and page.
+- When no incident matches, the page says so and offers *Clear filters*.
+- Everything works with the keyboard: *Tab* moves between the filters, links and buttons, *Enter*
+  opens them.
 
 ### Incident detail
 
@@ -159,7 +168,7 @@ status and priority. A category or priority that is not set shows *Not classifie
 - **Actions:** the actions allowed for the status of the incident. When there are none, it says
   *No actions are available for this incident yet.* Planned: #47, #48, #49, #50, #52.
 
-*Back to the inbox* returns to the list. An incident that does not exist shows
+*Back to the inbox* returns to the list as you left it. An incident that does not exist shows
 *Incident not found*.
 
 Dates are shown in Málaga time.
@@ -168,7 +177,8 @@ Dates are shown in Málaga time.
 
 If the incidents cannot be loaded, the page says so and offers *Try again*; it says whether the
 server could not be reached or answered with an error. The app retries a few times on its own
-before showing it.
+before showing it, and the filters stay as they were. If the categories or departments cannot be
+loaded, that filter says so and is disabled; the other filters keep working.
 
 ## 🔧 Technician (Web)
 
