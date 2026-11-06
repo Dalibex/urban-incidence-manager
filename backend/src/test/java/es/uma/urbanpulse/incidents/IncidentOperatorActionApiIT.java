@@ -34,7 +34,8 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 
 /**
  * Acceptance tests of #71 (T3 to T13) for the operator's actions on a reported incident of #188:
- * {@code createIncidentValidation} and {@code createIncidentRejection}.
+ * {@code createIncidentValidation}, {@code createIncidentRejection} and {@code
+ * createIncidentInformationRequest}.
  *
  * <p>They are written from the issues, the contract ({@code docs/api/openapi.yml}), {@code
  * docs/security.md} and ADR-0020, not from the implementation: the data is inserted with SQL on the
@@ -54,7 +55,8 @@ class IncidentOperatorActionApiIT {
     private static final String INCIDENTS = "/api/v1/incidents";
     private static final String VALIDATION = "validation";
     private static final String REJECTION = "rejection";
-    private static final String[] ACTIONS = {VALIDATION, REJECTION};
+    private static final String INFORMATION_REQUESTS = "information-requests";
+    private static final String[] ACTIONS = {VALIDATION, REJECTION, INFORMATION_REQUESTS};
 
     /** Every status but {@code REPORTED}, the only one these actions start from (ADR-0020). */
     private static final String[] OTHER_STATUSES = {
@@ -65,6 +67,8 @@ class IncidentOperatorActionApiIT {
     private static final String VALIDATION_NOTE = "Checked with the street lighting map: lamp 118.";
     private static final String REJECTION_REASON =
             "This streetlight belongs to a private estate; please contact its owners.";
+    private static final String INFORMATION_MESSAGE =
+            "Which street is it on? The position on the map is in the middle of a park.";
 
     @Autowired private MockMvc mvc;
     @Autowired private JdbcTemplate jdbc;
@@ -222,6 +226,63 @@ class IncidentOperatorActionApiIT {
         act(operator, incident, REJECTION, body(0, "a".repeat(2000))).andExpect(status().isOk());
     }
 
+    // T5: an information request is one more history entry, with its actor, instant and message,
+    // and the incident stays REPORTED with a new version.
+    @Test
+    void anInformationRequestKeepsTheIncidentReported() throws Exception {
+        UUID incident = reported(false, false);
+        int version = versionOf(incident);
+        Instant before = Instant.now();
+
+        act(operator, incident, INFORMATION_REQUESTS, body(version, INFORMATION_MESSAGE))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("REPORTED"))
+                .andExpect(jsonPath("$.version").value(version + 1));
+
+        assertThat(statusOf(incident)).isEqualTo("REPORTED");
+        assertThat(historyCount(incident)).isEqualTo(2);
+        Map<String, Object> entry = lastHistoryEntry(incident);
+        assertThat(entry)
+                .containsEntry("previous_status", "REPORTED")
+                .containsEntry("new_status", "REPORTED")
+                .containsEntry("actor_id", operator)
+                .containsEntry("reason", INFORMATION_MESSAGE)
+                .containsEntry("visible_to_citizen", true);
+        assertThat(((Timestamp) entry.get("instant")).toInstant()).isAfterOrEqualTo(before);
+        // The internal data tells it apart from other entries that keep the status (ADR-0020).
+        assertThat(String.valueOf(entry.get("associated_data"))).contains("INFORMATION_REQUESTED");
+    }
+
+    // T5: more information can be asked again, and the incident can still be validated after.
+    @Test
+    void moreInformationCanBeAskedAgainBeforeValidating() throws Exception {
+        UUID incident = classified("REPORTED");
+
+        act(operator, incident, INFORMATION_REQUESTS, body(0, INFORMATION_MESSAGE))
+                .andExpect(status().isOk());
+        act(administrator, incident, INFORMATION_REQUESTS, body(1, "And which lamp post?"))
+                .andExpect(status().isOk());
+        act(operator, incident, VALIDATION, body(2, null))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("VALIDATED"));
+
+        assertUnchanged(incident, "VALIDATED", 3, 4);
+    }
+
+    // T11: an information request without a message, or with a blank one, is 422 and changes
+    // nothing.
+    @Test
+    void anInformationRequestWithoutAMessageIsUnprocessable() throws Exception {
+        UUID incident = classified("REPORTED");
+
+        for (String message : new String[] {null, "", "\n", "\uFEFF\u3000"}) {
+            expectUnprocessable(
+                    act(operator, incident, INFORMATION_REQUESTS, body(0, message)), "reason");
+        }
+
+        assertUnchanged(incident, "REPORTED", 0, 1);
+    }
+
     // T6: an incident that is no longer REPORTED cannot be acted on: 409, nothing changes.
     @Test
     void anIncidentThatIsNotReportedIsAConflict() throws Exception {
@@ -358,6 +419,27 @@ class IncidentOperatorActionApiIT {
         assertThat(citizenHistoryText(incident)).doesNotContain(operator.toString());
     }
 
+    // T12: the citizen sees the message of an information request, but not who sent it nor its
+    // internal data.
+    @Test
+    void theCitizenSeesTheInformationRequestButNotTheActor() throws Exception {
+        UUID incident = classified("REPORTED");
+
+        act(operator, incident, INFORMATION_REQUESTS, body(0, INFORMATION_MESSAGE))
+                .andExpect(status().isOk());
+
+        List<Map<String, Object>> entries = citizenHistory(incident);
+        assertThat(entries).hasSize(2);
+        assertThat(entries.get(1))
+                .containsEntry("previousStatus", "REPORTED")
+                .containsEntry("newStatus", "REPORTED")
+                .containsEntry("reason", INFORMATION_MESSAGE)
+                .doesNotContainKeys("actor", "visibleToCitizen", "associatedData");
+        assertThat(citizenHistoryText(incident))
+                .doesNotContain(operator.toString())
+                .doesNotContain("INFORMATION_REQUESTED");
+    }
+
     // T13: an incident that does not exist is a 404; without a token it is a 401.
     @Test
     void unknownIncidentsAndRequestsWithoutAToken() throws Exception {
@@ -475,6 +557,7 @@ class IncidentOperatorActionApiIT {
         return switch (action) {
             case VALIDATION -> body(version, null);
             case REJECTION -> body(version, REJECTION_REASON);
+            case INFORMATION_REQUESTS -> body(version, INFORMATION_MESSAGE);
             default -> throw new IllegalArgumentException(action);
         };
     }

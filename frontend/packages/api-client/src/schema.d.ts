@@ -506,9 +506,7 @@ export interface paths {
         put?: never;
         /**
          * Ask the citizen for more information
-         * @description Planned: #188.
-         *
-         *     The incident stays `REPORTED` and the request is one more entry of its history. `reason` is
+         * @description The incident stays `REPORTED` and the request is one more entry of its history. `reason` is
          *     the message to the citizen and is required; the citizen sees it. The citizen's reply is out
          *     of the MVP.
          *
