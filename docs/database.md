@@ -106,6 +106,15 @@ SELECT i.id, i.title, i.status, i.reported_at, l.address
 When a new query or filter is added (the filters of #58, for example), measure it the same way and
 add its index, with its row in the table, in a new migration.
 
+### Integrity
+
+A unique index that keeps a rule of the data is not a performance index, so it needs no
+measurement:
+
+| Index | Migration | Rule |
+| --- | --- | --- |
+| `uq_attachment_incident_content_hash` on `attachment (incident_id, content_hash)` | `V13__incidents_unique_attachment_content.sql` (#192) | One photo per content and incident: two uploads of the same file at the same time store it once (ADR-0013) |
+
 ## 📚 Reference Data
 
 The initial categories and departments are inserted by a migration,

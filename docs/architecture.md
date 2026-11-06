@@ -70,7 +70,7 @@ same REST API and a set of TypeScript packages ([ADR-0007](adr/0007-client-appli
 | Backend API | Spring Boot, REST, contract first | [ADR-0008](adr/0008-backend.md), [ADR-0010](adr/0010-modular-monolith.md) | Yes |
 | Database | PostgreSQL with PostGIS, Flyway migrations | [ADR-0001](adr/0001-database.md), [ADR-0003](adr/0003-geospatial-data-management.md), [ADR-0014](adr/0014-database-migrations-flyway.md) | Yes |
 | Tiles builder | One-off process that builds the base map | [ADR-0016](adr/0016-self-hosted-osm-base-map.md) | Yes |
-| Evidence storage | Docker volume behind a storage interface | [ADR-0013](adr/0013-evidence-storage.md) | Volume and settings only; files with #44 |
+| Evidence storage | Docker volume behind a storage interface | [ADR-0013](adr/0013-evidence-storage.md) | Yes, in the API (#192); the clients with #193, #194 |
 | Reverse proxy | nginx, the single published entry point | [ADR-0017](adr/0017-reverse-proxy.md) | No, #134 |
 | Cache | Redis | [ADR-0012](adr/0012-cache-redis.md) | No, until one of its triggers happens |
 
@@ -223,12 +223,12 @@ only correct with one replica; [ADR-0012](adr/0012-cache-redis.md) says when the
   stopped within 30 s ([CI guide](ci.md#build--one-artifact-per-commit-and-smoke-test)).
 - **No data lost:** a manual check with the Compose stack ([deployment guide](deployment.md)):
   create an incident, run `docker compose --profile app restart backend`, wait for
-  `/actuator/health`, and read the incident and its history again. With #44, also download its
-  photo.
+  `/actuator/health`, and read the incident and its history again, and download its photo
+  (`getAttachmentContent`).
 
 **Status.** The clean stop is met on every pull request. The backend keeps no state in its
-container (the data is in the volumes), but the no-loss check has not been recorded yet, and the
-evidence part waits for #44.
+container (the data and the photos are in the volumes), but the no-loss check has not been
+recorded yet (T1 of #67).
 
 ## ⚖️ Accepted Risks
 

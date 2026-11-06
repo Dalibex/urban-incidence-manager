@@ -215,13 +215,18 @@ operation; the note says when the answer also depends on the resource. A role no
 | `POST /incidents` | | ✓ | | | | |
 | `GET /incidents/{id}` | | own | ✓ | assigned | ✓ | |
 | `GET /incidents/{id}/status-changes` | | own, citizen view | ✓ | assigned | ✓ | |
+| `GET /incidents/{id}/attachments` | | own | ✓ | assigned | ✓ | |
+| `POST /incidents/{id}/attachments` | | own, only while `REPORTED` | ✓ | assigned | ✓ | |
+| `GET /attachments/{id}/content` | | own | ✓ | assigned | ✓ | |
 
 Outside `/api/v1` only `/actuator/health/**` and the API documentation (`/openapi.yml`,
 `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs/**`) are public.
 
 "own" and "assigned" are checked by the service with the data of the resource, not by the role:
 being authenticated or knowing an id never gives access to an incident (see `AGENTS.md`, section 6).
-Listings only return the caller's incidents; reading one that is not theirs answers `404`.
+Listings only return the caller's incidents; reading one that is not theirs answers `404`. A photo
+follows the rule of its incident: the id of an attachment is not a public URL, and a photo of an
+incident the caller may not see answers `404` too (ADR-0013).
 
 ## Protecting a new endpoint
 
