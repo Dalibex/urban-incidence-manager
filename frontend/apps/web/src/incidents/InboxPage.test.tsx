@@ -62,4 +62,27 @@ describe('inbox filters', () => {
     expect(router.state.location.search).toBe('');
     expect(await screen.findByText('There are no incidents yet.')).toBeDefined();
   });
+
+  it('keeps the filters when the list fails, and filters again on retry', async () => {
+    const requests: URLSearchParams[] = [];
+    let available = false;
+    const fetch = fakeApi({
+      'GET /incidents': (request) => {
+        requests.push(new URL(request.url).searchParams);
+        return available ? json(200, EMPTY_PAGE) : json(503, { status: 503 });
+      },
+      'GET /categories': () => json(200, []),
+      'GET /departments': () => json(200, []),
+    });
+    renderApp(`${PATHS.inbox}?priority=HIGH`, { role: 'MUNICIPAL_OPERATOR', fetch });
+
+    expect(await screen.findByRole('alert')).toBeDefined();
+    expect((screen.getByLabelText('Priority') as HTMLSelectElement).value).toBe('HIGH');
+
+    available = true;
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+
+    await screen.findByText('No incidents match these filters.');
+    expect(requests.at(-1)!.getAll('priority')).toEqual(['HIGH']);
+  });
 });
