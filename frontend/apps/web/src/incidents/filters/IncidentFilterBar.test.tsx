@@ -130,6 +130,8 @@ describe('IncidentFilterBar', () => {
 
     expect(changes).toHaveBeenLastCalledWith({});
     expect(clear).toHaveProperty('disabled', true);
+    // The disabled button cannot keep the focus, so it moves to the first filter (#78, T1).
+    expect(document.activeElement).toBe(field('Status'));
   });
 
   it('keeps the rest of the bar working when the options cannot be loaded', async () => {

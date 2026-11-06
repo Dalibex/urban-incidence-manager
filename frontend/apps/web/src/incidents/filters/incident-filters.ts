@@ -126,7 +126,7 @@ export function isPriority(value: string): value is Priority {
 }
 
 /** A real calendar day as `YYYY-MM-DD`: `2026-02-30` is not one. */
-function isDay(value: string): value is string {
+export function isDay(value: string): value is string {
   if (!DAY.test(value) || value >= LAST_DAY) {
     return false;
   }

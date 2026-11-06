@@ -1,7 +1,7 @@
 import { INCIDENT_STATUSES, isIncidentStatus } from '@urbanpulse/domain';
 import { STATUS_LABELS } from '@urbanpulse/ui';
 import type { UseQueryResult } from '@tanstack/react-query';
-import type { ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 
 import { useCategories, useDepartments } from '../incident-queries';
 import incidentStyles from '../Incidents.module.css';
@@ -9,6 +9,7 @@ import { PRIORITY_LABELS } from '../labels';
 import styles from './IncidentFilterBar.module.css';
 import {
   hasFilters,
+  isDay,
   isPriority,
   PRIORITIES,
   withoutEmpty,
@@ -29,6 +30,7 @@ interface IncidentFilterBarProps {
 export function IncidentFilterBar({ filters, onChange }: IncidentFilterBarProps) {
   const categories = useCategories();
   const departments = useDepartments();
+  const firstFilter = useRef<HTMLSelectElement>(null);
 
   const set = (changed: IncidentFilters) => onChange(withoutEmpty({ ...filters, ...changed }));
 
@@ -51,6 +53,7 @@ export function IncidentFilterBar({ filters, onChange }: IncidentFilterBarProps)
     >
       <Field label="Status">
         <select
+          ref={firstFilter}
           value={filters.status ?? ''}
           onChange={(event) => {
             const status = event.target.value;
@@ -99,28 +102,29 @@ export function IncidentFilterBar({ filters, onChange }: IncidentFilterBarProps)
         onChange={(departmentId) => set({ departmentId })}
       />
 
-      <Field label="Reported from">
-        <input
-          type="date"
-          value={filters.reportedFrom ?? ''}
-          max={filters.reportedTo}
-          onChange={(event) => setFirstDay(event.target.value)}
-        />
-      </Field>
+      <DayField
+        label="Reported from"
+        day={filters.reportedFrom}
+        max={filters.reportedTo}
+        onChange={setFirstDay}
+      />
 
-      <Field label="Reported to">
-        <input
-          type="date"
-          value={filters.reportedTo ?? ''}
-          min={filters.reportedFrom}
-          onChange={(event) => setLastDay(event.target.value)}
-        />
-      </Field>
+      <DayField
+        label="Reported to"
+        day={filters.reportedTo}
+        min={filters.reportedFrom}
+        onChange={setLastDay}
+      />
 
       <button
         type="button"
         className={`${incidentStyles.button} ${styles.clear}`}
-        onClick={() => onChange({})}
+        onClick={() => {
+          onChange({});
+          // The button becomes disabled, which sends the focus to the page; the first filter keeps
+          // a keyboard user in the bar (#78, T1).
+          firstFilter.current?.focus();
+        }}
         disabled={!hasFilters(filters)}
       >
         Clear filters
@@ -135,6 +139,50 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
       <span className={styles.label}>{label}</span>
       {children}
     </label>
+  );
+}
+
+interface DayFieldProps {
+  label: string;
+  /** The day applied to the list, `YYYY-MM-DD`. */
+  day: string | undefined;
+  min?: string;
+  max?: string;
+  /** Receives a real day, or `''` when the field is emptied. */
+  onChange: (day: string) => void;
+}
+
+/**
+ * A day of the range. While a day is typed, the browser reports a complete date as soon as the year
+ * has one digit (30/10/2 is `0002-10-30`), and the address drops it. So the field keeps what is
+ * typed and applies it only once it is a real day, or empty (#78, T1).
+ */
+function DayField({ label, day, min, max, onChange }: DayFieldProps) {
+  const applied = day ?? '';
+  const [typed, setTyped] = useState(applied);
+  const [lastApplied, setLastApplied] = useState(applied);
+  // A change from outside (clear, the other end of the range, the address) replaces what is typed.
+  if (applied !== lastApplied) {
+    setLastApplied(applied);
+    setTyped(applied);
+  }
+
+  return (
+    <Field label={label}>
+      <input
+        type="date"
+        value={typed}
+        min={min}
+        max={max}
+        onChange={(event) => {
+          const value = event.target.value;
+          setTyped(value);
+          if (value !== applied && (value === '' || isDay(value))) {
+            onChange(value);
+          }
+        }}
+      />
+    </Field>
   );
 }
 
