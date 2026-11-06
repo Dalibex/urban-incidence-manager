@@ -51,6 +51,9 @@ public class Incident {
     // associated_data of an information request (ADR-0020), so the inbox can tell it apart.
     private static final String INFORMATION_REQUESTED = "{\"action\": \"INFORMATION_REQUESTED\"}";
 
+    // maxLength of the reason in the contract (IncidentActionRequest, IncidentReasonRequest).
+    static final int MAX_REASON_LENGTH = 2000;
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
@@ -214,7 +217,18 @@ public class Incident {
         return change;
     }
 
-    private void checkAllowed(IncidentTransition transition, User actor) {
+    /**
+     * Checks that the table allows the transition from the current status and for this actor,
+     * without changing anything. {@link #changeStatus} runs it first; a caller that refuses the
+     * request for another reason uses it to keep the order of the errors of ADR-0020, where a
+     * transition that is not allowed comes before invalid data.
+     *
+     * @throws InvalidTransitionException if the table does not allow it from the current status or
+     *     for this actor
+     */
+    public void checkAllowed(IncidentTransition transition, User actor) {
+        Objects.requireNonNull(transition, "transition");
+        Objects.requireNonNull(actor, "actor");
         if (!transition.startsFrom(status)) {
             throw InvalidTransitionException.fromStatus(status, transition.target());
         }
@@ -286,8 +300,19 @@ public class Incident {
 
     private void requireData(IncidentTransition transition, TransitionDetails details) {
         var invalid = new ArrayList<FieldError>();
-        if (transition.requiresReason() && isBlank(details.reason())) {
-            invalid.add(new FieldError("reason", "This change needs a reason."));
+        var reason = details.reason();
+        if (isBlank(reason)) {
+            if (transition.requiresReason()) {
+                invalid.add(new FieldError("reason", "This change needs a reason."));
+            } else if (reason != null) {
+                invalid.add(new FieldError("reason", "Write the reason, or leave it out."));
+            }
+        } else if (reason.codePointCount(0, reason.length()) > MAX_REASON_LENGTH) {
+            // Code points, as JSON Schema counts maxLength: an emoji is one character.
+            invalid.add(
+                    new FieldError(
+                            "reason",
+                            "The reason can have at most " + MAX_REASON_LENGTH + " characters."));
         }
         if (transition == IncidentTransition.ASSIGNMENT) {
             invalid.addAll(assignmentErrors(details));

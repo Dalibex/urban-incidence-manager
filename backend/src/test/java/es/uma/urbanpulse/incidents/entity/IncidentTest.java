@@ -200,6 +200,27 @@ class IncidentTest {
     }
 
     @Test
+    void checkingATransitionChangesNothing() {
+        var incident = fixture.in(IncidentStatus.ASSIGNED);
+        var history = incident.getStatusChanges().size();
+
+        incident.checkAllowed(IncidentTransition.ACCEPTANCE, fixture.technician);
+        assertThatThrownBy(
+                        () ->
+                                incident.checkAllowed(
+                                        IncidentTransition.RESOLUTION, fixture.technician))
+                .isInstanceOf(InvalidTransitionException.class);
+        assertThatThrownBy(
+                        () ->
+                                incident.checkAllowed(
+                                        IncidentTransition.ACCEPTANCE, fixture.otherTechnician))
+                .isInstanceOf(InvalidTransitionException.class);
+
+        assertThat(incident.getStatus()).isEqualTo(IncidentStatus.ASSIGNED);
+        assertThat(incident.getStatusChanges()).hasSize(history);
+    }
+
+    @Test
     void theClosureSetsTheClosingInstant() {
         var incident = fixture.in(IncidentStatus.RESOLVED);
         assertThat(incident.getClosedAt()).isNull();
@@ -231,6 +252,39 @@ class IncidentTest {
                         });
         assertThat(incident.getStatus()).isEqualTo(IncidentStatus.REPORTED);
         assertThat(incident.getStatusChanges()).hasSize(1);
+    }
+
+    @Test
+    void anOptionalReasonThatIsGivenCannotBeBlank() {
+        assertReasonRejected(
+                fixture.in(IncidentStatus.ASSIGNED), IncidentTransition.ACCEPTANCE, "  ");
+    }
+
+    @Test
+    void aReasonHasAtMostTheLengthOfTheContract() {
+        var tooLong = "a".repeat(Incident.MAX_REASON_LENGTH + 1);
+
+        assertReasonRejected(
+                fixture.in(IncidentStatus.IN_PROGRESS), IncidentTransition.RESOLUTION, tooLong);
+        assertReasonRejected(
+                fixture.in(IncidentStatus.ASSIGNED), IncidentTransition.ACCEPTANCE, tooLong);
+    }
+
+    @Test
+    void theReasonLengthCountsCharactersNotCodeUnits() {
+        var incident = fixture.in(IncidentStatus.IN_PROGRESS);
+        // Each emoji is one character but two UTF-16 code units.
+        var atTheLimit = "💡".repeat(Incident.MAX_REASON_LENGTH);
+
+        var change =
+                incident.changeStatus(
+                        IncidentTransition.RESOLUTION,
+                        fixture.technician,
+                        TransitionDetails.withReason(atTheLimit),
+                        LATER);
+
+        assertThat(change.getReason()).isEqualTo(atTheLimit);
+        assertThat(incident.getStatus()).isEqualTo(IncidentStatus.RESOLVED);
     }
 
     @Test
@@ -466,5 +520,28 @@ class IncidentTest {
         assertThat(incident.getStatus()).isEqualTo(IncidentStatus.VALIDATED);
         assertThat(incident.getStatusChanges()).hasSize(historyBefore);
         assertThat(incident.getAssignments()).isEmpty();
+    }
+
+    /** The technician's transition is refused on its reason and adds nothing to the history. */
+    private void assertReasonRejected(
+            Incident incident, IncidentTransition transition, String reason) {
+        var statusBefore = incident.getStatus();
+        var historyBefore = incident.getStatusChanges().size();
+
+        assertThatThrownBy(
+                        () ->
+                                incident.changeStatus(
+                                        transition,
+                                        fixture.technician,
+                                        TransitionDetails.withReason(reason),
+                                        LATER))
+                .isInstanceOfSatisfying(
+                        InvalidIncidentDataException.class,
+                        ex ->
+                                assertThat(ex.fieldErrors())
+                                        .extracting(FieldError::field)
+                                        .containsExactly("reason"));
+        assertThat(incident.getStatus()).isEqualTo(statusBefore);
+        assertThat(incident.getStatusChanges()).hasSize(historyBefore);
     }
 }

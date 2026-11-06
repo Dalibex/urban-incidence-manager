@@ -81,8 +81,9 @@ default (`VITE_API_BASE_URL`), so one bundle works on any host; the mobile app g
 
 **Done.** PostgreSQL is an attached resource: the backend gets it from `SPRING_DATASOURCE_URL` and
 its credentials (locally, Spring Boot infers them from Compose). The evidence folder is
-`STORAGE_BASE_PATH`. PostgreSQL is the only backing service today: Redis is not built
-([ADR-0012](adr/0012-cache-redis.md)), and neither are the external data sources.
+`STORAGE_BASE_PATH`. PostgreSQL is the only backing service today: Redis enters only when a
+measurement or a second replica asks for it ([ADR-0022](adr/0022-redis-from-measurements.md)), and
+the external data sources are not built.
 
 - **It would break if:** moving to another database host meant changing code.
 - **Check:** the smoke test of the `build` job ([CI guide](ci.md), *`build`*) starts the image
@@ -117,7 +118,8 @@ concurrent edits of the same incident are detected by optimistic locking in the 
 
 - **It would break if:** user data or files were kept in memory or in the container.
 - **Missing:** the sign-up and sign-in rate-limit counters live in the process, so a restart resets
-  them ([security guide](security.md)). Accepted limit, until a trigger of ADR-0012 moves them.
+  them ([security guide](security.md)). Accepted limit, until a second replica moves them to Redis
+  (ADR-0022).
 
 ## VII. Port binding
 
@@ -135,9 +137,9 @@ concurrent edits of the same incident are detected by optimistic locking in the 
 
 **Accepted limit.** The system runs one backend replica (ADR-0011). Nothing in the domain stops a
 second one, because the state is in PostgreSQL (see VI), but the rate-limit counters would not be
-shared. A second replica is one of the triggers of [ADR-0012](adr/0012-cache-redis.md) for Redis.
-The load test of QA-1 (`backend/load-tests`, [architecture overview](architecture.md)) measures a
-single replica.
+shared. A second replica is one of the triggers of
+[ADR-0022](adr/0022-redis-from-measurements.md) for Redis. The load test of QA-1
+(`backend/load-tests`, [architecture overview](architecture.md)) measures a single replica.
 
 ## IX. Disposability
 
