@@ -7,6 +7,10 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Photos of an incident on the API: upload one JPEG, PNG or WebP photo at a time, list the photos of an incident and download each one. The type is read from the content, never from the file name. Uploading the same photo again to the same incident returns the one already stored instead of a copy, so a client can retry safely. A photo over `EVIDENCE_MAX_FILE_SIZE` answers `413`, one more than `EVIDENCE_MAX_FILES_PER_INCIDENT` answers `422`, and a citizen can only add photos while the incident is `REPORTED`. Who can see a photo is who can see its incident (#192).
+
 ## [0.1.0] - 2026-11-03
 
 End of Sprint 1: a citizen signs up on the mobile app, reports an incident with its position and sees it in their list, and an operator signs in on the web app and sees it in the inbox and its detail. The web app still runs only with the Vite development server.

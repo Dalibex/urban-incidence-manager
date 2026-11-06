@@ -18,6 +18,19 @@ public class InvalidIncidentDataException extends InvalidDataException {
                                 "categoryId", "The category does not exist or is not active.")));
     }
 
+    /**
+     * The incident already has as many photos as {@code EVIDENCE_MAX_FILES_PER_INCIDENT} allows.
+     */
+    public static InvalidIncidentDataException tooManyFiles(int maxFilesPerIncident) {
+        return new InvalidIncidentDataException(
+                List.of(
+                        new FieldError(
+                                "file",
+                                "An incident can have at most "
+                                        + maxFilesPerIncident
+                                        + " photos.")));
+    }
+
     InvalidIncidentDataException(List<FieldError> fieldErrors) {
         super(fieldErrors);
     }
