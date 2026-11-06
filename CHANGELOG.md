@@ -9,6 +9,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Operators and administrators act on a reported incident on the API: they validate it once its category and priority are set (`POST /incidents/{incidentId}/validation`, `REPORTED` to `VALIDATED`, with an optional note only staff see), reject it with a reason the citizen sees (`POST /incidents/{incidentId}/rejection`, final), or ask the citizen for more information (`POST /incidents/{incidentId}/information-requests`), which keeps it `REPORTED` and adds the message to the history the citizen sees. The citizen never sees who acted (#188).
 - Assignment of an incident on the API: an operator or administrator assigns a validated or reopened incident to an active department and, optionally, an active technician and a team, or reassigns an assigned one. The previous assignment is kept, inactive, and a change made on an incident someone else changed meanwhile answers `409` with `CONCURRENT_MODIFICATION`. Staff see the active assignment in the incident detail; citizens only see that it is assigned. The active departments are listed for staff (#184).
 - Filters on the incident list of the API for staff: category, priority, reporting dates and the department of the active assignment, combinable with each other and with the status, and always inside what each role may see. A citizen can only filter by status; any other filter answers `403`. Filtering by department and sorting by `updatedAt` use indexes measured on the performance dataset (#182).
 - Technicians accept an assigned incident (`POST /incidents/{incidentId}/acceptance`, `ASSIGNED` to `IN_PROGRESS`) and resolve it with their notes (`POST /incidents/{incidentId}/resolution`, `IN_PROGRESS` to `RESOLVED`) on the API. Only the technician of the active assignment can act; anyone else's incident answers `404`. The citizen sees the new status, not the notes. A lifecycle reason has at most 2,000 characters (#186).
@@ -19,6 +20,10 @@ and this project follows [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - The incident list of the API answers `400` to an unknown query parameter or one without a value, instead of ignoring it (#182).
+
+### Fixed
+
+- The reason of a lifecycle action, such as the resolution notes of a technician, made only of no-break or other Unicode spaces answers `422` like a blank one, as the contract says, instead of being stored (#188).
 
 ## [0.1.0] - 2026-11-03
 
