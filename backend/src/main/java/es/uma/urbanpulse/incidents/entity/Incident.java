@@ -166,12 +166,7 @@ public class Incident {
         Objects.requireNonNull(transition, "transition");
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(details, "details");
-        if (!transition.startsFrom(status)) {
-            throw InvalidTransitionException.fromStatus(status, transition.target());
-        }
-        if (!mayPerform(transition, actor)) {
-            throw InvalidTransitionException.notAllowedFor(transition);
-        }
+        checkAllowed(transition, actor);
         requireData(transition, details);
 
         var instant = utc(now);
@@ -191,6 +186,26 @@ public class Incident {
         updatedAt = instant;
         statusChanges.add(change);
         return change;
+    }
+
+    /**
+     * Checks that the table allows the transition from the current status and for this actor,
+     * without changing anything. {@link #changeStatus} runs it first; a caller that refuses the
+     * request for another reason uses it to keep the order of the errors of ADR-0020, where a
+     * transition that is not allowed comes before invalid data.
+     *
+     * @throws InvalidTransitionException if the table does not allow it from the current status or
+     *     for this actor
+     */
+    public void checkAllowed(IncidentTransition transition, User actor) {
+        Objects.requireNonNull(transition, "transition");
+        Objects.requireNonNull(actor, "actor");
+        if (!transition.startsFrom(status)) {
+            throw InvalidTransitionException.fromStatus(status, transition.target());
+        }
+        if (!mayPerform(transition, actor)) {
+            throw InvalidTransitionException.notAllowedFor(transition);
+        }
     }
 
     /** Sets or changes the category. Validation needs it (ADR-0020). */

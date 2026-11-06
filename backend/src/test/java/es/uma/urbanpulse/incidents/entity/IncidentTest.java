@@ -199,6 +199,27 @@ class IncidentTest {
     }
 
     @Test
+    void checkingATransitionChangesNothing() {
+        var incident = fixture.in(IncidentStatus.ASSIGNED);
+        var history = incident.getStatusChanges().size();
+
+        incident.checkAllowed(IncidentTransition.ACCEPTANCE, fixture.technician);
+        assertThatThrownBy(
+                        () ->
+                                incident.checkAllowed(
+                                        IncidentTransition.RESOLUTION, fixture.technician))
+                .isInstanceOf(InvalidTransitionException.class);
+        assertThatThrownBy(
+                        () ->
+                                incident.checkAllowed(
+                                        IncidentTransition.ACCEPTANCE, fixture.otherTechnician))
+                .isInstanceOf(InvalidTransitionException.class);
+
+        assertThat(incident.getStatus()).isEqualTo(IncidentStatus.ASSIGNED);
+        assertThat(incident.getStatusChanges()).hasSize(history);
+    }
+
+    @Test
     void theClosureSetsTheClosingInstant() {
         var incident = fixture.in(IncidentStatus.RESOLVED);
         assertThat(incident.getClosedAt()).isNull();

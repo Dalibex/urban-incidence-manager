@@ -279,20 +279,33 @@ class IncidentTechnicianActionApiIT {
         assertUnchanged(toResolve, "IN_PROGRESS", 0, 2);
     }
 
-    // ADR-0020, "Errors": the body is checked after the role and the access, so a role that may not
-    // act gets 403 and another technician 404 even when the version is missing.
+    // ADR-0020, "Errors": a missing or negative version is invalid data, so it is a 422 only after
+    // the role (403), the access (404) and the transition (409 INVALID_TRANSITION).
     @Test
-    void anInvalidVersionIsCheckedAfterTheRoleAndTheAccess() throws Exception {
-        UUID incident = assignedTo(technician, "ASSIGNED");
+    void anInvalidVersionIsCheckedAfterTheRoleTheAccessAndTheTransition() throws Exception {
+        UUID assigned = assignedTo(technician, "ASSIGNED");
+        UUID inProgress = assignedTo(technician, "IN_PROGRESS");
 
         for (String action : ACTIONS) {
-            expectForbidden(act(citizen, incident, action, "{}"));
-            expectNotFound(act(otherTechnician, incident, action, "{}"));
-            expectUnprocessable(act(technician, incident, action, "{}"), "version");
-            expectUnprocessable(act(technician, incident, action, "{\"version\": -1}"), "version");
+            expectForbidden(act(citizen, assigned, action, "{}"));
+            expectNotFound(act(otherTechnician, assigned, action, "{}"));
         }
+        // Accepting is allowed from ASSIGNED and resolving from IN_PROGRESS: only the version
+        // fails.
+        for (String body : new String[] {"{}", "{\"version\": -1}"}) {
+            expectUnprocessable(act(technician, assigned, ACCEPTANCE, body), "version");
+            expectUnprocessable(act(technician, inProgress, RESOLUTION, body), "version");
+        }
+        // The other way round the transition is not allowed, which comes first.
+        act(technician, inProgress, ACCEPTANCE, "{}")
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("INVALID_TRANSITION"));
+        act(technician, assigned, RESOLUTION, "{}")
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("INVALID_TRANSITION"));
 
-        assertUnchanged(incident, "ASSIGNED", 0, 2);
+        assertUnchanged(assigned, "ASSIGNED", 0, 2);
+        assertUnchanged(inProgress, "IN_PROGRESS", 0, 2);
     }
 
     // T11: once the incident is reassigned, the former technician can no longer act on it.
