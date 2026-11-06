@@ -107,9 +107,18 @@ Give each issue its labels and the milestone it belongs to. Use `priority: high`
 or `priority: low` to order the work. The issue joins the project board in **Backlog** by itself. Triage
 the issues opened by people outside the team in the same way, or close them with a reason.
 
-Record dependencies in the issue's **Relationships**, with **Blocked by**, so the board shows which
-issues can start. A `[Test]` issue has no **Blocked by**: it is worked on inside the draft pull
-request of its feature, while the feature is built.
+Record dependencies in the issue's **Relationships**, with **Blocked by**: its pull request is not
+merged until the blocking one is, because it would not work without it. A `[Test]` issue has no
+**Blocked by**: it is worked on inside the draft pull request of its feature, while the feature is
+built.
+
+A blocked issue can still start when it only needs what the blocker looks like from outside, and
+that is already in `main`: the OpenAPI contract and its generated types, or an accepted decision.
+Its tests simulate the missing part, and the manual test and the merge wait for the blocker. It
+waits to start when it needs the blocker's code: a migration or entity it uses, a backend class it
+calls, a shared component still being written, or a contract not decided yet. The *Dependencies*
+field of the issue says both, with `Start:` and `Merge after:`. Each issue still gets its own
+branch from `main`, never from the blocker's branch.
 
 Every feature, bug and task names, in its *Failure and limit cases* field, the cases of
 [Failure and limit cases](#failure-and-limit-cases) that apply to it, and in *Out of scope* what it

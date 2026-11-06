@@ -211,10 +211,12 @@ operation; the note says when the answer also depends on the resource. A role no
 | `DELETE /sessions/current` | | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `GET /users/me` | | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `GET /categories` | | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `GET /departments` | | | ✓ | ✓ | ✓ | |
 | `GET /incidents` | | own | ✓ | assigned | ✓ | |
 | `POST /incidents` | | ✓ | | | | |
 | `GET /incidents/{id}` | | own | ✓ | assigned | ✓ | |
 | `GET /incidents/{id}/status-changes` | | own, citizen view | ✓ | assigned | ✓ | |
+| `POST /incidents/{id}/assignments` | | | ✓ | | ✓ | |
 | `POST /incidents/{id}/acceptance` | | | | assigned | | |
 | `POST /incidents/{id}/resolution` | | | | assigned | | |
 
