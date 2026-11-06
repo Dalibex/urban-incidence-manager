@@ -1,7 +1,7 @@
 import { ROLES } from '@urbanpulse/domain';
 import { describe, expect, it } from 'vitest';
 
-import { PATHS, landingPath, routeAccess } from './access';
+import { PATHS, inboxReturnPath, landingPath, routeAccess } from './access';
 
 describe('routeAccess', () => {
   it('sends a visitor without a session to sign in', () => {
@@ -24,11 +24,25 @@ describe('routeAccess', () => {
 });
 
 describe('landingPath', () => {
-  it('lands each role on its own screen', () => {
-    expect(landingPath('MUNICIPAL_OPERATOR')).toBe(PATHS.inbox);
+  it('lands each role on its own screen, the operator on the reports waiting for a review', () => {
+    expect(landingPath('MUNICIPAL_OPERATOR')).toBe(`${PATHS.inbox}?status=REPORTED`);
     expect(landingPath('TECHNICIAN')).toBe(PATHS.workQueue);
     expect(landingPath('ADMINISTRATOR')).toBe(PATHS.users);
     expect(landingPath('ANALYST')).toBe(PATHS.reports);
     expect(landingPath('CITIZEN')).toBe(PATHS.useMobile);
+  });
+});
+
+describe('inboxReturnPath', () => {
+  it('goes back to the inbox the user came from', () => {
+    expect(inboxReturnPath({ inboxSearch: '?priority=HIGH&page=2' })).toBe(
+      `${PATHS.inbox}?priority=HIGH&page=2`,
+    );
+    expect(inboxReturnPath({ inboxSearch: '' })).toBe(PATHS.inbox);
+  });
+
+  it('goes to the default inbox after a direct link', () => {
+    expect(inboxReturnPath(null)).toBe(`${PATHS.inbox}?status=REPORTED`);
+    expect(inboxReturnPath({ inboxSearch: 42 })).toBe(`${PATHS.inbox}?status=REPORTED`);
   });
 });
