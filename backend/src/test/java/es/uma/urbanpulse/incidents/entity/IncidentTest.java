@@ -4,6 +4,7 @@ import static es.uma.urbanpulse.incidents.entity.IncidentFixture.LATER;
 import static es.uma.urbanpulse.incidents.entity.IncidentFixture.REPORTED_AT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.shared.error.FieldError;
@@ -556,6 +557,62 @@ class IncidentTest {
                 incident.checkClassifiable();
             }
         }
+    }
+
+    @Test
+    void aPriorityNeedsAJustificationWithAVisibleCharacter() {
+        // The \\S of the contract (ECMA-262) treats these as white space; String.isBlank does not.
+        for (String blank :
+                List.of("", "  ", "\u00A0", "\u00A0 \u202F", "\uFEFF", "\u3000\u2028")) {
+            assertThat(Incident.priorityErrors(Priority.HIGH, blank))
+                    .extracting(FieldError::field, FieldError::message)
+                    .containsExactly(
+                            tuple("priorityReason", "A priority needs its justification."));
+        }
+        assertThat(Incident.priorityErrors(Priority.HIGH, null))
+                .extracting(FieldError::field)
+                .containsExactly("priorityReason");
+        assertThat(Incident.priorityErrors(Priority.HIGH, "\u00A0A\u00A0")).isEmpty();
+    }
+
+    @Test
+    void aJustificationTravelsOnlyWithAPriority() {
+        assertThat(Incident.priorityErrors(null, null)).isEmpty();
+        assertThat(Incident.priorityErrors(null, "Near a school."))
+                .extracting(FieldError::message)
+                .containsExactly("Send the justification together with a priority.");
+    }
+
+    @Test
+    void aJustificationIsCountedInCharacters() {
+        // An emoji is two UTF-16 units but one character, as maxLength counts it.
+        String longest = "\uD83D\uDCA1".repeat(Incident.MAX_PRIORITY_REASON_LENGTH);
+        assertThat(Incident.priorityErrors(Priority.LOW, longest)).isEmpty();
+        assertThat(Incident.priorityErrors(Priority.LOW, longest + "a"))
+                .extracting(FieldError::field)
+                .containsExactly("priorityReason");
+    }
+
+    @Test
+    void aPriorityIsNotSetWithAnInvalidJustification() {
+        var incident = fixture.reported();
+
+        assertThatThrownBy(
+                        () ->
+                                incident.prioritize(
+                                        Priority.HIGH,
+                                        "\u00A0",
+                                        PrioritySource.MANUAL,
+                                        fixture.operator,
+                                        LATER))
+                .isInstanceOfSatisfying(
+                        InvalidIncidentDataException.class,
+                        ex ->
+                                assertThat(ex.fieldErrors())
+                                        .extracting(FieldError::field)
+                                        .containsExactly("priorityReason"));
+        assertThat(incident.getPriority()).isEqualTo(Priority.MEDIUM);
+        assertThat(incident.getPriorityReason()).isEqualTo("Dark street");
     }
 
     /** The technician's transition is refused on its reason and adds nothing to the history. */
