@@ -26,7 +26,7 @@ describe('routeAccess', () => {
 describe('landingPath', () => {
   it('lands each role on its own screen, the operator on the reports waiting for a review', () => {
     expect(landingPath('MUNICIPAL_OPERATOR')).toBe(`${PATHS.inbox}?status=REPORTED`);
-    expect(landingPath('TECHNICIAN')).toBe(PATHS.workQueue);
+    expect(landingPath('TECHNICIAN')).toBe(`${PATHS.workQueue}?status=ASSIGNED&status=IN_PROGRESS`);
     expect(landingPath('ADMINISTRATOR')).toBe(PATHS.users);
     expect(landingPath('ANALYST')).toBe(PATHS.reports);
     expect(landingPath('CITIZEN')).toBe(PATHS.useMobile);
