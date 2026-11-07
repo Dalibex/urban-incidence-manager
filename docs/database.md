@@ -65,6 +65,15 @@ detail and the history (`IncidentQueryService`), captured with `spring.jpa.show-
 | Technician detail of one incident | `ix_assignment_active_technician` | 5.1 ms, seq scan of `assignment` | 0.1 ms, index-only scan |
 | History of one incident | `ix_status_change_incident_id` | 25.3 ms, seq scan of `status_change` | 0.1 ms, bitmap index scan |
 
+`V12__incidents_index_assignment_incident.sql` (#184) adds one more, measured in the same way on
+2026-11-05, on commit `e29d3d6` with the perf dataset loaded by `0.1.0`:
+
+| Query | Index | Before | After |
+| --- | --- | --- | --- |
+| Assignments of one incident: the active one of the staff detail, and the one a reassignment deactivates | `ix_assignment_incident_id` | 4.4 ms, seq scan of `assignment` | 0.06 ms, index scan |
+
+It takes 2.5 MB with 80,000 assignments.
+
 Conditions:
 
 - Data: `perf` profile with the default volume, 100,000 incidents, about 487,000 history entries
