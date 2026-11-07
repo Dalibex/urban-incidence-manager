@@ -163,6 +163,8 @@ ticked. *Clear filters* lists every incident.
 
 - **Report:** the description, category, priority, when it was reported, its last change and,
   once closed, when it was closed.
+- **Photos:** the photos attached to the incident, each with its file name, or *No photos were
+  attached.* They are only shown inside the signed-in app; there is no public link to them.
 - **Location:** address, neighbourhood, district, coordinates and the accuracy the phone reported
   (for example *within 12.5 m*). A value that is not known says *Not available*: it is never left
   empty or guessed.
@@ -182,6 +184,10 @@ If the incidents cannot be loaded, the page says so and offers *Try again*; it s
 server could not be reached or answered with an error. The app retries a few times on its own
 before showing it, and the filters stay as they were. If the categories or departments cannot be
 loaded, that filter says so and is disabled; the other filters keep working.
+
+In the incident detail, if the photos cannot be listed, the *Photos* section says so with *Try
+again* and the rest of the detail stays. If one photo cannot be loaded, its tile says *This photo
+could not be loaded.* with its own *Try again*, and the other photos still show.
 
 ## 🔧 Technician (Web)
 
