@@ -40,6 +40,7 @@ class IncidentCommentController {
     private static final Set<String> SORTABLE = Set.of("createdAt");
     private static final Sort OLDEST_FIRST = Sort.by(Sort.Direction.ASC, "createdAt");
 
+    // Every query parameter of listIncidentComments in the contract; any other one is a 400.
     private static final Set<String> LIST_PARAMETERS = Set.of("page", "size", "sort");
 
     private final IncidentCommentService comments;

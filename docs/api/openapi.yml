@@ -1266,7 +1266,8 @@ paths:
         or any other response.
 
         Sortable property: `createdAt`. Default `createdAt,asc` (oldest first, as the history); `id`
-        is always added as the last criterion so the order is stable between pages.
+        is always added as the last criterion so the order is stable between pages. An unknown
+        parameter, or one without a value, returns `400`.
 
         Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`, `TECHNICIAN` (actively assigned; any other
         technician gets `404`). `CITIZEN` and `ANALYST` get `403`.

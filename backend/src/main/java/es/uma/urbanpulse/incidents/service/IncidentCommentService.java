@@ -63,7 +63,10 @@ public class IncidentCommentService {
         var incident = visibleIncident(incidentId, userId, role);
         var author =
                 users.findById(userId)
-                        .orElseThrow(() -> new InsufficientAuthenticationException("Unknown user"));
+                        .orElseThrow(
+                                () ->
+                                        new InsufficientAuthenticationException(
+                                                "The user does not exist"));
         var comment = Comment.internal(incident, author, text, OffsetDateTime.now(clock));
         return CommentResponse.of(comments.save(comment));
     }
