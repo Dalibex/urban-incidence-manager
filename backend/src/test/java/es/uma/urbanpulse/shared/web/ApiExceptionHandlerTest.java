@@ -19,6 +19,7 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.context.request.ServletWebRequest;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 /**
  * The Problem bodies of {@link ApiExceptionHandler} that no endpoint reaches yet, and the status of
@@ -112,6 +113,25 @@ class ApiExceptionHandlerTest {
         assertThat(beanProblem.getStatus()).isEqualTo(domainProblem.getStatus());
         assertThat(beanProblem.getDetail()).isEqualTo(domainProblem.getDetail());
         assertThat(beanProblem.getProperties()).isEqualTo(domainProblem.getProperties());
+    }
+
+    // T5 of #67: the server refuses a file over the multipart limit while reading the request,
+    // before any controller runs; MockMvc does not apply that limit, so it is checked here.
+    @Test
+    void aFileOverTheMultipartLimitIs413WithItsCode() throws Exception {
+        var response =
+                handler.handleMaxUploadSizeExceededException(
+                        new MaxUploadSizeExceededException(10 * 1024 * 1024),
+                        new HttpHeaders(),
+                        HttpStatus.CONTENT_TOO_LARGE,
+                        request());
+
+        var problem = (ProblemDetail) response.getBody();
+        assertThat(response.getStatusCode().value()).isEqualTo(413);
+        assertThat(problem.getProperties())
+                .containsEntry(ApiExceptionHandler.CODE, "FILE_TOO_LARGE")
+                .containsEntry(ApiExceptionHandler.TRACE_ID, REQUEST_ID);
+        assertThat(problem.getInstance()).isEqualTo(URI.create(PATH));
     }
 
     // T4: 500
