@@ -3,11 +3,13 @@ import type { ReactNode } from 'react';
 
 import { InboxPage } from '../incidents/InboxPage';
 import { PlaceholderPage } from '../pages/PlaceholderPage';
-import { OPERATOR_ROLES, PATHS } from './access';
+import { INBOX_DEFAULT_PATH, OPERATOR_ROLES, PATHS } from './access';
 
 /** A screen of the signed-in area. The navbar links to the sections the user's role can open. */
 export interface Section {
   path: string;
+  /** Where the navbar link goes, when it opens the screen with some filters; `path` otherwise. */
+  link?: string;
   label: string;
   roles: readonly Role[];
   element: ReactNode;
@@ -18,6 +20,7 @@ export interface Section {
 export const SECTIONS: readonly Section[] = [
   {
     path: PATHS.inbox,
+    link: INBOX_DEFAULT_PATH,
     label: 'Inbox',
     roles: OPERATOR_ROLES,
     element: <InboxPage />,
