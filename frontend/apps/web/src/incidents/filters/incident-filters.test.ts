@@ -24,7 +24,7 @@ describe('filtersFrom', () => {
           '&reportedFrom=2026-11-01&reportedTo=2026-11-05',
       ),
     ).toEqual({
-      status: 'REPORTED',
+      status: ['REPORTED'],
       categoryId: CATEGORY,
       priority: 'HIGH',
       departmentId: DEPARTMENT,
@@ -56,7 +56,14 @@ describe('filtersFrom', () => {
   });
 
   it('keeps the first valid value of a repeated parameter', () => {
-    expect(from('status=FOO&status=VALIDATED&status=CLOSED')).toEqual({ status: 'VALIDATED' });
+    expect(from('priority=URGENT&priority=LOW&priority=HIGH')).toEqual({ priority: 'LOW' });
+  });
+
+  // #217, T6
+  it('keeps every valid status, each once and in the order of the lifecycle', () => {
+    expect(from('status=CLOSED&status=FOO&status=ASSIGNED&status=CLOSED')).toEqual({
+      status: ['ASSIGNED', 'CLOSED'],
+    });
   });
 
   it('drops both days when the first comes after the last', () => {
@@ -82,7 +89,7 @@ describe('withFilters', () => {
 
   it('round-trips through the address', () => {
     const filters: IncidentFilters = {
-      status: 'ASSIGNED',
+      status: ['ASSIGNED', 'IN_PROGRESS'],
       departmentId: DEPARTMENT,
       reportedFrom: '2026-11-01',
     };
@@ -93,7 +100,10 @@ describe('withFilters', () => {
 
 describe('filtersSearch', () => {
   it('is the query of a link, or nothing without filters', () => {
-    expect(filtersSearch({ status: 'REPORTED' })).toBe('?status=REPORTED');
+    expect(filtersSearch({ status: ['REPORTED'] })).toBe('?status=REPORTED');
+    expect(filtersSearch({ status: ['ASSIGNED', 'IN_PROGRESS'] })).toBe(
+      '?status=ASSIGNED&status=IN_PROGRESS',
+    );
     expect(filtersSearch({})).toBe('');
   });
 });
@@ -102,13 +112,13 @@ describe('toListQuery', () => {
   it('sends each filter as the contract expects', () => {
     expect(
       toListQuery({
-        status: 'REPORTED',
+        status: ['REPORTED', 'REOPENED'],
         categoryId: CATEGORY,
         priority: 'HIGH',
         departmentId: DEPARTMENT,
       }),
     ).toEqual({
-      status: ['REPORTED'],
+      status: ['REPORTED', 'REOPENED'],
       categoryId: [CATEGORY],
       priority: ['HIGH'],
       departmentId: [DEPARTMENT],

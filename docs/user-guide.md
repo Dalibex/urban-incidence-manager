@@ -140,13 +140,14 @@ The menu at the top shows *Inbox*. Planned: *Map* (#53).
 The incidents, newest first, a page at a time, with the date it was reported, title, category,
 status and priority. A category or priority that is not set shows *Not classified* or *Not set*.
 
-The menu and the sign-in open it on the reports waiting for a review: the status filter is set to
-*Reported*. *Clear filters* lists every incident.
+The menu and the sign-in open it on the reports waiting for a review: the status *Reported* is
+ticked. *Clear filters* lists every incident.
 
 - **Filters:** status, category, priority, department and the days it was reported (*Reported
   from* and *to*, both included, in Málaga time). They combine with each other, and each change
   applies at once and goes back to the first page. The department is the one the incident is
-  assigned to now. The district filter is planned (#59).
+  assigned to now. Several statuses can be ticked at once: the list shows the incidents in any of
+  them, and with none ticked it shows every status. The district filter is planned (#59).
 - *Previous* and *Next* change the page. The filters and the page are part of the address
   (`/inbox?status=REPORTED&page=2`), so you can bookmark them or send them to a colleague. If the
   link or a reload asks you to sign in first, the inbox opens with those filters afterwards. A value
@@ -155,8 +156,8 @@ The menu and the sign-in open it on the reports waiting for a review: the status
   and page.
 - When no incident matches, the page says so and offers *Clear filters*.
 - Everything works with the keyboard: *Tab* moves between the filters, links and buttons, *Enter*
-  opens them. A day can be typed; it applies once its year has four digits. After *Clear filters*,
-  the focus goes to the first filter.
+  opens them and *Space* ticks a status. A day can be typed; it applies once its year has four
+  digits. After *Clear filters*, the focus goes to the first status.
 
 ### Incident detail
 
