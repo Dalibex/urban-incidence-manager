@@ -211,21 +211,83 @@ that expires, empties the cache, so the next user never sees the data of the pre
 
 ### Run the mobile app
 
-The mobile app needs the API URL in `apps/mobile/.env`, which is not versioned. Copy the example
-and set the address of your machine in the local network:
+The mobile app runs as a **development build**: an UrbanPulse app of its own, compiled on your
+machine and installed on the phone. **Expo Go does not work**, because the base map uses MapLibre
+React Native, a native module that Expo Go does not include
+([ADR-0016](adr/0016-self-hosted-osm-base-map.md)). These steps cover Android; an iPhone needs a
+Mac with Xcode, and installing on a physical iPhone needs a paid Apple developer account.
+
+#### Install the Android tools, once
+
+1. Install [Android Studio](https://developer.android.com/studio). In its setup wizard keep
+   *Android SDK*, *Android SDK Platform-Tools* and *Android SDK Build-Tools*.
+2. Point the build at the SDK and at the JDK that comes with Android Studio, so it does not depend
+   on the Java installed for the backend. On Windows PowerShell, for the current terminal:
+
+   ```powershell
+   $env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
+   $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+   $env:Path = "$env:ANDROID_HOME\platform-tools;$env:JAVA_HOME\bin;$env:Path"
+   ```
+
+   On Linux or macOS, `export ANDROID_HOME=$HOME/Android/Sdk` (`$HOME/Library/Android/sdk` on
+   macOS) and add `$ANDROID_HOME/platform-tools` to `PATH`.
+3. On the phone, enable *Developer options* (tap *Build number* seven times in *About phone*) and
+   turn on *USB debugging*. Connect it by USB, accept the prompt on the phone and check that it is
+   listed:
+
+   ```bash
+   adb devices
+   ```
+
+#### Configure the app
+
+The app reads the API and the map style from `apps/mobile/.env`, which is not versioned. Copy the
+example and set the address of your machine in the local network in both variables (find it with
+`ipconfig` on Windows or `ip addr` on Linux):
 
 ```bash
 cp apps/mobile/.env.example apps/mobile/.env
 ```
 
+The map loads from the web development server. Build the base map with that address, as *Build the
+Base Map* in the [deployment guide](deployment.md) explains (`TILES_BASE_URL=http://<address>:5173/tiles`),
+and start the web app so the phone can reach it:
+
+```bash
+pnpm dev:web --host
+```
+
+Without `EXPO_PUBLIC_MAP_STYLE_URL`, or with the web app stopped, the report form shows a notice
+instead of the map, and reporting still works.
+
+#### Build, install and run
+
+**On Windows, keep the checkout in a short path**, such as `C:\dev\uim`. The native build runs
+batch files from inside `node_modules\.pnpm`, and `cmd.exe` cannot start one whose path is longer
+than 260 characters, even with long paths enabled in Windows: the build fails with
+`CreateProcess error=2` on a `prefab_command.bat`. A checkout under
+`C:\Users\<user>\Desktop\...\GitHub\` is already too deep, and a `subst` drive does not help,
+because the build resolves the real path again.
+
+With the phone connected, from `frontend/`:
+
+```bash
+pnpm --filter @urbanpulse/mobile android
+```
+
+The first build takes several minutes: it generates `apps/mobile/android/` (ignored by Git), compiles
+the native code, installs the app on the phone and starts Metro. Later, while no native dependency
+or `app.json` changes, there is no need to build again: start Metro and open the UrbanPulse app on
+the phone.
+
 ```bash
 pnpm dev:mobile
 ```
 
-Expo prints a QR code. Scan it with the **Expo Go** app on a phone in the same network (on an
-iPhone, with the Camera app), or press `a` / `i` to open an Android emulator or iOS simulator. If
-the phone cannot connect (firewall, isolated Wi-Fi), run `pnpm dev:mobile --tunnel`. The first load
-is slow because Metro bundles the whole app; later loads reuse it.
+The phone loads the JavaScript from Metro over the local network. If it cannot connect (firewall,
+isolated Wi-Fi), run `pnpm dev:mobile --tunnel`. After adding a native dependency or changing
+`app.json`, build again with `pnpm --filter @urbanpulse/mobile android`.
 
 - The mobile app only targets Android and iOS (`platforms` in `app.json`); the browser client is
   `apps/web`.
@@ -235,9 +297,8 @@ is slow because Metro bundles the whole app; later loads reuse it.
   from a Phone* in the [deployment guide](deployment.md)).
 - The mobile app keeps the session in `expo-secure-store` (Keychain on iOS, Keystore on Android),
   so it survives a restart.
-- Expo Go is enough for the current screens. The mobile map
-  ([ADR-0016](adr/0016-self-hosted-osm-base-map.md), #60) will need a development build, because
-  MapLibre React Native is a native module that Expo Go does not include.
+- The report form shows the base map centred on Málaga. Moving a pin to correct the position is
+  planned: #198.
 
 ### Before pushing
 
