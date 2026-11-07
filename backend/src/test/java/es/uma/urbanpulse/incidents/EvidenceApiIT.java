@@ -380,6 +380,68 @@ class EvidenceApiIT {
         assertThat(onSecond).isNotEqualTo(onFirst);
     }
 
+    // T5: a file a browser could run is refused even when it says it is an image. An SVG and an
+    // HTML page would execute their scripts if they were ever served back.
+    @Test
+    void activeContentDeclaredAsAnImageIsRefused() throws Exception {
+        UUID incident = incident(citizen, "REPORTED");
+        byte[] svg =
+                "<svg xmlns=\"http://www.w3.org/2000/svg\"><script>alert(1)</script></svg>"
+                        .getBytes(StandardCharsets.UTF_8);
+        byte[] html =
+                "<!DOCTYPE html><html><script>alert(1)</script></html>"
+                        .getBytes(StandardCharsets.UTF_8);
+
+        expectInvalidFile(upload(citizen, incident, svg, "street-light.svg", "image/svg+xml"));
+        expectInvalidFile(upload(citizen, incident, svg, "street-light.png", "image/png"));
+        expectInvalidFile(upload(citizen, incident, html, "street-light.jpg", "image/jpeg"));
+
+        assertNothingStored(incident);
+    }
+
+    // T7: the name of the file is only shown, never used as a path (ADR-0013). A name that climbs
+    // out of the folder still ends up as an opaque key inside the storage folder.
+    @Test
+    void aFileNameWithAPathNeverChoosesWhereThePhotoIsStored() throws Exception {
+        UUID incident = incident(citizen, "REPORTED");
+        Path outside = storageFolder.getParent().resolve("outside.jpg");
+
+        UUID unixName = idOf(upload(citizen, incident, JPEG, "../outside.jpg", "image/jpeg"));
+        UUID windowsName =
+                idOf(
+                        upload(
+                                citizen,
+                                incident,
+                                image(0xFF, 0xD8, 0xFF, 0xE1),
+                                "..\\outside.jpg",
+                                "image/jpeg"));
+
+        for (UUID id : List.of(unixName, windowsName)) {
+            String key =
+                    jdbc.queryForObject(
+                            "SELECT storage_key FROM attachment WHERE id = ?", String.class, id);
+            assertThat(key).doesNotContain("..").doesNotContain("/").doesNotContain("\\");
+            assertThat(storageFolder.resolve(key)).isRegularFile();
+        }
+        assertThat(outside).doesNotExist();
+    }
+
+    // T4 and T7: a private photo is served as the type detected on upload, the browser may not
+    // guess another one, and no shared cache keeps a copy.
+    @Test
+    void aDownloadedPhotoIsNeitherSniffedNorCachedPublicly() throws Exception {
+        UUID incident = incident(citizen, "REPORTED");
+        UUID id = idOf(upload(citizen, incident, JPEG, "street-light.jpg", "image/jpeg"));
+
+        mvc.perform(as(citizen, get(API + "/attachments/" + id + "/content")))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.IMAGE_JPEG))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("no-store")))
+                .andExpect(
+                        header().string(HttpHeaders.CACHE_CONTROL, not(containsString("public"))));
+    }
+
     // T17: an incident or an attachment that does not exist.
     @Test
     void unknownIncidentOrAttachmentIsNotFound() throws Exception {
