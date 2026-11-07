@@ -1,11 +1,13 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
+import { AddPhotosScreen } from '../screens/AddPhotosScreen';
 import { IncidentDetailScreen } from '../screens/IncidentDetailScreen';
 import { MyReportsScreen } from '../screens/MyReportsScreen';
 
 export type MyReportsStackParamList = {
   ReportList: undefined;
   ReportDetail: { incidentId: string };
+  AddPhotos: { incidentId: string };
 };
 
 const Stack = createNativeStackNavigator<MyReportsStackParamList>();
@@ -26,6 +28,11 @@ export function MyReportsStack() {
         name="ReportDetail"
         component={IncidentDetailScreen}
         options={{ title: 'Report' }}
+      />
+      <Stack.Screen
+        name="AddPhotos"
+        component={AddPhotosScreen}
+        options={{ title: 'Add photos' }}
       />
     </Stack.Navigator>
   );
