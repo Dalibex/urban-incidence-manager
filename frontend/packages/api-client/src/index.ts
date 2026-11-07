@@ -27,6 +27,7 @@ export {
   type FieldError,
   type IncidentListQuery,
 } from './incidents';
+export { getAttachmentContent, listIncidentAttachments } from './attachments';
 
 /**
  * Creates a client whose paths, parameters and responses are typed from the contract. Each app
