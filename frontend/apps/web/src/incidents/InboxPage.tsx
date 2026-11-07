@@ -32,7 +32,7 @@ export function InboxPage() {
   const filters = filtersFrom(searchParams);
   const page = pageFrom(searchParams.get(PAGE_PARAM));
   const incidents = useIncidentPage(page - 1, filters);
-  const firstFilter = useRef<HTMLSelectElement>(null);
+  const firstFilter = useRef<HTMLInputElement>(null);
 
   const goTo = (target: number) => {
     const next = new URLSearchParams(searchParams);
