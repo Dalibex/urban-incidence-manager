@@ -1,7 +1,9 @@
 import {
+  getAttachmentContent,
   getIncident,
   listCategories,
   listDepartments,
+  listIncidentAttachments,
   listIncidents,
   listIncidentStatusChanges,
 } from '@urbanpulse/api-client';
@@ -18,6 +20,7 @@ const incidentKeys = {
   page: (page: number, filters: IncidentFilters) => ['incidents', 'page', page, filters] as const,
   detail: (incidentId: string) => ['incidents', incidentId] as const,
   history: (incidentId: string) => ['incidents', incidentId, 'status-changes'] as const,
+  attachments: (incidentId: string) => ['incidents', incidentId, 'attachments'] as const,
 };
 
 /**
@@ -50,6 +53,26 @@ export function useIncidentHistory(incidentId: string) {
   return useQuery({
     queryKey: incidentKeys.history(incidentId),
     queryFn: () => dataOf(listIncidentStatusChanges(api, incidentId)),
+  });
+}
+
+/** The metadata of the photos of an incident. */
+export function useIncidentAttachments(incidentId: string) {
+  const { api } = useSession();
+  return useQuery({
+    queryKey: incidentKeys.attachments(incidentId),
+    queryFn: () => dataOf(listIncidentAttachments(api, incidentId)),
+  });
+}
+
+/** The file of one photo, downloaded with the session's token, never through a public URL. */
+export function useAttachmentContent(attachmentId: string) {
+  const { api } = useSession();
+  return useQuery({
+    queryKey: ['attachments', attachmentId, 'content'],
+    queryFn: () => dataOf(getAttachmentContent(api, attachmentId)),
+    // A stored photo never changes (the API has no way to edit one), so it is not downloaded again.
+    staleTime: Infinity,
   });
 }
 
