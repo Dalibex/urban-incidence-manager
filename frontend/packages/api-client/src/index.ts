@@ -20,6 +20,7 @@ export {
   createIncident,
   getIncident,
   listCategories,
+  listDepartments,
   listIncidents,
   listIncidentStatusChanges,
   type CreateIncidentResult,
