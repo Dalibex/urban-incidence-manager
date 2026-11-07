@@ -57,6 +57,9 @@ function incidentsApi() {
       }),
     [`GET /incidents/${INCIDENT.id}`]: () => json(200, INCIDENT),
     [`GET /incidents/${INCIDENT.id}/status-changes`]: () => json(200, []),
+    // The filters of the technician's work queue.
+    'GET /categories': () => json(200, []),
+    'GET /departments': () => json(200, []),
   });
 }
 
@@ -103,8 +106,12 @@ describe('incident inbox access (#127)', () => {
     const router = renderApp(path, { role, fetch });
 
     await screen.findByRole('heading', { level: 1 });
-    expect(router.state.location.pathname).toBe(landingPath(role));
-    expect(fetch).not.toHaveBeenCalled();
+    const { pathname, search } = router.state.location;
+    expect(pathname + search).toBe(landingPath(role));
+    // Their own screen may load its data (the work queue lists the technician's incidents, which
+    // the API scopes), but nothing of the incident they were sent away from.
+    const requested = fetch.mock.calls.map(([request]) => new URL(request.url).pathname);
+    expect(requested.filter((requestedPath) => requestedPath.includes(INCIDENT.id))).toEqual([]);
   });
 
   // T6

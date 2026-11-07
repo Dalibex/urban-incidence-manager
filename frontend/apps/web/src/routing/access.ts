@@ -1,6 +1,10 @@
 import type { Role } from '@urbanpulse/domain';
 
-import { filtersSearch, INBOX_DEFAULT_FILTERS } from '../incidents/filters/incident-filters';
+import {
+  filtersSearch,
+  INBOX_DEFAULT_FILTERS,
+  WORK_QUEUE_DEFAULT_FILTERS,
+} from '../incidents/filters/incident-filters';
 
 export const PATHS = {
   home: '/',
@@ -21,6 +25,9 @@ export const OPERATOR_ROLES: readonly Role[] = ['MUNICIPAL_OPERATOR', 'ADMINISTR
 
 /** Where the menu and the sign-in open the inbox: on the reports waiting for a review (#183). */
 export const INBOX_DEFAULT_PATH = PATHS.inbox + filtersSearch(INBOX_DEFAULT_FILTERS);
+
+/** Where the menu and the sign-in open the work queue: on the work still to do (#187, #217). */
+export const WORK_QUEUE_DEFAULT_PATH = PATHS.workQueue + filtersSearch(WORK_QUEUE_DEFAULT_FILTERS);
 
 /** Navigation state of a link from the inbox, so a screen can lead back to the same filters. */
 export interface InboxReturn {
@@ -59,7 +66,7 @@ export function incidentPath(incidentId: string): string {
 /** Screen each role lands on after signing in. Citizens use the mobile app, so they get a notice. */
 const LANDING_PATHS: Record<Role, string> = {
   MUNICIPAL_OPERATOR: INBOX_DEFAULT_PATH,
-  TECHNICIAN: PATHS.workQueue,
+  TECHNICIAN: WORK_QUEUE_DEFAULT_PATH,
   ADMINISTRATOR: PATHS.users,
   ANALYST: PATHS.reports,
   CITIZEN: PATHS.useMobile,
