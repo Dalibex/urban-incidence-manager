@@ -101,12 +101,35 @@ If the email already has an account, the app says so: sign in instead.
    required.
 4. Choose a **category** if one fits. It is optional: staff classify the report if you leave it
    empty. If the categories cannot be loaded, you can still report without one.
-5. Tap *Submit*. The app confirms with *Incident reported. Follow its progress in "My reports".*
+5. Tap *Submit*. The app confirms that the incident was reported and offers *Add photos* or
+   *My reports*.
+
+The report is saved as soon as you submit it. Photos are optional, and a photo that cannot be
+uploaded never loses the report.
+
+### Add photos to a report
+
+You can add photos while the report is waiting for review: right after sending it (*Add photos*
+in the confirmation), or later with *Add photos* in its detail. Once the city council reviews the
+report, the button disappears.
+
+1. Tap *Take a photo* or *Choose from gallery*. The first time you take a photo, the phone asks
+   whether UrbanPulse may use the camera. If you refuse, the screen offers *Open settings*; the
+   gallery still works.
+2. Check the photo and tap *Upload photo*. The bar shows how much has been sent. The app makes the
+   photo smaller before sending it, so it uploads faster.
+3. Uploaded photos appear under *Uploaded photos*. Repeat for more photos, up to the limit of the
+   report.
+
+If the connection fails, the app tries again on its own a couple of times. If it still cannot
+upload the photo, it tells you that your report is saved without it, and *Try again* sends the same
+photo again; it is never stored twice. A photo that is too large, is not a JPEG, PNG or WebP image,
+or goes over the limit of the report is refused with its reason.
 
 The report is accepted even when the address, neighbourhood or district cannot be worked out at
 that moment: they show as *Not available* until they are known.
 
-- Planned: attach photos (#44); choose or correct the position on a map (#60).
+- Planned: choose or correct the position on a map (#60).
 
 ### Follow your reports
 
