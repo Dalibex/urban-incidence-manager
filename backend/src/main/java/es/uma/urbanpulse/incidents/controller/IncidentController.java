@@ -6,7 +6,6 @@ import es.uma.urbanpulse.incidents.dto.IncidentSummaryResponse;
 import es.uma.urbanpulse.incidents.dto.StatusChangeResponse;
 import es.uma.urbanpulse.incidents.entity.IncidentStatus;
 import es.uma.urbanpulse.incidents.entity.Priority;
-import es.uma.urbanpulse.incidents.service.IncidentFilter;
 import es.uma.urbanpulse.incidents.service.IncidentQueryService;
 import es.uma.urbanpulse.incidents.service.IncidentReportService;
 import es.uma.urbanpulse.shared.security.AuthenticatedUser;
@@ -18,10 +17,11 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import java.net.URI;
 import java.time.OffsetDateTime;
-import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -54,16 +54,10 @@ class IncidentController {
 
     // Every query parameter of listIncidents in the contract; any other one is a 400.
     private static final Set<String> LIST_PARAMETERS =
-            Set.of(
-                    "page",
-                    "size",
-                    "sort",
-                    "status",
-                    "categoryId",
-                    "priority",
-                    "reportedFrom",
-                    "reportedTo",
-                    "departmentId");
+            Stream.concat(
+                            Stream.of("page", "size", "sort"),
+                            IncidentFilterParameters.NAMES.stream())
+                    .collect(Collectors.toUnmodifiableSet());
 
     private final IncidentQueryService incidents;
     private final IncidentReportService incidentReportService;
@@ -94,13 +88,8 @@ class IncidentController {
             @RequestParam(required = false) List<UUID> departmentId) {
         QueryParameters.requireKnownAndFilled(parameters, LIST_PARAMETERS);
         var filter =
-                new IncidentFilter(
-                        asSet(status),
-                        asSet(categoryId),
-                        asSet(priority),
-                        reportedFrom == null ? null : reportedFrom.toInstant(),
-                        reportedTo == null ? null : reportedTo.toInstant(),
-                        asSet(departmentId));
+                IncidentFilterParameters.toFilter(
+                        status, categoryId, priority, reportedFrom, reportedTo, departmentId);
         return incidents.list(
                 user.id(),
                 user.role(),
@@ -135,10 +124,5 @@ class IncidentController {
                         .buildAndExpand(incident.getId())
                         .toUri();
         return ResponseEntity.created(location).body(response);
-    }
-
-    // An absent repeatable parameter arrives as null.
-    private static <T> Set<T> asSet(Collection<T> values) {
-        return values == null ? Set.of() : Set.copyOf(values);
     }
 }
