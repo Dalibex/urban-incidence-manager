@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -192,6 +193,22 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
                         .map(String::valueOf)
                         .toList();
         return malformedParameters(ex, names, request);
+    }
+
+    /**
+     * A file over the multipart limit, refused while the request is read ({@code StorageConfig}).
+     */
+    @Override
+    protected ResponseEntity<Object> handleMaxUploadSizeExceededException(
+            MaxUploadSizeExceededException ex,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request) {
+        var problem =
+                ProblemDetail.forStatusAndDetail(
+                        HttpStatus.CONTENT_TOO_LARGE, FileTooLargeException.DETAIL);
+        problem.setProperty(CODE, FileTooLargeException.CODE);
+        return handleExceptionInternal(ex, problem, headers, HttpStatus.CONTENT_TOO_LARGE, request);
     }
 
     @Override

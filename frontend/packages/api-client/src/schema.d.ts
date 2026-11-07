@@ -702,9 +702,7 @@ export interface paths {
         };
         /**
          * List the photos of an incident
-         * @description Planned: #192.
-         *
-         *     Metadata of the photos, oldest first. The limit of files per incident bounds it, so it is not
+         * @description Metadata of the photos, oldest first. The limit of files per incident bounds it, so it is not
          *     paginated. It never holds a storage key or a public URL: the file is read with
          *     `getAttachmentContent`, after authorisation.
          *
@@ -715,9 +713,7 @@ export interface paths {
         put?: never;
         /**
          * Upload a photo to an incident
-         * @description Planned: #192.
-         *
-         *     One JPEG, PNG or WebP photo per request. The type is detected from the content, never from
+         * @description One JPEG, PNG or WebP photo per request. The type is detected from the content, never from
          *     the file name or the declared `Content-Type`. The size and the number of files per incident
          *     come from configuration (`EVIDENCE_MAX_FILE_SIZE`, `EVIDENCE_MAX_FILES_PER_INCIDENT`).
          *
@@ -749,9 +745,7 @@ export interface paths {
         };
         /**
          * Download a photo
-         * @description Planned: #192.
-         *
-         *     The file, with the type detected when it was uploaded. An opaque identifier does not replace
+         * @description The file, with the type detected when it was uploaded. An opaque identifier does not replace
          *     authorisation: the same rules as `listIncidentAttachments` apply to the incident of the
          *     attachment, with the same `404` rule.
          *

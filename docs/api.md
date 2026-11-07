@@ -152,8 +152,8 @@ Do not define a new error body. If an error needs extra information, add an opti
 | `CONCURRENT_MODIFICATION` | 409 | Lifecycle actions and `updateIncident` (Sprint 2) | The incident changed since the client read its `version`: reload it and decide again (ADR-0020) |
 | `PASSWORD_CHANGE_REQUIRED` | 403 | `createSession` (planned: #165) | Right credentials, but the password must change first |
 | `CLASSIFICATION_NOT_ALLOWED` | 409 | `updateIncident` (planned: #47) | The incident is `REJECTED` or `CLOSED` |
-| `ATTACHMENT_NOT_ALLOWED` | 409 | `createIncidentAttachment` (planned: #192) | A citizen can only upload while the incident is `REPORTED` |
-| `FILE_TOO_LARGE` | 413 | `createIncidentAttachment` (planned: #192) | The file is over the size limit |
+| `ATTACHMENT_NOT_ALLOWED` | 409 | `createIncidentAttachment` | A citizen can only upload while the incident is `REPORTED` |
+| `FILE_TOO_LARGE` | 413 | `createIncidentAttachment` | The file is over the size limit |
 
 Add a row in the same PR that introduces a new code.
 
