@@ -305,6 +305,33 @@ class IncidentClassificationApiIT {
         assertUnclassified(incident);
     }
 
+    // T6: being linked to the incident does not let a role classify it. The technician assigned to
+    // it and the citizen who reported it are refused as any other, and the reporter cannot read the
+    // classification changes either (T17).
+    @Test
+    void theAssignedTechnicianAndTheReporterCannotClassify() throws Exception {
+        UUID incident = unclassifiedIncident("ASSIGNED");
+        assign(incident, technician);
+
+        for (UUID linked : List.of(technician, citizen)) {
+            classify(
+                            linked,
+                            incident,
+                            Map.of(
+                                    "version",
+                                    0,
+                                    "categoryId",
+                                    lighting,
+                                    "priority",
+                                    "HIGH",
+                                    "priorityReason",
+                                    REASON))
+                    .andExpect(status().isForbidden());
+        }
+        changes(citizen, incident, "").andExpect(status().isForbidden());
+        assertUnclassified(incident);
+    }
+
     // T12
     @Test
     void anIncidentThatDoesNotExistIsNotFound() throws Exception {
