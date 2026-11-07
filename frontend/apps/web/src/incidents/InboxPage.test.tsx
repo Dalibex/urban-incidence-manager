@@ -61,6 +61,8 @@ describe('inbox filters', () => {
 
     expect(router.state.location.search).toBe('');
     expect(await screen.findByText('There are no incidents yet.')).toBeDefined();
+    // The button goes away with the empty state; the focus stays in the filters (#211 review).
+    expect(document.activeElement).toBe(screen.getByLabelText('Status'));
   });
 
   it('keeps the filters when the list fails, and filters again on retry', async () => {

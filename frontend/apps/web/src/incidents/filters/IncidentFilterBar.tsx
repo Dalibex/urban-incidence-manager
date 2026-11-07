@@ -1,7 +1,7 @@
 import { INCIDENT_STATUSES, isIncidentStatus } from '@urbanpulse/domain';
 import { STATUS_LABELS } from '@urbanpulse/ui';
 import type { UseQueryResult } from '@tanstack/react-query';
-import { useRef, useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode, type RefObject } from 'react';
 
 import { useCategories, useDepartments } from '../incident-queries';
 import incidentStyles from '../Incidents.module.css';
@@ -20,6 +20,11 @@ interface IncidentFilterBarProps {
   filters: IncidentFilters;
   /** Receives every filter, not only the one that changed; an empty object clears them all. */
   onChange: (filters: IncidentFilters) => void;
+  /**
+   * The first filter, for a screen with its own clear button that goes away when pressed (the
+   * empty state of the inbox): focusing it keeps a keyboard user in the bar.
+   */
+  firstFilterRef?: RefObject<HTMLSelectElement | null>;
 }
 
 /**
@@ -27,10 +32,11 @@ interface IncidentFilterBarProps {
  * it was reported. A change applies at once. The screen keeps the filters (the inbox keeps them in
  * its address), so the bar holds no state of its own.
  */
-export function IncidentFilterBar({ filters, onChange }: IncidentFilterBarProps) {
+export function IncidentFilterBar({ filters, onChange, firstFilterRef }: IncidentFilterBarProps) {
   const categories = useCategories();
   const departments = useDepartments();
-  const firstFilter = useRef<HTMLSelectElement>(null);
+  const ownFirstFilter = useRef<HTMLSelectElement>(null);
+  const firstFilter = firstFilterRef ?? ownFirstFilter;
 
   const set = (changed: IncidentFilters) => onChange(withoutEmpty({ ...filters, ...changed }));
 

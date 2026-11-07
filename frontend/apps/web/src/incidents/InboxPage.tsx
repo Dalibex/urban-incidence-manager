@@ -1,5 +1,6 @@
 import type { components } from '@urbanpulse/api-client';
 import { formatInstant } from '@urbanpulse/ui';
+import { useRef } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router';
 
 import { incidentPath, type InboxReturn } from '../routing/access';
@@ -31,6 +32,7 @@ export function InboxPage() {
   const filters = filtersFrom(searchParams);
   const page = pageFrom(searchParams.get(PAGE_PARAM));
   const incidents = useIncidentPage(page - 1, filters);
+  const firstFilter = useRef<HTMLSelectElement>(null);
 
   const goTo = (target: number) => {
     const next = new URLSearchParams(searchParams);
@@ -60,7 +62,7 @@ export function InboxPage() {
         </p>
       </header>
 
-      <IncidentFilterBar filters={filters} onChange={changeFilters} />
+      <IncidentFilterBar filters={filters} onChange={changeFilters} firstFilterRef={firstFilter} />
 
       {incidents.isPending ? (
         <p className={styles.state} role="status">
@@ -77,7 +79,15 @@ export function InboxPage() {
         <div className={styles.state}>
           <p>No incidents match these filters.</p>
           <p>
-            <button type="button" className={styles.button} onClick={() => changeFilters({})}>
+            <button
+              type="button"
+              className={styles.button}
+              onClick={() => {
+                changeFilters({});
+                // This button goes away with the empty state, like the one of the bar is disabled.
+                firstFilter.current?.focus();
+              }}
+            >
               Clear filters
             </button>
           </p>
