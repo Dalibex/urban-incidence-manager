@@ -96,7 +96,8 @@ Follow these steps on a clean clone, with the prerequisites of the
    pnpm dev:mobile
    ```
 
-   Open the UrbanPulse app on the phone. If it cannot connect, use `pnpm dev:mobile --tunnel`.
+   Open the UrbanPulse app on the phone. If it cannot reach your machine, see *Build, install and
+   run* in the development guide.
 
 ## Walk Through It
 

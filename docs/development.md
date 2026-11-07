@@ -263,12 +263,23 @@ instead of the map, and reporting still works.
 
 #### Build, install and run
 
-**On Windows, keep the checkout in a short path**, such as `C:\dev\uim`. The native build runs
-batch files from inside `node_modules\.pnpm`, and `cmd.exe` cannot start one whose path is longer
-than 260 characters, even with long paths enabled in Windows: the build fails with
-`CreateProcess error=2` on a `prefab_command.bat`. A checkout under
-`C:\Users\<user>\Desktop\...\GitHub\` is already too deep, and a `subst` drive does not help,
-because the build resolves the real path again.
+**On Windows**, the native build writes paths longer than 260 characters inside
+`node_modules\.pnpm`, and two tools stop there even with long paths enabled in Windows:
+
+- `cmd.exe` cannot start a batch file with a longer path: the build fails with
+  `CreateProcess error=2` on a `prefab_command.bat`. Keep the checkout in a short folder: one of
+  about 40 characters, such as `C:\GitHub\urban-incidence-manager`, works; one of 70 under
+  `C:\Users\<user>\Desktop\` is too deep. A `subst` drive does not help, because the build
+  resolves the real path again.
+- The `ninja` of the default CMake (3.22.1, ninja 1.10) fails with `Filename longer than 260
+  characters`. In Android Studio, *SDK Manager → SDK Tools*, tick *Show Package Details* and
+  install CMake 4.1.2 (ninja 1.12), then point the build at it in
+  `apps/mobile/android/local.properties`, which Git ignores. The file exists after the first
+  build attempt; write it again if `apps/mobile/android/` is deleted:
+
+  ```properties
+  cmake.dir=C\:/Users/<user>/AppData/Local/Android/Sdk/cmake/4.1.2
+  ```
 
 With the phone connected, from `frontend/`:
 
@@ -285,9 +296,12 @@ the phone.
 pnpm dev:mobile
 ```
 
-The phone loads the JavaScript from Metro over the local network. If it cannot connect (firewall,
-isolated Wi-Fi), run `pnpm dev:mobile --tunnel`. After adding a native dependency or changing
-`app.json`, build again with `pnpm --filter @urbanpulse/mobile android`.
+The phone loads the JavaScript from Metro, the API and the map from your machine, all over the
+local network. If the phone cannot reach your machine, the app stops on an error screen of the
+Expo launcher. Some routers isolate the devices of their Wi-Fi from each other: then connect the
+phone to your machine another way, for example sharing the connection over the USB cable. If
+Windows asks whether Node.js or Java may use the network, allow private networks. After adding a
+native dependency or changing `app.json`, build again with `pnpm --filter @urbanpulse/mobile android`.
 
 - The mobile app only targets Android and iOS (`platforms` in `app.json`); the browser client is
   `apps/web`.
