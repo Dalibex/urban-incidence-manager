@@ -356,3 +356,182 @@ describe('T6: sign-out', () => {
     expect(api.calls('POST', '/sessions/refresh')).toHaveLength(0);
   });
 });
+
+/**
+ * #162: a refresh that fails without saying anything about the refresh token (no network, a `5xx`,
+ * a `400` or a `422`) keeps the session, and the next `401` refreshes again with the same token
+ * (#161). T2 and T7 without a previous failure are the tests of T4 above.
+ */
+describe('#162: the session recovers after a failed refresh', () => {
+  let onSessionExpired: ReturnType<typeof vi.fn<() => void>>;
+
+  beforeEach(() => {
+    onSessionExpired = vi.fn();
+  });
+
+  const networkDown: Handler = () => {
+    throw new TypeError('Failed to fetch');
+  };
+
+  /** Each refresh gets the next failure, and then the rotating refresh of the contract. */
+  function failingRefresh(...failures: Handler[]): Handler {
+    const works = rotatingRefresh();
+    let attempt = 0;
+    return (request) => (failures[attempt++] ?? works)(request);
+  }
+
+  function clientFor(refresh: Handler) {
+    const api = fakeApi({ 'GET /users/me': onlyFreshToken, 'POST /sessions/refresh': refresh });
+    const tokens = memoryTokenStore(OLD_TOKENS);
+    const client = createApiClient(BASE_URL, {
+      tokenStore: tokens.store,
+      fetch: api.fetch,
+      onSessionExpired,
+    });
+    return { api, tokens, client };
+  }
+
+  const refreshTokensSent = (api: ReturnType<typeof fakeApi>) =>
+    api
+      .calls('POST', '/sessions/refresh')
+      .map((request) => (JSON.parse(request.body) as { refreshToken: string }).refreshToken);
+
+  it('T1: refreshes again with the same refresh token once the network is back', async () => {
+    const { api, tokens, client } = clientFor(failingRefresh(networkDown));
+
+    const first = await client.GET('/users/me');
+    expect(first.response.status).toBe(401);
+    expect(tokens.current()).toEqual(OLD_TOKENS);
+
+    const second = await client.GET('/users/me');
+
+    expect(second.response.status).toBe(200);
+    expect(second.data).toEqual(CURRENT_USER);
+    expect(refreshTokensSent(api)).toEqual([OLD_TOKENS.refreshToken, OLD_TOKENS.refreshToken]);
+    expect(api.calls('GET', '/users/me').at(-1)?.authorization).toBe(
+      `Bearer ${NEW_TOKENS.accessToken}`,
+    );
+    expect(tokens.current()).toEqual(NEW_TOKENS);
+    expect(onSessionExpired).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['T3', 503],
+    ['T3', 500],
+    ['T11', 400],
+    ['T11', 422],
+  ])(
+    '%s: keeps the tokens after a %i on the refresh and refreshes at the next 401',
+    async (_case, status) => {
+      const { api, tokens, client } = clientFor(failingRefresh(() => problem(status)));
+
+      const first = await client.GET('/users/me');
+      expect(first.response.status).toBe(401);
+      expect(tokens.current()).toEqual(OLD_TOKENS);
+      expect(tokens.store.clear).not.toHaveBeenCalled();
+
+      const second = await client.GET('/users/me');
+
+      expect(second.response.status).toBe(200);
+      expect(refreshTokensSent(api)).toEqual([OLD_TOKENS.refreshToken, OLD_TOKENS.refreshToken]);
+      expect(tokens.current()).toEqual(NEW_TOKENS);
+      expect(onSessionExpired).not.toHaveBeenCalled();
+    },
+  );
+
+  it('T4: gives the 401 at every request while there is no network, and keeps the session', async () => {
+    const { api, tokens, client } = clientFor(networkDown);
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { response } = await client.GET('/users/me');
+      expect(response.status).toBe(401);
+    }
+
+    // Each request tries one refresh and gives up; none of them is repeated.
+    expect(refreshTokensSent(api)).toEqual([
+      OLD_TOKENS.refreshToken,
+      OLD_TOKENS.refreshToken,
+      OLD_TOKENS.refreshToken,
+    ]);
+    expect(api.calls('GET', '/users/me')).toHaveLength(3);
+    expect(tokens.current()).toEqual(OLD_TOKENS);
+    expect(tokens.store.clear).not.toHaveBeenCalled();
+    expect(onSessionExpired).not.toHaveBeenCalled();
+  });
+
+  it('T5: requests rejected while the refresh is failing share it and all get the 401', async () => {
+    let dropNetwork = (): void => undefined;
+    const inFlight = new Promise<Response>((_resolve, reject) => {
+      dropNetwork = () => reject(new TypeError('Failed to fetch'));
+    });
+    const { api, tokens, client } = clientFor(failingRefresh(() => inFlight));
+
+    const pending = Promise.all([
+      client.GET('/users/me'),
+      client.GET('/users/me'),
+      client.GET('/users/me'),
+    ]);
+    // Every request has been rejected while the only refresh is still waiting for the network.
+    await vi.waitFor(() => {
+      expect(api.calls('GET', '/users/me')).toHaveLength(3);
+      expect(api.calls('POST', '/sessions/refresh')).toHaveLength(1);
+    });
+    dropNetwork();
+    const results = await pending;
+
+    expect(results.map(({ response }) => response.status)).toEqual([401, 401, 401]);
+    expect(api.calls('POST', '/sessions/refresh')).toHaveLength(1);
+    expect(api.calls('GET', '/users/me')).toHaveLength(3);
+    expect(tokens.current()).toEqual(OLD_TOKENS);
+    expect(onSessionExpired).not.toHaveBeenCalled();
+  });
+
+  it('T6: requests rejected after a failed refresh share one new refresh', async () => {
+    const { api, tokens, client } = clientFor(failingRefresh(networkDown));
+    await client.GET('/users/me');
+
+    // The refresh token works once: one refresh per request would end the session.
+    const results = await Promise.all([
+      client.GET('/users/me'),
+      client.GET('/users/me'),
+      client.GET('/users/me'),
+    ]);
+
+    expect(results.map(({ response }) => response.status)).toEqual([200, 200, 200]);
+    expect(refreshTokensSent(api)).toEqual([OLD_TOKENS.refreshToken, OLD_TOKENS.refreshToken]);
+    expect(tokens.current()).toEqual(NEW_TOKENS);
+    expect(onSessionExpired).not.toHaveBeenCalled();
+  });
+
+  it('T7: a refresh token rejected after a failed refresh ends the session once', async () => {
+    const { api, tokens, client } = clientFor(
+      failingRefresh(networkDown, () => problem(401, 'INVALID_REFRESH_TOKEN')),
+    );
+    await client.GET('/users/me');
+
+    const results = await Promise.all([client.GET('/users/me'), client.GET('/users/me')]);
+    const after = await client.GET('/users/me');
+
+    expect(results.map(({ response }) => response.status)).toEqual([401, 401]);
+    expect(after.response.status).toBe(401);
+    // The spent refresh token is not sent again once the session has ended.
+    expect(api.calls('POST', '/sessions/refresh')).toHaveLength(2);
+    expect(api.calls('GET', '/users/me').at(-1)?.authorization).toBeNull();
+    expect(tokens.current()).toBeNull();
+    expect(onSessionExpired).toHaveBeenCalledTimes(1);
+  });
+
+  it('T8: ends the session when the new tokens cannot be saved', async () => {
+    const { api, tokens, client } = clientFor(rotatingRefresh());
+    vi.mocked(tokens.store.save).mockRejectedValueOnce(new Error('Secure store unavailable'));
+
+    const { response } = await client.GET('/users/me');
+
+    expect(response.status).toBe(401);
+    expect(api.calls('POST', '/sessions/refresh')).toHaveLength(1);
+    expect(api.calls('GET', '/users/me')).toHaveLength(1);
+    expect(tokens.store.clear).toHaveBeenCalledTimes(1);
+    expect(tokens.current()).toBeNull();
+    expect(onSessionExpired).toHaveBeenCalledTimes(1);
+  });
+});
