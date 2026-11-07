@@ -5,6 +5,7 @@ import {
   getIncident,
   listCategories,
   listIncidents,
+  updateIncident,
   type SessionTokens,
   type TokenStore,
 } from './index';
@@ -185,6 +186,49 @@ describe('incident calls', () => {
     expect(result).toEqual({
       ok: false,
       failure: { kind: 'problem', status: 404, code: undefined },
+    });
+  });
+});
+
+describe('updateIncident', () => {
+  const UPDATE: components['schemas']['UpdateIncidentRequest'] = {
+    version: 3,
+    priority: 'HIGH',
+    priorityReason: 'The street is dark near a school.',
+  };
+
+  it('sends a PATCH with the body and returns the incident with its new version', async () => {
+    let sent: unknown = undefined;
+    const fetch = vi.fn(async (request: Request) => {
+      expect(request.method).toBe('PATCH');
+      expect(new URL(request.url).pathname).toBe(`/api/v1/incidents/${INCIDENT_ID}`);
+      sent = await request.json();
+      return json(200, CREATED);
+    });
+    const client = createApiClient(BASE_URL, { tokenStore: memoryStore(TOKENS), fetch });
+
+    expect(await updateIncident(client, INCIDENT_ID, UPDATE)).toEqual({ ok: true, data: CREATED });
+    expect(sent).toEqual(UPDATE);
+  });
+
+  it('carries the code of a 409, so the screen can ask to reload', async () => {
+    const { client } = clientAnswering(409, { status: 409, code: 'CONCURRENT_MODIFICATION' });
+
+    expect(await updateIncident(client, INCIDENT_ID, UPDATE)).toEqual({
+      ok: false,
+      failure: { kind: 'problem', status: 409, code: 'CONCURRENT_MODIFICATION' },
+      fieldErrors: [],
+    });
+  });
+
+  it('carries the per-field errors of a 422 problem', async () => {
+    const errors = [{ field: 'priorityReason', message: 'A priority needs its justification.' }];
+    const { client } = clientAnswering(422, { status: 422, code: 'VALIDATION_FAILED', errors });
+
+    expect(await updateIncident(client, INCIDENT_ID, UPDATE)).toEqual({
+      ok: false,
+      failure: { kind: 'problem', status: 422, code: 'VALIDATION_FAILED' },
+      fieldErrors: errors,
     });
   });
 });

@@ -10,10 +10,10 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 /**
- * {@code IncidentResponse}: the full incident. {@code priority}, {@code assignment} and {@code
- * version} are staff-only, so a citizen gets a type without them rather than a {@code null}
- * (docs/api.md, "Absent and null"). Only staff change the status, so only they need the {@code
- * version} (ADR-0020).
+ * {@code IncidentResponse}: the full incident. {@code priority}, {@code priorityReason}, {@code
+ * assignment} and {@code version} are staff-only, so a citizen gets a type without them rather than
+ * a {@code null} (docs/api.md, "Absent and null"). Only staff change the status, so only they need
+ * the {@code version} (ADR-0020).
  */
 public sealed interface IncidentResponse {
 
@@ -28,6 +28,7 @@ public sealed interface IncidentResponse {
             String description,
             IncidentStatus status,
             Priority priority,
+            String priorityReason,
             AssignmentResponse assignment,
             CategorySummary category,
             IncidentLocationResponse location,
@@ -44,6 +45,7 @@ public sealed interface IncidentResponse {
                     incident.getDescription(),
                     incident.getStatus(),
                     incident.getPriority(),
+                    incident.getPriorityReason(),
                     incident.activeAssignment().map(AssignmentResponse::of).orElse(null),
                     CategorySummary.of(incident.getCategory()),
                     IncidentLocationResponse.of(location),

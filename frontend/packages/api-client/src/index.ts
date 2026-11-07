@@ -22,8 +22,10 @@ export {
   listCategories,
   listIncidents,
   listIncidentStatusChanges,
+  updateIncident,
   type CreateIncidentResult,
   type FieldError,
+  type FormResult,
   type IncidentListQuery,
 } from './incidents';
 
