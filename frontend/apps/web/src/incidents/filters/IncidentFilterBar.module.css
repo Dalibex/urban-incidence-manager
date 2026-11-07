@@ -1,0 +1,46 @@
+/* Filter bar of the incident lists. Colors and spacing come from the shared tokens (theme.ts). */
+
+.bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  align-items: end;
+  gap: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-lg);
+  padding: var(--space-md);
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.label {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.field select,
+.field input {
+  min-height: 2.5rem;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid color-mix(in srgb, var(--color-text-muted) 50%, transparent);
+  border-radius: 6px;
+  background: var(--color-background);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.field select:disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.clear {
+  min-height: 2.5rem;
+  justify-self: start;
+}

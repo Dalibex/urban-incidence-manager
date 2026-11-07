@@ -76,6 +76,9 @@ body:
     id: dependencies
     attributes:
       label: Dependencies
+      description: |
+        *Merge after* is the **Blocked by** of the issue's **Relationships**. *Start* says whether the work can begin before that, against what is already in `main` (*Issues* in `CONTRIBUTING.md`).
       value: |
-        - Blocked by: #
+        - Start: now, against … in `main` / after #
+        - Merge after: #
         - Blocks: #
