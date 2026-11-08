@@ -12,6 +12,11 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
     // Node cannot build a request from a relative URL, as the browser does with `/api/v1`.
-    env: { VITE_API_BASE_URL: 'http://localhost/api/v1' },
+    // Quick sign-in off, whatever the local .env says; a test turns it on with `vi.stubEnv`.
+    env: {
+      VITE_API_BASE_URL: 'http://localhost/api/v1',
+      VITE_QUICK_SIGN_IN: 'false',
+      VITE_DEMO_PASSWORD: '',
+    },
   },
 });
