@@ -161,15 +161,25 @@ ticked. *Clear filters* lists every incident.
 
 ### Incident detail
 
-- **Report:** the description, category, priority, when it was reported, its last change and,
-  once closed, when it was closed.
+- **Report:** the description, category, priority and why it was given, when it was reported, its
+  last change and, once closed, when it was closed.
 - **Location:** address, neighbourhood, district, coordinates and the accuracy the phone reported
   (for example *within 12.5 m*). A value that is not known says *Not available*: it is never left
   empty or guessed.
 - **History:** every change of status, oldest first, with who made it and the reason. Entries the
   citizen does not see are marked *Internal*.
-- **Actions:** the actions allowed for the status of the incident. When there are none, it says
-  *No actions are available for this incident yet.* Planned: #47, #48, #49, #50, #52.
+- **Actions:** the actions allowed for the status of the incident. When there are none, as on a
+  rejected or closed incident, it says *No actions are available for this incident.* Planned: #48,
+  #49, #50, #52.
+- **Classification:** choose the category and the priority, write why the incident has that
+  priority and press *Save classification*. A priority always needs its reason; you can change
+  only the category, only the priority or both. The button stays disabled until you change
+  something, and the page says *Classification saved.* only once the server has kept it; the inbox
+  shows the new values when you go back to it.
+  - If someone else changed the incident since you opened it, nothing is saved: press *Reload the
+    incident*, check the new values and save again. What you typed is kept.
+  - If the server cannot be reached or answers with an error, nothing is saved and what you typed
+    is kept, so you can save again.
 
 *Back to the inbox* returns to the list as you left it. An incident that does not exist shows
 *Incident not found*.
