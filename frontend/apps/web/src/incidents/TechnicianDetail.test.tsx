@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { components } from '@urbanpulse/api-client';
 import { describe, expect, it } from 'vitest';
@@ -122,7 +122,7 @@ describe("technician's incident detail (#187)", () => {
     expect(panel.queryByRole('form', { name: 'Classification' })).toBeNull();
   });
 
-  it('accepts with the version it read, then offers to resolve', async () => {
+  it('accepts with the version it read, then offers to resolve with the focus on the notes', async () => {
     const server = newServer();
     renderApp(incidentPath(ASSIGNED.id), { role: 'TECHNICIAN', fetch: api(server) });
 
@@ -131,6 +131,29 @@ describe("technician's incident detail (#187)", () => {
     expect(await screen.findByText('Incident accepted: it is now in progress.')).toBeDefined();
     expect(await screen.findByRole('form', { name: 'Resolve' })).toBeDefined();
     expect(server.accepted).toEqual([{ version: ASSIGNED.version }]);
+    // The Accept button is gone: the focus goes on to the next form instead of the page.
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByLabelText('Resolution notes')),
+    );
+  });
+
+  it('shows only the message of the latest action', async () => {
+    const server = newServer();
+    renderApp(incidentPath(ASSIGNED.id), {
+      role: 'TECHNICIAN',
+      fetch: api(server, () =>
+        json(409, { status: 409, code: 'CONCURRENT_MODIFICATION', title: 'Conflict' }),
+      ),
+    });
+
+    await userEvent.click((await actions()).getByRole('button', { name: 'Accept' }));
+    expect(await screen.findByText('Incident accepted: it is now in progress.')).toBeDefined();
+
+    await userEvent.type(await screen.findByLabelText('Resolution notes'), NOTES);
+    await userEvent.click(screen.getByRole('button', { name: 'Mark as resolved' }));
+
+    expect(await screen.findByText(/The incident changed since you opened it/)).toBeDefined();
+    expect(screen.queryByText('Incident accepted: it is now in progress.')).toBeNull();
   });
 
   it('resolves with the notes, and asks for them before sending anything', async () => {
@@ -148,6 +171,8 @@ describe("technician's incident detail (#187)", () => {
     expect(await screen.findByText('Incident resolved.')).toBeDefined();
     expect(await screen.findByText('No actions are available for this incident.')).toBeDefined();
     expect(server.resolved).toEqual([{ version: IN_PROGRESS.version, reason: NOTES }]);
+    // No form follows: the focus goes to the message instead of the page.
+    await waitFor(() => expect(document.activeElement?.textContent).toBe('Incident resolved.'));
   });
 
   // T15: a double click, no success before the answer, and a 409.

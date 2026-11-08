@@ -9,14 +9,26 @@ type Incident = components['schemas']['IncidentResponse'];
 /** Longest resolution notes the API accepts, in characters (`IncidentReasonRequest`). */
 const NOTES_MAX_LENGTH = 2000;
 
-interface PanelProps {
+/** An action the API accepted: the message to announce, and the status the incident left. */
+export interface ActionDone {
+  message: string;
+  from: Incident['status'];
+}
+
+/** How a panel tells the parent about its action, which outlives the panel's form. */
+export interface ActionCallbacks {
+  /** Called when the action is sent, so the message of an earlier one goes away. */
+  onSending: () => void;
+  /** Called once the API accepted the change. */
+  onDone: (done: ActionDone) => void;
+}
+
+interface PanelProps extends ActionCallbacks {
   incident: Incident;
-  /** Called with the message to announce once the API accepted the change. */
-  onDone: (message: string) => void;
 }
 
 /** `ASSIGNED` to `IN_PROGRESS`: the technician starts the work (#187, ADR-0020). */
-export function AcceptPanel({ incident, onDone }: PanelProps) {
+export function AcceptPanel({ incident, ...callbacks }: PanelProps) {
   const accept = useAcceptIncident(incident.id);
   return (
     <ActionForm
@@ -27,13 +39,13 @@ export function AcceptPanel({ incident, onDone }: PanelProps) {
       done="Incident accepted: it is now in progress."
       sending={accept.isPending}
       send={(version) => accept.mutateAsync({ version })}
-      onDone={onDone}
+      {...callbacks}
     />
   );
 }
 
 /** `IN_PROGRESS` to `RESOLVED`, with the resolution notes the API requires (#187, ADR-0020). */
-export function ResolvePanel({ incident, onDone }: PanelProps) {
+export function ResolvePanel({ incident, ...callbacks }: PanelProps) {
   const resolve = useResolveIncident(incident.id);
   return (
     <ActionForm
@@ -45,7 +57,7 @@ export function ResolvePanel({ incident, onDone }: PanelProps) {
       notes={{ label: 'Resolution notes', missing: 'Write what was done.' }}
       sending={resolve.isPending}
       send={(version, notes) => resolve.mutateAsync({ version, reason: notes })}
-      onDone={onDone}
+      {...callbacks}
     />
   );
 }
@@ -58,7 +70,7 @@ type Outcome =
   | { kind: 'unreachable' }
   | { kind: 'failed' };
 
-interface ActionFormProps {
+interface ActionFormProps extends ActionCallbacks {
   incident: Incident;
   title: string;
   lead: string;
@@ -68,13 +80,13 @@ interface ActionFormProps {
   notes?: { label: string; missing: string };
   sending: boolean;
   send: (version: number, notes: string) => Promise<FormResult<Incident>>;
-  onDone: (message: string) => void;
 }
 
 /**
  * One lifecycle action of the technician. It sends the `version` of the incident it shows, keeps
  * the notes whatever the answer, and ignores a second click while sending. On success the incident
- * changes status, so this form gives way to the next one and the parent announces `done`.
+ * changes status, so this form gives way to the next one and the parent announces `done` and moves
+ * the focus.
  */
 function ActionForm({
   incident,
@@ -85,6 +97,7 @@ function ActionForm({
   notes,
   sending,
   send,
+  onSending,
   onDone,
 }: ActionFormProps) {
   const titleId = useId();
@@ -108,10 +121,11 @@ function ActionForm({
     }
     inFlight.current = true;
     setOutcome(null);
+    onSending();
     try {
       const result = await send(incident.version ?? 0, text);
       if (result.ok) {
-        onDone(done);
+        onDone({ message: done, from: incident.status });
       } else {
         setOutcome(outcomeOf(result));
       }
