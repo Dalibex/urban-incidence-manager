@@ -1,5 +1,5 @@
 import type { ApiClient } from './index';
-import { isProblem, type ApiResult } from './account';
+import { callApi, isProblem, type ApiFailure, type ApiResult } from './account';
 import type { components } from './schema';
 import { withoutTrailingSlashes, type SessionTokens, type TokenStore } from './session';
 
@@ -24,10 +24,16 @@ export interface UploadOptions {
   onProgress?: (fraction: number) => void;
   /** Replaces `XMLHttpRequest`, for tests. */
   createRequest?: () => XMLHttpRequest;
+  /** Replaces the clock that tells whether the access token has expired, for tests. */
+  now?: () => Date;
 }
 
-/** A photo on a slow mobile network takes long, but a stalled upload must end in an error. */
-const UPLOAD_TIMEOUT_MS = 60_000;
+/**
+ * How long an upload may go without sending a byte or receiving the answer. A photo on a slow
+ * mobile network may take minutes and still be moving, so there is no limit for the whole upload;
+ * only a stalled one ends in an error.
+ */
+const STALL_TIMEOUT_MS = 60_000;
 
 type Reply = { kind: 'network' } | { kind: 'response'; status: number; body: unknown };
 
@@ -36,8 +42,10 @@ type Reply = { kind: 'network' } | { kind: 'response'; status: number; body: unk
  * of the client's `fetch` because only XHR reports upload progress in React Native.
  *
  * A retry with the same content is safe: the API stores it once and answers `200` with the existing
- * attachment. An expired access token is refreshed through the client, which owns the refresh
- * (session.ts), and the upload is repeated once.
+ * attachment. The client owns the refresh (session.ts): an access token that has already expired is
+ * refreshed with a small request before sending the photo, so the photo is not sent twice; if the
+ * API still answers `401` (a clock that runs late), the session is refreshed and the upload is
+ * repeated once.
  */
 export async function uploadIncidentAttachment(
   client: ApiClient,
@@ -46,24 +54,41 @@ export async function uploadIncidentAttachment(
   options: UploadOptions,
 ): Promise<ApiResult<Attachment>> {
   const url = `${withoutTrailingSlashes(options.baseUrl)}/incidents/${encodeURIComponent(incidentId)}/attachments`;
-  const tokens = await options.tokenStore.load();
+  const now = options.now ?? (() => new Date());
+  let tokens = await options.tokenStore.load();
+  if (tokens && hasExpired(tokens, now())) {
+    const failure = await refreshThroughClient(client);
+    if (failure) {
+      return { ok: false, failure };
+    }
+    tokens = await options.tokenStore.load();
+  }
   let reply = await send(url, file, tokens, options);
   if (reply.kind === 'response' && reply.status === 401 && tokens) {
-    try {
-      // Any call through the client refreshes the session when its access token was rejected.
-      await client.GET('/users/me');
-    } catch (error) {
-      if (error instanceof TypeError) {
-        return { ok: false, failure: { kind: 'network' } };
-      }
-      throw error;
+    if ((await refreshThroughClient(client))?.kind === 'network') {
+      return { ok: false, failure: { kind: 'network' } };
     }
     const fresh = await options.tokenStore.load();
     if (fresh && fresh.accessToken !== tokens.accessToken) {
+      // The whole photo is sent again, so the bar starts again instead of staying at 100%.
+      options.onProgress?.(0);
       reply = await send(url, file, fresh, options);
     }
   }
   return toResult(reply);
+}
+
+function hasExpired(tokens: SessionTokens, now: Date): boolean {
+  return Date.parse(tokens.accessTokenExpiresAt) <= now.getTime();
+}
+
+/**
+ * Any call through the client refreshes the session when its access token is rejected. Returns why
+ * it failed, or `null` when the call succeeded.
+ */
+async function refreshThroughClient(client: ApiClient): Promise<ApiFailure | null> {
+  const result = await callApi(() => client.GET('/users/me'));
+  return result.ok ? null : result.failure;
 }
 
 function send(
@@ -74,21 +99,34 @@ function send(
 ): Promise<Reply> {
   return new Promise((resolve) => {
     const request = createRequest ? createRequest() : new XMLHttpRequest();
+    let stallTimer: ReturnType<typeof setTimeout> | undefined;
+    const settle = (reply: Reply) => {
+      clearTimeout(stallTimer);
+      resolve(reply);
+    };
+    const restartStallTimer = () => {
+      clearTimeout(stallTimer);
+      stallTimer = setTimeout(() => {
+        settle({ kind: 'network' });
+        request.abort();
+      }, STALL_TIMEOUT_MS);
+    };
+
     request.open('POST', url);
-    request.timeout = UPLOAD_TIMEOUT_MS;
     request.setRequestHeader('Accept', 'application/json');
     if (tokens) {
       request.setRequestHeader('Authorization', `${tokens.tokenType} ${tokens.accessToken}`);
     }
     request.upload.onprogress = (event) => {
+      restartStallTimer();
       if (event.lengthComputable && event.total > 0) {
         // React Native on Android can report more bytes sent than the total; a fraction stays <= 1.
         onProgress?.(Math.min(event.loaded / event.total, 1));
       }
     };
     request.onload = () =>
-      resolve({ kind: 'response', status: request.status, body: parseJson(request.responseText) });
-    const failed = () => resolve({ kind: 'network' });
+      settle({ kind: 'response', status: request.status, body: parseJson(request.responseText) });
+    const failed = () => settle({ kind: 'network' });
     request.onerror = failed;
     request.ontimeout = failed;
     request.onabort = failed;
@@ -97,6 +135,7 @@ function send(
     // React Native reads a `{ uri, name, type }` part from the device; the DOM typings only know Blob.
     // No Content-Type header: XHR sets it with the multipart boundary.
     form.append('file', file as unknown as Blob);
+    restartStallTimer();
     request.send(form);
   });
 }
