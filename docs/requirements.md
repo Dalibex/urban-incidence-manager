@@ -60,7 +60,7 @@ or *No* (after the MVP). Whether an issue is finished is in GitHub, not here.
 | RF10 | **Priority**, manual or assisted, keeping its justification. | Partly. Manual priority with a required justification; assisted priority comes with RF20. | #47 |
 | RF13 | **Collaboration.** Operators and technicians add comments, evidence and resolution data. | Yes. Every comment is internal in the MVP. | #50, #51, #44 |
 | RF14 | **Notifications** of relevant changes through configurable channels. | No. The delivery providers are only proposed (ADR-0019). | — |
-| RF19 | **Reports.** Exportable operational and territorial reports. | Yes | #42 |
+| RF19 | **Reports.** Exportable operational and territorial reports. | Yes. The district grouping needs RF21: without it, new reports have no district. | #42 |
 | RF21 | **District and neighbourhood** from the location. | Stretch | #59 |
 
 ### Low
@@ -125,8 +125,9 @@ for its code (#57).
 
 ### Web: administrator
 
-- **Menu:** *Users* and *Audit log*; an administrator can also do everything an operator can
-  (ADR-0020), so they also get the operator's screens (#127).
+- **Menu:** *Users*, *Audit log* and *Reports*; an administrator can also do everything an
+  operator can (ADR-0020), so they also get the operator's screens (#127), and the analyst's
+  *Reports* (#42).
 - **Users** (#40): list filtered by name, email and role; create a staff account with a role; edit
   the name and role; **deactivate** (not delete) an account.
 - **Audit log** (#41): read-only list filtered by date, actor and action; columns date, actor,
