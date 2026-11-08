@@ -117,11 +117,12 @@ for its code (#57).
 ### Web: technician
 
 - **Menu:** *Work queue*.
-- **Work queue** (#51): the incidents assigned to them, filtered by date, status and priority;
-  columns date, title, location, status and priority.
-- **Incident detail** (#51): report data and photos (read-only), and the history with the operator's
-  instructions. *Accept* (`ASSIGNED` → `IN_PROGRESS`), *Comment* (#50) and *Resolve*
-  (`IN_PROGRESS` → `RESOLVED`, resolution notes required, a final photo optional).
+- **Work queue** (#51): the incidents assigned to them, with the filters and columns of the inbox
+  (date reported, title, category, status and priority). It opens on `ASSIGNED` and `IN_PROGRESS`
+  (#187).
+- **Incident detail** (#51): report data, photos (#194) and the history, read-only. *Accept*
+  (`ASSIGNED` → `IN_PROGRESS`), *Comment* (#50) and *Resolve* (`IN_PROGRESS` → `RESOLVED`,
+  resolution notes required).
 
 ### Web: administrator
 
@@ -167,7 +168,7 @@ changed.
 | API key of an external source | `DataSourceConfig.apiKey` stored in the database and typed in the *Sources* screen. | `data_source_config` has no key: secrets come from the environment (Twelve-Factor III). The *Sources* screen is not in the MVP. | ADR-0011, migration `V4` |
 | Validate | *Validate* sets the category and priority and changes the status to `VALIDATED`. | Two steps that the same panel runs: classify (#47) and then validate (#48). Validation only checks that both are set. | ADR-0020, #47, #48 |
 | Request information | A form to ask the citizen; the citizen answers from the app. | The incident stays `REPORTED` and the request is recorded in its history, visible to the citizen. The citizen's answer is not in the MVP. | ADR-0020 (option B), #48 |
-| Resolve | Requires a text confirmation and/or a final photo. | Resolution notes are required; a final photo is optional. | ADR-0020, #51 |
+| Resolve | Requires a text confirmation and/or a final photo. | Resolution notes are required; a final photo is not in the MVP. | ADR-0020, #51 |
 | Reopen | Requires a comment or new evidence; the citizen can answer a reopened incident. | Only an operator reopens, with a required reason; new evidence does not replace it. The citizen does not interact with a reopened incident. | ADR-0020, #52 |
 | Operator inbox | Prioritizes `REPORTED`, with filters by date, category, status, priority, district and department. | Opens filtered by `REPORTED`, and clearing the filters shows every incident; the district filter needs #59 (stretch). | #46, #58, #183 |
 | Notification channels | Push, email and SMS switches in the citizen's profile (RF14, Medium). | Not in the MVP: the delivery providers are only proposed. RF14 stays Medium. | ADR-0019 (proposed) |

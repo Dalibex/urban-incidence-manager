@@ -17,7 +17,7 @@ the [development guide](development.md) and the [demo script](demo.md).
 | --- | --- | --- |
 | [Citizen](#-citizen-mobile-app) | Mobile | Built |
 | [Municipal operator](#-municipal-operator-web) | Web | Partial |
-| [Technician](#-technician-web) | Web | Planned |
+| [Technician](#-technician-web) | Web | Partial |
 | [Administrator](#-administrator-web) | Web | Partial |
 | [Analyst](#-analyst-web) | Web | Planned |
 
@@ -184,15 +184,25 @@ ticked. *Clear filters* lists every incident.
 
 ### Incident detail
 
-- **Report:** the description, category, priority, when it was reported, its last change and,
-  once closed, when it was closed.
+- **Report:** the description, category, priority and why it was given, when it was reported, its
+  last change and, once closed, when it was closed.
 - **Location:** address, neighbourhood, district, coordinates and the accuracy the phone reported
   (for example *within 12.5 m*). A value that is not known says *Not available*: it is never left
   empty or guessed.
 - **History:** every change of status, oldest first, with who made it and the reason. Entries the
   citizen does not see are marked *Internal*.
-- **Actions:** the actions allowed for the status of the incident. When there are none, it says
-  *No actions are available for this incident yet.* Planned: #47, #48, #49, #50, #52.
+- **Actions:** the actions allowed for the status of the incident. When there are none, as on a
+  rejected or closed incident, it says *No actions are available for this incident.* Planned: #48,
+  #49, #50, #52.
+- **Classification:** choose the category and the priority, write why the incident has that
+  priority and press *Save classification*. A priority always needs its reason; you can change
+  only the category, only the priority or both. The button stays disabled until you change
+  something, and the page says *Classification saved.* only once the server has kept it; the inbox
+  shows the new values when you go back to it.
+  - If someone else changed the incident since you opened it, nothing is saved: press *Reload the
+    incident*, check the new values and save again. What you typed is kept.
+  - If the server cannot be reached or answers with an error, nothing is saved and what you typed
+    is kept, so you can save again.
 
 *Back to the inbox* returns to the list as you left it. An incident that does not exist shows
 *Incident not found*.
@@ -208,7 +218,43 @@ loaded, that filter says so and is disabled; the other filters keep working.
 
 ## 🔧 Technician (Web)
 
-The menu shows *Work queue*. Planned: #51.
+The menu shows *Work queue*, where you land.
+
+### Work queue
+
+The incidents assigned to you now, newest first, a page at a time, with the same columns as the
+operator's inbox. It opens on the work still to do: the statuses *Assigned* and *In progress* are
+ticked. Tick other statuses, or *Clear filters*, to see the incidents you resolved.
+
+- **Filters:** the same as in the [inbox](#inbox), and they work the same way: they combine, they
+  are part of the address and the page goes back to the first one. They only search your own
+  incidents.
+- *Open* opens the detail of that incident, and *Back to the work queue* returns to the same
+  filters and page.
+- An incident leaves the queue when it is assigned to someone else.
+
+### Incident detail
+
+The report, the location and the history, as the operator sees them (see
+[Incident detail](#incident-detail)), and the actions of the technician:
+
+- **Accept the work**, on an *Assigned* incident: press *Accept* when you start working on it. It
+  becomes *In progress*, and the citizen sees it.
+- **Resolve**, on an incident *In progress*: write the *Resolution notes* (what was done, up to
+  2,000 characters) and press *Mark as resolved*. The notes are required. The citizen sees that it
+  is resolved, not your notes.
+- On any other status it says *No actions are available for this incident.*
+
+The page says *Incident accepted: it is now in progress.* or *Incident resolved.* only once the
+server has kept the change. If it was not kept, nothing changed and your notes are still there:
+
+- Someone else changed the incident since you opened it, or it no longer allows the action:
+  press *Reload the incident* and check it before trying again.
+- It is no longer assigned to you: *Reload the incident* shows *Incident not found*.
+- The server cannot be reached or answers with an error: try again.
+
+An incident that is not assigned to you, opened from a link, shows *Incident not found*. Planned:
+comments (#50) and photos (#194).
 
 ## 🛡️ Administrator (Web)
 

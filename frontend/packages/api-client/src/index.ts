@@ -17,14 +17,18 @@ export {
   type ApiResult,
 } from './account';
 export {
+  acceptIncident,
   createIncident,
   getIncident,
   listCategories,
   listDepartments,
   listIncidents,
   listIncidentStatusChanges,
+  resolveIncident,
+  updateIncident,
   type CreateIncidentResult,
   type FieldError,
+  type FormResult,
   type IncidentListQuery,
 } from './incidents';
 export { uploadIncidentAttachment, type LocalFile, type UploadOptions } from './attachments';
