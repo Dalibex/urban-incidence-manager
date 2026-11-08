@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 
@@ -35,6 +35,23 @@ describe('inbox filters', () => {
     expect(query.get('page')).toBe('1');
   });
 
+  // #217, T3
+  it('ticks every status of the address and asks the API for all of them', async () => {
+    const requests: URLSearchParams[] = [];
+    renderApp(`${PATHS.inbox}?status=IN_PROGRESS&status=ASSIGNED`, {
+      role: 'MUNICIPAL_OPERATOR',
+      fetch: emptyInbox(requests),
+    });
+
+    await screen.findByText('No incidents match these filters.');
+    const ticked = screen
+      .getAllByRole<HTMLInputElement>('checkbox')
+      .filter((checkbox) => checkbox.checked)
+      .map((checkbox) => checkbox.closest('label')?.textContent);
+    expect(ticked).toEqual(['Assigned', 'In progress']);
+    expect(requests.at(-1)!.getAll('status')).toEqual(['ASSIGNED', 'IN_PROGRESS']);
+  });
+
   it('starts again on the first page when a filter changes, keeping the others', async () => {
     const requests: URLSearchParams[] = [];
     const router = renderApp(`${PATHS.inbox}?priority=HIGH&page=3`, {
@@ -42,7 +59,8 @@ describe('inbox filters', () => {
       fetch: emptyInbox(requests),
     });
 
-    await userEvent.selectOptions(await screen.findByLabelText('Status'), 'Assigned');
+    const statuses = await screen.findByRole('group', { name: 'Status' });
+    await userEvent.click(within(statuses).getByRole('checkbox', { name: 'Assigned' }));
 
     const params = new URLSearchParams(router.state.location.search);
     expect(Object.fromEntries(params)).toEqual({ status: 'ASSIGNED', priority: 'HIGH' });
@@ -62,7 +80,7 @@ describe('inbox filters', () => {
     expect(router.state.location.search).toBe('');
     expect(await screen.findByText('There are no incidents yet.')).toBeDefined();
     // The button goes away with the empty state; the focus stays in the filters (#211 review).
-    expect(document.activeElement).toBe(screen.getByLabelText('Status'));
+    expect(document.activeElement).toBe(screen.getByRole('checkbox', { name: 'Reported' }));
   });
 
   it('keeps the filters when the list fails, and filters again on retry', async () => {

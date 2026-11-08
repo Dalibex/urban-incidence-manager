@@ -141,6 +141,15 @@ What the measurements decided:
   without it, because it still checks every incident. Only its page does.
 - The two indexes take 8 MB in total with this volume.
 
+### Integrity
+
+A unique index that keeps a rule of the data is not a performance index, so it needs no
+measurement:
+
+| Index | Migration | Rule |
+| --- | --- | --- |
+| `uq_attachment_incident_content_hash` on `attachment (incident_id, content_hash)` | `V13__incidents_unique_attachment_content.sql` (#192) | One photo per content and incident: two uploads of the same file at the same time store it once (ADR-0013) |
+
 ## 📚 Reference Data
 
 The initial categories and departments are inserted by a migration,

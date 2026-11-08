@@ -55,6 +55,10 @@ function field(name: string): HTMLSelectElement | HTMLInputElement {
   return screen.getByLabelText(name);
 }
 
+function statusChoice(name: string): HTMLInputElement {
+  return within(screen.getByRole('group', { name: 'Status' })).getByRole('checkbox', { name });
+}
+
 async function optionsLoaded() {
   await within(screen.getByLabelText('Category')).findByRole('option', { name: 'Parks' });
   await within(screen.getByLabelText('Department')).findByRole('option', { name: 'Maintenance' });
@@ -69,8 +73,10 @@ describe('IncidentFilterBar', () => {
       within(field(label) as HTMLSelectElement)
         .getAllByRole('option')
         .map((option) => option.textContent);
-    expect(names('Status')).toEqual([
-      'All statuses',
+    const statuses = within(screen.getByRole('group', { name: 'Status' }))
+      .getAllByRole('checkbox')
+      .map((checkbox) => checkbox.closest('label')?.textContent);
+    expect(statuses).toEqual([
       'Reported',
       'Validated',
       'Rejected',
@@ -86,7 +92,7 @@ describe('IncidentFilterBar', () => {
   });
 
   it('applies each choice at once and keeps the other filters', async () => {
-    const changes = renderBar({ status: 'REPORTED' });
+    const changes = renderBar({ status: ['REPORTED'] });
     await optionsLoaded();
 
     await userEvent.selectOptions(field('Category'), 'Street lighting');
@@ -94,7 +100,7 @@ describe('IncidentFilterBar', () => {
     await userEvent.selectOptions(field('Department'), 'Maintenance');
 
     expect(changes).toHaveBeenLastCalledWith({
-      status: 'REPORTED',
+      status: ['REPORTED'],
       categoryId: LIGHTING.id,
       priority: 'HIGH',
       departmentId: MAINTENANCE.id,
@@ -102,9 +108,30 @@ describe('IncidentFilterBar', () => {
   });
 
   it('removes a filter when its "All" option is chosen', async () => {
-    const changes = renderBar({ status: 'ASSIGNED', priority: 'LOW' });
+    const changes = renderBar({ categoryId: LIGHTING.id, priority: 'LOW' });
+    await optionsLoaded();
 
-    await userEvent.selectOptions(field('Status'), 'All statuses');
+    await userEvent.selectOptions(field('Priority'), 'All priorities');
+
+    expect(changes).toHaveBeenLastCalledWith({ categoryId: LIGHTING.id });
+  });
+
+  // #217
+  it('adds a status to the ones chosen, in the order of the lifecycle', async () => {
+    const changes = renderBar({ status: ['IN_PROGRESS'] });
+
+    await userEvent.click(statusChoice('Assigned'));
+
+    expect(changes).toHaveBeenLastCalledWith({ status: ['ASSIGNED', 'IN_PROGRESS'] });
+    expect(statusChoice('Assigned').checked).toBe(true);
+    expect(statusChoice('In progress').checked).toBe(true);
+  });
+
+  // #217, T5
+  it('removes the status filter when its last status is unticked', async () => {
+    const changes = renderBar({ status: ['ASSIGNED'], priority: 'LOW' });
+
+    await userEvent.click(statusChoice('Assigned'));
 
     expect(changes).toHaveBeenLastCalledWith({ priority: 'LOW' });
   });
@@ -123,7 +150,7 @@ describe('IncidentFilterBar', () => {
   });
 
   it('clears every filter, and cannot clear when none is set', async () => {
-    const changes = renderBar({ status: 'REPORTED', reportedTo: '2026-11-05' });
+    const changes = renderBar({ status: ['REPORTED', 'REOPENED'], reportedTo: '2026-11-05' });
     const clear = screen.getByRole('button', { name: 'Clear filters' });
 
     await userEvent.click(clear);
@@ -131,7 +158,8 @@ describe('IncidentFilterBar', () => {
     expect(changes).toHaveBeenLastCalledWith({});
     expect(clear).toHaveProperty('disabled', true);
     // The disabled button cannot keep the focus, so it moves to the first filter (#78, T1).
-    expect(document.activeElement).toBe(field('Status'));
+    expect(document.activeElement).toBe(statusChoice('Reported'));
+    expect(statusChoice('Reopened').checked).toBe(false);
   });
 
   it('keeps the rest of the bar working when the options cannot be loaded', async () => {
@@ -151,8 +179,8 @@ describe('IncidentFilterBar', () => {
     expect(field('Category')).toHaveProperty('disabled', true);
     expect(field('Department')).toHaveProperty('disabled', true);
 
-    await userEvent.selectOptions(field('Status'), 'Validated');
-    expect(changes).toHaveBeenLastCalledWith({ status: 'VALIDATED' });
+    await userEvent.click(statusChoice('Validated'));
+    expect(changes).toHaveBeenLastCalledWith({ status: ['VALIDATED'] });
   });
 
   it('shows a chosen category that is not among the active ones', async () => {
