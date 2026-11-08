@@ -569,8 +569,6 @@ paths:
       operationId: listTechnicians
       summary: List the active technicians
       description: |
-        Planned: #190.
-
         Enabled technicians, ordered by name, for the assignment form. It is a short list of staff,
         so it is not paginated. It returns only what the form needs, without emails.
 

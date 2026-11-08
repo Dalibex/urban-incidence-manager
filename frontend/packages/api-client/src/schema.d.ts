@@ -260,9 +260,7 @@ export interface paths {
         };
         /**
          * List the active technicians
-         * @description Planned: #190.
-         *
-         *     Enabled technicians, ordered by name, for the assignment form. It is a short list of staff,
+         * @description Enabled technicians, ordered by name, for the assignment form. It is a short list of staff,
          *     so it is not paginated. It returns only what the form needs, without emails.
          *
          *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`.

@@ -212,6 +212,7 @@ operation; the note says when the answer also depends on the resource. A role no
 | `GET /users/me` | | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `GET /categories` | | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `GET /departments` | | | ✓ | ✓ | ✓ | |
+| `GET /technicians` | | | ✓ | | ✓ | |
 | `GET /incidents` | | own | ✓ | assigned | ✓ | |
 | `POST /incidents` | | ✓ | | | | |
 | `GET /incidents/{id}` | | own | ✓ | assigned | ✓ | |
