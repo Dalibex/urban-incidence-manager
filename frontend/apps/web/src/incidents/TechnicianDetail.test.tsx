@@ -9,8 +9,9 @@ import { fakeApi, json, renderApp } from '../test-utils';
 type Incident = components['schemas']['IncidentResponse'];
 
 /**
- * The technician's detail (#187, steps 2 and 3): it opens from the work queue and leads back to it,
- * has no operator actions, and offers Accept on an assigned incident and Resolve on one in progress.
+ * The technician's detail (#187, steps 2 and 3), with the cases of #74 it covers: T15 screen
+ * failures and T16 the detail itself. It opens from the work queue and leads back to it, has no
+ * operator actions, and offers Accept on an assigned incident and Resolve on one in progress.
  */
 
 const NOTES = 'Replaced the lamp and checked it at night.';
@@ -98,6 +99,7 @@ async function actions() {
 }
 
 describe("technician's incident detail (#187)", () => {
+  // T16
   it('opens from the work queue and leads back to it as it was left', async () => {
     const queue = `${PATHS.workQueue}?status=ASSIGNED&page=0`;
     const router = renderApp(queue, { role: 'TECHNICIAN', fetch: api(newServer()) });
@@ -111,6 +113,7 @@ describe("technician's incident detail (#187)", () => {
     expect(pathname + search).toBe(queue);
   });
 
+  // T16
   it('has no operator actions', async () => {
     renderApp(incidentPath(ASSIGNED.id), { role: 'TECHNICIAN', fetch: api(newServer()) });
 
@@ -147,6 +150,7 @@ describe("technician's incident detail (#187)", () => {
     expect(server.resolved).toEqual([{ version: IN_PROGRESS.version, reason: NOTES }]);
   });
 
+  // T15: a double click, no success before the answer, and a 409.
   it('sends one request on a double click, and keeps the notes after a 409', async () => {
     const server = newServer(IN_PROGRESS);
     let respond: (response: Response) => void = () => {};
@@ -159,6 +163,7 @@ describe("technician's incident detail (#187)", () => {
     await userEvent.type(panel.getByLabelText('Resolution notes'), NOTES);
     await userEvent.dblClick(panel.getByRole('button', { name: 'Mark as resolved' }));
     expect(await panel.findByRole('button', { name: 'Saving…' })).toHaveProperty('disabled', true);
+    expect(screen.queryByText('Incident resolved.')).toBeNull();
     expect(server.resolved).toHaveLength(1);
 
     respond(json(409, { status: 409, code: 'CONCURRENT_MODIFICATION', title: 'Conflict' }));
@@ -172,6 +177,45 @@ describe("technician's incident detail (#187)", () => {
     expect(server.resolved).toHaveLength(1);
   });
 
+  // T15: no network, then a 5xx; the notes stay and the technician can send them again.
+  it('offers to resolve again after a network failure or a 5xx', async () => {
+    const server = newServer(IN_PROGRESS);
+    const answers: (() => Response)[] = [
+      () => {
+        throw new TypeError('Failed to fetch');
+      },
+      () => json(500, { status: 500 }),
+      () => {
+        server.incident = RESOLVED;
+        return json(200, RESOLVED);
+      },
+    ];
+    renderApp(incidentPath(ASSIGNED.id), {
+      role: 'TECHNICIAN',
+      fetch: api(server, () => answers.shift()!()),
+    });
+    const panel = await actions();
+    const resolve = panel.getByRole('button', { name: 'Mark as resolved' });
+
+    await userEvent.type(panel.getByLabelText('Resolution notes'), NOTES);
+    await userEvent.click(resolve);
+    expect((await panel.findByRole('alert')).textContent).toContain('The server cannot be reached');
+    expect(panel.getByLabelText('Resolution notes')).toHaveProperty('value', NOTES);
+
+    await userEvent.click(resolve);
+    expect((await panel.findByRole('alert')).textContent).toContain('could not be saved');
+    expect(panel.getByLabelText('Resolution notes')).toHaveProperty('value', NOTES);
+
+    await userEvent.click(resolve);
+    expect(await screen.findByText('Incident resolved.')).toBeDefined();
+    expect(server.resolved).toEqual([
+      { version: IN_PROGRESS.version, reason: NOTES },
+      { version: IN_PROGRESS.version, reason: NOTES },
+      { version: IN_PROGRESS.version, reason: NOTES },
+    ]);
+  });
+
+  // T16
   it('shows "not found" for an incident not assigned to them, with the way back', async () => {
     renderApp(incidentPath(OTHER_INCIDENT_ID), { role: 'TECHNICIAN', fetch: api(newServer()) });
 
