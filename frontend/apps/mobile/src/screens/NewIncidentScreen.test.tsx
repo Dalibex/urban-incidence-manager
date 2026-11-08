@@ -299,6 +299,23 @@ describe('NewIncidentScreen', () => {
       expect(navigation.navigate).toHaveBeenCalledWith('MyReports');
     });
 
+    it('offers to add photos to the report just created (#193)', async () => {
+      mockedCreateIncident.mockResolvedValue(CREATED);
+      const { navigation } = await renderScreen();
+      await fillIn('Street light off', 'Off for three days.');
+
+      await fireEvent.press(screen.getByRole('button', { name: 'Submit' }));
+
+      await waitFor(() => expect(Alert.alert).toHaveBeenCalledTimes(1));
+      const [, , buttons] = jest.mocked(Alert.alert).mock.lastCall ?? [];
+      buttons?.find((button) => button.text === 'Add photos')?.onPress?.();
+      expect(navigation.navigate).toHaveBeenCalledWith('MyReports', {
+        screen: 'AddPhotos',
+        params: { incidentId: CREATED.ok ? CREATED.data.id : '' },
+        initial: false,
+      });
+    });
+
     it('leaves out the accuracy when the device does not report it', async () => {
       mockedLocation.mockReturnValue({ ...LOCATED, accuracy: null });
       mockedCreateIncident.mockResolvedValue(CREATED);
