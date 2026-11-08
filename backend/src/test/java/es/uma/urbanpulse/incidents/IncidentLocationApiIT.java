@@ -154,6 +154,24 @@ class IncidentLocationApiIT {
         }
     }
 
+    // T4: without any parameter, the first request of the map, each role keeps its scope. The other
+    // tests narrow by category, so this is the only one with no filter at all.
+    @Test
+    void withoutParametersEachRoleKeepsItsScope() throws Exception {
+        // HIGH and the newest of the database, so it is first even if other incidents exist.
+        UUID unassigned = incident("VALIDATED", "HIGH", TOWN_HALL_LATITUDE, TOWN_HALL_LONGITUDE);
+        UUID assigned = incident("ASSIGNED", "HIGH", TOWN_HALL_LATITUDE, TOWN_HALL_LONGITUDE);
+        assign(assigned, technician, true);
+
+        for (UUID staff : List.of(operator, administrator)) {
+            assertThat(locationIds(staff))
+                    .as("positions for %s", roleOf(staff))
+                    .contains(unassigned.toString(), assigned.toString());
+        }
+        assertThat(locationIds(technician)).containsExactly(assigned.toString());
+        assertThat(locationIds(otherTechnician)).isEmpty();
+    }
+
     // T4: no match is an empty list, not an error.
     @Test
     void noMatchIsAnEmptyList() throws Exception {
