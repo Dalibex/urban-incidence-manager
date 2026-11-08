@@ -82,7 +82,8 @@ function send(
     }
     request.upload.onprogress = (event) => {
       if (event.lengthComputable && event.total > 0) {
-        onProgress?.(event.loaded / event.total);
+        // React Native on Android can report more bytes sent than the total; a fraction stays <= 1.
+        onProgress?.(Math.min(event.loaded / event.total, 1));
       }
     };
     request.onload = () =>

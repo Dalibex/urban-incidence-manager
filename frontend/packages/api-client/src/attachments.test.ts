@@ -153,6 +153,23 @@ describe('uploadIncidentAttachment', () => {
     expect(request?.body).toBeInstanceOf(FormData);
   });
 
+  it('never reports more than the whole file, even when more bytes than the total are sent (#222)', async () => {
+    const tokenStore = memoryStore(tokens('access-1', 'refresh-1'));
+    const { client } = setUp(tokenStore);
+    // React Native on Android reported 170% for a small photo.
+    const xhr = requests({ status: 201, body: ATTACHMENT, progress: [[56_100, 33_000]] });
+    const onProgress = vi.fn();
+
+    await uploadIncidentAttachment(client, INCIDENT_ID, PHOTO, {
+      baseUrl: BASE_URL,
+      tokenStore,
+      onProgress,
+      createRequest: xhr.createRequest,
+    });
+
+    expect(onProgress.mock.calls).toEqual([[1]]);
+  });
+
   it('accepts the 200 of a photo that was already attached, such as a retry', async () => {
     const tokenStore = memoryStore(tokens('access-1', 'refresh-1'));
     const { client } = setUp(tokenStore);
