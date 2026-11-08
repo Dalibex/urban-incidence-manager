@@ -85,3 +85,21 @@
   opacity: 0.6;
   cursor: progress;
 }
+
+/* A secondary action next to the primary button, such as going back a step. */
+.textButton {
+  align-self: flex-start;
+  padding: var(--space-xs) 0;
+  border: 0;
+  background: none;
+  color: var(--color-primary);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.textButton:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
