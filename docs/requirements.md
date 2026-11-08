@@ -54,7 +54,7 @@ or *No* (after the MVP). Whether an issue is finished is in GitHub, not here.
 
 | ID | Requirement | In the MVP | Issues |
 | --- | --- | --- | --- |
-| RF05 | **Evidence.** Photos or other files, with type and size validation. | Yes | #44 (ADR-0013) |
+| RF05 | **Evidence.** Photos or other files, with type and size validation. | Yes | #44 (ADR-0013; #192 API, #193 mobile, #194 web) |
 | RF07 | **Search.** Staff filter by status, category, date, priority, district and department. | Yes. The district filter needs RF21. | #58 (#182 API, #183 web) |
 | RF08 | **Map** of incidents and relevant urban layers. | Partly. Incidents on the web map; urban layers need urban data, which the MVP does not load. | #53; #60 (stretch, mobile) |
 | RF10 | **Priority**, manual or assisted, keeping its justification. | Partly. Manual priority with a required justification; assisted priority comes with RF20. | #47 |
@@ -144,7 +144,7 @@ for its code (#57).
 
 - **Tabs:** *New*, *My reports* and *Profile*.
 - **New** (#43): title, description, optional category and the phone's position with its
-  accuracy; photos with #44. Choosing or correcting the position on a map is a stretch goal (#60).
+  accuracy. After sending, optional photos from the camera or the gallery (#193). Choosing or correcting the position on a map is a stretch goal (#60).
 - **My reports** (#45): the citizen's incidents filtered by open or closed; title, date, status and
   a photo thumbnail when there is one.
 - **Detail** (#45): the report, its position, photos and the history the citizen may see (ADR-0020,
