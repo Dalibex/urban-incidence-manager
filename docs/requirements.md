@@ -117,11 +117,12 @@ for its code (#57).
 ### Web: technician
 
 - **Menu:** *Work queue*.
-- **Work queue** (#51): the incidents assigned to them, filtered by date, status and priority;
-  columns date, title, location, status and priority.
-- **Incident detail** (#51): report data and photos (read-only), and the history with the operator's
-  instructions. *Accept* (`ASSIGNED` → `IN_PROGRESS`), *Comment* (#50) and *Resolve*
-  (`IN_PROGRESS` → `RESOLVED`, resolution notes required, a final photo optional).
+- **Work queue** (#51): the incidents assigned to them, with the filters and columns of the inbox
+  (date reported, title, category, status and priority). It opens on `ASSIGNED` and `IN_PROGRESS`
+  (#187).
+- **Incident detail** (#51): report data, photos (#194) and the history, read-only. *Accept*
+  (`ASSIGNED` → `IN_PROGRESS`), *Comment* (#50) and *Resolve* (`IN_PROGRESS` → `RESOLVED`,
+  resolution notes required).
 
 ### Web: administrator
 
