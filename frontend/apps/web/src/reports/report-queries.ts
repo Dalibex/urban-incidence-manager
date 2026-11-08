@@ -1,6 +1,6 @@
 import { downloadIncidentReport, getIncidentReport } from '@urbanpulse/api-client';
 import { useQuery } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 
 import { ApiCallError, dataOf } from '../query-client';
 import { useSession } from '../session/SessionContext';
@@ -19,40 +19,28 @@ export type DownloadState =
   { kind: 'idle' } | { kind: 'downloading' } | { kind: 'failed'; error: ApiCallError };
 
 /**
- * Downloads the CSV of a request and hands it to the browser as a file. While one download runs,
- * another one is ignored, so a double click does not save the file twice. A failed download saves
- * nothing.
+ * Downloads the CSV of a request and hands it to the browser as a file. A failed download saves
+ * nothing. The screen disables its button while `state` is `downloading`, so a double click starts
+ * one download: React applies that state before it handles the next click.
  */
 export function useReportDownload() {
   const { api } = useSession();
   const [state, setState] = useState<DownloadState>({ kind: 'idle' });
-  // A ref, not the state: two clicks in the same render would both read the old state.
-  const running = useRef(false);
 
   const download = async (request: ReportRequest) => {
-    if (running.current) {
+    setState({ kind: 'downloading' });
+    const result = await downloadIncidentReport(api, toReportQuery(request));
+    if (!result.ok) {
+      setState({ kind: 'failed', error: new ApiCallError(result.failure) });
       return;
     }
-    running.current = true;
-    setState({ kind: 'downloading' });
-    try {
-      const result = await downloadIncidentReport(api, toReportQuery(request));
-      if (!result.ok) {
-        setState({ kind: 'failed', error: new ApiCallError(result.failure) });
-        return;
-      }
-      saveFile(result.data, csvFileName(request));
-      setState({ kind: 'idle' });
-    } finally {
-      running.current = false;
-    }
+    saveFile(result.data, csvFileName(request));
+    setState({ kind: 'idle' });
   };
 
   /** Forgets a failed download, so its message does not stay under another report. */
   const reset = () => {
-    if (!running.current) {
-      setState({ kind: 'idle' });
-    }
+    setState((current) => (current.kind === 'failed' ? { kind: 'idle' } : current));
   };
 
   return { state, download, reset };
