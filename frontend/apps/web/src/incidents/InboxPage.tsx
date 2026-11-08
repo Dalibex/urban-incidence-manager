@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router';
 
-import { incidentPath, type InboxReturn } from '../routing/access';
+import { incidentPath, type ListReturn } from '../routing/access';
 import { IncidentListPage } from './IncidentListPage';
 import styles from './Incidents.module.css';
 
@@ -10,7 +10,7 @@ import styles from './Incidents.module.css';
  */
 export function InboxPage() {
   // The detail links back to the inbox as the user left it: same filters, same page.
-  const inboxReturn: InboxReturn = { inboxSearch: useLocation().search };
+  const inboxReturn: ListReturn = { listSearch: useLocation().search };
   return (
     <IncidentListPage
       title="Inbox"

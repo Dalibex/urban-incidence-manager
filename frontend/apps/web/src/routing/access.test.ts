@@ -1,7 +1,14 @@
 import { ROLES } from '@urbanpulse/domain';
 import { describe, expect, it } from 'vitest';
 
-import { PATHS, inboxReturnPath, landingPath, routeAccess, signInReturnPath } from './access';
+import {
+  incidentListOf,
+  landingPath,
+  listReturnPath,
+  PATHS,
+  routeAccess,
+  signInReturnPath,
+} from './access';
 
 describe('routeAccess', () => {
   it('sends a visitor without a session to sign in', () => {
@@ -33,17 +40,31 @@ describe('landingPath', () => {
   });
 });
 
-describe('inboxReturnPath', () => {
-  it('goes back to the inbox the user came from', () => {
-    expect(inboxReturnPath({ inboxSearch: '?priority=HIGH&page=2' })).toBe(
+describe('listReturnPath', () => {
+  it('goes back to the list as the user left it', () => {
+    expect(listReturnPath({ listSearch: '?priority=HIGH&page=2' }, 'inbox')).toBe(
       `${PATHS.inbox}?priority=HIGH&page=2`,
     );
-    expect(inboxReturnPath({ inboxSearch: '' })).toBe(PATHS.inbox);
+    expect(listReturnPath({ listSearch: '' }, 'inbox')).toBe(PATHS.inbox);
+    expect(listReturnPath({ listSearch: '?page=1' }, 'workQueue')).toBe(
+      `${PATHS.workQueue}?page=1`,
+    );
   });
 
-  it('goes to the default inbox after a direct link', () => {
-    expect(inboxReturnPath(null)).toBe(`${PATHS.inbox}?status=REPORTED`);
-    expect(inboxReturnPath({ inboxSearch: 42 })).toBe(`${PATHS.inbox}?status=REPORTED`);
+  it('goes to the default list after a direct link', () => {
+    expect(listReturnPath(null, 'inbox')).toBe(`${PATHS.inbox}?status=REPORTED`);
+    expect(listReturnPath({ listSearch: 42 }, 'inbox')).toBe(`${PATHS.inbox}?status=REPORTED`);
+    expect(listReturnPath(null, 'workQueue')).toBe(
+      `${PATHS.workQueue}?status=ASSIGNED&status=IN_PROGRESS`,
+    );
+  });
+});
+
+describe('incidentListOf', () => {
+  it('leads the technician back to the work queue and the operators to the inbox', () => {
+    expect(incidentListOf('TECHNICIAN')).toBe('workQueue');
+    expect(incidentListOf('MUNICIPAL_OPERATOR')).toBe('inbox');
+    expect(incidentListOf('ADMINISTRATOR')).toBe('inbox');
   });
 });
 
