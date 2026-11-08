@@ -17,12 +17,14 @@ export {
   type ApiResult,
 } from './account';
 export {
+  acceptIncident,
   createIncident,
   getIncident,
   listCategories,
   listDepartments,
   listIncidents,
   listIncidentStatusChanges,
+  resolveIncident,
   updateIncident,
   type CreateIncidentResult,
   type FieldError,

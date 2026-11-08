@@ -1,11 +1,15 @@
 import {
+  acceptIncident,
   getIncident,
   listCategories,
   listDepartments,
   listIncidents,
   listIncidentStatusChanges,
+  resolveIncident,
   updateIncident,
+  type ApiClient,
   type components,
+  type FormResult,
 } from '@urbanpulse/api-client';
 import {
   keepPreviousData,
@@ -24,6 +28,8 @@ export const INBOX_PAGE_SIZE = 20;
 
 type Incident = components['schemas']['IncidentResponse'];
 type UpdateIncidentRequest = components['schemas']['UpdateIncidentRequest'];
+type IncidentActionRequest = components['schemas']['IncidentActionRequest'];
+type IncidentReasonRequest = components['schemas']['IncidentReasonRequest'];
 
 const incidentKeys = {
   page: (page: number, filters: IncidentFilters) => ['incidents', 'page', page, filters] as const,
@@ -103,21 +109,44 @@ export function afterIncidentChange(queryClient: QueryClient, incident: Incident
 }
 
 /**
- * Classifies the incident (#47). The call resolves with the API's answer, a failure included, so
- * the form can show it next to its fields; only an unexpected bug rejects.
+ * A change of the incident sent from a form. The call resolves with the API's answer, a failure
+ * included, so the form can show it next to its fields; only an unexpected bug rejects.
  */
-export function useUpdateIncident(incidentId: string) {
+function useIncidentChange<TBody>(
+  send: (api: ApiClient, body: TBody) => Promise<FormResult<Incident>>,
+) {
   const { api } = useSession();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: UpdateIncidentRequest) => updateIncident(api, incidentId, body),
+    mutationFn: (body: TBody) => send(api, body),
     onSuccess: (result) => {
       if (result.ok) {
-        // Not awaited: the form answers as soon as the API does, while the inbox reloads.
+        // Not awaited: the form answers as soon as the API does, while the lists reload.
         void afterIncidentChange(queryClient, result.data);
       }
     },
   });
+}
+
+/** Classifies the incident (#47). */
+export function useUpdateIncident(incidentId: string) {
+  return useIncidentChange((api, body: UpdateIncidentRequest) =>
+    updateIncident(api, incidentId, body),
+  );
+}
+
+/** The technician accepts the incident assigned to them (#187). */
+export function useAcceptIncident(incidentId: string) {
+  return useIncidentChange((api, body: IncidentActionRequest) =>
+    acceptIncident(api, incidentId, body),
+  );
+}
+
+/** The technician resolves the incident, with the resolution notes (#187). */
+export function useResolveIncident(incidentId: string) {
+  return useIncidentChange((api, body: IncidentReasonRequest) =>
+    resolveIncident(api, incidentId, body),
+  );
 }
 
 /** Reads the incident again, for example after a `409` that says it changed meanwhile. */

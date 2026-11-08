@@ -1,12 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  acceptIncident,
   createApiClient,
   createIncident,
   getIncident,
   listCategories,
   listDepartments,
   listIncidents,
+  resolveIncident,
   updateIncident,
+  type ApiClient,
   type SessionTokens,
   type TokenStore,
 } from './index';
@@ -245,6 +248,48 @@ describe('updateIncident', () => {
       ok: false,
       failure: { kind: 'problem', status: 422, code: 'VALIDATION_FAILED' },
       fieldErrors: errors,
+    });
+  });
+});
+
+const ACCEPTANCE = { version: 3 };
+const RESOLUTION = { version: 3, reason: 'Replaced the lamp and checked it at night.' };
+
+describe.each([
+  [
+    'acceptIncident',
+    'acceptance',
+    ACCEPTANCE,
+    (client: ApiClient) => acceptIncident(client, INCIDENT_ID, ACCEPTANCE),
+  ],
+  [
+    'resolveIncident',
+    'resolution',
+    RESOLUTION,
+    (client: ApiClient) => resolveIncident(client, INCIDENT_ID, RESOLUTION),
+  ],
+] as const)('%s', (_name, resource, body, send) => {
+  it(`sends a POST to /${resource} and returns the incident with its new version`, async () => {
+    let sent: unknown = undefined;
+    const fetch = vi.fn(async (request: Request) => {
+      expect(request.method).toBe('POST');
+      expect(new URL(request.url).pathname).toBe(`/api/v1/incidents/${INCIDENT_ID}/${resource}`);
+      sent = await request.json();
+      return json(200, CREATED);
+    });
+    const client = createApiClient(BASE_URL, { tokenStore: memoryStore(TOKENS), fetch });
+
+    expect(await send(client)).toEqual({ ok: true, data: CREATED });
+    expect(sent).toEqual(body);
+  });
+
+  it('carries the code of a 409, so the screen can say why', async () => {
+    const { client } = clientAnswering(409, { status: 409, code: 'INVALID_TRANSITION' });
+
+    expect(await send(client)).toEqual({
+      ok: false,
+      failure: { kind: 'problem', status: 409, code: 'INVALID_TRANSITION' },
+      fieldErrors: [],
     });
   });
 });
