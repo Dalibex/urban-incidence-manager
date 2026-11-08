@@ -150,7 +150,7 @@ Do not define a new error body. If an error needs extra information, add an opti
 | `INVALID_TRANSITION` | 409 | Lifecycle actions (Sprint 2) | The transition is not allowed (ADR-0020) |
 | `CONCURRENT_MODIFICATION` | 409 | Lifecycle actions and `updateIncident` (Sprint 2) | The incident changed since the client read its `version`: reload it and decide again (ADR-0020) |
 | `PASSWORD_CHANGE_REQUIRED` | 403 | `createSession` (planned: #165) | Right credentials, but the password must change first |
-| `CLASSIFICATION_NOT_ALLOWED` | 409 | `updateIncident` (planned: #47) | The incident is `REJECTED` or `CLOSED` |
+| `CLASSIFICATION_NOT_ALLOWED` | 409 | `updateIncident` | The incident is `REJECTED` or `CLOSED` |
 | `ATTACHMENT_NOT_ALLOWED` | 409 | `createIncidentAttachment` | A citizen can only upload while the incident is `REPORTED` |
 | `FILE_TOO_LARGE` | 413 | `createIncidentAttachment` | The file is over the size limit |
 
