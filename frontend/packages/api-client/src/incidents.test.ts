@@ -1,11 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  acceptIncident,
   createApiClient,
   createIncident,
   getIncident,
   listCategories,
   listDepartments,
   listIncidents,
+  resolveIncident,
+  updateIncident,
+  type ApiClient,
   type SessionTokens,
   type TokenStore,
 } from './index';
@@ -201,6 +205,91 @@ describe('incident calls', () => {
     expect(result).toEqual({
       ok: false,
       failure: { kind: 'problem', status: 404, code: undefined },
+    });
+  });
+});
+
+describe('updateIncident', () => {
+  const UPDATE: components['schemas']['UpdateIncidentRequest'] = {
+    version: 3,
+    priority: 'HIGH',
+    priorityReason: 'The street is dark near a school.',
+  };
+
+  it('sends a PATCH with the body and returns the incident with its new version', async () => {
+    let sent: unknown = undefined;
+    const fetch = vi.fn(async (request: Request) => {
+      expect(request.method).toBe('PATCH');
+      expect(new URL(request.url).pathname).toBe(`/api/v1/incidents/${INCIDENT_ID}`);
+      sent = await request.json();
+      return json(200, CREATED);
+    });
+    const client = createApiClient(BASE_URL, { tokenStore: memoryStore(TOKENS), fetch });
+
+    expect(await updateIncident(client, INCIDENT_ID, UPDATE)).toEqual({ ok: true, data: CREATED });
+    expect(sent).toEqual(UPDATE);
+  });
+
+  it('carries the code of a 409, so the screen can ask to reload', async () => {
+    const { client } = clientAnswering(409, { status: 409, code: 'CONCURRENT_MODIFICATION' });
+
+    expect(await updateIncident(client, INCIDENT_ID, UPDATE)).toEqual({
+      ok: false,
+      failure: { kind: 'problem', status: 409, code: 'CONCURRENT_MODIFICATION' },
+      fieldErrors: [],
+    });
+  });
+
+  it('carries the per-field errors of a 422 problem', async () => {
+    const errors = [{ field: 'priorityReason', message: 'A priority needs its justification.' }];
+    const { client } = clientAnswering(422, { status: 422, code: 'VALIDATION_FAILED', errors });
+
+    expect(await updateIncident(client, INCIDENT_ID, UPDATE)).toEqual({
+      ok: false,
+      failure: { kind: 'problem', status: 422, code: 'VALIDATION_FAILED' },
+      fieldErrors: errors,
+    });
+  });
+});
+
+const ACCEPTANCE = { version: 3 };
+const RESOLUTION = { version: 3, reason: 'Replaced the lamp and checked it at night.' };
+
+describe.each([
+  [
+    'acceptIncident',
+    'acceptance',
+    ACCEPTANCE,
+    (client: ApiClient) => acceptIncident(client, INCIDENT_ID, ACCEPTANCE),
+  ],
+  [
+    'resolveIncident',
+    'resolution',
+    RESOLUTION,
+    (client: ApiClient) => resolveIncident(client, INCIDENT_ID, RESOLUTION),
+  ],
+] as const)('%s', (_name, resource, body, send) => {
+  it(`sends a POST to /${resource} and returns the incident with its new version`, async () => {
+    let sent: unknown = undefined;
+    const fetch = vi.fn(async (request: Request) => {
+      expect(request.method).toBe('POST');
+      expect(new URL(request.url).pathname).toBe(`/api/v1/incidents/${INCIDENT_ID}/${resource}`);
+      sent = await request.json();
+      return json(200, CREATED);
+    });
+    const client = createApiClient(BASE_URL, { tokenStore: memoryStore(TOKENS), fetch });
+
+    expect(await send(client)).toEqual({ ok: true, data: CREATED });
+    expect(sent).toEqual(body);
+  });
+
+  it('carries the code of a 409, so the screen can say why', async () => {
+    const { client } = clientAnswering(409, { status: 409, code: 'INVALID_TRANSITION' });
+
+    expect(await send(client)).toEqual({
+      ok: false,
+      failure: { kind: 'problem', status: 409, code: 'INVALID_TRANSITION' },
+      fieldErrors: [],
     });
   });
 });

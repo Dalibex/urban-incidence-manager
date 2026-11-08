@@ -400,9 +400,7 @@ export interface paths {
         head?: never;
         /**
          * Classify an incident
-         * @description Planned: #47.
-         *
-         *     Sets or corrects the category and the priority; send at least one of them. It is not a
+         * @description Sets or corrects the category and the priority; send at least one of them. It is not a
          *     lifecycle action, so it adds no history entry: each change records a `CLASSIFY_INCIDENT`
          *     audit entry with the previous and new values, in the same transaction. The server records
          *     the actor and the source `MANUAL` of the priority.
@@ -426,9 +424,7 @@ export interface paths {
         };
         /**
          * List the classification changes of an incident
-         * @description Planned: #47.
-         *
-         *     The category and priority changes of one incident, for the timeline of its detail. They are
+         * @description The category and priority changes of one incident, for the timeline of its detail. They are
          *     not status changes, so they are not in `listIncidentStatusChanges` (ADR-0020). This operation
          *     reads the `CLASSIFY_INCIDENT` entries of the audit trail: the same records as
          *     `listAuditEntries`, with no second copy, shown for another purpose. It exposes nothing else
@@ -792,16 +788,16 @@ export interface paths {
         };
         /**
          * List the positions of incidents for the map
-         * @description Planned: #195.
+         * @description A lightweight list for the map, with the same filters and the same scope as `listIncidents`
+         *     and an optional bounding box (#195). It is not paginated, because the map needs one answer
+         *     for the whole view: the server returns at most 1,000 items, puts the most relevant first
+         *     (priority from `HIGH` to none, then newest) and sets `truncated` when it left some out. An
+         *     empty result is `200`. An unknown parameter, or one without a value, returns `400`, like
+         *     `listIncidents`.
          *
-         *     A lightweight list for the map, with the same filters and the same scope as `listIncidents`
-         *     and an optional bounding box. It is not paginated, because the map needs one answer for the
-         *     whole view: the server caps the number of items, puts the most relevant first (priority, then
-         *     newest) and sets `truncated` when it left some out. An empty result is `200`.
-         *
-         *     The bounding box takes all four parameters or none. It uses named limits instead of a list of
-         *     four numbers, so its order cannot be mistaken. A minimum over its maximum, a value out of
-         *     range or only some of the four returns `400`. A box across the antimeridian is not supported:
+         *     The bounding box takes all four parameters or none, and its edges are included. It uses named
+         *     limits instead of a list of four numbers, so its order cannot be mistaken. A minimum over its
+         *     maximum, a value out of range or only some of the four returns `400`. A box across the antimeridian is not supported:
          *     the service covers Málaga.
          *
          *     These data are live and are not cached.
@@ -1369,7 +1365,7 @@ export interface components {
             status: components["schemas"]["IncidentStatus"];
             /** @description Staff only. `null` while the incident has no priority. */
             priority?: components["schemas"]["Priority"] | null;
-            /** @description Staff only. Justification of the current priority. `null` while the incident has no priority. Planned: #47. */
+            /** @description Staff only. Justification of the current priority. `null` while the incident has no priority. */
             priorityReason?: string | null;
             /** @description Staff only. The active assignment. `null` while the incident has none. Previous assignments are not listed here. */
             assignment?: components["schemas"]["AssignmentResponse"] | null;
@@ -1651,7 +1647,7 @@ export interface components {
              */
             longitude: number;
         };
-        /** @description The positions for the map, with no more than the server's cap. */
+        /** @description The positions for the map, at most 1,000. */
         IncidentLocationListResponse: {
             content: components["schemas"]["IncidentPosition"][];
             /**

@@ -300,6 +300,98 @@
   white-space: pre-line;
 }
 
+/* Forms of the actions area (#47): one per action, inside the Actions panel. */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.form + .form {
+  margin-top: var(--space-lg);
+  padding-top: var(--space-md);
+  border-top: 1px solid color-mix(in srgb, var(--color-text-muted) 30%, transparent);
+}
+
+.form p {
+  margin: 0;
+}
+
+.formTitle {
+  margin: 0;
+  font-size: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  font-weight: 600;
+}
+
+.field select,
+.field textarea {
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-text-muted);
+  border-radius: 6px;
+  background: var(--color-background);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 400;
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+.field [aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+
+.fieldNote {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.fieldError {
+  color: var(--color-danger);
+  font-weight: 400;
+}
+
+/* Kept in the page while empty, so screen readers announce the message when it appears. */
+.formMessage:empty {
+  display: block;
+  height: 0;
+}
+
+.formError {
+  color: var(--color-danger);
+}
+
+.formError .button {
+  color: var(--color-text);
+}
+
+.primaryButton {
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: var(--color-primary);
+  color: var(--color-background);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primaryButton:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-primary) 85%, var(--color-text));
+}
+
+.primaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Photos: one tile per photo, each with its own loading and failure state (#194). */
 .gallery {
   display: grid;

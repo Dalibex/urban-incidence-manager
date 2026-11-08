@@ -1,6 +1,7 @@
 package es.uma.urbanpulse.incidents.service;
 
 import es.uma.urbanpulse.identity.entity.Role;
+import es.uma.urbanpulse.incidents.dto.IncidentLocationListResponse;
 import es.uma.urbanpulse.incidents.dto.IncidentResponse;
 import es.uma.urbanpulse.incidents.dto.IncidentSummaryResponse;
 import es.uma.urbanpulse.incidents.dto.StatusChangeResponse;
@@ -9,6 +10,7 @@ import es.uma.urbanpulse.incidents.repository.IncidentRepository;
 import es.uma.urbanpulse.incidents.repository.StatusChangeRepository;
 import es.uma.urbanpulse.shared.web.PageResponse;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
@@ -22,6 +24,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional(readOnly = true)
 public class IncidentQueryService {
+
+    /**
+     * The most positions {@code listIncidentLocations} returns. The map groups them on the client,
+     * and the whole city fits well below it with the demo data; with more, the most relevant win.
+     */
+    public static final int MAX_LOCATIONS = 1000;
 
     private final IncidentRepository incidents;
     private final StatusChangeRepository statusChanges;
@@ -45,6 +53,26 @@ public class IncidentQueryService {
         return PageResponse.of(
                 incidents.findAll(visible, page),
                 incident -> IncidentSummaryResponse.of(incident, role));
+    }
+
+    /**
+     * The positions for the map, with the same scope and filters as {@link #list}, the most
+     * relevant first and no more than {@link #MAX_LOCATIONS}. It is not paginated, because the map
+     * needs one answer for the whole view. The controller only lets staff in; a citizen has no map.
+     *
+     * @param box empty for every position, whatever its place
+     */
+    public IncidentLocationListResponse locations(
+            UUID userId, Role role, IncidentFilter filter, Optional<BoundingBox> box) {
+        var matching = IncidentReadAccess.visibleTo(userId, role).and(filter.specification());
+        if (box.isPresent()) {
+            matching = matching.and(box.get().specification());
+        }
+        // One more than the cap tells whether some were left out, without a count query.
+        var positions = incidents.findPositions(matching, MAX_LOCATIONS + 1);
+        var truncated = positions.size() > MAX_LOCATIONS;
+        return new IncidentLocationListResponse(
+                truncated ? positions.subList(0, MAX_LOCATIONS) : positions, truncated);
     }
 
     /**

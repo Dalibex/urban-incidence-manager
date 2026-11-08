@@ -5,7 +5,8 @@ import { Link, useLocation, useParams } from 'react-router';
 
 import { ROLE_LABELS } from '../layout/role-labels';
 import { ApiCallError } from '../query-client';
-import { inboxReturnPath } from '../routing/access';
+import { incidentListOf, listReturnPath, type IncidentList } from '../routing/access';
+import { useSession } from '../session/SessionContext';
 import { useIncident, useIncidentHistory } from './incident-queries';
 import { IncidentActions } from './IncidentActions';
 import styles from './Incidents.module.css';
@@ -18,16 +19,26 @@ type Incident = components['schemas']['IncidentResponse'];
 type IncidentLocation = components['schemas']['IncidentLocation'];
 type StatusChange = components['schemas']['StatusChangeResponse'];
 
-/** Everything about one incident, and the place where the lifecycle actions are added (#46). */
+const BACK_LABELS: Record<IncidentList, string> = {
+  inbox: 'Back to the inbox',
+  workQueue: 'Back to the work queue',
+};
+
+/**
+ * Everything about one incident, and the place where the lifecycle actions are added (#46). An
+ * operator opens it from the inbox and a technician from the work queue (#187), and it leads back
+ * to that list.
+ */
 export function IncidentDetailPage() {
   const { incidentId = '' } = useParams();
   const incident = useIncident(incidentId);
   const { state } = useLocation();
+  const list = incidentListOf(useSession().user?.role);
 
   return (
     <article className={styles.page} aria-labelledby="page-title">
-      <Link className={styles.backLink} to={inboxReturnPath(state)}>
-        Back to the inbox
+      <Link className={styles.backLink} to={listReturnPath(state, list)}>
+        {BACK_LABELS[list]}
       </Link>
       {incident.isPending ? (
         <p className={styles.state} role="status">
@@ -66,7 +77,7 @@ function IncidentDetail({ incident }: { incident: Incident }) {
         <StatusBadge status={incident.status} />
       </header>
       <div className={styles.detail}>
-        <IncidentActions />
+        <IncidentActions incident={incident} />
         <div>
           <ReportPanel incident={incident} />
           <PhotoGallery incidentId={incident.id} />
@@ -96,6 +107,9 @@ function ReportPanel({ incident }: { incident: Incident }) {
             <span className={styles.muted}>Not set</span>
           )}
         </Fact>
+        {incident.priorityReason && (
+          <Fact label="Why this priority">{incident.priorityReason}</Fact>
+        )}
         <Fact label="Reported">
           <Instant value={incident.reportedAt} />
         </Fact>
