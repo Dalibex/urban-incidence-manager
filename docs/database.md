@@ -143,7 +143,7 @@ What the measurements decided:
 
 ### Classification Changes
 
-`V13__identity_index_audit_log_target.sql` (#47) adds `ix_audit_log_target_id`, for the
+`V14__identity_index_audit_log_target.sql` (#47) adds `ix_audit_log_target_id`, for the
 classification changes of one incident (`listIncidentClassificationChanges`), which reads its
 `CLASSIFY_INCIDENT` entries of `audit_log` by `target_id`:
 
