@@ -141,6 +141,11 @@ Every user signs in with the password `urbanpulse-dev`:
 | `dev.technician2@example.com` | `TECHNICIAN` |
 | `dev.admin@example.com` | `ADMINISTRATOR` |
 | `dev.analyst@example.com` | `ANALYST` |
+| `dev.newstaff@example.com` | `MUNICIPAL_OPERATOR`, must change the password at its first sign-in (#165) |
+
+`dev.newstaff` behaves like an account an administrator has just created: the web asks for a new
+password before it signs in. Once changed, it keeps the new one until `R__dev_data.sql` changes or
+the database is reset.
 
 When `R__dev_data.sql` changes, its users and urban assets are updated in place by their fixed ids;
 incidents are deleted and inserted again (see *When the data reloads* in the

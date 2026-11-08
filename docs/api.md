@@ -124,7 +124,7 @@ Every operation lists the shared responses that can really happen, with `$ref`:
 | 409 | `#/components/responses/Conflict` | The operation changes state that can conflict (status transitions, stale version, unique values) |
 | 413 | `#/components/responses/ContentTooLarge` | The operation receives a file with a size limit |
 | 422 | `#/components/responses/UnprocessableEntity` | The operation has a body whose data is validated (blank title, coordinates out of range, short password); `errors` lists every invalid field |
-| 429 | `#/components/responses/TooManyRequests` | The operation is rate limited (today `createSession` and `createRegistration`; `createPasswordChange` is planned in #165) |
+| 429 | `#/components/responses/TooManyRequests` | The operation is rate limited (`createSession`, `createPasswordChange` and `createRegistration`) |
 | 500 | `#/components/responses/InternalServerError` | Every operation |
 
 `400` means "I cannot read this request"; `422` means "I can read it, but the data is not valid". A form shows `422` errors next to each field; a `400` is a client bug.
@@ -150,7 +150,7 @@ Do not define a new error body. If an error needs extra information, add an opti
 | `INVALID_REFRESH_TOKEN` | 401 | `refreshSession` | Unknown, expired, revoked or reused refresh token: sign in again |
 | `INVALID_TRANSITION` | 409 | Lifecycle actions (Sprint 2) | The transition is not allowed (ADR-0020) |
 | `CONCURRENT_MODIFICATION` | 409 | Lifecycle actions and `updateIncident` (Sprint 2) | The incident changed since the client read its `version`: reload it and decide again (ADR-0020) |
-| `PASSWORD_CHANGE_REQUIRED` | 403 | `createSession` (planned: #165) | Right credentials, but the password must change first |
+| `PASSWORD_CHANGE_REQUIRED` | 403 | `createSession` | Right credentials, but the password must change first |
 | `CLASSIFICATION_NOT_ALLOWED` | 409 | `updateIncident` (planned: #47) | The incident is `REJECTED` or `CLOSED` |
 | `ATTACHMENT_NOT_ALLOWED` | 409 | `createIncidentAttachment` | A citizen can only upload while the incident is `REPORTED` |
 | `FILE_TOO_LARGE` | 413 | `createIncidentAttachment` | The file is over the size limit |
