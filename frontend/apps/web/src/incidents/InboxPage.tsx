@@ -1,8 +1,16 @@
 import type { components } from '@urbanpulse/api-client';
 import { formatInstant } from '@urbanpulse/ui';
-import { Link, useSearchParams } from 'react-router';
+import { useRef } from 'react';
+import { Link, useLocation, useSearchParams } from 'react-router';
 
-import { incidentPath } from '../routing/access';
+import { incidentPath, type InboxReturn } from '../routing/access';
+import { IncidentFilterBar } from './filters/IncidentFilterBar';
+import {
+  filtersFrom,
+  hasFilters,
+  withFilters,
+  type IncidentFilters,
+} from './filters/incident-filters';
 import { useIncidentPage } from './incident-queries';
 import styles from './Incidents.module.css';
 import { LoadFailure } from './LoadFailure';
@@ -14,16 +22,33 @@ type IncidentSummary = components['schemas']['IncidentSummaryResponse'];
 const PAGE_PARAM = 'page';
 
 /**
- * The operator's inbox: every incident, newest first, one page at a time (#46). The page number is
- * in the address (`?page=2`, starting at 1 for people), so reloading or going back keeps it.
+ * The operator's inbox: the incidents that match the filters, newest first, one page at a time
+ * (#46, #183). The filters and the page number are in the address (`?status=REPORTED&page=2`, the
+ * page starting at 1 for people), so reloading, going back or sharing the link keeps them. Without
+ * filters it lists every incident; the menu opens it on the reports waiting for a review.
  */
 export function InboxPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const filters = filtersFrom(searchParams);
   const page = pageFrom(searchParams.get(PAGE_PARAM));
-  const incidents = useIncidentPage(page - 1);
+  const incidents = useIncidentPage(page - 1, filters);
+  const firstFilter = useRef<HTMLInputElement>(null);
 
   const goTo = (target: number) => {
-    setSearchParams(target === 1 ? {} : { [PAGE_PARAM]: String(target) });
+    const next = new URLSearchParams(searchParams);
+    if (target === 1) {
+      next.delete(PAGE_PARAM);
+    } else {
+      next.set(PAGE_PARAM, String(target));
+    }
+    setSearchParams(next);
+  };
+
+  // Other filters give other pages, so a change starts again on the first one.
+  const changeFilters = (next: IncidentFilters) => {
+    const params = withFilters(searchParams, next);
+    params.delete(PAGE_PARAM);
+    setSearchParams(params);
   };
 
   return (
@@ -33,9 +58,11 @@ export function InboxPage() {
           Inbox
         </h1>
         <p className={styles.lead}>
-          Every incident, newest first. Open one to review and manage it.
+          Newest first. Filter the list, then open an incident to review and manage it.
         </p>
       </header>
+
+      <IncidentFilterBar filters={filters} onChange={changeFilters} firstFilterRef={firstFilter} />
 
       {incidents.isPending ? (
         <p className={styles.state} role="status">
@@ -48,6 +75,23 @@ export function InboxPage() {
           retrying={incidents.isFetching}
           onRetry={() => void incidents.refetch()}
         />
+      ) : incidents.data.page.totalElements === 0 && hasFilters(filters) ? (
+        <div className={styles.state}>
+          <p>No incidents match these filters.</p>
+          <p>
+            <button
+              type="button"
+              className={styles.button}
+              onClick={() => {
+                changeFilters({});
+                // This button goes away with the empty state, like the one of the bar is disabled.
+                firstFilter.current?.focus();
+              }}
+            >
+              Clear filters
+            </button>
+          </p>
+        </div>
       ) : incidents.data.page.totalElements === 0 ? (
         <div className={styles.state}>
           <p>There are no incidents yet.</p>
@@ -81,6 +125,8 @@ export function InboxPage() {
 }
 
 function IncidentTable({ rows, loading }: { rows: IncidentSummary[]; loading: boolean }) {
+  // The detail links back to the inbox as the user left it: same filters, same page.
+  const inboxReturn: InboxReturn = { inboxSearch: useLocation().search };
   return (
     <div className={styles.tableWrapper}>
       <table className={styles.table} aria-busy={loading}>
@@ -121,6 +167,7 @@ function IncidentTable({ rows, loading }: { rows: IncidentSummary[]; loading: bo
                 <Link
                   className={styles.manage}
                   to={incidentPath(incident.id)}
+                  state={inboxReturn}
                   aria-label={`Manage ${incident.title}`}
                 >
                   Manage

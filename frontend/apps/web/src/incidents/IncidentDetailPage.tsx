@@ -1,11 +1,11 @@
 import type { components } from '@urbanpulse/api-client';
 import { formatInstant, historyEventLabel, NOT_AVAILABLE, statusColor } from '@urbanpulse/ui';
 import type { CSSProperties, ReactNode } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useLocation, useParams } from 'react-router';
 
 import { ROLE_LABELS } from '../layout/role-labels';
 import { ApiCallError } from '../query-client';
-import { PATHS } from '../routing/access';
+import { inboxReturnPath } from '../routing/access';
 import { useIncident, useIncidentHistory } from './incident-queries';
 import { IncidentActions } from './IncidentActions';
 import styles from './Incidents.module.css';
@@ -21,10 +21,11 @@ type StatusChange = components['schemas']['StatusChangeResponse'];
 export function IncidentDetailPage() {
   const { incidentId = '' } = useParams();
   const incident = useIncident(incidentId);
+  const { state } = useLocation();
 
   return (
     <article className={styles.page} aria-labelledby="page-title">
-      <Link className={styles.backLink} to={PATHS.inbox}>
+      <Link className={styles.backLink} to={inboxReturnPath(state)}>
         Back to the inbox
       </Link>
       {incident.isPending ? (

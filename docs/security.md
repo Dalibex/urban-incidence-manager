@@ -227,6 +227,9 @@ operation; the note says when the answer also depends on the resource. A role no
 | `POST /incidents/{id}/assignments` | | | ✓ | | ✓ | |
 | `POST /incidents/{id}/acceptance` | | | | assigned | | |
 | `POST /incidents/{id}/resolution` | | | | assigned | | |
+| `GET /incidents/{id}/attachments` | | own | ✓ | assigned | ✓ | |
+| `POST /incidents/{id}/attachments` | | own, only while `REPORTED` | ✓ | assigned | ✓ | |
+| `GET /attachments/{id}/content` | | own | ✓ | assigned | ✓ | |
 
 Outside `/api/v1` only `/actuator/health/**` and the API documentation (`/openapi.yml`,
 `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs/**`) are public.
@@ -236,7 +239,9 @@ being authenticated or knowing an id never gives access to an incident (see `AGE
 Listings only return the caller's incidents; reading one that is not theirs answers `404`. The
 filters of `GET /incidents` apply inside that scope, so they never widen it. A `CITIZEN` may only
 filter by `status`: any other filter answers `403`, because ignoring it would give a misleading list
-and accepting `priority` would reveal a staff-only value by trying values.
+and accepting `priority` would reveal a staff-only value by trying values. A photo follows the rule
+of its incident: the id of an attachment is not a public URL, and a photo of an incident the caller
+may not see answers `404` too (ADR-0013).
 
 ## Protecting a new endpoint
 

@@ -21,7 +21,7 @@ export function Navbar() {
             {sections.map((section) => (
               <li key={section.path}>
                 <NavLink
-                  to={section.path}
+                  to={section.link ?? section.path}
                   className={({ isActive }) => (isActive ? styles.activeLink : styles.link)}
                 >
                   {section.label}

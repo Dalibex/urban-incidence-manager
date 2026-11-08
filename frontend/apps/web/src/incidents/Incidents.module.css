@@ -54,6 +54,8 @@
 /* Inbox table */
 
 .tableWrapper {
+  /* Holds the hidden "Actions" header (absolute) inside the scroll, or the page scrolls too. */
+  position: relative;
   overflow-x: auto;
   border: 1px solid color-mix(in srgb, var(--color-text-muted) 30%, transparent);
   border-radius: 8px;

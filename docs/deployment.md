@@ -55,11 +55,10 @@ values without quotes.
 | `BOOTSTRAP_ADMIN_PASSWORD` | empty | ✓ | `backend` | Password of the first administrator, with the rules of sign-up; empty it once the account exists |
 | `TILES_BASE_URL` | `http://localhost:5173/tiles` | | `tiles-builder` | Address the clients load the map from, written into `style.json` |
 | `STORAGE_BASE_PATH` | `/app/storage` | | `backend` | Folder for the evidence files, on the `evidence_data` volume ([ADR-0013](adr/0013-evidence-storage.md)) |
-| `EVIDENCE_MAX_FILE_SIZE` | `10MB` | | `backend` | Maximum size of an evidence file |
-| `EVIDENCE_MAX_FILES_PER_INCIDENT` | `5` | | `backend` | Maximum evidence files per incident |
+| `EVIDENCE_MAX_FILE_SIZE` | `10MB` | | `backend` | Maximum size of an evidence file; a larger one answers `413`. It also bounds the upload request (the file plus 64 KB) |
+| `EVIDENCE_MAX_FILES_PER_INCIDENT` | `5` | | `backend` | Maximum evidence files per incident; one more answers `422` |
 
-The three evidence variables are already passed to the backend, but no code reads them until
-photos can be attached (#44).
+The backend does not start when an evidence limit is zero or negative.
 
 PostgreSQL applies `POSTGRES_DB`, `POSTGRES_USER` and `POSTGRES_PASSWORD` only when it initializes
 an empty volume. To change them later, reset the database (see *Reset*).

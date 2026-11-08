@@ -16,6 +16,7 @@ import {
 
 import { dataOf } from '../query-client';
 import { useSession } from '../session/SessionContext';
+import { toListQuery, type IncidentFilters } from './filters/incident-filters';
 
 /** Rows per page of the inbox; the API allows up to 100 (docs/api.md, "Listings"). */
 export const INBOX_PAGE_SIZE = 20;
@@ -24,24 +25,24 @@ type Incident = components['schemas']['IncidentResponse'];
 type UpdateIncidentRequest = components['schemas']['UpdateIncidentRequest'];
 
 const incidentKeys = {
-  pages: ['incidents', 'page'] as const,
-  page: (page: number) => ['incidents', 'page', page] as const,
+  page: (page: number, filters: IncidentFilters) => ['incidents', 'page', page, filters] as const,
   detail: (incidentId: string) => ['incidents', incidentId] as const,
   history: (incidentId: string) => ['incidents', incidentId, 'status-changes'] as const,
   categories: ['categories'] as const,
 };
 
 /**
- * One page of the incidents the user may see, newest first (the API's default order, with `id`
- * as the tie-break, so no row appears on two pages).
+ * One page of the incidents the user may see that match `filters`, newest first (the API's default
+ * order, with `id` as the tie-break, so no row appears on two pages).
  *
  * @param page starting at 0, as in the API
  */
-export function useIncidentPage(page: number) {
+export function useIncidentPage(page: number, filters: IncidentFilters) {
   const { api } = useSession();
   return useQuery({
-    queryKey: incidentKeys.page(page),
-    queryFn: () => dataOf(listIncidents(api, { page, size: INBOX_PAGE_SIZE })),
+    queryKey: incidentKeys.page(page, filters),
+    queryFn: () =>
+      dataOf(listIncidents(api, { page, size: INBOX_PAGE_SIZE, ...toListQuery(filters) })),
     // The current rows stay on screen while the next page loads, so the table does not jump.
     placeholderData: keepPreviousData,
   });

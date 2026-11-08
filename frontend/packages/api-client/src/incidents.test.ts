@@ -4,6 +4,7 @@ import {
   createIncident,
   getIncident,
   listCategories,
+  listDepartments,
   listIncidents,
   updateIncident,
   type SessionTokens,
@@ -155,6 +156,21 @@ describe('listCategories', () => {
     const client = createApiClient(BASE_URL, { tokenStore: memoryStore(TOKENS), fetch });
 
     expect(await listCategories(client)).toEqual({ ok: false, failure: { kind: 'network' } });
+  });
+});
+
+describe('listDepartments', () => {
+  it('returns the active departments', async () => {
+    const departments: components['schemas']['DepartmentResponse'][] = [
+      { id: 'b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e', name: 'Street lighting' },
+    ];
+    const fetch = vi.fn(async (request: Request) => {
+      expect(new URL(request.url).pathname).toBe('/api/v1/departments');
+      return json(200, departments);
+    });
+    const client = createApiClient(BASE_URL, { tokenStore: memoryStore(TOKENS), fetch });
+
+    expect(await listDepartments(client)).toEqual({ ok: true, data: departments });
   });
 });
 

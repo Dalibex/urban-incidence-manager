@@ -79,6 +79,13 @@ export function listCategories(client: ApiClient): Promise<ApiResult<Category[]>
   return callApi(() => client.GET('/categories'));
 }
 
+/** The active departments, ordered by name, for the department filter of staff listings. */
+export function listDepartments(
+  client: ApiClient,
+): Promise<ApiResult<Schemas['DepartmentResponse'][]>> {
+  return callApi(() => client.GET('/departments'));
+}
+
 /** Query of `listIncidents`: `page` starts at 0; omitted values take the contract's defaults. */
 export type IncidentListQuery = NonNullable<operations['listIncidents']['parameters']['query']>;
 

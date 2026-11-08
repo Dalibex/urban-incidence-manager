@@ -99,7 +99,7 @@ Follow these steps on a clean clone, with the prerequisites of the
 | # | Who and where | What to do | What it shows | Needs |
 | --- | --- | --- | --- | --- |
 | 1 | Operator, web | Sign in as `demo.operator@example.com`. | Each role lands on its own screen: the operator on the inbox. | #39 |
-| 2 | Operator, web | Look at the inbox. | The fifteen incidents, newest first, with category, status and priority. | #46 |
+| 2 | Operator, web | Look at the inbox, then choose *Clear filters*. | It opens on the three `REPORTED` incidents, waiting for a review; without filters, the fifteen, newest first, with category, status and priority. | #46, #183 |
 | 3 | Operator, web | Open *Street light flickering on Calle Larios*. | An incident without category; address, neighbourhood and district are "not available", never empty or invented. | #46 |
 | 4 | Operator, web | Open *Leaking fountain in Plaza de la Constitución*. | The full history from the report to the reopening, with who made each change and the internal reasons (resolution notes, reopening). | #46 |
 | 5 | Citizen, phone | Sign in as `demo.citizen@example.com`. On the *New* tab, allow the location when the phone asks, write a title and a description, for example a bin knocked over on Calle Granada, and tap *Submit*. | Reporting from the phone with the device's position and accuracy; the app confirms with "Incident reported". | #43 |
