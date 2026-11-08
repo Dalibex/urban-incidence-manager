@@ -11,8 +11,13 @@ type UpdateIncidentRequest = components['schemas']['UpdateIncidentRequest'];
 
 const PRIORITIES: Priority[] = ['LOW', 'MEDIUM', 'HIGH'];
 
-/** Longest justification the API accepts, in characters (`UpdateIncidentRequest`). */
+/**
+ * Longest justification the API accepts, in characters (`UpdateIncidentRequest`). Counted in code
+ * points, like the API, so an emoji is one character; the textarea's `maxLength` would count UTF-16
+ * units and cut a text with emojis before the real limit.
+ */
 const REASON_MAX_LENGTH = 2000;
+const REASON_TOO_LONG = `The justification can have up to ${REASON_MAX_LENGTH} characters.`;
 
 type Outcome =
   | { kind: 'saved' }
@@ -51,6 +56,13 @@ export function ClassificationPanel({ incident }: { incident: Incident }) {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (body === null || saving.current) {
+      return;
+    }
+    if (body.priorityReason != null && Array.from(body.priorityReason).length > REASON_MAX_LENGTH) {
+      setOutcome({
+        kind: 'invalid',
+        fieldErrors: [{ field: 'priorityReason', message: REASON_TOO_LONG }],
+      });
       return;
     }
     saving.current = true;
@@ -125,7 +137,6 @@ export function ClassificationPanel({ incident }: { incident: Incident }) {
           id={`${titleId}-reason-field`}
           value={reason}
           rows={3}
-          maxLength={REASON_MAX_LENGTH}
           onChange={(event) => setReason(event.target.value)}
           aria-invalid={fieldError('priorityReason') ? true : undefined}
           aria-describedby={fieldError('priorityReason') ? `${titleId}-reason` : undefined}

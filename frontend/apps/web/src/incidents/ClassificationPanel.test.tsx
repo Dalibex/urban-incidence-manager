@@ -292,6 +292,34 @@ describe('classification panel', () => {
     expect(form.getByLabelText('Why this priority').getAttribute('aria-invalid')).toBe('true');
   });
 
+  // The API counts characters (code points): an emoji is one, although it is two UTF-16 units.
+  it('accepts a justification of 2000 emojis and refuses one character more without sending it', async () => {
+    const server = newServer();
+    renderApp(incidentPath(INCIDENT.id), { role: 'MUNICIPAL_OPERATOR', fetch: api(server) });
+
+    const form = await panel();
+    await screen.findByRole('option', { name: LIGHTING.name });
+    await userEvent.selectOptions(form.getByLabelText('Priority'), 'HIGH');
+    const reason = form.getByLabelText('Why this priority');
+
+    await userEvent.click(reason);
+    await userEvent.paste('💡'.repeat(2000) + '!');
+    await userEvent.click(form.getByRole('button', { name: 'Save classification' }));
+    expect(
+      await form.findByText('The justification can have up to 2000 characters.'),
+    ).toBeDefined();
+    expect(reason.getAttribute('aria-invalid')).toBe('true');
+    expect(server.sent).toEqual([]);
+
+    await userEvent.type(reason, '{Backspace}');
+    await userEvent.click(form.getByRole('button', { name: 'Save classification' }));
+    await waitFor(() =>
+      expect(server.sent).toEqual([
+        { version: 2, priority: 'HIGH', priorityReason: '💡'.repeat(2000) },
+      ]),
+    );
+  });
+
   it('is not offered on a rejected or closed incident', async () => {
     for (const status of ['REJECTED', 'CLOSED'] as const) {
       const server = newServer({ ...CLASSIFIED, status });
