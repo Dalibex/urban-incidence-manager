@@ -1,6 +1,7 @@
 import {
   getIncident,
   listCategories,
+  listDepartments,
   listIncidents,
   listIncidentStatusChanges,
   updateIncident,
@@ -64,13 +65,25 @@ export function useIncidentHistory(incidentId: string) {
   });
 }
 
-/** The active categories, for the classification panel. They change rarely. */
+/**
+ * The active categories, ordered by name: the options of the category filter and of the
+ * classification panel. They change rarely.
+ */
 export function useCategories() {
   const { api } = useSession();
   return useQuery({
     queryKey: incidentKeys.categories,
     queryFn: () => dataOf(listCategories(api)),
     staleTime: 5 * 60_000,
+  });
+}
+
+/** The active departments, ordered by name: the options of the department filter. */
+export function useDepartments() {
+  const { api } = useSession();
+  return useQuery({
+    queryKey: ['departments'],
+    queryFn: () => dataOf(listDepartments(api)),
   });
 }
 
