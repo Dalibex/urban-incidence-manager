@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 
 import { InboxPage } from '../incidents/InboxPage';
 import { PlaceholderPage } from '../pages/PlaceholderPage';
+import { ReportsPage } from '../reports/ReportsPage';
 import { INBOX_DEFAULT_PATH, OPERATOR_ROLES, PATHS } from './access';
 
 /** A screen of the signed-in area. The navbar links to the sections the user's role can open. */
@@ -40,7 +41,7 @@ export const SECTIONS: readonly Section[] = [
   {
     path: PATHS.reports,
     label: 'Reports',
-    roles: ['ANALYST'],
-    element: <PlaceholderPage title="Reports" summary="Indicators and exportable reports." />,
+    roles: ['ANALYST', 'ADMINISTRATOR'],
+    element: <ReportsPage />,
   },
 ];

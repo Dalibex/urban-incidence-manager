@@ -40,12 +40,12 @@ const INCIDENT: Incident = {
 const STAFF_WHO_MANAGE_INCIDENTS = ['MUNICIPAL_OPERATOR', 'ADMINISTRATOR'] as const;
 const OTHER_ROLES = ['TECHNICIAN', 'ANALYST', 'CITIZEN'] as const;
 
-/** The screens of each role after the fix: only the inbox gains a role (#127). */
+/** The screens of each role: the inbox gained a role in #127, the reports in #42. */
 const SECTION_ROLES: Record<string, readonly Role[]> = {
   [PATHS.inbox]: ['MUNICIPAL_OPERATOR', 'ADMINISTRATOR'],
   [PATHS.workQueue]: ['TECHNICIAN'],
   [PATHS.users]: ['ADMINISTRATOR'],
-  [PATHS.reports]: ['ANALYST'],
+  [PATHS.reports]: ['ANALYST', 'ADMINISTRATOR'],
 };
 
 function incidentsApi() {
@@ -57,6 +57,8 @@ function incidentsApi() {
       }),
     [`GET /incidents/${INCIDENT.id}`]: () => json(200, INCIDENT),
     [`GET /incidents/${INCIDENT.id}/status-changes`]: () => json(200, []),
+    // The landing of the analyst asks for its report.
+    'GET /incident-reports': () => json(200, { rows: [] }),
   });
 }
 
@@ -104,11 +106,13 @@ describe('incident inbox access (#127)', () => {
 
     await screen.findByRole('heading', { level: 1 });
     expect(router.state.location.pathname).toBe(landingPath(role));
-    expect(fetch).not.toHaveBeenCalled();
+    // The screen of the role may load its own data, but nothing of the incidents is asked for.
+    const paths = fetch.mock.calls.map(([request]) => new URL(request.url).pathname);
+    expect(paths.filter((path) => path.startsWith('/api/v1/incidents'))).toEqual([]);
   });
 
   // T6
-  it('changes the roles of the inbox only', () => {
+  it('gives each screen only its roles', () => {
     expect(
       Object.fromEntries(SECTIONS.map(({ path, roles }) => [path, [...roles].sort()])),
     ).toEqual(
@@ -120,7 +124,7 @@ describe('incident inbox access (#127)', () => {
 
   it.each([
     ['MUNICIPAL_OPERATOR', ['Inbox']],
-    ['ADMINISTRATOR', ['Inbox', 'Users']],
+    ['ADMINISTRATOR', ['Inbox', 'Users', 'Reports']],
     ['TECHNICIAN', ['Work queue']],
     ['ANALYST', ['Reports']],
   ] as const)('links the navbar of a %s to %j', async (role, links) => {
