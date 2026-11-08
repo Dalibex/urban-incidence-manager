@@ -157,6 +157,7 @@ were added to each of its 100,000 incidents (200,000 entries) with an `INSERT ..
 `incident`, followed by `VACUUM ANALYZE audit_log`. Measured once each with the cache warm, on
 PostgreSQL 18.6 with PostGIS 3.6 in Docker on Linux (4 CPUs, 15 GB), on commit `284142a` plus this
 change, on 2026-11-05. The index takes 4.9 MB.
+
 ### Integrity
 
 A unique index that keeps a rule of the data is not a performance index, so it needs no
