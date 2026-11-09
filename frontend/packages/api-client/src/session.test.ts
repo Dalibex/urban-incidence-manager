@@ -534,4 +534,71 @@ describe('#162: the session recovers after a failed refresh', () => {
     expect(tokens.current()).toBeNull();
     expect(onSessionExpired).toHaveBeenCalledTimes(1);
   });
+
+  it('T12: a failed refresh of an old token does not forget a newer refresh of another one', async () => {
+    // The store gets other tokens while the refresh of the old ones is in flight, for example
+    // because the user signed in again. Their access token is also rejected and starts its own
+    // refresh. Each refresh token works once.
+    const SIGNED_IN: SessionTokens = {
+      ...OLD_TOKENS,
+      accessToken: 'signed-in-access',
+      refreshToken: 'refresh-signed-in',
+    };
+    const RENEWED: SessionTokens = {
+      ...NEW_TOKENS,
+      accessToken: 'renewed-access',
+      refreshToken: 'refresh-renewed',
+    };
+    let dropNetwork = (): void => undefined;
+    let answerNewer = (): void => undefined;
+    const olderRefresh = new Promise<Response>((_resolve, reject) => {
+      dropNetwork = () => reject(new TypeError('Failed to fetch'));
+    });
+    const newerRefresh = new Promise<Response>((resolve) => {
+      answerNewer = () => resolve(json(200, RENEWED));
+    });
+    const spent = new Set<string>();
+    const api = fakeApi({
+      'GET /users/me': (request) =>
+        request.authorization === `Bearer ${RENEWED.accessToken}`
+          ? json(200, CURRENT_USER)
+          : problem(401),
+      'POST /sessions/refresh': (request) => {
+        const { refreshToken } = JSON.parse(request.body) as { refreshToken: string };
+        if (spent.has(refreshToken)) {
+          return problem(401, 'INVALID_REFRESH_TOKEN');
+        }
+        spent.add(refreshToken);
+        return refreshToken === OLD_TOKENS.refreshToken ? olderRefresh : newerRefresh;
+      },
+    });
+    const tokens = memoryTokenStore(OLD_TOKENS);
+    const client = createApiClient(BASE_URL, {
+      tokenStore: tokens.store,
+      fetch: api.fetch,
+      onSessionExpired,
+    });
+
+    const older = client.GET('/users/me');
+    await vi.waitFor(() => expect(api.calls('POST', '/sessions/refresh')).toHaveLength(1));
+    await tokens.store.save(SIGNED_IN);
+    const newer = client.GET('/users/me');
+    await vi.waitFor(() => expect(api.calls('POST', '/sessions/refresh')).toHaveLength(2));
+
+    // The refresh of the old tokens fails while the newer one is still in flight.
+    dropNetwork();
+    expect((await older).response.status).toBe(401);
+
+    // A request rejected with the signed-in token waits for the newer refresh, it does not start
+    // a third one with the refresh token that refresh is already spending.
+    const later = client.GET('/users/me');
+    await vi.waitFor(() => expect(api.calls('GET', '/users/me')).toHaveLength(3));
+    answerNewer();
+    const results = await Promise.all([newer, later]);
+
+    expect(results.map(({ response }) => response.status)).toEqual([200, 200]);
+    expect(refreshTokensSent(api)).toEqual([OLD_TOKENS.refreshToken, SIGNED_IN.refreshToken]);
+    expect(tokens.current()).toEqual(RENEWED);
+    expect(onSessionExpired).not.toHaveBeenCalled();
+  });
 });
