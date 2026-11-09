@@ -186,6 +186,8 @@ ticked. *Clear filters* lists every incident.
 
 - **Report:** the description, category, priority and why it was given, when it was reported, its
   last change and, once closed, when it was closed.
+- **Photos:** the photos attached to the incident, each with its file name, or *No photos were
+  attached.* They are only shown inside the signed-in app; there is no public link to them.
 - **Location:** address, neighbourhood, district, coordinates and the accuracy the phone reported
   (for example *within 12.5 m*). A value that is not known says *Not available*: it is never left
   empty or guessed.
@@ -216,6 +218,10 @@ server could not be reached or answered with an error. The app retries a few tim
 before showing it, and the filters stay as they were. If the categories or departments cannot be
 loaded, that filter says so and is disabled; the other filters keep working.
 
+In the incident detail, if the photos cannot be listed, the *Photos* section says so with *Try
+again* and the rest of the detail stays. If one photo cannot be loaded, its tile says *This photo
+could not be loaded.* with its own *Try again*, and the other photos still show.
+
 ## 🔧 Technician (Web)
 
 The menu shows *Work queue*, where you land.
@@ -235,7 +241,7 @@ ticked. Tick other statuses, or *Clear filters*, to see the incidents you resolv
 
 ### Incident detail
 
-The report, the location and the history, as the operator sees them (see
+The report, its photos, the location and the history, as the operator sees them (see
 [Incident detail](#incident-detail)), and the actions of the technician:
 
 - **Accept the work**, on an *Assigned* incident: press *Accept* when you start working on it. It
@@ -254,7 +260,7 @@ server has kept the change. If it was not kept, nothing changed and your notes a
 - The server cannot be reached or answers with an error: try again.
 
 An incident that is not assigned to you, opened from a link, shows *Incident not found*. Planned:
-comments (#50) and photos (#194).
+comments (#50).
 
 ## 🛡️ Administrator (Web)
 
