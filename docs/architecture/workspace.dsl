@@ -244,7 +244,7 @@ workspace "UrbanPulse" "C4 Model" {
         urbanpulse.nginx -> urbanpulse.backend.urbancontext "Proxies /api (context, data sources)" "HTTP/JSON"
         urbanpulse.nginx -> urbanpulse.backend.geospatial "Proxies /api (districts, assets, spatial search)" "HTTP/JSON"
         urbanpulse.nginx -> urbanpulse.backend.notifications "Proxies /api (in-app notifications)" "HTTP/JSON"
-        urbanpulse.nginx -> urbanpulse.backend.analytics "Proxies /api (reports)" "HTTP/JSON"
+        urbanpulse.nginx -> urbanpulse.backend.analytics "Proxies /api (reports)" "HTTP/JSON, CSV"
 
         urbanpulse.backend.identity -> urbanpulse.postgres "users, refresh_token (hashed), audit_log" "JPA/JDBC"
         urbanpulse.backend.incidents -> urbanpulse.postgres "Incident tables (ACID)" "JPA/JDBC"

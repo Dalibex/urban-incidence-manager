@@ -5,6 +5,7 @@ import { AuditLogPage } from '../audit/AuditLogPage';
 import { InboxPage } from '../incidents/InboxPage';
 import { WorkQueuePage } from '../incidents/WorkQueuePage';
 import { PlaceholderPage } from '../pages/PlaceholderPage';
+import { ReportsPage } from '../reports/ReportsPage';
 import { INBOX_DEFAULT_PATH, OPERATOR_ROLES, PATHS, WORK_QUEUE_DEFAULT_PATH } from './access';
 
 /** A screen of the signed-in area. The navbar links to the sections the user's role can open. */
@@ -49,7 +50,7 @@ export const SECTIONS: readonly Section[] = [
   {
     path: PATHS.reports,
     label: 'Reports',
-    roles: ['ANALYST'],
-    element: <PlaceholderPage title="Reports" summary="Indicators and exportable reports." />,
+    roles: ['ANALYST', 'ADMINISTRATOR'],
+    element: <ReportsPage />,
   },
 ];

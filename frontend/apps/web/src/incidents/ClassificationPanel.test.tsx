@@ -94,6 +94,7 @@ function api(
       return json(200, server.incident);
     },
     [`GET /incidents/${INCIDENT.id}/status-changes`]: () => json(200, []),
+    [`GET /incidents/${INCIDENT.id}/attachments`]: () => json(200, []),
     'GET /categories': () => json(200, CATEGORIES),
     [`PATCH /incidents/${INCIDENT.id}`]: async (request) => {
       const body = (await request.json()) as UpdateIncidentRequest;
