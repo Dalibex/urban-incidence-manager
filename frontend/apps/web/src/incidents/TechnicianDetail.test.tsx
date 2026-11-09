@@ -76,6 +76,8 @@ function api(
     'GET /departments': () => json(200, []),
     [`GET /incidents/${ASSIGNED.id}`]: () => json(200, server.incident),
     [`GET /incidents/${ASSIGNED.id}/status-changes`]: () => json(200, []),
+    [`GET /incidents/${ASSIGNED.id}/classification-changes`]: () =>
+      json(200, { content: [], page: { number: 0, size: 100, totalElements: 0, totalPages: 0 } }),
     [`GET /incidents/${OTHER_INCIDENT_ID}`]: () =>
       json(404, { status: 404, code: 'NOT_FOUND', title: 'Not Found' }),
     [`POST /incidents/${ASSIGNED.id}/acceptance`]: async (request) => {

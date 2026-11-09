@@ -298,6 +298,13 @@
 .reason {
   margin: var(--space-xs) 0 0;
   white-space: pre-line;
+  /* A reason of 2000 characters with no space must wrap, not widen the page (#170 T9). */
+  overflow-wrap: anywhere;
+}
+
+/* Classification changes (#169) have no status: a neutral mark tells them apart. */
+.classificationEntry {
+  --status-color: var(--color-text-muted);
 }
 
 /* Forms of the actions area (#47): one per action, inside the Actions panel. */
