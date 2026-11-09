@@ -157,6 +157,10 @@ Rules for code that records an entry:
   repository has no `delete`, and a trigger (migration V8) rejects `UPDATE`, `DELETE` and
   `TRUNCATE` on the table. For the same reason an `AuditAction` constant is never renamed or removed.
 
+Administrators read the whole trail through `GET /audit-entries` and the *Audit log* screen (#41).
+The listing shows each actor's and record's current name, read with the page, so the entries
+themselves never need to store a name.
+
 Known limits:
 
 - The trigger guards against mistakes, not against someone with the database owner or superuser
@@ -231,6 +235,7 @@ operation; the note says when the answer also depends on the resource. A role no
 | `POST /incidents/{id}/attachments` | | own, only while `REPORTED` | ✓ | assigned | ✓ | |
 | `GET /attachments/{id}/content` | | own | ✓ | assigned | ✓ | |
 | `GET /incident-locations` | | | ✓ | assigned | ✓ | |
+| `GET /audit-entries` | | | | | ✓ | |
 
 Outside `/api/v1` only `/actuator/health/**` and the API documentation (`/openapi.yml`,
 `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs/**`) are public.
