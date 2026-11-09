@@ -8,7 +8,8 @@
 #   frontend → client workspace in frontend/ (ADR-0007): format, lint, type-check, test and build with pnpm
 #   test → unit (*Test) + integration (*IT, Testcontainers) tests, coverage gate and SpotBugs
 #   build → builds the backend image (ONE jar per commit inside), smoke-tests the container against
-#           PostGIS and publishes the jar copied from the image
+#           PostGIS and publishes the jar copied from the image; builds the web image, checks its
+#           nginx configuration and smoke-tests it
 
 name: CI
 
@@ -281,12 +282,15 @@ jobs:
   build:
     name: build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 20 and not 15: it builds two images, and both download their dependencies on every run.
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: ${{ env.BACKEND_DIR }}
     env:
       IMAGE: urbanpulse-backend:${{ github.sha }}
+      WEB_IMAGE: urbanpulse-web:${{ github.sha }}
+      WEB_SMOKE_PORT: "8088"
       SMOKE_PORT: "9090"
       SMOKE_DB: urbanpulse
       SMOKE_USER: urbanpulse
@@ -382,3 +386,51 @@ jobs:
           path: ${{ runner.temp }}/artifact/*.jar
           if-no-files-found: error
           retention-days: 7
+
+      # The web image (frontend/Dockerfile, ADR-0017): nginx serves the web build and the tiles and
+      # proxies /api/. It is built here, not in frontend, because it is a deployment artifact too.
+      - name: Build the web image
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: docker build -t "$WEB_IMAGE" .
+
+      # A broken nginx.conf fails here, so it never reaches a deployment. The image looks the
+      # backend up per request, so the check needs no backend.
+      - name: Web image — nginx.conf is valid
+        run: |
+          if ! docker run --rm "$WEB_IMAGE" nginx -t; then
+            echo "::error file=frontend/nginx.conf,title=nginx::nginx.conf is not valid; the lines above say where. From frontend/: docker build -t urbanpulse-web . && docker run --rm urbanpulse-web nginx -t"
+            exit 1
+          fi
+
+      - name: Web smoke test — a client route gets the web app
+        run: |
+          docker run -d --name smoke-web -p "$WEB_SMOKE_PORT:8080" "$WEB_IMAGE"
+          for _ in $(seq 1 15); do
+            if curl -fsS "http://localhost:$WEB_SMOKE_PORT/inbox" 2>/dev/null | grep -q '<div id="root">'; then
+              echo "The web image serves the app on /inbox." | tee -a "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error title=Web image::/inbox did not return the web app after 30 s."
+          docker logs smoke-web
+          exit 1
+
+      - name: Web smoke test — the process does not run as root
+        run: |
+          uid=$(docker exec smoke-web id -u)
+          if [ "$uid" = "0" ]; then
+            echo "::error title=Web image::nginx runs as root. frontend/Dockerfile must use an unprivileged image and end with a USER that is not root."
+            exit 1
+          fi
+          echo "nginx runs as UID $uid." | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Web smoke test — clean shutdown on its stop signal
+        run: |
+          docker stop --time 10 smoke-web
+          code=$(docker inspect -f '{{.State.ExitCode}}' smoke-web)
+          if [ "$code" = "137" ]; then
+            echo "::error title=12F-IX Disposability::nginx did not stop 10 s after docker stop and was killed."
+            exit 1
+          fi
+          echo "nginx stopped after docker stop (exit code $code)." | tee -a "$GITHUB_STEP_SUMMARY"
