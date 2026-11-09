@@ -1,3 +1,4 @@
+import { onlineManager } from '@tanstack/react-query';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -93,6 +94,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  onlineManager.setOnline(true);
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -185,6 +187,24 @@ describe('reports screen', () => {
     expect((await screen.findByRole('alert')).textContent).toContain(
       'The server cannot be reached. Check your connection and try again.',
     );
+  });
+
+  // T15: the browser knows it is offline. Without a request there is no error to show, so the
+  // screen would wait on "Loading the report…" until the network came back.
+  it('says that the server cannot be reached when the browser is offline', async () => {
+    onlineManager.setOnline(false);
+    const api = reportsApi({
+      report: () => {
+        throw new TypeError('Failed to fetch');
+      },
+    });
+    openReports(api, 'ANALYST');
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain(
+      'The server cannot be reached. Check your connection and try again.',
+    );
+    expect(within(alert).getByRole('button', { name: 'Try again' })).toBeDefined();
   });
 
   // T15: a period that is not valid shows the field error and asks nothing.

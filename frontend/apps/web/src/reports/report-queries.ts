@@ -12,6 +12,10 @@ export function useIncidentReport(request: ReportRequest) {
   return useQuery({
     queryKey: ['incident-reports', request],
     queryFn: () => dataOf(getIncidentReport(api, toReportQuery(request))),
+    // By default a query waits while the browser says it is offline, and the screen would stay on
+    // "Loading the report…" with no way to retry. Asking anyway fails at once, so the screen says
+    // that the server cannot be reached and offers *Try again*, as the download does (#65, T15).
+    networkMode: 'always',
   });
 }
 
