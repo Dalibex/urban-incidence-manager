@@ -22,5 +22,9 @@ export function useAuditEntryPage(page: number, filters: AuditFilters) {
       dataOf(listAuditEntries(api, { page, size: AUDIT_PAGE_SIZE, ...toListQuery(filters) })),
     // The current rows stay on screen while the next page loads, so the table does not jump.
     placeholderData: keepPreviousData,
+    // By default a query waits while the browser says it is offline, and the screen would stay on
+    // "Loading the audit log…" with no way to retry. Asking anyway fails at once, so the screen says
+    // that the server cannot be reached and offers *Try again* (#64, T10), as the reports do.
+    networkMode: 'always',
   });
 }

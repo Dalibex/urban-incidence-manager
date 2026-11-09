@@ -1,6 +1,7 @@
+import { onlineManager } from '@tanstack/react-query';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { PATHS } from '../routing/access';
 import { fakeApi, json, renderApp } from '../test-utils';
@@ -47,7 +48,28 @@ function auditApi(requests: URLSearchParams[], content: unknown[] = ENTRIES) {
   });
 }
 
+afterEach(() => {
+  onlineManager.setOnline(true);
+});
+
 describe('audit log', () => {
+  // jsdom is always online, so a failing fetch alone does not show this: with the browser offline,
+  // React Query would pause the request and the screen would keep loading.
+  it('says the server cannot be reached while the browser is offline', async () => {
+    onlineManager.setOnline(false);
+    const fetch = fakeApi({
+      'GET /audit-entries': () => {
+        throw new TypeError('Failed to fetch');
+      },
+    });
+    renderApp(PATHS.auditLog, { role: 'ADMINISTRATOR', fetch });
+
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'The server cannot be reached. Check your connection and try again.',
+    );
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeDefined();
+  });
+
   it('lists the entries with their actor, action, record and changes', async () => {
     renderApp(PATHS.auditLog, { role: 'ADMINISTRATOR', fetch: auditApi([]) });
 
