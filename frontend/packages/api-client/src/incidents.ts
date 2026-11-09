@@ -85,6 +85,25 @@ export function resolveIncident(
   );
 }
 
+/**
+ * Adds an internal comment to an incident (#50). Citizens never see it. Staff who may not see the
+ * incident, such as a technician it is no longer assigned to, get `404`.
+ */
+export function createIncidentComment(
+  client: ApiClient,
+  incidentId: string,
+  body: Schemas['CreateCommentRequest'],
+): Promise<FormResult<Schemas['CommentResponse']>> {
+  return callForm(
+    () =>
+      client.POST('/incidents/{incidentId}/comments', {
+        params: { path: { incidentId } },
+        body,
+      }),
+    'the created comment',
+  );
+}
+
 async function callForm<T>(
   call: () => Promise<{ data?: T; error?: unknown; response: Response }>,
   what: string,

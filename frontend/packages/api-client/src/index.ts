@@ -19,6 +19,7 @@ export {
 export {
   acceptIncident,
   createIncident,
+  createIncidentComment,
   getIncident,
   listCategories,
   listDepartments,
