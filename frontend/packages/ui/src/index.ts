@@ -7,3 +7,13 @@ export {
   STATUS_LABELS,
 } from './incident-labels';
 export { statusColor } from './status-color';
+export {
+  buildTimeline,
+  CITY_COUNCIL,
+  type ClassificationTimelineEntry,
+  type ClassificationValueChange,
+  type StatusTimelineEntry,
+  type TimelineClassificationChange,
+  type TimelineEntry,
+  type TimelineStatusChange,
+} from './timeline';
