@@ -1,4 +1,4 @@
-import { INCIDENT_STATUSES, isIncidentStatus } from '@urbanpulse/domain';
+import { INCIDENT_STATUSES } from '@urbanpulse/domain';
 import { STATUS_LABELS } from '@urbanpulse/ui';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { useRef, useState, type ReactNode, type RefObject } from 'react';
@@ -12,6 +12,7 @@ import {
   isDay,
   isPriority,
   PRIORITIES,
+  statusesFrom,
   withoutEmpty,
   type IncidentFilters,
 } from './incident-filters';
@@ -24,7 +25,7 @@ interface IncidentFilterBarProps {
    * The first filter, for a screen with its own clear button that goes away when pressed (the
    * empty state of the inbox): focusing it keeps a keyboard user in the bar.
    */
-  firstFilterRef?: RefObject<HTMLSelectElement | null>;
+  firstFilterRef?: RefObject<HTMLInputElement | null>;
 }
 
 /**
@@ -35,8 +36,9 @@ interface IncidentFilterBarProps {
 export function IncidentFilterBar({ filters, onChange, firstFilterRef }: IncidentFilterBarProps) {
   const categories = useCategories();
   const departments = useDepartments();
-  const ownFirstFilter = useRef<HTMLSelectElement>(null);
+  const ownFirstFilter = useRef<HTMLInputElement>(null);
   const firstFilter = firstFilterRef ?? ownFirstFilter;
+  const statuses = filters.status ?? [];
 
   const set = (changed: IncidentFilters) => onChange(withoutEmpty({ ...filters, ...changed }));
 
@@ -57,23 +59,31 @@ export function IncidentFilterBar({ filters, onChange, firstFilterRef }: Inciden
       aria-label="Filter incidents"
       onSubmit={(event) => event.preventDefault()}
     >
-      <Field label="Status">
-        <select
-          ref={firstFilter}
-          value={filters.status ?? ''}
-          onChange={(event) => {
-            const status = event.target.value;
-            set({ status: isIncidentStatus(status) ? status : undefined });
-          }}
-        >
-          <option value="">All statuses</option>
-          {INCIDENT_STATUSES.map((status) => (
-            <option key={status} value={status}>
+      {/* Checkboxes, not a select, so several statuses can be chosen at once (#217). */}
+      <fieldset className={styles.statuses}>
+        <legend className={styles.label}>Status</legend>
+        <div className={styles.choices}>
+          {INCIDENT_STATUSES.map((status, index) => (
+            <label key={status} className={styles.choice}>
+              <input
+                type="checkbox"
+                ref={index === 0 ? firstFilter : undefined}
+                checked={statuses.includes(status)}
+                onChange={(event) =>
+                  set({
+                    status: statusesFrom(
+                      event.target.checked
+                        ? [...statuses, status]
+                        : statuses.filter((chosen) => chosen !== status),
+                    ),
+                  })
+                }
+              />
               {STATUS_LABELS[status]}
-            </option>
+            </label>
           ))}
-        </select>
-      </Field>
+        </div>
+      </fieldset>
 
       <OptionsField
         label="Category"

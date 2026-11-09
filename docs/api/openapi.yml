@@ -819,8 +819,6 @@ paths:
       operationId: updateIncident
       summary: Classify an incident
       description: |
-        Planned: #47.
-
         Sets or corrects the category and the priority; send at least one of them. It is not a
         lifecycle action, so it adds no history entry: each change records a `CLASSIFY_INCIDENT`
         audit entry with the previous and new values, in the same transaction. The server records
@@ -868,8 +866,6 @@ paths:
       operationId: listIncidentClassificationChanges
       summary: List the classification changes of an incident
       description: |
-        Planned: #47.
-
         The category and priority changes of one incident, for the timeline of its detail. They are
         not status changes, so they are not in `listIncidentStatusChanges` (ADR-0020). This operation
         reads the `CLASSIFY_INCIDENT` entries of the audit trail: the same records as
@@ -1506,16 +1502,16 @@ paths:
       operationId: listIncidentLocations
       summary: List the positions of incidents for the map
       description: |
-        Planned: #195.
-
         A lightweight list for the map, with the same filters and the same scope as `listIncidents`
-        and an optional bounding box. It is not paginated, because the map needs one answer for the
-        whole view: the server caps the number of items, puts the most relevant first (priority, then
-        newest) and sets `truncated` when it left some out. An empty result is `200`.
+        and an optional bounding box (#195). It is not paginated, because the map needs one answer
+        for the whole view: the server returns at most 1,000 items, puts the most relevant first
+        (priority from `HIGH` to none, then newest) and sets `truncated` when it left some out. An
+        empty result is `200`. An unknown parameter, or one without a value, returns `400`, like
+        `listIncidents`.
 
-        The bounding box takes all four parameters or none. It uses named limits instead of a list of
-        four numbers, so its order cannot be mistaken. A minimum over its maximum, a value out of
-        range or only some of the four returns `400`. A box across the antimeridian is not supported:
+        The bounding box takes all four parameters or none, and its edges are included. It uses named
+        limits instead of a list of four numbers, so its order cannot be mistaken. A minimum over its
+        maximum, a value out of range or only some of the four returns `400`. A box across the antimeridian is not supported:
         the service covers Málaga.
 
         These data are live and are not cached.
@@ -1589,19 +1585,23 @@ paths:
       operationId: getIncidentReport
       summary: Get an operational report of incidents
       description: |
-        Planned: #42.
-
         Incidents reported in the period, counted with their current status and grouped by
         `groupBy`. `Accept: application/json` returns it for the screen and `Accept: text/csv` as a
-        file with the same rows. Errors stay `application/problem+json` in both cases.
+        file with the same rows; without `Accept`, or with `*/*`, it is JSON. Errors stay
+        `application/problem+json` in both cases.
 
-        `from` and `to` are required (`400` if one is missing). `from` must be earlier than `to` and
-        the period may not exceed 366 days, or the request returns `422`. A period without incidents
-        returns `200` with no rows, and a CSV with only its header.
+        `from`, `to` and `groupBy` are required, once each: one that is missing, repeated or empty,
+        a date-time without its UTC offset or outside the years 1 to 9999, or an unknown parameter
+        is a `400`. A role that may not read reports gets `403` before any of these checks.
+        `from` must be earlier than `to` and the period may not exceed 366 days, or the request
+        returns `422` with the error on the field `to`. A period without incidents returns `200`
+        with no rows, and a CSV with only its header.
 
         It holds no personal data. In the CSV, a group that is not available says `Not available`,
-        decimals use a dot, the encoding is UTF-8 with a BOM, and a text cell starting with `=`, `+`,
-        `-`, `@`, a tab or a carriage return is escaped with a leading `'`.
+        a missing percentile is an empty cell, decimals use a dot, lines end in CRLF, the encoding is
+        UTF-8 with a BOM, and a text cell starting with `=`, `+`, `-`, `@`, a tab or a carriage
+        return is escaped with a leading `'`. Status and priority groups use the values of the API
+        (`IN_PROGRESS`), not the labels of a screen.
 
         Roles: `ANALYST`, `ADMINISTRATOR`.
       parameters:
@@ -2520,7 +2520,7 @@ components:
           type: [string, "null"]
           description: >-
             Staff only. Justification of the current priority. `null` while the incident has no
-            priority. Planned: #47.
+            priority.
         assignment:
           description: >-
             Staff only. The active assignment. `null` while the incident has none. Previous
@@ -2906,11 +2906,12 @@ components:
 
     IncidentLocationListResponse:
       type: object
-      description: The positions for the map, with no more than the server's cap.
+      description: The positions for the map, at most 1,000.
       required: [content, truncated]
       properties:
         content:
           type: array
+          maxItems: 1000
           items:
             $ref: "#/components/schemas/IncidentPosition"
         truncated:
@@ -2962,7 +2963,8 @@ components:
           format: double
           minimum: 0
           description: >-
-            Median hours from reported to closed, of the closed incidents. `null` when none is
+            Median hours from reported to closed, of the closed incidents, rounded to two decimals
+            (continuous percentile, as `PERCENTILE.INC` of a spreadsheet). `null` when none is
             closed, never `0`.
           examples: [18.5]
         resolutionHoursP95:
@@ -2970,7 +2972,8 @@ components:
           format: double
           minimum: 0
           description: >-
-            95th percentile of the same hours. `null` when none is closed, never `0`.
+            95th percentile of the same hours, computed and rounded the same way. `null` when none
+            is closed, never `0`.
           examples: [40.25]
 
     IncidentReportResponse:

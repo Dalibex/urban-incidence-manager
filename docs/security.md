@@ -156,6 +156,12 @@ an operational log: the application logs on stdout never replace it.
 | `CLASSIFY_INCIDENT` | Incident classification (#47) |
 | `CREATE_USER` (`"origin": "BOOTSTRAP"`) | The one-off process that creates the first administrator (#126) |
 
+Staff read one part of the trail: the classification changes of an incident
+(`GET /incidents/{id}/classification-changes`, #47) are its `CLASSIFY_INCIDENT` entries, read with
+no second copy, for operators, administrators and the technician assigned to it. They show only the
+category, the priority and its justification, and the actor's id and name. The rest of the trail is
+for administrators (`listAuditEntries`, #41).
+
 Rules for code that records an entry:
 
 - **Same transaction as the change.** Call `AuditService.record` from inside the transaction of the
@@ -234,6 +240,8 @@ operation; the note says when the answer also depends on the resource. A role no
 | `GET /incidents` | | own | ✓ | assigned | ✓ | |
 | `POST /incidents` | | ✓ | | | | |
 | `GET /incidents/{id}` | | own | ✓ | assigned | ✓ | |
+| `PATCH /incidents/{id}` | | | ✓ | | ✓ | |
+| `GET /incidents/{id}/classification-changes` | | | ✓ | assigned | ✓ | |
 | `GET /incidents/{id}/status-changes` | | own, citizen view | ✓ | assigned | ✓ | |
 | `POST /incidents/{id}/assignments` | | | ✓ | | ✓ | |
 | `POST /incidents/{id}/acceptance` | | | | assigned | | |
@@ -241,6 +249,8 @@ operation; the note says when the answer also depends on the resource. A role no
 | `GET /incidents/{id}/attachments` | | own | ✓ | assigned | ✓ | |
 | `POST /incidents/{id}/attachments` | | own, only while `REPORTED` | ✓ | assigned | ✓ | |
 | `GET /attachments/{id}/content` | | own | ✓ | assigned | ✓ | |
+| `GET /incident-locations` | | | ✓ | assigned | ✓ | |
+| `GET /incident-reports` | | | | | ✓ | ✓ |
 
 Outside `/api/v1` only `/actuator/health/**` and the API documentation (`/openapi.yml`,
 `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs/**`) are public.

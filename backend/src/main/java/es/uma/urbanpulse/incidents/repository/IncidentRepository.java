@@ -11,7 +11,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 public interface IncidentRepository
-        extends JpaRepository<Incident, UUID>, JpaSpecificationExecutor<Incident> {
+        extends JpaRepository<Incident, UUID>,
+                JpaSpecificationExecutor<Incident>,
+                IncidentPositionRepository {
 
     /**
      * A page of incidents with their category and location in the same query, so listing has no

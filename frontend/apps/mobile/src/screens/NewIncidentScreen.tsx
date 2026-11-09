@@ -99,9 +99,25 @@ export function NewIncidentScreen({ navigation }: Props) {
       setTitle('');
       setDescription('');
       setCategoryId(null);
-      Alert.alert('Success', 'Incident reported. Follow its progress in "My reports".', [
-        { text: 'My reports', onPress: () => navigation.navigate('MyReports') },
-      ]);
+      const incidentId = result.data.id;
+      // Photos go after the report, never with it: a failed upload cannot lose the report (#44).
+      Alert.alert(
+        'Success',
+        'Incident reported. You can add photos now, and follow its progress in "My reports".',
+        [
+          { text: 'My reports', onPress: () => navigation.navigate('MyReports') },
+          {
+            text: 'Add photos',
+            onPress: () =>
+              navigation.navigate('MyReports', {
+                screen: 'AddPhotos',
+                params: { incidentId },
+                // The list stays below, so going back from the photos shows the new report.
+                initial: false,
+              }),
+          },
+        ],
+      );
     } catch (unexpected) {
       // A bug, not a user mistake: log it and let the user retry.
       console.error(unexpected);
