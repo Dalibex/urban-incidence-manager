@@ -194,8 +194,8 @@ ticked. *Clear filters* lists every incident.
 - **History:** every change of status, oldest first, with who made it and the reason. Entries the
   citizen does not see are marked *Internal*.
 - **Actions:** the actions allowed for the status of the incident. When there are none, as on a
-  rejected or closed incident, it says *No actions are available for this incident.* Planned: #48,
-  #49, #50, #52.
+  rejected or closed incident, it says *Only comments are available for this incident.* Planned:
+  #48, #49, #52.
 - **Classification:** choose the category and the priority, write why the incident has that
   priority and press *Save classification*. A priority always needs its reason; you can change
   only the category, only the priority or both. The button stays disabled until you change
@@ -205,6 +205,11 @@ ticked. *Clear filters* lists every incident.
     incident*, check the new values and save again. What you typed is kept.
   - If the server cannot be reached or answers with an error, nothing is saved and what you typed
     is kept, so you can save again.
+- **Comment:** a note for the other staff of the incident, such as instructions for the
+  technician, in any status. Write it in *Comment text* (up to 2,000 characters) and press *Add
+  comment*. The citizen never sees comments. The page says *Comment added.* only once the server has
+  kept it, and then empties the text; if it was not kept, the text stays so you can send it again.
+  The comments themselves show in the history with the timeline (Planned: #169).
 
 *Back to the inbox* returns to the list as you left it. An incident that does not exist shows
 *Incident not found*.
@@ -249,7 +254,10 @@ The report, its photos, the location and the history, as the operator sees them 
 - **Resolve**, on an incident *In progress*: write the *Resolution notes* (what was done, up to
   2,000 characters) and press *Mark as resolved*. The notes are required. The citizen sees that it
   is resolved, not your notes.
-- On any other status it says *No actions are available for this incident.*
+- **Comment**, in any status: a note for the operators, such as a complication you found, as in
+  the [operator's detail](#incident-detail). The citizen never sees it.
+- On any other status there is no other action: it says *Only comments are available for this
+  incident.*
 
 The page says *Incident accepted: it is now in progress.* or *Incident resolved.* only once the
 server has kept the change. If it was not kept, nothing changed and your notes are still there:
@@ -259,8 +267,7 @@ server has kept the change. If it was not kept, nothing changed and your notes a
 - It is no longer assigned to you: *Reload the incident* shows *Incident not found*.
 - The server cannot be reached or answers with an error: try again.
 
-An incident that is not assigned to you, opened from a link, shows *Incident not found*. Planned:
-comments (#50).
+An incident that is not assigned to you, opened from a link, shows *Incident not found*.
 
 ## 🛡️ Administrator (Web)
 
