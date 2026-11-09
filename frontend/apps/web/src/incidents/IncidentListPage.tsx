@@ -14,11 +14,18 @@ import { useIncidentPage } from './incident-queries';
 import styles from './Incidents.module.css';
 import { LoadFailure } from './LoadFailure';
 import { PRIORITY_LABELS } from './labels';
+import { LoadingSkeleton, SkeletonLine } from './Skeleton';
 import { StatusBadge } from './StatusBadge';
 
 type IncidentSummary = components['schemas']['IncidentSummaryResponse'];
 
 const PAGE_PARAM = 'page';
+
+/** The columns of the table, shared by the skeleton so it has the same shape. */
+const COLUMNS = ['Reported', 'Title', 'Category', 'Status', 'Priority'] as const;
+
+/** Rows drawn while a page loads: enough to fill the screen, never a count the user reads. */
+const SKELETON_ROWS = 5;
 
 interface IncidentListPageProps {
   title: string;
@@ -72,9 +79,9 @@ export function IncidentListPage({ title, lead, noIncidents, rowAction }: Incide
       <IncidentFilterBar filters={filters} onChange={changeFilters} firstFilterRef={firstFilter} />
 
       {incidents.isPending ? (
-        <p className={styles.state} role="status">
-          Loading incidents…
-        </p>
+        <LoadingSkeleton what="incidents">
+          <IncidentTableSkeleton withAction={rowAction !== undefined} />
+        </LoadingSkeleton>
       ) : incidents.isError ? (
         <LoadFailure
           what="The incidents"
@@ -147,11 +154,11 @@ function IncidentTable({ rows, loading, rowAction }: IncidentTableProps) {
         <caption className={styles.visuallyHidden}>Incidents, newest first</caption>
         <thead>
           <tr>
-            <th scope="col">Reported</th>
-            <th scope="col">Title</th>
-            <th scope="col">Category</th>
-            <th scope="col">Status</th>
-            <th scope="col">Priority</th>
+            {COLUMNS.map((column) => (
+              <th key={column} scope="col">
+                {column}
+              </th>
+            ))}
             {rowAction && (
               <th scope="col">
                 <span className={styles.visuallyHidden}>Actions</span>
@@ -180,6 +187,40 @@ function IncidentTable({ rows, loading, rowAction }: IncidentTableProps) {
                 )}
               </td>
               {rowAction && <td>{rowAction(incident)}</td>}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** The table with its columns and lines in place of the rows, while the first page loads. */
+function IncidentTableSkeleton({ withAction }: { withAction: boolean }) {
+  return (
+    <div className={styles.tableWrapper}>
+      <table className={styles.table}>
+        <thead>
+          <tr>
+            {COLUMNS.map((column) => (
+              <th key={column}>{column}</th>
+            ))}
+            {withAction && <th />}
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: SKELETON_ROWS }, (_, row) => (
+            <tr key={row}>
+              {COLUMNS.map((column) => (
+                <td key={column}>
+                  <SkeletonLine width={column === 'Title' ? '90%' : '60%'} />
+                </td>
+              ))}
+              {withAction && (
+                <td>
+                  <SkeletonLine width="60%" />
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
