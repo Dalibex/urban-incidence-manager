@@ -232,6 +232,7 @@ operation; the note says when the answer also depends on the resource. A role no
 | `GET /attachments/{id}/content` | | own | ✓ | assigned | ✓ | |
 | `GET /incidents/{id}/comments` | | | ✓ | assigned | ✓ | |
 | `POST /incidents/{id}/comments` | | | ✓ | assigned | ✓ | |
+| `GET /incident-locations` | | | ✓ | assigned | ✓ | |
 
 Outside `/api/v1` only `/actuator/health/**` and the API documentation (`/openapi.yml`,
 `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs/**`) are public.
