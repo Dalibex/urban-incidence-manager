@@ -44,6 +44,18 @@ describe('report period', () => {
     );
   });
 
+  // The user guide: the limit is counted in hours, as the API does, so 366 days that start in
+  // summer time and end in winter time are one hour too long, and one day less is accepted.
+  it('counts the limit in hours across a change to winter time', () => {
+    // Summer time on 30 October 2027 (it ends on the 31st); winter time on 30 October 2028.
+    expect(periodError({ fromDay: '2027-10-30', toDay: '2028-10-29', groupBy: 'status' })).toBe(
+      'The period may not be longer than 366 days.',
+    );
+    expect(periodError({ fromDay: '2027-10-30', toDay: '2028-10-28', groupBy: 'status' })).toBe(
+      undefined,
+    );
+  });
+
   it('asks for both days when one is missing or not a real day', () => {
     expect(periodError({ fromDay: '', toDay: '2026-11-08', groupBy: 'status' })).toBe(
       'Choose the first and the last day of the period.',
