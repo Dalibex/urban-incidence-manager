@@ -144,8 +144,10 @@ Scroll down to load more. Tap a report to see:
   when it was last updated and, once closed, when it was closed.
 - **Location:** address, neighbourhood, district, coordinates and accuracy; *Not available* when
   a value is not known.
-- **History:** each change of status with its date. A rejection shows its **reason**. When the
-  city needs more details, the entry shows a *Message from the city council*.
+- **History:** a timeline of each change of status, oldest first, with its date and time. Your
+  report shows as yours (*You*) and every other change as the *City council*'s. A rejection shows
+  its **reason**. When the city needs more details, the entry shows a *Message from the city
+  council*.
 
 You only see what the city shares with you: internal notes of the staff, priorities and who made
 each change are not shown to citizens.
@@ -189,8 +191,11 @@ ticked. *Clear filters* lists every incident.
 - **Location:** address, neighbourhood, district, coordinates and the accuracy the phone reported
   (for example *within 12.5 m*). A value that is not known says *Not available*: it is never left
   empty or guessed.
-- **History:** every change of status, oldest first, with who made it and the reason. Entries the
-  citizen does not see are marked *Internal*.
+- **History:** a timeline of every change of status, oldest first, with its date and time, who made
+  it, their role and the reason. Entries the citizen does not see are marked *Internal*. The changes
+  of category and priority appear among them as *Classification changed*, with who made them and
+  each new value next to the one it replaced; they are always internal. If they cannot be loaded,
+  the status changes stay on screen with *Try again* for the rest.
 - **Actions:** the actions allowed for the status of the incident. When there are none, as on a
   rejected or closed incident, it says *No actions are available for this incident.* Planned: #48,
   #49, #50, #52.
