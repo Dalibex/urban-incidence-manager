@@ -122,7 +122,7 @@ Every operation lists the shared responses that can really happen, with `$ref`:
 | 404 | `#/components/responses/NotFound` | The path has an identifier |
 | 409 | `#/components/responses/Conflict` | The operation changes state that can conflict (status transitions, stale version, unique values) |
 | 413 | `#/components/responses/ContentTooLarge` | The operation receives a file with a size limit |
-| 422 | `#/components/responses/UnprocessableEntity` | The operation has a body whose data is validated (blank title, coordinates out of range, short password); `errors` lists every invalid field |
+| 422 | `#/components/responses/UnprocessableEntity` | The operation has a body whose data is validated (blank title, coordinates out of range, short password), or query values that are readable but not valid together (a report period over 366 days); `errors` lists every invalid field |
 | 429 | `#/components/responses/TooManyRequests` | The operation is rate limited (today `createSession` and `createRegistration`; `createPasswordChange` is planned in #165) |
 | 500 | `#/components/responses/InternalServerError` | Every operation |
 
@@ -141,7 +141,7 @@ Do not define a new error body. If an error needs extra information, add an opti
 | Code | Status | Operation | Meaning |
 |---|---|---|---|
 | `MALFORMED_REQUEST` | 400 | Any | The request cannot be read |
-| `VALIDATION_FAILED` | 422 | Any with a body | The data is not valid; see `errors` |
+| `VALIDATION_FAILED` | 422 | Any with a body, and `getIncidentReport` | The data is not valid; see `errors` |
 | `EMAIL_ALREADY_EXISTS` | 409 | `createRegistration` | An account with this email exists |
 | `INVALID_CREDENTIALS` | 401 | `createSession` | Wrong email or password (the same for both, so emails are not revealed) |
 | `ACCOUNT_DISABLED` | 403 | `createSession` | Right credentials, disabled account |

@@ -70,7 +70,7 @@ same REST API and a set of TypeScript packages ([ADR-0007](adr/0007-client-appli
 | Backend API | Spring Boot, REST, contract first | [ADR-0008](adr/0008-backend.md), [ADR-0010](adr/0010-modular-monolith.md) | Yes |
 | Database | PostgreSQL with PostGIS, Flyway migrations | [ADR-0001](adr/0001-database.md), [ADR-0003](adr/0003-geospatial-data-management.md), [ADR-0014](adr/0014-database-migrations-flyway.md) | Yes |
 | Tiles builder | One-off process that builds the base map | [ADR-0016](adr/0016-self-hosted-osm-base-map.md) | Yes |
-| Evidence storage | Docker volume behind a storage interface | [ADR-0013](adr/0013-evidence-storage.md) | Yes, in the API (#192) and the mobile upload (#193); the web gallery with #194 |
+| Evidence storage | Docker volume behind a storage interface | [ADR-0013](adr/0013-evidence-storage.md) | Yes, in the API (#192), the mobile upload (#193) and the web gallery (#194) |
 | Reverse proxy | nginx, the single published entry point | [ADR-0017](adr/0017-reverse-proxy.md) | No, #134 |
 | Cache | Redis | [ADR-0022](adr/0022-redis-from-measurements.md), which supersedes [ADR-0012](adr/0012-cache-redis.md) | No, until a measurement or a second replica asks for it |
 

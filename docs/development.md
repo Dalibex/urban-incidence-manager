@@ -262,7 +262,7 @@ backend/
     |   |-- urbancontext/    external context of an incident (no provider integrated yet)
     |   |-- geospatial/      districts, neighbourhoods, urban assets (PostGIS)
     |   |-- notifications/   notifications (no delivery provider integrated yet)
-    |   |-- analytics/       read-only indicators and reports (empty)
+    |   |-- analytics/       read-only reports over the incidents (operational report)
     |   `-- shared/          cross-cutting code, not a module
     |       |-- security/    Spring Security filter chain, JWT validation, AuthenticatedUser
     |       `-- web/         error responses (Problem Details), paging
