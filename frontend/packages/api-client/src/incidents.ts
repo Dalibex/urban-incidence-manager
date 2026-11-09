@@ -45,6 +45,46 @@ export function updateIncident(
   );
 }
 
+/**
+ * The technician of the active assignment accepts the incident: `ASSIGNED` to `IN_PROGRESS`
+ * (ADR-0020). A stale `version` answers `409` with `CONCURRENT_MODIFICATION`, a status that does not
+ * allow it `409` with `INVALID_TRANSITION`, and an incident no longer assigned to them `404`.
+ */
+export function acceptIncident(
+  client: ApiClient,
+  incidentId: string,
+  body: Schemas['IncidentActionRequest'],
+): Promise<FormResult<IncidentResponse>> {
+  return callForm(
+    () =>
+      client.POST('/incidents/{incidentId}/acceptance', {
+        params: { path: { incidentId } },
+        body,
+      }),
+    'the incident',
+  );
+}
+
+/**
+ * The technician of the active assignment resolves the incident: `IN_PROGRESS` to `RESOLVED`
+ * (ADR-0020). `reason` holds the resolution notes, which the citizen never sees. It answers as
+ * {@link acceptIncident} does, and `422` when the notes are missing.
+ */
+export function resolveIncident(
+  client: ApiClient,
+  incidentId: string,
+  body: Schemas['IncidentReasonRequest'],
+): Promise<FormResult<IncidentResponse>> {
+  return callForm(
+    () =>
+      client.POST('/incidents/{incidentId}/resolution', {
+        params: { path: { incidentId } },
+        body,
+      }),
+    'the incident',
+  );
+}
+
 async function callForm<T>(
   call: () => Promise<{ data?: T; error?: unknown; response: Response }>,
   what: string,

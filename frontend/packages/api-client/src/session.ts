@@ -124,7 +124,7 @@ export function createSessionFetch(baseUrl: string, options: SessionOptions) {
  * openapi-fetch drops a trailing slash too, so "/api/v1/" and "/api/v1" call the same paths. A loop
  * instead of `/\/+$/`, whose backtracking is quadratic on long runs of slashes (CodeQL ReDoS).
  */
-function withoutTrailingSlashes(path: string): string {
+export function withoutTrailingSlashes(path: string): string {
   let end = path.length;
   while (end > 0 && path[end - 1] === '/') {
     end -= 1;

@@ -788,16 +788,16 @@ export interface paths {
         };
         /**
          * List the positions of incidents for the map
-         * @description Planned: #195.
+         * @description A lightweight list for the map, with the same filters and the same scope as `listIncidents`
+         *     and an optional bounding box (#195). It is not paginated, because the map needs one answer
+         *     for the whole view: the server returns at most 1,000 items, puts the most relevant first
+         *     (priority from `HIGH` to none, then newest) and sets `truncated` when it left some out. An
+         *     empty result is `200`. An unknown parameter, or one without a value, returns `400`, like
+         *     `listIncidents`.
          *
-         *     A lightweight list for the map, with the same filters and the same scope as `listIncidents`
-         *     and an optional bounding box. It is not paginated, because the map needs one answer for the
-         *     whole view: the server caps the number of items, puts the most relevant first (priority, then
-         *     newest) and sets `truncated` when it left some out. An empty result is `200`.
-         *
-         *     The bounding box takes all four parameters or none. It uses named limits instead of a list of
-         *     four numbers, so its order cannot be mistaken. A minimum over its maximum, a value out of
-         *     range or only some of the four returns `400`. A box across the antimeridian is not supported:
+         *     The bounding box takes all four parameters or none, and its edges are included. It uses named
+         *     limits instead of a list of four numbers, so its order cannot be mistaken. A minimum over its
+         *     maximum, a value out of range or only some of the four returns `400`. A box across the antimeridian is not supported:
          *     the service covers Málaga.
          *
          *     These data are live and are not cached.
@@ -1651,7 +1651,7 @@ export interface components {
              */
             longitude: number;
         };
-        /** @description The positions for the map, with no more than the server's cap. */
+        /** @description The positions for the map, at most 1,000. */
         IncidentLocationListResponse: {
             content: components["schemas"]["IncidentPosition"][];
             /**
