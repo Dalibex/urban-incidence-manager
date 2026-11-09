@@ -20,7 +20,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
-- The session recovers at the next request after a session refresh fails because of the network or a server error, instead of staying unusable until the app restarts (#161).
+- The session recovers at the next request after a session refresh fails for any reason other than a rejected session, such as the network or a server error, instead of staying unusable until the app restarts (#161).
 
 ## [0.1.0] - 2026-11-03
 
