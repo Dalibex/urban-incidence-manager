@@ -6,7 +6,7 @@ on them. Other guides cover the rest:
 | Guide | What it covers |
 | --- | --- |
 | [Architecture](architecture.md) | The architecture drivers, a summary of the containers and the quality attribute scenarios |
-| [Deployment](deployment.md) | The Compose services, their variables and volumes, the backend in Docker, resetting the database, the base map |
+| [Deployment](deployment.md) | The deployment Compose behind nginx, the development Compose services, their variables and volumes, the backend in Docker, backups, resetting the database, the base map |
 | [Database](database.md) | Migrations, reference data and how the data profiles work |
 | [Datasets and measurements](datasets.md) | The demo and performance datasets, and the quality attribute measurements |
 | [Testing](testing.md) | Backend and client tests |
@@ -203,6 +203,11 @@ Vite forwards `/api` to the backend at `http://localhost:8080`, so the browser n
 use another backend, set `API_PROXY_TARGET` before `pnpm dev:web`. The web keeps the session in
 memory only: reloading the page asks for sign-in again. To sign in as each demo user with one
 click, see *Quick Sign-In* in the [demo script](demo.md); it is off by default.
+
+In the deployment, nginx plays the part of Vite: it serves the production build, the base map at
+`/tiles/` and `/api` on the same origin, so the code and the bundle are the same
+([deployment guide](deployment.md)). To try that build behind nginx, use the deployment Compose at
+the repository root; the development stack never runs nginx.
 
 The web reads the API through React Query ([ADR-0006](adr/0006-frontend-web-technology.md)): each
 screen calls a hook such as `useIncidentPage` (`apps/web/src/incidents/incident-queries.ts`), which

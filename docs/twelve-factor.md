@@ -23,12 +23,12 @@ Commands run from `backend/`, with Docker running and `backend/.env` created fro
 | [II. Dependencies](#ii-dependencies) | Done | |
 | [III. Config](#iii-config) | Done | Planned: #200 |
 | [IV. Backing services](#iv-backing-services) | Done | |
-| [V. Build, release, run](#v-build-release-run) | Partial | Planned: #134, #199 |
+| [V. Build, release, run](#v-build-release-run) | Partial | Done: #199 |
 | [VI. Processes](#vi-processes) | Partial | Done: #192 |
-| [VII. Port binding](#vii-port-binding) | Partial | Planned: #134, #199 |
+| [VII. Port binding](#vii-port-binding) | Done | Done: #199 |
 | [VIII. Concurrency](#viii-concurrency) | Accepted limit | |
 | [IX. Disposability](#ix-disposability) | Partial | |
-| [X. Dev/prod parity](#x-devprod-parity) | Partial | Done: #90. Planned: #134, #199 |
+| [X. Dev/prod parity](#x-devprod-parity) | Partial | Done: #90, #199 |
 | [XI. Logs](#xi-logs) | Done | |
 | [XII. Admin processes](#xii-admin-processes) | Done | Done: #8, #34, #38, #54, #83, #84, #126 |
 
@@ -98,9 +98,12 @@ the external data sources are not built.
 
 - **Build:** `backend/Dockerfile` compiles one jar inside the image, and fails if there is more
   than one. The `build` job tags the image with the commit SHA, smoke-tests it and publishes the
-  jar copied from that image (`urbanpulse-<sha>.jar`).
-- **Release:** the image plus the variables of `.env`, put together by Compose.
-- **Run:** `docker compose --profile app up`. The migrations run when the backend starts.
+  jar copied from that image (`urbanpulse-<sha>.jar`). `frontend/Dockerfile` builds the web bundle
+  inside the nginx image, which the same job smoke-tests.
+- **Release:** the images plus the variables of `.env`, put together by Compose.
+- **Run:** `docker compose up -d` with the deployment `docker-compose.yaml` at the repository root
+  ([deployment guide](deployment.md)), or `docker compose --profile app up` from `backend/` in
+  development. The migrations run when the backend starts.
 - **Rollback:** going back to an older image does not undo its migrations
   ([deployment guide](deployment.md), *Update and Roll Back*).
 
@@ -109,7 +112,7 @@ the external data sources are not built.
 - **Check:** the summary of a `build` run on `main` in GitHub Actions names the artifact of that
   commit.
 - **Missing:** the image is not pushed to any registry, and there is no server environment to
-  release to. The deployment Compose is **Planned: #134, #199**; no issue plans the registry yet.
+  release to. The deployment Compose exists (#199); no issue plans the registry yet.
 
 ## VI. Processes
 
@@ -127,15 +130,15 @@ evidence folder, a volume ([deployment guide](deployment.md), *Volumes*), never 
 
 ## VII. Port binding
 
-**Partial.** The backend is a self-contained jar with its own web server, and listens on
-`SERVER_PORT` (8080 by default).
+**Done.** The backend is a self-contained jar with its own web server, and listens on
+`SERVER_PORT` (8080 by default). The web app is served by its own image, nginx on port 8080, which
+is the only port the deployment publishes (`HTTP_PORT`, [ADR-0017](adr/0017-reverse-proxy.md)).
 
 - **It would break if:** the port were fixed in the code, or the app needed a server installed on
   the machine.
 - **Check:** the smoke test of the `build` job starts the image with `SERVER_PORT=9090` and waits
-  for `/actuator/health` on that port.
-- **Missing:** the web app is only served by the Vite development server. A web image with nginx,
-  as [ADR-0017](adr/0017-reverse-proxy.md) decides, is **Planned: #134, #199**.
+  for `/actuator/health` on that port, and starts the web image and loads `/inbox` from it. The
+  `lint` job fails if a service other than `web` publishes a port in the deployment Compose.
 
 ## VIII. Concurrency
 
@@ -163,20 +166,25 @@ complete` and `HikariPool-1 - Shutdown completed`. Start-up takes about 5 s on a
 
 ## X. Dev/prod parity
 
-**Partial.** The same backend image runs locally (`--profile app`) and in the CI (#90), with the
-same PostGIS image in Compose, in the Testcontainers tests and in the CI. The Java version is the
+**Partial.** The same backend image runs locally (`--profile app`), in the deployment Compose and
+in the CI (#90), with the same PostGIS image in both Compose files, in the Testcontainers tests and
+in the CI. The Java version is the
 same in `ci.yml`, `pom.xml` and the two Temurin tags of the Dockerfile ([CI guide](ci.md)).
 
 - **It would break if:** development used another database or other versions.
-- **Check:** the `lint` job fails if Compose, `TestcontainersConfiguration.java` and the CI do not
-  use the same PostGIS image. The Java version is aligned by hand: no job checks it.
-- **Missing:** the web app and the base map tiles only run with Vite. **Planned: #134, #199**.
+- **Check:** the `lint` job fails if the two Compose files, `TestcontainersConfiguration.java` and
+  the CI do not use the same PostGIS image. The Java version is aligned by hand: no job checks it.
+- **Difference:** the web app and the base map are served by Vite in development and by nginx in
+  the deployment (#199). Both put the API on the same origin, at `/api`, so the clients do not
+  change ([development guide](development.md)).
 
 ## XI. Logs
 
 **Done.** The backend writes its log to stdout and keeps no log file. Every line of a request
 starts with its request id (`RequestIdFilter`, `X-Request-ID`), the same as the `traceId` of its
-error body ([API guide](api.md)), so a user's report leads to its lines.
+error body ([API guide](api.md)), so a user's report leads to its lines. nginx writes its access
+and error logs to stdout and stderr too. Collecting them is the job of Docker: the deployment
+Compose keeps at most three files of 10 MB per container.
 
 - **It would break if:** the application wrote and rotated its own log files.
 - **Check:** `docker compose --profile app logs backend` shows the application log.
