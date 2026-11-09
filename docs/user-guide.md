@@ -286,9 +286,11 @@ with the status they have now, and never shows who reported them or where exactl
    no active assignment to a department, or no district. The district of a new report is not
    filled in yet (Planned: #59), so grouping by district puts those reports under *Not
    available*.
-4. *Download CSV* saves the report on the screen as a file, with the same rows. A spreadsheet
-   in Spanish may read the dots of the decimals wrongly when it opens the file directly: open it
-   with *Data > From Text/CSV* and choose a dot as the decimal separator.
+4. *Download CSV* saves the report on the screen as a file, with the same rows. The file
+   separates its columns with commas and writes decimals with a dot. A spreadsheet in Spanish
+   separates columns with semicolons, so opening the file with a double click puts each whole
+   line in the first column: open it with *Data > From Text/CSV* instead, with a comma as the
+   delimiter and a dot as the decimal separator.
 
 If the days are not valid, the message says why under the dates and nothing is asked. If the
 report or the file cannot be loaded, the page says so: *Try again* reloads the report, and
