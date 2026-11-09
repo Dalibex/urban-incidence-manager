@@ -62,8 +62,8 @@ class DatabaseMigrationIT {
                     "Parks and Gardens",
                     "Mobility");
 
-    // The indexes of the main queries (#132) and the staff filters (#182), measured in
-    // docs/database.md, "Indexes".
+    // The indexes of the main queries (#132), the staff filters (#182) and the classification
+    // changes (#47), measured in docs/database.md, "Indexes".
     private static final List<String> MAIN_QUERY_INDEXES =
             List.of(
                     "ix_incident_reporter_reported_at",
@@ -73,7 +73,8 @@ class DatabaseMigrationIT {
                     "ix_status_change_incident_id",
                     "ix_assignment_active_department",
                     "ix_incident_updated_at",
-                    "ix_assignment_incident_id");
+                    "ix_assignment_incident_id",
+                    "ix_audit_log_target_id");
 
     @Autowired private Flyway flyway;
 

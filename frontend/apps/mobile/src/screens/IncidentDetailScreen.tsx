@@ -19,6 +19,7 @@ import {
   View,
 } from 'react-native';
 
+import { Button } from '../components/Button';
 import { FormMessage } from '../components/FormMessage';
 import { LoadFailure } from '../components/LoadFailure';
 import { StatusBadge } from '../components/StatusBadge';
@@ -33,7 +34,7 @@ type Incident = components['schemas']['IncidentResponse'];
 type StatusChange = components['schemas']['StatusChangeResponse'];
 
 /** One of the citizen's reports: its data, where it is and what has happened to it (RF06). */
-export function IncidentDetailScreen({ route }: Props) {
+export function IncidentDetailScreen({ navigation, route }: Props) {
   const { incidentId } = route.params;
   const incident = useIncident(incidentId);
   const history = useIncidentHistory(incidentId);
@@ -89,6 +90,14 @@ export function IncidentDetailScreen({ route }: Props) {
         <FormMessage message="The report could not be refreshed. This is the last version loaded." />
       )}
       <IncidentData incident={incident.data} />
+      {/* The API lets the reporter add photos only while the report waits for review (#44). */}
+      {incident.data.status === 'REPORTED' && (
+        <Button
+          label="Add photos"
+          variant="secondary"
+          onPress={() => navigation.navigate('AddPhotos', { incidentId })}
+        />
+      )}
       <Section title="History">
         {history.isPending ? (
           <ActivityIndicator accessibilityLabel="Loading the history" />

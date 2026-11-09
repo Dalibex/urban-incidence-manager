@@ -58,3 +58,30 @@ export function reportIncidentMessage(failure: ApiFailure): string {
   }
   return 'The incident could not be reported. Try again in a moment.';
 }
+
+/**
+ * Why a photo was not uploaded. The report is saved before any upload, so a failure that may pass
+ * on its own says so: the citizen can try again or leave the report without the photo.
+ */
+export function uploadPhotoMessage(failure: ApiFailure): string {
+  if (failure.kind === 'network' || failure.status >= 500) {
+    return 'The photo could not be uploaded. Your report is saved without it; try again when you have a better connection.';
+  }
+  if (failure.code === 'ATTACHMENT_NOT_ALLOWED') {
+    return 'Photos can only be added while the report is waiting for review.';
+  }
+  switch (failure.status) {
+    case 403:
+      return 'This account cannot add photos.';
+    case 404:
+      return 'This report was not found. It may have been removed, or it is not one of yours.';
+    case 413:
+      return 'The photo is too large. Choose another one.';
+    case 422:
+      return 'This photo cannot be added: it is not a JPEG, PNG or WebP image, or the report already has the maximum number of photos.';
+    case 429:
+      return TOO_MANY;
+    default:
+      return 'The photo could not be uploaded. Your report is saved without it.';
+  }
+}
