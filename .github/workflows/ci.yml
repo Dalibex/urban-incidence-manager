@@ -1,7 +1,8 @@
 # Continuous integration for UrbanPulse.
 #
 # Jobs:
-#   lint → repository hygiene (.env, Compose, image parity) and formatting (Spotless check)
+#   lint → repository hygiene (.env, both Compose files, image parity, one published port) and
+#          formatting (Spotless check)
 #   contract → the OpenAPI contract docs/api/openapi.yml is valid and follows docs/api.md (Redocly),
 #              and the generated frontend/packages/api-client types match it
 #   architecture → the C4 draw.io file is the one docs/architecture/workspace.dsl generates
@@ -71,6 +72,10 @@ jobs:
             echo "::error file=docker-compose.yaml,title=12F-X Dev/prod parity::docker-compose.yaml does not use $POSTGRES_IMAGE (POSTGRES_IMAGE in ci.yml)."
             status=1
           fi
+          if ! grep -qF "$POSTGRES_IMAGE" ../docker-compose.yaml; then
+            echo "::error file=docker-compose.yaml,title=12F-X Dev/prod parity::The deployment docker-compose.yaml (repository root) does not use $POSTGRES_IMAGE (POSTGRES_IMAGE in ci.yml)."
+            status=1
+          fi
           if ! grep -rqF "$POSTGRES_IMAGE" src/test/java; then
             echo "::error title=12F-X Dev/prod parity::TestcontainersConfiguration.java does not use $POSTGRES_IMAGE (POSTGRES_IMAGE in ci.yml)."
             status=1
@@ -87,6 +92,19 @@ jobs:
           cp .env.example .env
           docker compose config --quiet
           echo "docker-compose.yaml is valid (only parsed, no container is started)."
+
+      # The deployment Compose of ADR-0017, at the repository root, with its own .env.example.
+      - name: Deployment Compose file is valid with .env.example and publishes one port (12F-III, VII)
+        working-directory: .
+        run: |
+          cp .env.example .env
+          docker compose --profile tiles config --quiet
+          published=$(docker compose --profile tiles config --format json | jq -r '.services | to_entries[] | select(.value.ports) | .key' | paste -sd ' ')
+          if [ "$published" != "web" ]; then
+            echo "::error file=docker-compose.yaml,title=12F-VII Port binding::Only web may publish a port in the deployment Compose (ADR-0017). Services that publish one: ${published:-none}."
+            exit 1
+          fi
+          echo "The deployment docker-compose.yaml is valid and only web publishes a port."
 
       - name: Set up Java
         uses: actions/setup-java@v6

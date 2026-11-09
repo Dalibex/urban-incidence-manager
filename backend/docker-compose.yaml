@@ -79,8 +79,8 @@ services:
       # Where the clients load the tiles, sprites and glyphs from. It is written into style.json.
       TILES_BASE_URL: ${TILES_BASE_URL:-http://localhost:5173/tiles}
     volumes:
-      # Output. Until nginx serves the tiles (ADR-0017), the web development server serves this
-      # folder, which Git ignores.
+      # Output, served by the web development server; Git ignores the folder. The deployment
+      # Compose at the repository root writes into a volume that nginx serves instead (ADR-0017).
       - ../frontend/apps/web/public/tiles:/tiles
       # Downloaded sources (OSM extract, water polygons, Natural Earth), reused between runs.
       - tiles-sources:/data/sources
