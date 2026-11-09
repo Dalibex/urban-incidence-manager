@@ -326,7 +326,9 @@ describe('classification panel', () => {
       const server = newServer({ ...CLASSIFIED, status });
       renderApp(incidentPath(INCIDENT.id), { role: 'MUNICIPAL_OPERATOR', fetch: api(server) });
 
-      expect(await screen.findByText('No actions are available for this incident.')).toBeDefined();
+      expect(
+        await screen.findByText('Only comments are available for this incident.'),
+      ).toBeDefined();
       expect(screen.queryByRole('form', { name: 'Classification' })).toBeNull();
       document.body.innerHTML = '';
     }

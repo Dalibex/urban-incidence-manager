@@ -1,5 +1,6 @@
 import {
   acceptIncident,
+  createIncidentComment,
   getAttachmentContent,
   getIncident,
   listCategories,
@@ -38,6 +39,7 @@ const incidentKeys = {
   detail: (incidentId: string) => ['incidents', incidentId] as const,
   history: (incidentId: string) => ['incidents', incidentId, 'status-changes'] as const,
   attachments: (incidentId: string) => ['incidents', incidentId, 'attachments'] as const,
+  comments: (incidentId: string) => ['incidents', incidentId, 'comments'] as const,
   categories: ['categories'] as const,
 };
 
@@ -170,6 +172,24 @@ export function useResolveIncident(incidentId: string) {
   return useIncidentChange((api, body: IncidentReasonRequest) =>
     resolveIncident(api, incidentId, body),
   );
+}
+
+/**
+ * Adds an internal comment (#50). Like the changes of the incident, it resolves with the API's
+ * answer, a failure included. A comment does not change the incident, so only the parts read
+ * separately (the comments of the timeline of #169) are read again.
+ */
+export function useAddComment(incidentId: string) {
+  const { api } = useSession();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (text: string) => createIncidentComment(api, incidentId, { text }),
+    onSuccess: (result) => {
+      if (result.ok) {
+        void queryClient.invalidateQueries({ queryKey: incidentKeys.comments(incidentId) });
+      }
+    },
+  });
 }
 
 /** Reads the incident again, for example after a `409` that says it changed meanwhile. */

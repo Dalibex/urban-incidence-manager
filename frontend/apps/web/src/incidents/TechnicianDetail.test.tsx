@@ -170,7 +170,7 @@ describe("technician's incident detail (#187)", () => {
     await userEvent.click(panel.getByRole('button', { name: 'Mark as resolved' }));
 
     expect(await screen.findByText('Incident resolved.')).toBeDefined();
-    expect(await screen.findByText('No actions are available for this incident.')).toBeDefined();
+    expect(await screen.findByText('Only comments are available for this incident.')).toBeDefined();
     expect(server.resolved).toEqual([{ version: IN_PROGRESS.version, reason: NOTES }]);
     // No form follows: the focus goes to the message instead of the page.
     await waitFor(() => expect(document.activeElement?.textContent).toBe('Incident resolved.'));
