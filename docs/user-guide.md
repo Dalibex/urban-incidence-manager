@@ -19,7 +19,7 @@ the [development guide](development.md) and the [demo script](demo.md).
 | [Municipal operator](#-municipal-operator-web) | Web | Partial |
 | [Technician](#-technician-web) | Web | Partial |
 | [Administrator](#-administrator-web) | Web | Partial |
-| [Analyst](#-analyst-web) | Web | Planned |
+| [Analyst](#-analyst-web) | Web | Built |
 
 ## 🚪 Before You Start
 
@@ -258,17 +258,43 @@ comments (#50) and photos (#194).
 
 ## 🛡️ Administrator (Web)
 
-The menu shows *Users*, where you land, and *Inbox*.
+The menu shows *Users*, where you land, *Inbox* and *Reports*.
 
 - **Inbox and incident detail:** an administrator can do everything an operator can
   ([ADR-0020](adr/0020-incident-lifecycle-transitions.md)), so see
   [Municipal Operator](#-municipal-operator-web).
 - **Users:** planned: #40.
 - **Audit log:** planned: #41.
+- **Reports:** the same screen as the analyst's, see [Analyst](#-analyst-web).
 
 ## 📊 Analyst (Web)
 
-The menu shows *Reports*. Planned: #42.
+The menu shows *Reports*, where you land. A report counts the incidents reported in a period,
+with the status they have now, and never shows who reported them or where exactly.
+
+1. Choose *From* and *To (included)*, two days of Málaga time, and how to *Group by*: status,
+   category, priority, department or district. Then choose *Show report*; choosing it again with
+   the same days brings the figures up to date. The screen opens on the last 30 days, grouped by
+   status.
+   A period has at most 366 days, both included. The limit is counted in hours, so a period of
+   exactly 366 days that starts in summer time and ends in winter time is one hour too long:
+   choose one day less.
+2. Each row is a group, with its *Total* and how many are *Open* (any status that is not final,
+   *Resolved* included), *Closed* and *Rejected*. *Median hours to close* and *95th percentile
+   hours* count only the closed incidents; a dash means that none of the group is closed.
+3. *Not available* gathers the incidents without that information: no category, no priority yet,
+   no active assignment to a department, or no district. The district of a new report is not
+   filled in yet (Planned: #59), so grouping by district puts those reports under *Not
+   available*.
+4. *Download CSV* saves the report on the screen as a file, with the same rows. The file
+   separates its columns with commas and writes decimals with a dot. A spreadsheet in Spanish
+   separates columns with semicolons, so opening the file with a double click puts each whole
+   line in the first column: open it with *Data > From Text/CSV* instead, with a comma as the
+   delimiter and a dot as the decimal separator.
+
+If the days are not valid, the message says why under the dates and nothing is asked. If the
+report or the file cannot be loaded, the page says so: *Try again* reloads the report, and
+*Download CSV* can be chosen again; no file is saved when the download fails.
 
 ## ✍️ Keeping This Guide Up to Date
 

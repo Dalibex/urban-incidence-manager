@@ -32,6 +32,12 @@ export {
   type IncidentListQuery,
 } from './incidents';
 export { uploadIncidentAttachment, type LocalFile, type UploadOptions } from './attachments';
+export {
+  downloadIncidentReport,
+  getIncidentReport,
+  type IncidentReport,
+  type IncidentReportQuery,
+} from './reports';
 
 /**
  * Creates a client whose paths, parameters and responses are typed from the contract. Each app
