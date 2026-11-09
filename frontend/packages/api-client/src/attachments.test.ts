@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   createApiClient,
+  getAttachmentContent,
+  listIncidentAttachments,
   uploadIncidentAttachment,
   type LocalFile,
   type SessionTokens,
@@ -447,5 +449,83 @@ describe('uploadIncidentAttachment', () => {
 
     await expect(upload).resolves.toEqual({ ok: true, data: ATTACHMENT });
     expect(xhr.sent[0]?.aborted).toBe(false);
+  });
+});
+
+const CONTENT_URL = `https://api.test/api/v1/attachments/${ATTACHMENT.id}/content`;
+
+/** A client whose `fetch` answers with `answer`; `sent` keeps each request to check what was asked. */
+function clientAnswering(answer: (request: Request) => Promise<Response>) {
+  const sent: Request[] = [];
+  const { client } = setUp(
+    memoryStore(tokens('access-1', 'refresh-1')),
+    vi.fn(async (request: Request) => {
+      sent.push(request);
+      return answer(request);
+    }),
+  );
+  return { client, sent };
+}
+
+describe('listIncidentAttachments', () => {
+  it('returns the metadata of the photos and sends the access token', async () => {
+    const { client, sent } = clientAnswering(async () => json(200, [ATTACHMENT]));
+
+    const result = await listIncidentAttachments(client, INCIDENT_ID);
+
+    expect(result).toEqual({ ok: true, data: [ATTACHMENT] });
+    expect(sent[0]?.url).toBe(UPLOAD_URL);
+    expect(sent[0]?.headers.get('Authorization')).toBe('Bearer access-1');
+  });
+
+  it('returns the status and code of a refused listing', async () => {
+    const { client } = clientAnswering(async () => json(403, { status: 403, code: 'FORBIDDEN' }));
+
+    const result = await listIncidentAttachments(client, INCIDENT_ID);
+
+    expect(result).toEqual({
+      ok: false,
+      failure: { kind: 'problem', status: 403, code: 'FORBIDDEN' },
+    });
+  });
+});
+
+describe('getAttachmentContent', () => {
+  it('returns the file as a Blob, downloaded with the access token', async () => {
+    const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
+    const { client, sent } = clientAnswering(
+      async () => new Response(bytes, { status: 200, headers: { 'Content-Type': 'image/jpeg' } }),
+    );
+
+    const result = await getAttachmentContent(client, ATTACHMENT.id);
+
+    expect(result.ok).toBe(true);
+    const blob = result.ok ? result.data : undefined;
+    expect(blob).toBeInstanceOf(Blob);
+    expect(blob?.type).toBe('image/jpeg');
+    expect(new Uint8Array(await blob!.arrayBuffer())).toEqual(bytes);
+    expect(sent[0]?.url).toBe(CONTENT_URL);
+    expect(sent[0]?.headers.get('Authorization')).toBe('Bearer access-1');
+  });
+
+  it('reads the problem of a failed download, although the success is binary', async () => {
+    const { client } = clientAnswering(async () => json(404, { status: 404, code: 'NOT_FOUND' }));
+
+    const result = await getAttachmentContent(client, ATTACHMENT.id);
+
+    expect(result).toEqual({
+      ok: false,
+      failure: { kind: 'problem', status: 404, code: 'NOT_FOUND' },
+    });
+  });
+
+  it('returns a network failure when the API cannot be reached', async () => {
+    const { client } = clientAnswering(async () => {
+      throw new TypeError('Failed to fetch');
+    });
+
+    const result = await getAttachmentContent(client, ATTACHMENT.id);
+
+    expect(result).toEqual({ ok: false, failure: { kind: 'network' } });
   });
 });
