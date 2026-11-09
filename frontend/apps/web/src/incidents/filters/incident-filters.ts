@@ -1,16 +1,17 @@
 import type { components, IncidentListQuery } from '@urbanpulse/api-client';
-import { isIncidentStatus, type IncidentStatus } from '@urbanpulse/domain';
+import { INCIDENT_STATUSES, isIncidentStatus, type IncidentStatus } from '@urbanpulse/domain';
 import { startOfDay } from '@urbanpulse/ui';
 
 type Priority = components['schemas']['Priority'];
 
 /**
- * The staff filters of an incident list (#58), as the screens keep them in the address. One value
- * per filter; a missing one does not filter. The dates are calendar days in Málaga, both included,
- * which is how people read "from 1 to 5 November".
+ * The staff filters of an incident list (#58), as the screens keep them in the address. Several
+ * statuses (#217), one value for each other filter; a missing one does not filter. The dates are
+ * calendar days in Málaga, both included, which is how people read "from 1 to 5 November".
  */
 export interface IncidentFilters {
-  status?: IncidentStatus;
+  /** Any of these statuses, in the order of the lifecycle and never empty. */
+  status?: readonly IncidentStatus[];
   categoryId?: string;
   priority?: Priority;
   departmentId?: string;
@@ -35,7 +36,14 @@ const FILTER_NAMES: readonly IncidentFilterName[] = [
 export const PRIORITIES: readonly Priority[] = ['HIGH', 'MEDIUM', 'LOW'];
 
 /** What the inbox shows when it is opened from the menu: the reports waiting for a review. */
-export const INBOX_DEFAULT_FILTERS: IncidentFilters = { status: 'REPORTED' };
+export const INBOX_DEFAULT_FILTERS: IncidentFilters = { status: ['REPORTED'] };
+
+/**
+ * What the work queue shows when it is opened from the menu: the technician's pending work. An
+ * assignment stays active after the incident is resolved or closed, so without a filter the queue
+ * would mostly list finished work (#217).
+ */
+export const WORK_QUEUE_DEFAULT_FILTERS: IncidentFilters = { status: ['ASSIGNED', 'IN_PROGRESS'] };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // A four-digit year from 1000: `Date.UTC` reads the years 0 to 99 as 1900 to 1999.
@@ -46,11 +54,12 @@ const LAST_DAY = '9999-12-31';
 /**
  * The filters of an address. A value the API would reject (an unknown status, an id that is not a
  * UUID, a day that does not exist, a first day after the last one) is dropped, never sent: the list
- * then shows more incidents, never an error. A repeated parameter keeps its first valid value.
+ * then shows more incidents, never an error. A repeated status counts once; any other repeated
+ * parameter keeps its first valid value.
  */
 export function filtersFrom(params: URLSearchParams): IncidentFilters {
   const filters: IncidentFilters = {
-    status: first(params, 'status', isIncidentStatus),
+    status: statusesFrom(params.getAll('status').filter(isIncidentStatus)),
     categoryId: first(params, 'categoryId', isUuid),
     priority: first(params, 'priority', isPriority),
     departmentId: first(params, 'departmentId', isUuid),
@@ -71,11 +80,26 @@ export function withFilters(params: URLSearchParams, filters: IncidentFilters): 
   for (const name of FILTER_NAMES) {
     next.delete(name);
     const value = filters[name];
-    if (value) {
-      next.set(name, value);
+    // The statuses repeat the parameter, as the API reads them (`?status=A&status=B`).
+    const values = typeof value === 'string' ? [value] : (value ?? []);
+    for (const each of values) {
+      if (each) {
+        next.append(name, each);
+      }
     }
   }
   return next;
+}
+
+/**
+ * The statuses to filter by, each once and in the order of the lifecycle, so the same choice always
+ * gives the same address; none means no status filter.
+ */
+export function statusesFrom(
+  statuses: readonly IncidentStatus[],
+): readonly IncidentStatus[] | undefined {
+  const chosen = INCIDENT_STATUSES.filter((status) => statuses.includes(status));
+  return chosen.length > 0 ? chosen : undefined;
 }
 
 /** The address query (`?status=REPORTED`) of some filters, for a link. */
@@ -88,7 +112,7 @@ export function filtersSearch(filters: IncidentFilters): string {
 export function toListQuery(filters: IncidentFilters): IncidentListQuery {
   const { status, categoryId, priority, departmentId, reportedFrom, reportedTo } = filters;
   return {
-    ...(status && { status: [status] }),
+    ...(status && { status: [...status] }),
     ...(categoryId && { categoryId: [categoryId] }),
     ...(priority && { priority: [priority] }),
     ...(departmentId && { departmentId: [departmentId] }),
@@ -110,10 +134,13 @@ function first<T extends string>(
   return params.getAll(name).find(isValid);
 }
 
-/** The filters without the ones left empty, so `{ status: undefined }` reads as no filter. */
+/** The filters without the ones left empty, so `{ status: [] }` reads as no filter. */
 export function withoutEmpty(filters: IncidentFilters): IncidentFilters {
   return Object.fromEntries(
-    Object.entries(filters).filter(([, value]) => value !== undefined && value !== ''),
+    Object.entries(filters).filter(
+      ([, value]) =>
+        value !== undefined && value !== '' && !(Array.isArray(value) && value.length === 0),
+    ),
   ) as IncidentFilters;
 }
 

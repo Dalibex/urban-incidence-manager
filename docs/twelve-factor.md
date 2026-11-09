@@ -24,7 +24,7 @@ Commands run from `backend/`, with Docker running and `backend/.env` created fro
 | [III. Config](#iii-config) | Done | Planned: #200 |
 | [IV. Backing services](#iv-backing-services) | Done | |
 | [V. Build, release, run](#v-build-release-run) | Partial | Planned: #134, #199 |
-| [VI. Processes](#vi-processes) | Partial | Planned: #44 |
+| [VI. Processes](#vi-processes) | Partial | Done: #192 |
 | [VII. Port binding](#vii-port-binding) | Partial | Planned: #134, #199 |
 | [VIII. Concurrency](#viii-concurrency) | Accepted limit | |
 | [IX. Disposability](#ix-disposability) | Partial | |
@@ -113,8 +113,9 @@ the external data sources are not built.
 **Partial.** The backend keeps no data in the process or on the container's filesystem: access
 tokens are stateless JWT, refresh tokens and every domain record are in PostgreSQL, and two
 concurrent edits of the same incident are detected by optimistic locking in the database
-([ADR-0020](adr/0020-incident-lifecycle-transitions.md)). The evidence folder is a volume
-([deployment guide](deployment.md), *Volumes*); uploading evidence is **Planned: #44**.
+([ADR-0020](adr/0020-incident-lifecycle-transitions.md)). Uploaded photos are written to the
+evidence folder, a volume ([deployment guide](deployment.md), *Volumes*), never to the container
+(#192).
 
 - **It would break if:** user data or files were kept in memory or in the container.
 - **Missing:** the sign-up and sign-in rate-limit counters live in the process, so a restart resets

@@ -400,9 +400,7 @@ export interface paths {
         head?: never;
         /**
          * Classify an incident
-         * @description Planned: #47.
-         *
-         *     Sets or corrects the category and the priority; send at least one of them. It is not a
+         * @description Sets or corrects the category and the priority; send at least one of them. It is not a
          *     lifecycle action, so it adds no history entry: each change records a `CLASSIFY_INCIDENT`
          *     audit entry with the previous and new values, in the same transaction. The server records
          *     the actor and the source `MANUAL` of the priority.
@@ -426,9 +424,7 @@ export interface paths {
         };
         /**
          * List the classification changes of an incident
-         * @description Planned: #47.
-         *
-         *     The category and priority changes of one incident, for the timeline of its detail. They are
+         * @description The category and priority changes of one incident, for the timeline of its detail. They are
          *     not status changes, so they are not in `listIncidentStatusChanges` (ADR-0020). This operation
          *     reads the `CLASSIFY_INCIDENT` entries of the audit trail: the same records as
          *     `listAuditEntries`, with no second copy, shown for another purpose. It exposes nothing else
@@ -702,9 +698,7 @@ export interface paths {
         };
         /**
          * List the photos of an incident
-         * @description Planned: #192.
-         *
-         *     Metadata of the photos, oldest first. The limit of files per incident bounds it, so it is not
+         * @description Metadata of the photos, oldest first. The limit of files per incident bounds it, so it is not
          *     paginated. It never holds a storage key or a public URL: the file is read with
          *     `getAttachmentContent`, after authorisation.
          *
@@ -715,9 +709,7 @@ export interface paths {
         put?: never;
         /**
          * Upload a photo to an incident
-         * @description Planned: #192.
-         *
-         *     One JPEG, PNG or WebP photo per request. The type is detected from the content, never from
+         * @description One JPEG, PNG or WebP photo per request. The type is detected from the content, never from
          *     the file name or the declared `Content-Type`. The size and the number of files per incident
          *     come from configuration (`EVIDENCE_MAX_FILE_SIZE`, `EVIDENCE_MAX_FILES_PER_INCIDENT`).
          *
@@ -749,9 +741,7 @@ export interface paths {
         };
         /**
          * Download a photo
-         * @description Planned: #192.
-         *
-         *     The file, with the type detected when it was uploaded. An opaque identifier does not replace
+         * @description The file, with the type detected when it was uploaded. An opaque identifier does not replace
          *     authorisation: the same rules as `listIncidentAttachments` apply to the incident of the
          *     attachment, with the same `404` rule.
          *
@@ -798,16 +788,16 @@ export interface paths {
         };
         /**
          * List the positions of incidents for the map
-         * @description Planned: #195.
+         * @description A lightweight list for the map, with the same filters and the same scope as `listIncidents`
+         *     and an optional bounding box (#195). It is not paginated, because the map needs one answer
+         *     for the whole view: the server returns at most 1,000 items, puts the most relevant first
+         *     (priority from `HIGH` to none, then newest) and sets `truncated` when it left some out. An
+         *     empty result is `200`. An unknown parameter, or one without a value, returns `400`, like
+         *     `listIncidents`.
          *
-         *     A lightweight list for the map, with the same filters and the same scope as `listIncidents`
-         *     and an optional bounding box. It is not paginated, because the map needs one answer for the
-         *     whole view: the server caps the number of items, puts the most relevant first (priority, then
-         *     newest) and sets `truncated` when it left some out. An empty result is `200`.
-         *
-         *     The bounding box takes all four parameters or none. It uses named limits instead of a list of
-         *     four numbers, so its order cannot be mistaken. A minimum over its maximum, a value out of
-         *     range or only some of the four returns `400`. A box across the antimeridian is not supported:
+         *     The bounding box takes all four parameters or none, and its edges are included. It uses named
+         *     limits instead of a list of four numbers, so its order cannot be mistaken. A minimum over its
+         *     maximum, a value out of range or only some of the four returns `400`. A box across the antimeridian is not supported:
          *     the service covers Málaga.
          *
          *     These data are live and are not cached.
@@ -833,19 +823,23 @@ export interface paths {
         };
         /**
          * Get an operational report of incidents
-         * @description Planned: #42.
-         *
-         *     Incidents reported in the period, counted with their current status and grouped by
+         * @description Incidents reported in the period, counted with their current status and grouped by
          *     `groupBy`. `Accept: application/json` returns it for the screen and `Accept: text/csv` as a
-         *     file with the same rows. Errors stay `application/problem+json` in both cases.
+         *     file with the same rows; without `Accept`, or with `*\/*`, it is JSON. Errors stay
+         *     `application/problem+json` in both cases.
          *
-         *     `from` and `to` are required (`400` if one is missing). `from` must be earlier than `to` and
-         *     the period may not exceed 366 days, or the request returns `422`. A period without incidents
-         *     returns `200` with no rows, and a CSV with only its header.
+         *     `from`, `to` and `groupBy` are required, once each: one that is missing, repeated or empty,
+         *     a date-time without its UTC offset or outside the years 1 to 9999, or an unknown parameter
+         *     is a `400`. A role that may not read reports gets `403` before any of these checks.
+         *     `from` must be earlier than `to` and the period may not exceed 366 days, or the request
+         *     returns `422` with the error on the field `to`. A period without incidents returns `200`
+         *     with no rows, and a CSV with only its header.
          *
          *     It holds no personal data. In the CSV, a group that is not available says `Not available`,
-         *     decimals use a dot, the encoding is UTF-8 with a BOM, and a text cell starting with `=`, `+`,
-         *     `-`, `@`, a tab or a carriage return is escaped with a leading `'`.
+         *     a missing percentile is an empty cell, decimals use a dot, lines end in CRLF, the encoding is
+         *     UTF-8 with a BOM, and a text cell starting with `=`, `+`, `-`, `@`, a tab or a carriage
+         *     return is escaped with a leading `'`. Status and priority groups use the values of the API
+         *     (`IN_PROGRESS`), not the labels of a screen.
          *
          *     Roles: `ANALYST`, `ADMINISTRATOR`.
          */
@@ -1375,7 +1369,7 @@ export interface components {
             status: components["schemas"]["IncidentStatus"];
             /** @description Staff only. `null` while the incident has no priority. */
             priority?: components["schemas"]["Priority"] | null;
-            /** @description Staff only. Justification of the current priority. `null` while the incident has no priority. Planned: #47. */
+            /** @description Staff only. Justification of the current priority. `null` while the incident has no priority. */
             priorityReason?: string | null;
             /** @description Staff only. The active assignment. `null` while the incident has none. Previous assignments are not listed here. */
             assignment?: components["schemas"]["AssignmentResponse"] | null;
@@ -1657,7 +1651,7 @@ export interface components {
              */
             longitude: number;
         };
-        /** @description The positions for the map, with no more than the server's cap. */
+        /** @description The positions for the map, at most 1,000. */
         IncidentLocationListResponse: {
             content: components["schemas"]["IncidentPosition"][];
             /**
@@ -1701,13 +1695,13 @@ export interface components {
             rejected: number;
             /**
              * Format: double
-             * @description Median hours from reported to closed, of the closed incidents. `null` when none is closed, never `0`.
+             * @description Median hours from reported to closed, of the closed incidents, rounded to two decimals (continuous percentile, as `PERCENTILE.INC` of a spreadsheet). `null` when none is closed, never `0`.
              * @example 18.5
              */
             resolutionHoursP50: number | null;
             /**
              * Format: double
-             * @description 95th percentile of the same hours. `null` when none is closed, never `0`.
+             * @description 95th percentile of the same hours, computed and rounded the same way. `null` when none is closed, never `0`.
              * @example 40.25
              */
             resolutionHoursP95: number | null;

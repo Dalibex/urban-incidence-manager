@@ -1,5 +1,5 @@
 import { getIncident, listIncidentStatusChanges, type components } from '@urbanpulse/api-client';
-import { screen, within } from '@testing-library/react-native';
+import { fireEvent, screen, within } from '@testing-library/react-native';
 import type { ComponentProps } from 'react';
 
 import { failed, ok, renderWithQueries } from '../test-utils';
@@ -47,10 +47,10 @@ function change(
   return { id, instant: '2026-11-02T10:00:00Z', previousStatus, newStatus, reason };
 }
 
-async function renderScreen() {
+async function renderScreen(navigation = { navigate: jest.fn() }) {
   return renderWithQueries(
     <IncidentDetailScreen
-      navigation={{} as Props['navigation']}
+      navigation={navigation as unknown as Props['navigation']}
       route={{ key: 'ReportDetail', name: 'ReportDetail', params: { incidentId: 'a' } }}
     />,
   );
@@ -136,5 +136,22 @@ describe('IncidentDetailScreen', () => {
 
     expect(await screen.findByText(/could not be refreshed/)).toBeOnTheScreen();
     expect(screen.getByText('Street light off')).toBeOnTheScreen();
+  });
+
+  it('offers to add photos while the report waits for review (#193)', async () => {
+    mockedGetIncident.mockResolvedValue(ok({ ...INCIDENT, status: 'REPORTED' }));
+    const navigation = { navigate: jest.fn() };
+    await renderScreen(navigation);
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Add photos' }));
+
+    expect(navigation.navigate).toHaveBeenCalledWith('AddPhotos', { incidentId: 'a' });
+  });
+
+  it('does not offer photos once the report left REPORTED, as the API refuses them', async () => {
+    await renderScreen();
+
+    expect(await screen.findByText('Street light off')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Add photos' })).not.toBeOnTheScreen();
   });
 });

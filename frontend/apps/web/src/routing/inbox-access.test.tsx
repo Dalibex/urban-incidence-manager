@@ -39,13 +39,15 @@ const INCIDENT: Incident = {
 
 const STAFF_WHO_MANAGE_INCIDENTS = ['MUNICIPAL_OPERATOR', 'ADMINISTRATOR'] as const;
 const OTHER_ROLES = ['TECHNICIAN', 'ANALYST', 'CITIZEN'] as const;
+// Since #187 the technician also opens the detail, of the incidents assigned to them only.
+const ROLES_WITHOUT_DETAIL = ['ANALYST', 'CITIZEN'] as const;
 
-/** The screens of each role after the fix: only the inbox gains a role (#127). */
+/** The screens of each role: the inbox gained a role in #127, the reports in #42. */
 const SECTION_ROLES: Record<string, readonly Role[]> = {
   [PATHS.inbox]: ['MUNICIPAL_OPERATOR', 'ADMINISTRATOR'],
   [PATHS.workQueue]: ['TECHNICIAN'],
   [PATHS.users]: ['ADMINISTRATOR'],
-  [PATHS.reports]: ['ANALYST'],
+  [PATHS.reports]: ['ANALYST', 'ADMINISTRATOR'],
 };
 
 function incidentsApi() {
@@ -57,6 +59,11 @@ function incidentsApi() {
       }),
     [`GET /incidents/${INCIDENT.id}`]: () => json(200, INCIDENT),
     [`GET /incidents/${INCIDENT.id}/status-changes`]: () => json(200, []),
+    // The landing of the analyst asks for its report.
+    'GET /incident-reports': () => json(200, { rows: [] }),
+    // The filters of the technician's work queue.
+    'GET /categories': () => json(200, []),
+    'GET /departments': () => json(200, []),
   });
 }
 
@@ -90,25 +97,24 @@ describe('incident inbox access (#127)', () => {
   });
 
   // T5: the API would refuse them anyway; the web sends them to their own screen.
-  it.each(
-    OTHER_ROLES.flatMap(
-      (role) =>
-        [
-          [role, PATHS.inbox],
-          [role, incidentPath(INCIDENT.id)],
-        ] as const,
-    ),
-  )('sends a %s from %s to their own screen', async (role, path) => {
+  it.each([
+    ...OTHER_ROLES.map((role) => [role, PATHS.inbox] as const),
+    ...ROLES_WITHOUT_DETAIL.map((role) => [role, incidentPath(INCIDENT.id)] as const),
+  ])('sends a %s from %s to their own screen', async (role, path) => {
     const fetch = incidentsApi();
     const router = renderApp(path, { role, fetch });
 
     await screen.findByRole('heading', { level: 1 });
-    expect(router.state.location.pathname).toBe(landingPath(role));
-    expect(fetch).not.toHaveBeenCalled();
+    const { pathname, search } = router.state.location;
+    expect(pathname + search).toBe(landingPath(role));
+    // Their own screen may load its data (the work queue lists the technician's incidents, which
+    // the API scopes), but nothing of the incident they were sent away from.
+    const requested = fetch.mock.calls.map(([request]) => new URL(request.url).pathname);
+    expect(requested.filter((requestedPath) => requestedPath.includes(INCIDENT.id))).toEqual([]);
   });
 
   // T6
-  it('changes the roles of the inbox only', () => {
+  it('gives each screen only its roles', () => {
     expect(
       Object.fromEntries(SECTIONS.map(({ path, roles }) => [path, [...roles].sort()])),
     ).toEqual(
@@ -120,7 +126,7 @@ describe('incident inbox access (#127)', () => {
 
   it.each([
     ['MUNICIPAL_OPERATOR', ['Inbox']],
-    ['ADMINISTRATOR', ['Inbox', 'Users']],
+    ['ADMINISTRATOR', ['Inbox', 'Users', 'Reports']],
     ['TECHNICIAN', ['Work queue']],
     ['ANALYST', ['Reports']],
   ] as const)('links the navbar of a %s to %j', async (role, links) => {
