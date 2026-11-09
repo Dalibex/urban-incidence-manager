@@ -12,6 +12,7 @@ import { IncidentTimeline } from './IncidentTimeline';
 import styles from './Incidents.module.css';
 import { LoadFailure } from './LoadFailure';
 import { PRIORITY_LABELS } from './labels';
+import { PhotoGallery } from './PhotoGallery';
 import { StatusBadge } from './StatusBadge';
 
 type Incident = components['schemas']['IncidentResponse'];
@@ -78,6 +79,7 @@ function IncidentDetail({ incident }: { incident: Incident }) {
         <IncidentActions incident={incident} />
         <div>
           <ReportPanel incident={incident} />
+          <PhotoGallery incidentId={incident.id} />
           <LocationPanel location={incident.location} />
           <IncidentTimeline incidentId={incident.id} />
         </div>

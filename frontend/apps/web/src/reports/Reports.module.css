@@ -1,0 +1,56 @@
+/* Reports screen. It reuses the inbox table and the filter bar; this file only adds what a table of
+   figures needs (dense-app-ui: numbers right, tabular figures, one line per cell). */
+
+.submit {
+  align-self: end;
+  min-height: 2.5rem;
+}
+
+.fieldError {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.toolbar p {
+  margin: 0;
+}
+
+.downloadError {
+  margin: 0 0 var(--space-sm);
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.table .number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The group names the row: one line, the full name on hover in its title. It stays in view while
+   the figures scroll sideways on a narrow screen. */
+.table .group,
+.table thead th:first-child {
+  position: sticky;
+  left: 0;
+}
+
+.table .group {
+  background: var(--color-background);
+  max-width: 28ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}

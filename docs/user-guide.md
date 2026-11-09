@@ -19,7 +19,7 @@ the [development guide](development.md) and the [demo script](demo.md).
 | [Municipal operator](#-municipal-operator-web) | Web | Partial |
 | [Technician](#-technician-web) | Web | Partial |
 | [Administrator](#-administrator-web) | Web | Partial |
-| [Analyst](#-analyst-web) | Web | Planned |
+| [Analyst](#-analyst-web) | Web | Built |
 
 ## 🚪 Before You Start
 
@@ -188,6 +188,8 @@ ticked. *Clear filters* lists every incident.
 
 - **Report:** the description, category, priority and why it was given, when it was reported, its
   last change and, once closed, when it was closed.
+- **Photos:** the photos attached to the incident, each with its file name, or *No photos were
+  attached.* They are only shown inside the signed-in app; there is no public link to them.
 - **Location:** address, neighbourhood, district, coordinates and the accuracy the phone reported
   (for example *within 12.5 m*). A value that is not known says *Not available*: it is never left
   empty or guessed.
@@ -221,6 +223,10 @@ server could not be reached or answered with an error. The app retries a few tim
 before showing it, and the filters stay as they were. If the categories or departments cannot be
 loaded, that filter says so and is disabled; the other filters keep working.
 
+In the incident detail, if the photos cannot be listed, the *Photos* section says so with *Try
+again* and the rest of the detail stays. If one photo cannot be loaded, its tile says *This photo
+could not be loaded.* with its own *Try again*, and the other photos still show.
+
 ## 🔧 Technician (Web)
 
 The menu shows *Work queue*, where you land.
@@ -240,7 +246,7 @@ ticked. Tick other statuses, or *Clear filters*, to see the incidents you resolv
 
 ### Incident detail
 
-The report, the location and the history, as the operator sees them (see
+The report, its photos, the location and the history, as the operator sees them (see
 [Incident detail](#incident-detail)), and the actions of the technician:
 
 - **Accept the work**, on an *Assigned* incident: press *Accept* when you start working on it. It
@@ -259,21 +265,47 @@ server has kept the change. If it was not kept, nothing changed and your notes a
 - The server cannot be reached or answers with an error: try again.
 
 An incident that is not assigned to you, opened from a link, shows *Incident not found*. Planned:
-comments (#50) and photos (#194).
+comments (#50).
 
 ## 🛡️ Administrator (Web)
 
-The menu shows *Users*, where you land, and *Inbox*.
+The menu shows *Users*, where you land, *Inbox* and *Reports*.
 
 - **Inbox and incident detail:** an administrator can do everything an operator can
   ([ADR-0020](adr/0020-incident-lifecycle-transitions.md)), so see
   [Municipal Operator](#-municipal-operator-web).
 - **Users:** planned: #40.
 - **Audit log:** planned: #41.
+- **Reports:** the same screen as the analyst's, see [Analyst](#-analyst-web).
 
 ## 📊 Analyst (Web)
 
-The menu shows *Reports*. Planned: #42.
+The menu shows *Reports*, where you land. A report counts the incidents reported in a period,
+with the status they have now, and never shows who reported them or where exactly.
+
+1. Choose *From* and *To (included)*, two days of Málaga time, and how to *Group by*: status,
+   category, priority, department or district. Then choose *Show report*; choosing it again with
+   the same days brings the figures up to date. The screen opens on the last 30 days, grouped by
+   status.
+   A period has at most 366 days, both included. The limit is counted in hours, so a period of
+   exactly 366 days that starts in summer time and ends in winter time is one hour too long:
+   choose one day less.
+2. Each row is a group, with its *Total* and how many are *Open* (any status that is not final,
+   *Resolved* included), *Closed* and *Rejected*. *Median hours to close* and *95th percentile
+   hours* count only the closed incidents; a dash means that none of the group is closed.
+3. *Not available* gathers the incidents without that information: no category, no priority yet,
+   no active assignment to a department, or no district. The district of a new report is not
+   filled in yet (Planned: #59), so grouping by district puts those reports under *Not
+   available*.
+4. *Download CSV* saves the report on the screen as a file, with the same rows. The file
+   separates its columns with commas and writes decimals with a dot. A spreadsheet in Spanish
+   separates columns with semicolons, so opening the file with a double click puts each whole
+   line in the first column: open it with *Data > From Text/CSV* instead, with a comma as the
+   delimiter and a dot as the decimal separator.
+
+If the days are not valid, the message says why under the dates and nothing is asked. If the
+report or the file cannot be loaded, the page says so: *Try again* reloads the report, and
+*Download CSV* can be chosen again; no file is saved when the download fails.
 
 ## ✍️ Keeping This Guide Up to Date
 
