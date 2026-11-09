@@ -42,7 +42,7 @@ The API checks every permission again, so this is a convenience, not the protect
 | Citizen | *Create an account* on the sign-in screen of the mobile app (see [Sign up](#sign-up)) |
 | Staff | An administrator creates the account with its role (Planned: #40) |
 | First administrator of a new deployment | Created once by the people who run the server ([deployment guide](deployment.md#-create-the-first-administrator)) |
-| Trying the apps | The sample accounts of the [demo script](demo.md#the-story) (one per role) or of *Development Dataset* in the [development guide](development.md) |
+| Trying the apps | The sample accounts of the [demo script](demo.md#the-story) (one per role) or of *Development Dataset* in the [development guide](development.md). A local build can show one button per demo account on the sign-in screen ([Quick Sign-In](demo.md#quick-sign-in)) |
 
 ## 🔑 Signing In and Out
 
