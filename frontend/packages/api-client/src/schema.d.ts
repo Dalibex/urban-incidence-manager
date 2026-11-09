@@ -823,19 +823,23 @@ export interface paths {
         };
         /**
          * Get an operational report of incidents
-         * @description Planned: #42.
-         *
-         *     Incidents reported in the period, counted with their current status and grouped by
+         * @description Incidents reported in the period, counted with their current status and grouped by
          *     `groupBy`. `Accept: application/json` returns it for the screen and `Accept: text/csv` as a
-         *     file with the same rows. Errors stay `application/problem+json` in both cases.
+         *     file with the same rows; without `Accept`, or with `*\/*`, it is JSON. Errors stay
+         *     `application/problem+json` in both cases.
          *
-         *     `from` and `to` are required (`400` if one is missing). `from` must be earlier than `to` and
-         *     the period may not exceed 366 days, or the request returns `422`. A period without incidents
-         *     returns `200` with no rows, and a CSV with only its header.
+         *     `from`, `to` and `groupBy` are required, once each: one that is missing, repeated or empty,
+         *     a date-time without its UTC offset or outside the years 1 to 9999, or an unknown parameter
+         *     is a `400`. A role that may not read reports gets `403` before any of these checks.
+         *     `from` must be earlier than `to` and the period may not exceed 366 days, or the request
+         *     returns `422` with the error on the field `to`. A period without incidents returns `200`
+         *     with no rows, and a CSV with only its header.
          *
          *     It holds no personal data. In the CSV, a group that is not available says `Not available`,
-         *     decimals use a dot, the encoding is UTF-8 with a BOM, and a text cell starting with `=`, `+`,
-         *     `-`, `@`, a tab or a carriage return is escaped with a leading `'`.
+         *     a missing percentile is an empty cell, decimals use a dot, lines end in CRLF, the encoding is
+         *     UTF-8 with a BOM, and a text cell starting with `=`, `+`, `-`, `@`, a tab or a carriage
+         *     return is escaped with a leading `'`. Status and priority groups use the values of the API
+         *     (`IN_PROGRESS`), not the labels of a screen.
          *
          *     Roles: `ANALYST`, `ADMINISTRATOR`.
          */
@@ -1691,13 +1695,13 @@ export interface components {
             rejected: number;
             /**
              * Format: double
-             * @description Median hours from reported to closed, of the closed incidents. `null` when none is closed, never `0`.
+             * @description Median hours from reported to closed, of the closed incidents, rounded to two decimals (continuous percentile, as `PERCENTILE.INC` of a spreadsheet). `null` when none is closed, never `0`.
              * @example 18.5
              */
             resolutionHoursP50: number | null;
             /**
              * Format: double
-             * @description 95th percentile of the same hours. `null` when none is closed, never `0`.
+             * @description 95th percentile of the same hours, computed and rounded the same way. `null` when none is closed, never `0`.
              * @example 40.25
              */
             resolutionHoursP95: number | null;
