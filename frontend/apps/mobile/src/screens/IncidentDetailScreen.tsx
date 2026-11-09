@@ -22,6 +22,7 @@ import {
 import { Button } from '../components/Button';
 import { FormMessage } from '../components/FormMessage';
 import { LoadFailure } from '../components/LoadFailure';
+import { LoadingSkeleton, SkeletonBlock } from '../components/Skeleton';
 import { StatusBadge } from '../components/StatusBadge';
 import { incidentKeys, useIncident, useIncidentHistory } from '../incidents/incident-queries';
 import type { MyReportsStackParamList } from '../navigation/MyReportsStack';
@@ -32,6 +33,9 @@ type Props = NativeStackScreenProps<MyReportsStackParamList, 'ReportDetail'>;
 
 type Incident = components['schemas']['IncidentResponse'];
 type StatusChange = components['schemas']['StatusChangeResponse'];
+
+/** The sections of the report, also drawn by its skeleton. */
+const SECTIONS = { details: 'Details', location: 'Location' } as const;
 
 /** One of the citizen's reports: its data, where it is and what has happened to it (RF06). */
 export function IncidentDetailScreen({ navigation, route }: Props) {
@@ -53,8 +57,10 @@ export function IncidentDetailScreen({ navigation, route }: Props) {
 
   if (incident.isPending) {
     return (
-      <View style={[screenStyles.screen, screenStyles.centered]}>
-        <ActivityIndicator accessibilityLabel="Loading the report" size="large" />
+      <View style={[screenStyles.flex, styles.skeletonScreen]}>
+        <LoadingSkeleton what="the report">
+          <IncidentDataSkeleton />
+        </LoadingSkeleton>
       </View>
     );
   }
@@ -127,7 +133,7 @@ function IncidentData({ incident }: { incident: Incident }) {
         <StatusBadge status={incident.status} />
       </View>
       <Text style={screenStyles.body}>{incident.description}</Text>
-      <Section title="Details">
+      <Section title={SECTIONS.details}>
         <Field label="Category" value={incident.category?.name ?? 'Not set yet'} />
         <Field label="Reported on" value={formatInstant(incident.reportedAt)} />
         <Field label="Updated on" value={formatInstant(incident.updatedAt)} />
@@ -135,7 +141,7 @@ function IncidentData({ incident }: { incident: Incident }) {
           <Field label="Closed on" value={formatInstant(incident.closedAt)} />
         )}
       </Section>
-      <Section title="Location">
+      <Section title={SECTIONS.location}>
         <Field label="Address" value={location.address ?? NOT_AVAILABLE} />
         <Field label="Neighbourhood" value={location.neighborhood ?? NOT_AVAILABLE} />
         <Field label="District" value={location.district ?? NOT_AVAILABLE} />
@@ -151,6 +157,31 @@ function IncidentData({ incident }: { incident: Incident }) {
         />
       </Section>
     </>
+  );
+}
+
+/** The title, the status, the description and the two sections of {@link IncidentData}. */
+function IncidentDataSkeleton() {
+  return (
+    <View style={styles.skeleton}>
+      <View style={styles.heading}>
+        <SkeletonBlock width="80%" height={fontSizes.title} />
+        <SkeletonBlock width="30%" />
+      </View>
+      <View style={styles.section}>
+        <SkeletonBlock />
+        <SkeletonBlock width="90%" />
+        <SkeletonBlock width="60%" />
+      </View>
+      {[SECTIONS.details, SECTIONS.location].map((section) => (
+        <View key={section} style={styles.section}>
+          <Text style={styles.sectionTitle}>{section}</Text>
+          <SkeletonBlock width="50%" />
+          <SkeletonBlock width="70%" />
+          <SkeletonBlock width="40%" />
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -216,6 +247,13 @@ const MARK_SIZE = 10;
 const styles = StyleSheet.create({
   content: {
     padding: spacing.md,
+    gap: spacing.md,
+  },
+  skeletonScreen: {
+    paddingVertical: spacing.md,
+  },
+  skeleton: {
+    paddingHorizontal: spacing.md,
     gap: spacing.md,
   },
   heading: {
