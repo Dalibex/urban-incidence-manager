@@ -1,0 +1,19 @@
+# Allow list: only what the web image build needs enters the build context (Dockerfile). Anything
+# else, such as .env files and IDE folders, stays out without having to list it.
+*
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!tsconfig.base.json
+!nginx.conf
+!apps/web/
+!apps/mobile/package.json
+!packages/
+# Inside the allowed folders: installed dependencies, build output and the base map, which the
+# deployment Compose mounts from a volume instead.
+**/node_modules
+**/dist
+**/coverage
+**/*.tsbuildinfo
+**/.env*
+apps/web/public/tiles
