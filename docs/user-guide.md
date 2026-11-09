@@ -258,13 +258,20 @@ comments (#50) and photos (#194).
 
 ## 🛡️ Administrator (Web)
 
-The menu shows *Users*, where you land, and *Inbox*.
+The menu shows *Users*, where you land, *Inbox* and *Audit log*.
 
 - **Inbox and incident detail:** an administrator can do everything an operator can
   ([ADR-0020](adr/0020-incident-lifecycle-transitions.md)), so see
   [Municipal Operator](#-municipal-operator-web).
 - **Users:** planned: #40.
-- **Audit log:** planned: #41.
+- **Audit log:** who did what and when, newest first, 20 entries per page. Each row shows the
+  actor, the action, the record it was about and the values the change replaced and set
+  (`role: TECHNICIAN → MUNICIPAL_OPERATOR`). Names and incident titles are the current ones; a
+  record that no longer exists says so. An incident links to its detail.
+  - Filter by one or several actions and by days (both included, in Málaga time). Click an
+    actor's name to see only their entries; the chip in the filter bar removes that filter.
+  - The filters and the page stay in the address, so reloading or going back keeps them.
+  - The log is read-only: nobody can change or delete an entry.
 
 ## 📊 Analyst (Web)
 

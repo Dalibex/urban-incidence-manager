@@ -47,6 +47,7 @@ const SECTION_ROLES: Record<string, readonly Role[]> = {
   [PATHS.inbox]: ['MUNICIPAL_OPERATOR', 'ADMINISTRATOR'],
   [PATHS.workQueue]: ['TECHNICIAN'],
   [PATHS.users]: ['ADMINISTRATOR'],
+  [PATHS.auditLog]: ['ADMINISTRATOR'],
   [PATHS.reports]: ['ANALYST'],
 };
 
@@ -124,7 +125,7 @@ describe('incident inbox access (#127)', () => {
 
   it.each([
     ['MUNICIPAL_OPERATOR', ['Inbox']],
-    ['ADMINISTRATOR', ['Inbox', 'Users']],
+    ['ADMINISTRATOR', ['Inbox', 'Users', 'Audit log']],
     ['TECHNICIAN', ['Work queue']],
     ['ANALYST', ['Reports']],
   ] as const)('links the navbar of a %s to %j', async (role, links) => {
