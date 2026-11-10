@@ -39,4 +39,11 @@ public class User {
 
     @Column(nullable = false)
     private Boolean enabled = Boolean.TRUE;
+
+    /**
+     * The account cannot sign in until its password changes (#165): the administrator who creates
+     * it must not keep knowing it.
+     */
+    @Column(name = "password_change_required", nullable = false)
+    private Boolean passwordChangeRequired = Boolean.FALSE;
 }

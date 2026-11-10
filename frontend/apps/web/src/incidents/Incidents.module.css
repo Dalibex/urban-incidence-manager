@@ -54,6 +54,8 @@
 /* Inbox table */
 
 .tableWrapper {
+  /* Holds the hidden "Actions" header (absolute) inside the scroll, or the page scrolls too. */
+  position: relative;
   overflow-x: auto;
   border: 1px solid color-mix(in srgb, var(--color-text-muted) 30%, transparent);
   border-radius: 8px;
@@ -296,4 +298,162 @@
 .reason {
   margin: var(--space-xs) 0 0;
   white-space: pre-line;
+  /* A reason of 2000 characters with no space must wrap, not widen the page (#170 T9). */
+  overflow-wrap: anywhere;
+}
+
+/* Classification changes (#169) have no status: a neutral mark tells them apart. */
+.classificationEntry {
+  --status-color: var(--color-text-muted);
+}
+
+/* Comments (#50) change nothing: a hollow mark tells them apart from the changes. */
+.commentEntry::before {
+  border-color: var(--color-text-muted);
+  background: var(--color-background);
+}
+
+/* Forms of the actions area (#47): one per action, inside the Actions panel. */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.form + .form,
+.statusPanels + .form {
+  margin-top: var(--space-lg);
+  padding-top: var(--space-md);
+  border-top: 1px solid color-mix(in srgb, var(--color-text-muted) 30%, transparent);
+}
+
+.form p {
+  margin: 0;
+}
+
+.formTitle {
+  margin: 0;
+  font-size: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  font-weight: 600;
+}
+
+.field select,
+.field textarea {
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-text-muted);
+  border-radius: 6px;
+  background: var(--color-background);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 400;
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+.field [aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+
+.fieldNote {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.fieldError {
+  color: var(--color-danger);
+  font-weight: 400;
+}
+
+/* Kept in the page while empty, so screen readers announce the message when it appears. */
+.formMessage:empty {
+  display: block;
+  height: 0;
+}
+
+.formError {
+  color: var(--color-danger);
+}
+
+.formError .button {
+  color: var(--color-text);
+}
+
+.primaryButton {
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: var(--color-primary);
+  color: var(--color-background);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primaryButton:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-primary) 85%, var(--color-text));
+}
+
+.primaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Photos: one tile per photo, each with its own loading and failure state (#194). */
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.photo {
+  margin: 0;
+}
+
+.photo figcaption {
+  margin-top: var(--space-xs);
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.photoFrame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  padding: var(--space-sm);
+  border: 1px solid color-mix(in srgb, var(--color-text-muted) 30%, transparent);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  object-fit: contain;
+  text-align: center;
+}
+
+img.photoFrame {
+  padding: 0;
+}
+
+.photoFailure {
+  border-color: color-mix(in srgb, var(--color-danger) 50%, transparent);
+  color: var(--color-text);
+}
+
+.photoFailure p {
+  margin: 0;
 }

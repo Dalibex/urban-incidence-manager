@@ -109,6 +109,7 @@ workspace "UrbanPulse" "C4 Model" {
                 incidents -> geospatial "Spatial filters on incident locations (radius, district)"
                 urbancontext -> geospatial "Loads reference data; resolves district and nearest asset"
                 notifications -> identity "Gets recipients"
+                identity -> incidents "Reads incident titles for the audit log" "Read-only"
                 analytics -> incidents "Reads incident data" "Read-only"
                 analytics -> geospatial "Zone analysis" "Read-only"
             }
@@ -244,7 +245,7 @@ workspace "UrbanPulse" "C4 Model" {
         urbanpulse.nginx -> urbanpulse.backend.urbancontext "Proxies /api (context, data sources)" "HTTP/JSON"
         urbanpulse.nginx -> urbanpulse.backend.geospatial "Proxies /api (districts, assets, spatial search)" "HTTP/JSON"
         urbanpulse.nginx -> urbanpulse.backend.notifications "Proxies /api (in-app notifications)" "HTTP/JSON"
-        urbanpulse.nginx -> urbanpulse.backend.analytics "Proxies /api (reports)" "HTTP/JSON"
+        urbanpulse.nginx -> urbanpulse.backend.analytics "Proxies /api (reports)" "HTTP/JSON, CSV"
 
         urbanpulse.backend.identity -> urbanpulse.postgres "users, refresh_token (hashed), audit_log" "JPA/JDBC"
         urbanpulse.backend.incidents -> urbanpulse.postgres "Incident tables (ACID)" "JPA/JDBC"

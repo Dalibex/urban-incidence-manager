@@ -24,7 +24,7 @@ Commands run from `backend/`, with Docker running and `backend/.env` created fro
 | [III. Config](#iii-config) | Done | Planned: #200 |
 | [IV. Backing services](#iv-backing-services) | Done | |
 | [V. Build, release, run](#v-build-release-run) | Partial | Planned: #134, #199 |
-| [VI. Processes](#vi-processes) | Partial | Planned: #44 |
+| [VI. Processes](#vi-processes) | Partial | Done: #192 |
 | [VII. Port binding](#vii-port-binding) | Partial | Planned: #134, #199 |
 | [VIII. Concurrency](#viii-concurrency) | Accepted limit | |
 | [IX. Disposability](#ix-disposability) | Partial | |
@@ -63,13 +63,16 @@ Only the toolchain is installed by hand: Java 25, Docker and Node 24 (README, *P
 
 **Done.** Every value that changes between environments is an environment variable:
 `application.yaml` reads them, `backend/docker-compose.yaml` passes them to the container, and the
-[deployment guide](deployment.md) lists each one, secrets marked. `backend/.env.example` and
-`frontend/apps/mobile/.env.example` are versioned; `.env` is ignored. The backend does not start
-without `JWT_SECRET`.
+[deployment guide](deployment.md) lists each one, secrets marked. `backend/.env.example`,
+`frontend/apps/web/.env.example` and `frontend/apps/mobile/.env.example` are versioned; `.env` is
+ignored. The backend does not start without `JWT_SECRET`.
 
 The clients read their configuration when they are built: the web calls the relative `/api/v1` by
 default (`VITE_API_BASE_URL`), so one bundle works on any host; the mobile app gets
-`EXPO_PUBLIC_API_BASE_URL`, which ends up inside the app, so it never holds a secret.
+`EXPO_PUBLIC_API_BASE_URL`, which ends up inside the app, so it never holds a secret. The one
+exception is the quick sign-in of the demo (`VITE_QUICK_SIGN_IN`, `EXPO_PUBLIC_QUICK_SIGN_IN`):
+with the flag on, the demo password goes into the build, so that build is local only and never
+deployed ([demo script](demo.md)).
 
 - **It would break if:** a credential were committed, or the code asked which environment it runs
   in.
@@ -113,8 +116,9 @@ the external data sources are not built.
 **Partial.** The backend keeps no data in the process or on the container's filesystem: access
 tokens are stateless JWT, refresh tokens and every domain record are in PostgreSQL, and two
 concurrent edits of the same incident are detected by optimistic locking in the database
-([ADR-0020](adr/0020-incident-lifecycle-transitions.md)). The evidence folder is a volume
-([deployment guide](deployment.md), *Volumes*); uploading evidence is **Planned: #44**.
+([ADR-0020](adr/0020-incident-lifecycle-transitions.md)). Uploaded photos are written to the
+evidence folder, a volume ([deployment guide](deployment.md), *Volumes*), never to the container
+(#192).
 
 - **It would break if:** user data or files were kept in memory or in the container.
 - **Missing:** the sign-up and sign-in rate-limit counters live in the process, so a restart resets

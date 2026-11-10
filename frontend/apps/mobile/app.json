@@ -24,6 +24,14 @@
     "plugins": [
       "expo-secure-store",
       [
+        "expo-image-picker",
+        {
+          "cameraPermission": "This application needs the camera to take photos of the incidents you report.",
+          "photosPermission": "This application needs your photos to attach them to the incidents you report.",
+          "microphonePermission": false
+        }
+      ],
+      [
         "expo-location",
         {
           "locationWhenInUsePermission": "This application needs to access your location to report incidents accurately."

@@ -62,8 +62,8 @@ class DatabaseMigrationIT {
                     "Parks and Gardens",
                     "Mobility");
 
-    // The indexes of the main queries (#132) and the staff filters (#182), measured in
-    // docs/database.md, "Indexes".
+    // The indexes of the main queries (#132), the staff filters (#182) and the classification
+    // changes (#47), measured in docs/database.md, "Indexes".
     private static final List<String> MAIN_QUERY_INDEXES =
             List.of(
                     "ix_incident_reporter_reported_at",
@@ -73,7 +73,8 @@ class DatabaseMigrationIT {
                     "ix_status_change_incident_id",
                     "ix_assignment_active_department",
                     "ix_incident_updated_at",
-                    "ix_assignment_incident_id");
+                    "ix_assignment_incident_id",
+                    "ix_audit_log_target_id");
 
     @Autowired private Flyway flyway;
 
@@ -200,6 +201,39 @@ class DatabaseMigrationIT {
                                 jdbc.update(
                                         "INSERT INTO users (name, email, password_hash, role)"
                                                 + " VALUES ('Ana', 'ana@example.com', 'hash', 'SUPERUSER')"))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    // #192: two uploads of the same content to one incident cannot both be stored.
+    @Test
+    void rejectsTheSameContentTwiceOnOneIncident() {
+        UUID reporter =
+                jdbc.queryForObject(
+                        "INSERT INTO users (name, email, password_hash, role)"
+                                + " VALUES ('Ana', 'ana@example.com', 'hash', 'CITIZEN') RETURNING id",
+                        UUID.class);
+        UUID incident =
+                jdbc.queryForObject(
+                        "INSERT INTO incident (reporter_id, title, description, status, reported_at,"
+                                + " updated_at) VALUES (?, 'Pothole', 'Deep pothole', 'REPORTED',"
+                                + " now(), now()) RETURNING id",
+                        UUID.class,
+                        reporter);
+        String attachment =
+                "INSERT INTO attachment (incident_id, uploader_id, file_name, file_type, file_size,"
+                        + " storage_key, content_hash, uploaded_at)"
+                        + " VALUES (?, ?, 'photo.jpg', 'image/jpeg', 10, ?, ?, now())";
+        String hash = "a".repeat(64);
+        jdbc.update(attachment, incident, reporter, UUID.randomUUID().toString(), hash);
+
+        assertThatThrownBy(
+                        () ->
+                                jdbc.update(
+                                        attachment,
+                                        incident,
+                                        reporter,
+                                        UUID.randomUUID().toString(),
+                                        hash))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 

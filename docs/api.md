@@ -40,7 +40,6 @@ The committed Sprint 2 operations were agreed ahead in #204. Each one says `Plan
 | `identity` | `listUsers`, `createUser`, `getUser`, `updateUser`, and `enabled` in `UserResponse` | #191 |
 | `identity` | `listAuditEntries` | #41 |
 | `incidents` | The staff filters of `listIncidents` | #182 |
-| `incidents` | `updateIncident`, `listIncidentClassificationChanges`, and `priorityReason` in `IncidentResponse` | #47 |
 | `incidents` | `createIncidentValidation`, `createIncidentRejection`, `createIncidentInformationRequest` | #188 |
 | `incidents` | `createIncidentAssignment`, `listDepartments`, and `assignment` in `IncidentResponse` | #184 |
 | `incidents` | `createIncidentClosure`, `createIncidentReopening` | #52 |
@@ -123,8 +122,8 @@ Every operation lists the shared responses that can really happen, with `$ref`:
 | 404 | `#/components/responses/NotFound` | The path has an identifier |
 | 409 | `#/components/responses/Conflict` | The operation changes state that can conflict (status transitions, stale version, unique values) |
 | 413 | `#/components/responses/ContentTooLarge` | The operation receives a file with a size limit |
-| 422 | `#/components/responses/UnprocessableEntity` | The operation has a body whose data is validated (blank title, coordinates out of range, short password); `errors` lists every invalid field |
-| 429 | `#/components/responses/TooManyRequests` | The operation is rate limited (today `createSession` and `createRegistration`; `createPasswordChange` is planned in #165) |
+| 422 | `#/components/responses/UnprocessableEntity` | The operation has a body whose data is validated (blank title, coordinates out of range, short password), or query values that are readable but not valid together (a report period over 366 days); `errors` lists every invalid field |
+| 429 | `#/components/responses/TooManyRequests` | The operation is rate limited (`createSession`, `createPasswordChange` and `createRegistration`) |
 | 500 | `#/components/responses/InternalServerError` | Every operation |
 
 `400` means "I cannot read this request"; `422` means "I can read it, but the data is not valid". A form shows `422` errors next to each field; a `400` is a client bug.
@@ -142,7 +141,7 @@ Do not define a new error body. If an error needs extra information, add an opti
 | Code | Status | Operation | Meaning |
 |---|---|---|---|
 | `MALFORMED_REQUEST` | 400 | Any | The request cannot be read |
-| `VALIDATION_FAILED` | 422 | Any with a body | The data is not valid; see `errors` |
+| `VALIDATION_FAILED` | 422 | Any with a body, and `getIncidentReport` | The data is not valid; see `errors` |
 | `EMAIL_ALREADY_EXISTS` | 409 | `createRegistration` | An account with this email exists |
 | `INVALID_CREDENTIALS` | 401 | `createSession` | Wrong email or password (the same for both, so emails are not revealed) |
 | `ACCOUNT_DISABLED` | 403 | `createSession` | Right credentials, disabled account |
@@ -150,10 +149,10 @@ Do not define a new error body. If an error needs extra information, add an opti
 | `INVALID_REFRESH_TOKEN` | 401 | `refreshSession` | Unknown, expired, revoked or reused refresh token: sign in again |
 | `INVALID_TRANSITION` | 409 | Lifecycle actions (Sprint 2) | The transition is not allowed (ADR-0020) |
 | `CONCURRENT_MODIFICATION` | 409 | Lifecycle actions and `updateIncident` (Sprint 2) | The incident changed since the client read its `version`: reload it and decide again (ADR-0020) |
-| `PASSWORD_CHANGE_REQUIRED` | 403 | `createSession` (planned: #165) | Right credentials, but the password must change first |
-| `CLASSIFICATION_NOT_ALLOWED` | 409 | `updateIncident` (planned: #47) | The incident is `REJECTED` or `CLOSED` |
-| `ATTACHMENT_NOT_ALLOWED` | 409 | `createIncidentAttachment` (planned: #192) | A citizen can only upload while the incident is `REPORTED` |
-| `FILE_TOO_LARGE` | 413 | `createIncidentAttachment` (planned: #192) | The file is over the size limit |
+| `PASSWORD_CHANGE_REQUIRED` | 403 | `createSession` | Right credentials, but the password must change first |
+| `CLASSIFICATION_NOT_ALLOWED` | 409 | `updateIncident` | The incident is `REJECTED` or `CLOSED` |
+| `ATTACHMENT_NOT_ALLOWED` | 409 | `createIncidentAttachment` | A citizen can only upload while the incident is `REPORTED` |
+| `FILE_TOO_LARGE` | 413 | `createIncidentAttachment` | The file is over the size limit |
 
 Add a row in the same PR that introduces a new code.
 
