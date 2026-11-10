@@ -1,5 +1,6 @@
 import { listIncidents, type components, type IncidentListQuery } from '@urbanpulse/api-client';
 import { FINAL_STATUSES, OPEN_STATUSES } from '@urbanpulse/domain';
+import { SKELETON_DELAY_MS } from '@urbanpulse/ui';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import type { ComponentProps } from 'react';
 
@@ -133,6 +134,24 @@ describe('MyReportsScreen', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Report an incident' }));
 
     expect(navigation.navigate).toHaveBeenCalledWith('NewReport');
+  });
+
+  // #174
+  it('draws the rows while the first page loads, below the groups', async () => {
+    jest.useFakeTimers();
+    try {
+      mockedListIncidents.mockReturnValue(pending());
+      await renderScreen();
+
+      expect(screen.getByRole('progressbar', { name: 'Loading your reports' })).toBeOnTheScreen();
+      await act(async () => {
+        jest.advanceTimersByTime(SKELETON_DELAY_MS);
+      });
+      expect(screen.getByTestId('skeleton')).toBeOnTheScreen();
+      expect(screen.getByRole('tab', { name: 'Closed' })).toBeOnTheScreen();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('explains a failure and loads the reports on "Try again" (#68 T1)', async () => {
