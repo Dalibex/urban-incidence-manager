@@ -35,6 +35,14 @@ export interface TimelineClassificationChange {
   after: TimelineClassificationValues;
 }
 
+/** An internal comment, which only staff read (`listIncidentComments`, #50). */
+export interface TimelineComment {
+  id: string;
+  createdAt: string;
+  author: { name: string; role: Role };
+  text: string;
+}
+
 /** One value of a classification change, with what it was and what it became. */
 export interface ClassificationValueChange {
   field: 'category' | 'priority' | 'priorityReason';
@@ -43,7 +51,7 @@ export interface ClassificationValueChange {
 }
 
 interface EntryBase {
-  /** Unique across both kinds, for the keys of a list. */
+  /** Unique across every kind, for the keys of a list. */
   key: string;
   instant: string;
   title: string;
@@ -69,23 +77,37 @@ export interface ClassificationTimelineEntry extends EntryBase {
   changes: ClassificationValueChange[];
 }
 
-/** One event of the timeline. Comments (#50) will be one more kind. */
-export type TimelineEntry = StatusTimelineEntry | ClassificationTimelineEntry;
+export interface CommentTimelineEntry extends EntryBase {
+  kind: 'comment';
+  actor: { name: string; role: Role };
+  text: string;
+}
 
-const KIND_ORDER: Record<TimelineEntry['kind'], number> = { status: 0, classification: 1 };
+/** One event of the timeline. */
+export type TimelineEntry =
+  StatusTimelineEntry | ClassificationTimelineEntry | CommentTimelineEntry;
+
+const KIND_ORDER: Record<TimelineEntry['kind'], number> = {
+  status: 0,
+  classification: 1,
+  comment: 2,
+};
 
 /**
  * The history of an incident as one timeline, oldest first: the status changes and, for staff, the
- * classification changes among them (#169). Entries of the same instant keep one order on every
- * load: status changes first, then by id.
+ * classification changes (#169) and the internal comments (#50) among them. Entries of the same
+ * instant keep one order on every load: status changes, then classification changes, then
+ * comments, each by id.
  */
 export function buildTimeline(
   statusChanges: readonly TimelineStatusChange[],
   classificationChanges: readonly TimelineClassificationChange[] = [],
+  comments: readonly TimelineComment[] = [],
 ): TimelineEntry[] {
   const entries: TimelineEntry[] = [
     ...statusChanges.map(statusEntry),
     ...classificationChanges.map(classificationEntry),
+    ...comments.map(commentEntry),
   ];
   return entries.sort(
     (one, other) =>
@@ -131,5 +153,16 @@ function classificationEntry(change: TimelineClassificationChange): Classificati
     title: 'Classification changed',
     actor: change.actor,
     changes,
+  };
+}
+
+function commentEntry(comment: TimelineComment): CommentTimelineEntry {
+  return {
+    kind: 'comment',
+    key: `comment-${comment.id}`,
+    instant: comment.createdAt,
+    title: 'Comment',
+    actor: comment.author,
+    text: comment.text,
   };
 }
