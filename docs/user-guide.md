@@ -223,10 +223,12 @@ Dates are shown in Málaga time.
 The incidents on the base map of Málaga, with the same filters as the inbox. The menu opens it on
 every status that can still change: everything except *Rejected* and *Closed*.
 
-- **Markers:** each incident is a dot in the colour of its status; a higher priority draws a bigger
-  dot. The legend under the map explains the colours.
-- **Groups:** when you zoom out, nearby incidents join into a circle with their number, coloured by
-  the highest priority among them. Click it to zoom in until it splits.
+- **Markers:** each incident is a dot. Its colour is its status, the same as in the lists, and its
+  size is its priority: the higher, the bigger, and a *High* one also has a dark border. The legend
+  under the map explains both.
+- **Groups:** when you zoom out, nearby incidents join into a dark circle with their number, and the
+  highest priority among them is written under it (*High*, *Medium* or *Low*; nothing when none has
+  a priority). Click it to zoom in until it splits.
 - **Summary:** click a marker to open its summary at the side: title, status, priority, category,
   when it was reported and the description. *Manage* opens its detail, and *Close* or *Escape*
   closes the summary.

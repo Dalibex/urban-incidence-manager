@@ -99,8 +99,9 @@ for its code (#57).
 - **Inbox** (#46): incidents newest first, with the filters of #58 (status, category, date,
   priority, department, and district when #59 is done). The menu opens it filtered by `REPORTED`
   (#183).
-- **Map** (#196): markers by status with the same filters as the inbox, clustered by zoom, each
-  cluster coloured by its highest priority; refreshed every 15 seconds. A click opens a summary with
+- **Map** (#196): markers coloured by status and sized by priority, with the same filters as the
+  inbox, clustered by zoom, each cluster labelled with its highest priority; refreshed every 15
+  seconds. A click opens a summary with
   *Manage*, and a list under the map opens the same summary from the keyboard. The menu opens it on
   every status that can still change.
 - **Incident detail** (#46): report data, photos (#44), history and internal comments (#50) in one
