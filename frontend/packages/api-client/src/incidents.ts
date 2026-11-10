@@ -85,6 +85,42 @@ export function resolveIncident(
   );
 }
 
+/** Query of `listIncidentComments`: `page` starts at 0, `size` is at most 100. */
+export type CommentQuery = NonNullable<operations['listIncidentComments']['parameters']['query']>;
+
+/**
+ * A page of the internal comments of an incident, oldest first (#50). Only staff who may see the
+ * incident read them; a citizen gets `403`.
+ */
+export function listIncidentComments(
+  client: ApiClient,
+  incidentId: string,
+  query: CommentQuery = {},
+): Promise<ApiResult<Schemas['CommentPageResponse']>> {
+  return callApi(() =>
+    client.GET('/incidents/{incidentId}/comments', { params: { path: { incidentId }, query } }),
+  );
+}
+
+/**
+ * Adds an internal comment to an incident (#50). Citizens never see it. Staff who may not see the
+ * incident, such as a technician it is no longer assigned to, get `404`.
+ */
+export function createIncidentComment(
+  client: ApiClient,
+  incidentId: string,
+  body: Schemas['CreateCommentRequest'],
+): Promise<FormResult<Schemas['CommentResponse']>> {
+  return callForm(
+    () =>
+      client.POST('/incidents/{incidentId}/comments', {
+        params: { path: { incidentId } },
+        body,
+      }),
+    'the created comment',
+  );
+}
+
 async function callForm<T>(
   call: () => Promise<{ data?: T; error?: unknown; response: Response }>,
   what: string,

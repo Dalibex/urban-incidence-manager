@@ -12,8 +12,10 @@ export {
   CITY_COUNCIL,
   type ClassificationTimelineEntry,
   type ClassificationValueChange,
+  type CommentTimelineEntry,
   type StatusTimelineEntry,
   type TimelineClassificationChange,
+  type TimelineComment,
   type TimelineEntry,
   type TimelineStatusChange,
 } from './timeline';
