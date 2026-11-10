@@ -8,6 +8,7 @@ import {
   listCategories,
   listDepartments,
   listIncidentClassificationChanges,
+  listIncidentComments,
   listIncidents,
   resolveIncident,
   updateIncident,
@@ -210,6 +211,19 @@ describe('incident calls', () => {
     const url = new URL(fetch.mock.calls[0]![0].url);
     expect(url.pathname).toBe(`/api/v1/incidents/${INCIDENT_ID}/classification-changes`);
     expect(url.searchParams.get('page')).toBe('1');
+    expect(url.searchParams.get('size')).toBe('100');
+    expect(result).toEqual({ ok: true, data: page });
+  });
+
+  it('asks for one page of the comments of an incident', async () => {
+    const page = { content: [], page: { number: 0, size: 100, totalElements: 0, totalPages: 0 } };
+    const { fetch, client } = clientAnswering(200, page);
+
+    const result = await listIncidentComments(client, INCIDENT_ID, { page: 0, size: 100 });
+
+    const url = new URL(fetch.mock.calls[0]![0].url);
+    expect(url.pathname).toBe(`/api/v1/incidents/${INCIDENT_ID}/comments`);
+    expect(url.searchParams.get('page')).toBe('0');
     expect(url.searchParams.get('size')).toBe('100');
     expect(result).toEqual({ ok: true, data: page });
   });
