@@ -101,6 +101,9 @@
 
 .textButton:disabled {
   opacity: 0.6;
+  cursor: progress;
+}
+
 /* Quick sign-in for the demo (#167), only rendered with VITE_QUICK_SIGN_IN=true. */
 .quickSignIn {
   max-width: 360px;

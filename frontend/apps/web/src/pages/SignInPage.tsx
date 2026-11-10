@@ -25,6 +25,8 @@ export function SignInPage() {
   const [error, setError] = useState<string | null>(null);
   const [passwordChange, setPasswordChange] = useState<PendingPasswordChange | null>(null);
   const [passwordChanged, setPasswordChanged] = useState(false);
+  // Only a failure of the form marks its fields invalid; a quick sign-in leaves them untouched.
+  const [errorFromForm, setErrorFromForm] = useState(false);
   const passwordField = useRef<HTMLInputElement>(null);
 
   // Back from the password change, whose form is gone with the focus: the next step is the password.
@@ -33,8 +35,6 @@ export function SignInPage() {
       passwordField.current?.focus();
     }
   }, [passwordChanged]);
-  // Only a failure of the form marks its fields invalid; a quick sign-in leaves them untouched.
-  const [errorFromForm, setErrorFromForm] = useState(false);
 
   if (user) {
     return <Navigate to={signInReturnPath(location.state)} replace />;
@@ -57,8 +57,6 @@ export function SignInPage() {
     );
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
   // The form and the quick sign-in share this path, so one guard stops any second request.
   async function signInWith(credentials: Credentials, source: 'form' | 'quick') {
     if (submitting) {
@@ -75,8 +73,9 @@ export function SignInPage() {
         return;
       }
       if (result.failure.kind === 'problem' && result.failure.code === 'PASSWORD_CHANGE_REQUIRED') {
-        // The password was right, so it is the credential of the change (#165).
-        setPasswordChange({ email: email.trim(), currentPassword: password });
+        // The password was right, so it is the credential of the change (#165). It comes from the
+        // attempt, not the form: a quick sign-in (#167) leaves the form empty.
+        setPasswordChange({ email: credentials.email, currentPassword: credentials.password });
         return;
       }
       setError(signInMessage(result.failure));
