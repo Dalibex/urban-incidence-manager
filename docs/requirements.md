@@ -39,11 +39,11 @@ or *No* (after the MVP). Whether an issue is finished is in GitHub, not here.
 
 | ID | Requirement | In the MVP | Issues |
 | --- | --- | --- | --- |
-| RF01 | **Identity and access.** Users sign up or sign in; staff authenticate. | Yes. A second factor for staff is planned with low priority. | #35, #39, #126; #57 (second factor, ADR-0021) |
+| RF01 | **Identity and access.** Users sign up or sign in; staff authenticate. | Yes. A second factor for staff is planned with low priority. | #35, #39, #126, #165; #57 (second factor, ADR-0021) |
 | RF02 | **Roles and permissions.** Different permissions for citizens, operators, technicians, administrators and analysts. | Yes | #35, #39, #100, #40; [permission matrix](security.md#permission-matrix) |
 | RF03 | **Report an incident** with a title, description, position and optional category. | Yes | #43 |
 | RF04 | **Location.** The incident keeps coordinates, normalized address and accuracy. | Partly. Coordinates and accuracy; correcting the position on a map is a stretch goal. The normalized address has no issue. | #43; #60 (stretch) |
-| RF06 | **Consultation and tracking.** A user sees the detail, status, dates and visible history of their incidents. | Yes | #45 (citizen), #46 (staff), #100 |
+| RF06 | **Consultation and tracking.** A user sees the detail, status, dates and visible history of their incidents. | Yes | #45 (citizen), #46 (staff), #100, #169 (timeline) |
 | RF09 | **Validation.** An operator validates, requests more information or rejects a report with a reason. | Yes | #48 |
 | RF11 | **Assignment** of a validated incident to a department, team or technician. | Yes | #49 (#184, #185) |
 | RF12 | **Lifecycle.** Status changes follow the allowed transitions and are audited. | Yes | ADR-0020; #37, #99, #101, #102, #49, #51, #52 |
@@ -60,7 +60,7 @@ or *No* (after the MVP). Whether an issue is finished is in GitHub, not here.
 | RF10 | **Priority**, manual or assisted, keeping its justification. | Partly. Manual priority with a required justification; assisted priority comes with RF20. | #47 |
 | RF13 | **Collaboration.** Operators and technicians add comments, evidence and resolution data. | Yes. Every comment is internal in the MVP. | #50, #51, #44 |
 | RF14 | **Notifications** of relevant changes through configurable channels. | No. The delivery providers are only proposed (ADR-0019). | — |
-| RF19 | **Reports.** Exportable operational and territorial reports. | Yes | #42 |
+| RF19 | **Reports.** Exportable operational and territorial reports. | Yes. The district grouping needs RF21: without it, new reports have no district. | #42 |
 | RF21 | **District and neighbourhood** from the location. | Stretch | #59 |
 
 ### Low
@@ -110,6 +110,7 @@ for its code (#57).
   | `ASSIGNED` | *Reassign* | #49 |
   | `RESOLVED` | *Verify and close*, *Reopen* (reason required) | #52 |
   | Any but `REJECTED` and `CLOSED` | *Classify* (category and priority with a justification) | #47 |
+  | Any | *Comment* (internal, for the staff of the incident) | #50 |
 
 - **Not in the MVP:** urban context, nearby urban assets and duplicate warnings in the detail
   (RF16, RF22–RF24).
@@ -126,8 +127,9 @@ for its code (#57).
 
 ### Web: administrator
 
-- **Menu:** *Users* and *Audit log*; an administrator can also do everything an operator can
-  (ADR-0020), so they also get the operator's screens (#127).
+- **Menu:** *Users*, *Audit log* and *Reports*; an administrator can also do everything an
+  operator can (ADR-0020), so they also get the operator's screens (#127), and the analyst's
+  *Reports* (#42).
 - **Users** (#40): list filtered by name, email and role; create a staff account with a role; edit
   the name and role; **deactivate** (not delete) an account.
 - **Audit log** (#41): read-only list filtered by date, actor and action; columns date, actor,
