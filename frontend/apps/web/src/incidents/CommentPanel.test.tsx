@@ -46,19 +46,34 @@ const CREATED: components['schemas']['CommentResponse'] = {
   createdAt: '2026-11-03T09:00:00Z',
 };
 
+function pageOf(content: components['schemas']['CommentResponse'][]) {
+  return json(200, {
+    content,
+    page: { number: 0, size: 100, totalElements: content.length, totalPages: 1 },
+  });
+}
+
+/** The API of the detail; the comments it lists are the ones it created. */
 function api(
   incident: Incident,
   sent: unknown[],
   answer: () => Response | Promise<Response> = () => json(201, CREATED),
 ) {
+  const comments: components['schemas']['CommentResponse'][] = [];
   return fakeApi({
     'GET /categories': () => json(200, []),
     [`GET /incidents/${incident.id}`]: () => json(200, incident),
     [`GET /incidents/${incident.id}/status-changes`]: () => json(200, []),
+    [`GET /incidents/${incident.id}/classification-changes`]: () => pageOf([]),
     [`GET /incidents/${incident.id}/attachments`]: () => json(200, []),
+    [`GET /incidents/${incident.id}/comments`]: () => pageOf([...comments]),
     [`POST /incidents/${incident.id}/comments`]: async (request) => {
       sent.push(await request.json());
-      return answer();
+      const response = await answer();
+      if (response.status === 201) {
+        comments.push(CREATED);
+      }
+      return response;
     },
   });
 }
@@ -88,6 +103,17 @@ describe('comment form of the staff detail (#50)', () => {
       expect(sent).toEqual([{ text: TEXT }]);
     },
   );
+
+  it('shows the added comment in the history without reloading the page', async () => {
+    const form = await commentForm('TECHNICIAN', INCIDENT, []);
+    const history = within(await screen.findByRole('region', { name: 'History' }));
+
+    await userEvent.type(form.getByLabelText('Comment text'), TEXT);
+    await userEvent.click(form.getByRole('button', { name: 'Add comment' }));
+
+    await waitFor(() => expect(history.getByRole('list').textContent).toContain(TEXT));
+    expect(history.getByRole('list').textContent).toContain('By Lucía Martín, technician');
+  });
 
   it('is offered also where no other action is, such as a closed incident', async () => {
     const closed: Incident = { ...INCIDENT, status: 'CLOSED', closedAt: '2026-11-04T10:00:00Z' };

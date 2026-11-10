@@ -10,14 +10,17 @@ import { fakeApi, json, renderApp } from '../test-utils';
 type Incident = components['schemas']['IncidentResponse'];
 type StatusChange = components['schemas']['StatusChangeResponse'];
 type ClassificationChange = components['schemas']['ClassificationChangeResponse'];
+type Comment = components['schemas']['CommentResponse'];
 
 /**
  * Tests of #170 for the timeline of the incident detail on the web (#169): T4, T6 to T8, T10,
- * T11, T13 and T15. They go through the real route table with a fake API.
+ * T11, T13 and T15; and of #73 for the comments in it (#50): T1, T9 and T10. They go through the
+ * real route table with a fake API.
  */
 
 const OPERATOR = { id: 'b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e', name: 'Lucía Martín' };
 const ADMIN = { id: 'c2d3e4f5-a6b7-4c8d-9e0f-1a2b3c4d5e6f', name: 'Jorge Ruiz' };
+const TECHNICIAN = { id: 'e4f5a6b7-c8d9-4e0f-9a1b-3c4d5e6f7a8b', name: 'Pablo Ruiz' };
 const CITIZEN = { id: 'd3e4f5a6-b7c8-4d9e-8f0a-2b3c4d5e6f7a', name: 'Ana García' };
 const LIGHTING = { id: 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d', name: 'Street lighting' };
 
@@ -89,13 +92,29 @@ const RECLASSIFIED: ClassificationChange = {
   after: { priority: 'HIGH', priorityReason: 'Dark crossing near a school.' },
 };
 
+const OPERATOR_COMMENT: Comment = {
+  id: '40000000-0000-4000-8000-000000000001',
+  author: { ...OPERATOR, role: 'MUNICIPAL_OPERATOR' },
+  text: 'Please check the lamp post on the corner too.',
+  createdAt: '2026-11-02T10:15:00Z',
+};
+
+const TECHNICIAN_COMMENT: Comment = {
+  id: '40000000-0000-4000-8000-000000000002',
+  author: { ...TECHNICIAN, role: 'TECHNICIAN' },
+  text: 'The access is through the back street.',
+  createdAt: '2026-11-02T11:30:00Z',
+};
+
 interface Server {
   history: () => Response;
   classification: (page: number) => Response;
   classificationReads: number;
+  comments: (page: number) => Response;
+  commentReads: number;
 }
 
-function pageOf(content: ClassificationChange[], number = 0, totalPages = 1) {
+function pageOf(content: (ClassificationChange | Comment)[], number = 0, totalPages = 1) {
   return json(200, {
     content,
     page: { number, size: 100, totalElements: content.length, totalPages },
@@ -111,6 +130,8 @@ function server(
     history: () => json(200, history),
     classification: () => pageOf(changes),
     classificationReads: 0,
+    comments: () => pageOf([]),
+    commentReads: 0,
     ...overrides,
   };
 }
@@ -122,6 +143,10 @@ function api(state: Server) {
     [`GET /incidents/${INCIDENT.id}/classification-changes`]: (request) => {
       state.classificationReads++;
       return state.classification(Number(new URL(request.url).searchParams.get('page')));
+    },
+    [`GET /incidents/${INCIDENT.id}/comments`]: (request) => {
+      state.commentReads++;
+      return state.comments(Number(new URL(request.url).searchParams.get('page')));
     },
     'GET /categories': () => json(200, [{ ...LIGHTING, description: null }]),
   });
@@ -180,6 +205,30 @@ describe('incident timeline', () => {
     expect(informationRequest).not.toContain('Internal');
   });
 
+  it('shows the comments of operator and technician among the changes, in order (#73 T1)', async () => {
+    renderApp(incidentPath(INCIDENT.id), {
+      role: 'TECHNICIAN',
+      fetch: api(
+        server([REPORTED, VALIDATED], [CLASSIFIED], {
+          comments: () => pageOf([OPERATOR_COMMENT, TECHNICIAN_COMMENT]),
+        }),
+      ),
+    });
+
+    await waitFor(async () => expect(await entries()).toHaveLength(5));
+    const [reported, classified, operatorComment, validated, technicianComment] = await entries();
+
+    expect(reported).toContain('Reported');
+    expect(classified).toContain('Classification changed');
+    expect(operatorComment).toContain('Comment');
+    expect(operatorComment).toContain('Internal');
+    expect(operatorComment).toContain('By Lucía Martín, municipal operator');
+    expect(operatorComment).toContain('Please check the lamp post on the corner too.');
+    expect(validated).toContain('Validated');
+    expect(technicianComment).toContain('By Pablo Ruiz, technician');
+    expect(technicianComment).toContain('The access is through the back street.');
+  });
+
   it('shows the date and time of each entry as a machine-readable time', async () => {
     renderApp(incidentPath(INCIDENT.id), {
       role: 'ADMINISTRATOR',
@@ -200,9 +249,7 @@ describe('incident timeline', () => {
 
     await waitFor(async () => expect(await entries()).toHaveLength(1));
     expect((await entries())[0]).toContain('Reported');
-    await waitFor(async () =>
-      expect((await timeline()).queryByText('Loading the classification changes…')).toBeNull(),
-    );
+    await waitFor(async () => expect((await timeline()).queryByRole('status')).toBeNull());
     expect((await timeline()).queryByRole('alert')).toBeNull();
   });
 
@@ -255,6 +302,40 @@ describe('incident timeline', () => {
 
     await waitFor(async () => expect(await entries()).toHaveLength(102));
     expect(state.classificationReads).toBe(2);
+  });
+
+  it('reads every page of the comments, with none repeated or missing (#73 T9)', async () => {
+    const comments = Array.from({ length: 101 }, (_, index) => ({
+      ...OPERATOR_COMMENT,
+      id: `50000000-0000-4000-8000-${String(index).padStart(12, '0')}`,
+    }));
+    const state = server([REPORTED], [], {
+      comments: (page) =>
+        pageOf(page === 0 ? comments.slice(0, 100) : comments.slice(100), page, 2),
+    });
+    renderApp(incidentPath(INCIDENT.id), { role: 'MUNICIPAL_OPERATOR', fetch: api(state) });
+
+    await waitFor(async () => expect(await entries()).toHaveLength(102));
+    expect(state.commentReads).toBe(2);
+  });
+
+  it('keeps the changes when the comments fail, and tries again (#73 T10)', async () => {
+    let failing = true;
+    const state = server([REPORTED, VALIDATED], [CLASSIFIED], {
+      comments: () => (failing ? problem(503) : pageOf([OPERATOR_COMMENT])),
+    });
+    renderApp(incidentPath(INCIDENT.id), { role: 'MUNICIPAL_OPERATOR', fetch: api(state) });
+
+    const history = await timeline();
+    const alert = await history.findByRole('alert');
+    expect(alert.textContent).toContain('The comments could not be loaded.');
+    await waitFor(async () => expect(await entries()).toHaveLength(3));
+
+    failing = false;
+    await userEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
+
+    await waitFor(async () => expect(await entries()).toHaveLength(4));
+    expect(history.queryByRole('alert')).toBeNull();
   });
 
   it('keeps the status changes when the classification changes fail, and tries again (#170 T15)', async () => {
@@ -317,6 +398,7 @@ describe('incident timeline', () => {
       [`GET /incidents/${INCIDENT.id}`]: () => json(200, INCIDENT),
       [`GET /incidents/${INCIDENT.id}/status-changes`]: () => json(200, [REPORTED]),
       [`GET /incidents/${INCIDENT.id}/classification-changes`]: () => pageOf([...changes]),
+      [`GET /incidents/${INCIDENT.id}/comments`]: () => pageOf([]),
       'GET /categories': () => json(200, [{ ...LIGHTING, description: null }]),
       [`PATCH /incidents/${INCIDENT.id}`]: () => {
         changes.push({ ...RECLASSIFIED, before: { priority: 'HIGH' }, after: { priority: 'LOW' } });

@@ -96,6 +96,8 @@ function api(
     [`GET /incidents/${INCIDENT.id}/status-changes`]: () => json(200, []),
     [`GET /incidents/${INCIDENT.id}/classification-changes`]: () =>
       json(200, { content: [], page: { number: 0, size: 100, totalElements: 0, totalPages: 0 } }),
+    [`GET /incidents/${INCIDENT.id}/comments`]: () =>
+      json(200, { content: [], page: { number: 0, size: 100, totalElements: 0, totalPages: 0 } }),
     [`GET /incidents/${INCIDENT.id}/attachments`]: () => json(200, []),
     'GET /categories': () => json(200, CATEGORIES),
     [`PATCH /incidents/${INCIDENT.id}`]: async (request) => {

@@ -78,6 +78,8 @@ function api(
     [`GET /incidents/${ASSIGNED.id}/status-changes`]: () => json(200, []),
     [`GET /incidents/${ASSIGNED.id}/classification-changes`]: () =>
       json(200, { content: [], page: { number: 0, size: 100, totalElements: 0, totalPages: 0 } }),
+    [`GET /incidents/${ASSIGNED.id}/comments`]: () =>
+      json(200, { content: [], page: { number: 0, size: 100, totalElements: 0, totalPages: 0 } }),
     [`GET /incidents/${ASSIGNED.id}/attachments`]: () => json(200, []),
     [`GET /incidents/${OTHER_INCIDENT_ID}`]: () =>
       json(404, { status: 404, code: 'NOT_FOUND', title: 'Not Found' }),
