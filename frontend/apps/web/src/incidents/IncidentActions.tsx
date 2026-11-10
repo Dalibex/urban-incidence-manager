@@ -4,12 +4,8 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useSession } from '../session/SessionContext';
 import { ClassificationPanel } from './ClassificationPanel';
 import styles from './Incidents.module.css';
-import {
-  AcceptPanel,
-  ResolvePanel,
-  type ActionCallbacks,
-  type ActionDone,
-} from './TechnicianActions';
+import type { ActionCallbacks, ActionDone } from './ActionForm';
+import { AcceptPanel, ResolvePanel } from './TechnicianActions';
 
 type Incident = components['schemas']['IncidentResponse'];
 
