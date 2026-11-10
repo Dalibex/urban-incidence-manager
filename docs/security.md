@@ -62,10 +62,10 @@ different one in every environment: whoever knows it can sign a token for any us
   alarm when the answer of a refresh is lost (the network drops after the server rotated the token,
   or the app is closed before it saves the new pair): the client still holds the spent token, and
   the user is signed out of every device at its next refresh. `api-client` makes that case
-  possible on purpose: when a refresh fails without an answer it keeps the tokens, because the
-  session may still be valid, and sends the same refresh token at the next `401`. Otherwise it never
-  sends a token twice: it shares one refresh among concurrent requests and discards the tokens on
-  sign-out.
+  possible on purpose: when a refresh fails without an answer, or with any error other than `401`,
+  it keeps the tokens, because the session may still be valid, and sends the same refresh token at
+  the next `401`. Otherwise it never sends a token twice: it shares one refresh among concurrent
+  requests and discards the tokens on sign-out.
 - **Clean-up:** a job inside the backend deletes, every day at 03:00 UTC, the refresh tokens that
   expired longer ago than `REFRESH_TOKEN_RETENTION` (`RefreshTokenCleanup`). It deletes by expiry,
   not by revocation: a revoked token is kept while it would still work, because deleting it would
