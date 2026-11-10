@@ -77,12 +77,29 @@ different one in every environment: whoever knows it can sign a token for any us
   (about 15 minutes): that is the price of not checking the database on every request (ADR-0004).
 - **Sign-in with an unknown email** still compares the password against a hash, so it takes as long
   as a wrong password and the response time does not reveal which emails have an account.
+- **Forced change at the first sign-in (#165).** An account with `password_change_required` gets
+  `403 PASSWORD_CHANGE_REQUIRED` and no tokens from sign-in, so the password an administrator typed
+  for it never opens a session. Sign-in only says so when the password is right, after the check
+  of a disabled account, so a wrong password does not reveal it. Today only the dev user
+  `dev.newstaff` has it; the accounts an administrator creates will have it (Planned: #40).
+- **Password change** (`POST /password-changes`) is public: an account that must change its
+  password has no tokens yet, so the current password is the credential. It is checked like
+  sign-in (the same `401` for an unknown email, in a comparable time, and the same rate limit).
+  The new hash, the end of the obligation, the revocation of every refresh token of the user and
+  the `CHANGE_PASSWORD` entry are one transaction, so a failure in any of them leaves the old
+  password. bcrypt runs before it, and the transaction locks the user row and checks that the hash
+  is still the one checked: of two changes at once with the same current password, the second gets
+  `401`. The access tokens already issued keep working until they expire, as when an account is
+  disabled.
+  A sign-in that checks the old password at the same moment a change commits can still open a
+  session with it, because sign-in does not lock the user row: the window is a few milliseconds and
+  needs the old password.
 
 ### Rate limits
 
 | Operation | Limit | Key |
 | --- | --- | --- |
-| `POST /sessions` | 5 failed attempts per 15 minutes | Email and client address |
+| `POST /sessions` and `POST /password-changes` | 5 failed attempts per 15 minutes, counted together | Email and client address |
 | `POST /registrations` | 10 attempts per hour | Client address |
 
 Past the limit the API answers `429 TOO_MANY_ATTEMPTS` with `Retry-After` (seconds, rounded up),
@@ -121,8 +138,8 @@ with the same image and configuration as the backend. How to run it is in
 - Its audit entry is `CREATE_USER` with the new administrator as its own actor, because
   `actor_id` is required and no administrator exists yet, and `"origin": "BOOTSTRAP"` in `after`.
   No other action records an account as the actor of its own creation.
-- Until a password change exists, the administrator keeps the password of the environment: remove
-  it from the environment once the account exists.
+- The administrator is not obliged to change the password of the environment, but can with
+  `POST /password-changes`. Remove it from the environment once the account exists.
 
 ## Audit trail
 
@@ -135,6 +152,7 @@ an operational log: the application logs on stdout never replace it.
 | Action | Recorded by |
 | --- | --- |
 | `CREATE_USER`, `UPDATE_USER`, `CHANGE_ROLE`, `DISABLE_USER`, `ENABLE_USER` | User management (#40) |
+| `CHANGE_PASSWORD` | Password change (#165), with the account as its own actor: only its owner knows the password. `details` holds `passwordChangeRequired`, never a password or hash |
 | `CLASSIFY_INCIDENT` | Incident classification (#47) |
 | `CREATE_USER` (`"origin": "BOOTSTRAP"`) | The one-off process that creates the first administrator (#126) |
 
@@ -184,7 +202,7 @@ When the role allows the action but the resource is not the caller's (an inciden
 report, or that is not assigned to them), the service answers `404`, as if it did not exist, so the
 API does not reveal which ids exist. The contract says so in each operation.
 
-Sign-up, sign-in and refresh run in their own filter chain without token validation: a client that
+Sign-up, sign-in, refresh and the password change run in their own filter chain without token validation: a client that
 sends its expired access token along with the refresh request still gets the refresh.
 
 ## CSRF
@@ -218,6 +236,7 @@ operation; the note says when the answer also depends on the resource. A role no
 | `POST /registrations` | ✓ | | | | | |
 | `POST /sessions` | ✓ | | | | | |
 | `POST /sessions/refresh` | ✓ | | | | | |
+| `POST /password-changes` | ✓ | | | | | |
 | `DELETE /sessions/current` | | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `GET /users/me` | | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `GET /categories` | | ✓ | ✓ | ✓ | ✓ | ✓ |

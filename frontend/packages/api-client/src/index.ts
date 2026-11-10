@@ -9,6 +9,7 @@ export type { components, paths } from './schema';
 export type { SessionOptions, SessionTokens, TokenStore } from './session';
 export {
   callApi,
+  changePassword,
   getCurrentUser,
   signIn,
   signOut,
@@ -23,10 +24,12 @@ export {
   getIncident,
   listCategories,
   listDepartments,
+  listIncidentClassificationChanges,
   listIncidents,
   listIncidentStatusChanges,
   resolveIncident,
   updateIncident,
+  type ClassificationChangeQuery,
   type CreateIncidentResult,
   type FieldError,
   type FormResult,

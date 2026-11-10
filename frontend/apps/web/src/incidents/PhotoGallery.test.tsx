@@ -56,6 +56,8 @@ function detailApi(list: Answer, content: Record<string, Answer> = {}) {
   return fakeApi({
     [`GET /incidents/${INCIDENT.id}`]: () => json(200, INCIDENT),
     [`GET /incidents/${INCIDENT.id}/status-changes`]: () => json(200, []),
+    [`GET /incidents/${INCIDENT.id}/classification-changes`]: () =>
+      json(200, { content: [], page: { number: 0, size: 100, totalElements: 0, totalPages: 0 } }),
     [`GET /incidents/${INCIDENT.id}/attachments`]: list,
     ...Object.fromEntries(
       Object.entries(content).map(([id, answer]) => [`GET /attachments/${id}/content`, answer]),
