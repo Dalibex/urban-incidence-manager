@@ -13,9 +13,11 @@ import org.springframework.data.repository.Repository;
 /**
  * Append-only on purpose: it extends {@link Repository} instead of {@code JpaRepository}, so no
  * {@code delete} method exists. Add only inserts and reads here (the audit screen, #41, and the
- * classification changes, #47).
+ * classification changes, #47). The filtered listing lives in the read-only {@link AuditLogQueries}
+ * fragment, not in {@code JpaSpecificationExecutor}, which would bring {@code
+ * delete(Specification)} with it.
  */
-public interface AuditLogRepository extends Repository<AuditLog, UUID> {
+public interface AuditLogRepository extends Repository<AuditLog, UUID>, AuditLogQueries {
 
     AuditLog save(AuditLog entry);
 

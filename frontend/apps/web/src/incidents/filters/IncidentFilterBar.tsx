@@ -173,7 +173,7 @@ interface DayFieldProps {
  * has one digit (30/10/2 is `0002-10-30`), and the address drops it. So the field keeps what is
  * typed and applies it only once it is a real day, or empty (#78, T1).
  */
-function DayField({ label, day, min, max, onChange }: DayFieldProps) {
+export function DayField({ label, day, min, max, onChange }: DayFieldProps) {
   const applied = day ?? '';
   const [typed, setTyped] = useState(applied);
   const [lastApplied, setLastApplied] = useState(applied);

@@ -283,9 +283,7 @@ export interface paths {
         };
         /**
          * List the audit trail
-         * @description Planned: #41.
-         *
-         *     Paginated entries of the audit trail (RF18): who did what, when and on which record. The
+         * @description Paginated entries of the audit trail (RF18): who did what, when and on which record. The
          *     trail is append-only, so this collection has no operation to create, change or delete an
          *     entry; entries are written by the operations they record (docs/security.md).
          *
@@ -293,7 +291,9 @@ export interface paths {
          *     was written: a user renamed later shows their current name.
          *
          *     Sortable property: `instant`. Default `instant,desc` (newest first); `id` is always added as
-         *     the last criterion so the order is stable between pages.
+         *     the last criterion so the order is stable between pages. Filters that match nothing,
+         *     including an `actorId` of a user who never acted, return `200` with an empty page. An
+         *     unknown parameter, or one without a value, returns `400`.
          *
          *     Roles: `ADMINISTRATOR`.
          */
