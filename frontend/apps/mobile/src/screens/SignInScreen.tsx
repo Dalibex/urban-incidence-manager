@@ -8,6 +8,7 @@ import { TextField } from '../components/TextField';
 import type { AuthStackParamList } from '../navigation/AuthStack';
 import { UNEXPECTED_ERROR, signInMessage } from '../session/messages';
 import { useSession } from '../session/SessionContext';
+import { QuickSignIn } from './QuickSignIn';
 import { screenStyles } from './styles';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'SignIn'>;
@@ -19,14 +20,15 @@ export function SignInScreen({ navigation, route }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function submit() {
+  // The form and the quick sign-in share this path, so one guard stops any second request.
+  async function signInWith(credentials: { email: string; password: string }) {
     if (submitting) {
       return;
     }
     setSubmitting(true);
     setError(null);
     try {
-      const result = await signIn({ email: email.trim(), password });
+      const result = await signIn(credentials);
       // On success the session changes and the navigator swaps to the tabs.
       if (!result.ok) {
         setError(signInMessage(result.failure));
@@ -38,6 +40,10 @@ export function SignInScreen({ navigation, route }: Props) {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function submit() {
+    void signInWith({ email: email.trim(), password });
   }
 
   const notice =
@@ -66,17 +72,21 @@ export function SignInScreen({ navigation, route }: Props) {
           secureTextEntry
           autoComplete="current-password"
           textContentType="password"
-          onSubmitEditing={() => void submit()}
+          onSubmitEditing={submit}
         />
         <Button
           label={submitting ? 'Signing in…' : 'Sign in'}
           disabled={submitting}
-          onPress={() => void submit()}
+          onPress={submit}
         />
         <Button
           label="Create an account"
           variant="link"
           onPress={() => navigation.navigate('SignUp')}
+        />
+        <QuickSignIn
+          onSignIn={(credentials) => void signInWith(credentials)}
+          disabled={submitting}
         />
       </ScrollView>
     </KeyboardAvoidingView>

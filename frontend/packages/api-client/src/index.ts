@@ -9,6 +9,7 @@ export type { components, paths } from './schema';
 export type { SessionOptions, SessionTokens, TokenStore } from './session';
 export {
   callApi,
+  changePassword,
   getCurrentUser,
   signIn,
   signOut,
@@ -17,16 +18,33 @@ export {
   type ApiResult,
 } from './account';
 export {
+  acceptIncident,
   createIncident,
   getIncident,
   listCategories,
   listDepartments,
   listIncidents,
   listIncidentStatusChanges,
+  resolveIncident,
+  updateIncident,
   type CreateIncidentResult,
   type FieldError,
+  type FormResult,
   type IncidentListQuery,
 } from './incidents';
+export {
+  getAttachmentContent,
+  listIncidentAttachments,
+  uploadIncidentAttachment,
+  type LocalFile,
+  type UploadOptions,
+} from './attachments';
+export {
+  downloadIncidentReport,
+  getIncidentReport,
+  type IncidentReport,
+  type IncidentReportQuery,
+} from './reports';
 
 /**
  * Creates a client whose paths, parameters and responses are typed from the contract. Each app

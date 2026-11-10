@@ -38,6 +38,13 @@ export const PRIORITIES: readonly Priority[] = ['HIGH', 'MEDIUM', 'LOW'];
 /** What the inbox shows when it is opened from the menu: the reports waiting for a review. */
 export const INBOX_DEFAULT_FILTERS: IncidentFilters = { status: ['REPORTED'] };
 
+/**
+ * What the work queue shows when it is opened from the menu: the technician's pending work. An
+ * assignment stays active after the incident is resolved or closed, so without a filter the queue
+ * would mostly list finished work (#217).
+ */
+export const WORK_QUEUE_DEFAULT_FILTERS: IncidentFilters = { status: ['ASSIGNED', 'IN_PROGRESS'] };
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // A four-digit year from 1000: `Date.UTC` reads the years 0 to 99 as 1900 to 1999.
 const DAY = /^[1-9]\d{3}-\d{2}-\d{2}$/;
