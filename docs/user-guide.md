@@ -163,7 +163,7 @@ Your name and email, and *Sign out*.
 
 ## 🗂️ Municipal Operator (Web)
 
-The menu at the top shows *Inbox*. Planned: *Map* (#53).
+The menu at the top shows *Inbox* and *Map*.
 
 ### Inbox
 
@@ -218,6 +218,29 @@ ticked. *Clear filters* lists every incident.
 
 Dates are shown in Málaga time.
 
+### Map
+
+The incidents on the base map of Málaga, with the same filters as the inbox. The menu opens it on
+every status that can still change: everything except *Rejected* and *Closed*.
+
+- **Markers:** each incident is a dot in the colour of its status; a higher priority draws a bigger
+  dot. The legend under the map explains the colours.
+- **Groups:** when you zoom out, nearby incidents join into a circle with their number, coloured by
+  the highest priority among them. Click it to zoom in until it splits.
+- **Summary:** click a marker to open its summary at the side: title, status, priority, category,
+  when it was reported and the description. *Manage* opens its detail, and *Close* or *Escape*
+  closes the summary.
+- **Live:** the map reads the incidents again every 15 seconds, so a new report appears without
+  reloading the page.
+- **List:** *List of the incidents on the map*, under the legend, has every incident on the map,
+  the most relevant first. With the keyboard, *Tab* to it, *Enter* to open it and *Enter* on an
+  incident to open its summary and centre the map on it.
+- The map shows at most 1,000 incidents, the most relevant first. If more match, it says so: narrow
+  the filters to see the rest.
+- When no incident matches, the page says so and offers *Clear filters*; the map stays.
+- If a refresh fails, the markers you saw stay with a warning, and the map tries again on its own.
+  If the base map cannot be loaded, the page says so; the filters and the list keep working.
+
 ### When something fails
 
 If the incidents cannot be loaded, the page says so and offers *Try again*; it says whether the
@@ -231,7 +254,8 @@ could not be loaded.* with its own *Try again*, and the other photos still show.
 
 ## 🔧 Technician (Web)
 
-The menu shows *Work queue*, where you land.
+The menu shows *Work queue*, where you land, and *Map*: the operator's [map](#map) with only the
+incidents assigned to you, opened on *Assigned* and *In progress* like the queue.
 
 ### Work queue
 
