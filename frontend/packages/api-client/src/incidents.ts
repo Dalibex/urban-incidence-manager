@@ -137,6 +137,22 @@ export function listIncidents(
   return callApi(() => client.GET('/incidents', { params: { query } }));
 }
 
+/** Query of `listIncidentLocations`: the filters of `listIncidents` and an optional bounding box. */
+export type IncidentLocationQuery = NonNullable<
+  operations['listIncidentLocations']['parameters']['query']
+>;
+
+/**
+ * The positions of the incidents the caller may see, for the map: at most 1,000, the most relevant
+ * first, with `truncated` set when some were left out. Not paginated and not cached by the API.
+ */
+export function listIncidentLocations(
+  client: ApiClient,
+  query: IncidentLocationQuery = {},
+): Promise<ApiResult<Schemas['IncidentLocationListResponse']>> {
+  return callApi(() => client.GET('/incident-locations', { params: { query } }));
+}
+
 /** The full incident. Someone else's incident answers `404`, the same as one that does not exist. */
 export function getIncident(
   client: ApiClient,

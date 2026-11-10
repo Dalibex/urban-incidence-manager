@@ -23,6 +23,7 @@ export {
   getIncident,
   listCategories,
   listDepartments,
+  listIncidentLocations,
   listIncidents,
   listIncidentStatusChanges,
   resolveIncident,
@@ -31,6 +32,7 @@ export {
   type FieldError,
   type FormResult,
   type IncidentListQuery,
+  type IncidentLocationQuery,
 } from './incidents';
 export {
   getAttachmentContent,
