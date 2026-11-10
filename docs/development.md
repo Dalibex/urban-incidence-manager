@@ -249,8 +249,9 @@ Mac with Xcode, and installing on a physical iPhone needs a paid Apple developer
 #### Configure the app
 
 The app reads the API and the map style from `apps/mobile/.env`, which is not versioned. Copy the
-example and set the address of your machine in the local network in both variables (find it with
-`ipconfig` on Windows or `ip addr` on Linux):
+example and set the address of your machine in both variables: on a phone, its address in the local
+network (find it with `ipconfig` on Windows or `ip addr` on Linux); on the Android emulator,
+`10.0.2.2`, which also reaches a backend running in Docker:
 
 ```bash
 cp apps/mobile/.env.example apps/mobile/.env
@@ -280,8 +281,8 @@ instead of the map, and reporting still works.
 - The `ninja` of the default CMake (3.22.1, ninja 1.10) fails with `Filename longer than 260
   characters`. In Android Studio, *SDK Manager → SDK Tools*, tick *Show Package Details* and
   install CMake 4.1.2 (ninja 1.12), then point the build at it in
-  `apps/mobile/android/local.properties`, which Git ignores. The file exists after the first
-  build attempt; write it again if `apps/mobile/android/` is deleted:
+  `apps/mobile/android/local.properties`, which Git ignores. Create the file if it is missing (a
+  failed build does not always write it), and again whenever `apps/mobile/android/` is deleted:
 
   ```properties
   cmake.dir=C\:/Users/<user>/AppData/Local/Android/Sdk/cmake/4.1.2
