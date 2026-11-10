@@ -203,8 +203,9 @@ ticked. *Clear filters* lists every incident.
 - **History:** a timeline of every change of status, oldest first, with its date and time, who made
   it, their role and the reason. Entries the citizen does not see are marked *Internal*. The changes
   of category and priority appear among them as *Classification changed*, with who made them and
-  each new value next to the one it replaced; they are always internal. If they cannot be loaded,
-  the status changes stay on screen with *Try again* for the rest.
+  each new value next to the one it replaced. The comments appear as *Comment*, with who wrote them,
+  their role and the text. Both are always internal. If they cannot be loaded, the status changes
+  stay on screen with *Try again* for the rest.
 - **Actions:** the actions allowed for the status of the incident. When there are none, as on a
   rejected or closed incident, it says *Only comments are available for this incident.* Planned:
   #48, #49, #52.
@@ -221,7 +222,7 @@ ticked. *Clear filters* lists every incident.
   technician, in any status. Write it in *Comment text* (up to 2,000 characters) and press *Add
   comment*. The citizen never sees comments. The page says *Comment added.* only once the server has
   kept it, and then empties the text; if it was not kept, the text stays so you can send it again.
-  The comments themselves show in the history with the timeline (Planned: #169).
+  The comment then shows in the *History*, without reloading the page.
 
 *Back to the inbox* returns to the list as you left it. An incident that does not exist shows
 *Incident not found*.
