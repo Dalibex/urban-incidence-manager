@@ -13,6 +13,7 @@ export const PATHS = {
   incident: '/incidents/:incidentId',
   workQueue: '/work-queue',
   users: '/users',
+  auditLog: '/audit-log',
   reports: '/reports',
   useMobile: '/use-mobile',
 } as const;

@@ -6,6 +6,7 @@ import {
   getIncident,
   listCategories,
   listDepartments,
+  listIncidentClassificationChanges,
   listIncidents,
   resolveIncident,
   updateIncident,
@@ -194,6 +195,22 @@ describe('incident calls', () => {
     expect(url.pathname).toBe('/api/v1/incidents');
     expect(url.searchParams.get('page')).toBe('2');
     expect(url.searchParams.getAll('status')).toEqual(['REPORTED', 'VALIDATED']);
+  });
+
+  it('asks for one page of the classification changes of an incident', async () => {
+    const page = { content: [], page: { number: 1, size: 100, totalElements: 100, totalPages: 1 } };
+    const { fetch, client } = clientAnswering(200, page);
+
+    const result = await listIncidentClassificationChanges(client, INCIDENT_ID, {
+      page: 1,
+      size: 100,
+    });
+
+    const url = new URL(fetch.mock.calls[0]![0].url);
+    expect(url.pathname).toBe(`/api/v1/incidents/${INCIDENT_ID}/classification-changes`);
+    expect(url.searchParams.get('page')).toBe('1');
+    expect(url.searchParams.get('size')).toBe('100');
+    expect(result).toEqual({ ok: true, data: page });
   });
 
   it('reports a missing incident as a 404 problem', async () => {

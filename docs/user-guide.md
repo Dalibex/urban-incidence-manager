@@ -151,8 +151,10 @@ Scroll down to load more. Tap a report to see:
   when it was last updated and, once closed, when it was closed.
 - **Location:** address, neighbourhood, district, coordinates and accuracy; *Not available* when
   a value is not known.
-- **History:** each change of status with its date. A rejection shows its **reason**. When the
-  city needs more details, the entry shows a *Message from the city council*.
+- **History:** a timeline of each change of status, oldest first, with its date and time. Your
+  report shows as yours (*You*) and every other change as the *City council*'s. A rejection shows
+  its **reason**. When the city needs more details, the entry shows a *Message from the city
+  council*.
 
 You only see what the city shares with you: internal notes of the staff, priorities and who made
 each change are not shown to citizens.
@@ -198,8 +200,11 @@ ticked. *Clear filters* lists every incident.
 - **Location:** address, neighbourhood, district, coordinates and the accuracy the phone reported
   (for example *within 12.5 m*). A value that is not known says *Not available*: it is never left
   empty or guessed.
-- **History:** every change of status, oldest first, with who made it and the reason. Entries the
-  citizen does not see are marked *Internal*.
+- **History:** a timeline of every change of status, oldest first, with its date and time, who made
+  it, their role and the reason. Entries the citizen does not see are marked *Internal*. The changes
+  of category and priority appear among them as *Classification changed*, with who made them and
+  each new value next to the one it replaced; they are always internal. If they cannot be loaded,
+  the status changes stay on screen with *Try again* for the rest.
 - **Actions:** the actions allowed for the status of the incident. When there are none, as on a
   rejected or closed incident, it says *No actions are available for this incident.* Planned: #48,
   #49, #50, #52.
@@ -271,13 +276,20 @@ comments (#50).
 
 ## 🛡️ Administrator (Web)
 
-The menu shows *Users*, where you land, *Inbox* and *Reports*.
+The menu shows *Users*, where you land, *Inbox*, *Audit log* and *Reports*.
 
 - **Inbox and incident detail:** an administrator can do everything an operator can
   ([ADR-0020](adr/0020-incident-lifecycle-transitions.md)), so see
   [Municipal Operator](#-municipal-operator-web).
 - **Users:** planned: #40.
-- **Audit log:** planned: #41.
+- **Audit log:** who did what and when, newest first, 20 entries per page. Each row shows the
+  actor, the action, the record it was about and the values the change replaced and set
+  (`role: TECHNICIAN → MUNICIPAL_OPERATOR`). Names and incident titles are the current ones; a
+  record that no longer exists says so. An incident links to its detail.
+  - Filter by one or several actions and by days (both included, in Málaga time). Click an
+    actor's name to see only their entries; the chip in the filter bar removes that filter.
+  - The filters and the page stay in the address, so reloading or going back keeps them.
+  - The log is read-only: nobody can change or delete an entry.
 - **Reports:** the same screen as the analyst's, see [Analyst](#-analyst-web).
 
 ## 📊 Analyst (Web)

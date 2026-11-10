@@ -62,10 +62,10 @@ different one in every environment: whoever knows it can sign a token for any us
   alarm when the answer of a refresh is lost (the network drops after the server rotated the token,
   or the app is closed before it saves the new pair): the client still holds the spent token, and
   the user is signed out of every device at its next refresh. `api-client` makes that case
-  possible on purpose: when a refresh fails without an answer it keeps the tokens, because the
-  session may still be valid, and sends the same refresh token at the next `401`. Otherwise it never
-  sends a token twice: it shares one refresh among concurrent requests and discards the tokens on
-  sign-out.
+  possible on purpose: when a refresh fails without an answer, or with any error other than `401`,
+  it keeps the tokens, because the session may still be valid, and sends the same refresh token at
+  the next `401`. Otherwise it never sends a token twice: it shares one refresh among concurrent
+  requests and discards the tokens on sign-out.
 - **Clean-up:** a job inside the backend deletes, every day at 03:00 UTC, the refresh tokens that
   expired longer ago than `REFRESH_TOKEN_RETENTION` (`RefreshTokenCleanup`). It deletes by expiry,
   not by revocation: a revoked token is kept while it would still work, because deleting it would
@@ -175,6 +175,10 @@ Rules for code that records an entry:
   repository has no `delete`, and a trigger (migration V8) rejects `UPDATE`, `DELETE` and
   `TRUNCATE` on the table. For the same reason an `AuditAction` constant is never renamed or removed.
 
+Administrators read the whole trail through `GET /audit-entries` and the *Audit log* screen (#41).
+The listing shows each actor's and record's current name, read with the page, so the entries
+themselves never need to store a name.
+
 Known limits:
 
 - The trigger guards against mistakes, not against someone with the database owner or superuser
@@ -251,6 +255,7 @@ operation; the note says when the answer also depends on the resource. A role no
 | `POST /incidents/{id}/attachments` | | own, only while `REPORTED` | ✓ | assigned | ✓ | |
 | `GET /attachments/{id}/content` | | own | ✓ | assigned | ✓ | |
 | `GET /incident-locations` | | | ✓ | assigned | ✓ | |
+| `GET /audit-entries` | | | | | ✓ | |
 | `GET /incident-reports` | | | | | ✓ | ✓ |
 
 Outside `/api/v1` only `/actuator/health/**` and the API documentation (`/openapi.yml`,

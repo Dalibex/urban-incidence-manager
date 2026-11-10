@@ -10,6 +10,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
 ### Added
 
 - List of the active technicians on the API (`GET /technicians`), with only their id and name, for operators and administrators: the technicians an incident can be assigned to (#190).
+- The history of an incident is a timeline on the web and the mobile app. Staff see who made each change and their role, and the category and priority changes among the status changes, with the values they replaced. Citizens see their report as theirs and every other change as the city council's, never a staff name (#169).
 - The technician's work on the web: the *Work queue* lists the incidents assigned to them, with the filters of the inbox, and opens on the `ASSIGNED` and `IN_PROGRESS` ones. Its detail leads back to the queue, accepts an assigned incident and resolves one in progress with the resolution notes. A change made on an incident someone else changed meanwhile asks to reload it, and the notes are kept (#187).
 - Assignment of an incident on the API: an operator or administrator assigns a validated or reopened incident to an active department and, optionally, an active technician and a team, or reassigns an assigned one. The previous assignment is kept, inactive, and a change made on an incident someone else changed meanwhile answers `409` with `CONCURRENT_MODIFICATION`. Staff see the active assignment in the incident detail; citizens only see that it is assigned. The active departments are listed for staff (#184).
 - Filters on the incident list of the API for staff: category, priority, reporting dates and the department of the active assignment, combinable with each other and with the status, and always inside what each role may see. A citizen can only filter by status; any other filter answers `403`. Filtering by department and sorting by `updatedAt` use indexes measured on the performance dataset (#182).
@@ -22,11 +23,16 @@ and this project follows [Semantic Versioning](https://semver.org/).
 - Positions of incidents for the map on the API (`GET /incident-locations`): id, status, priority, latitude and longitude, with the same filters as the incident list and an optional bounding box. Operators and administrators get every incident and technicians their active assignments; citizens and analysts get `403`. It returns at most 1,000 positions, the highest priority and newest first, and says when it left some out (#195).
 - Operational reports for analysts and administrators: the incidents reported in a period of up to 366 days, grouped by status, category, priority, department or district, with how many are open, closed and rejected and the median and 95th percentile hours to close, on the *Reports* screen of the web and as a CSV download with the same rows. Incidents without that information go under *Not available*; the report has no personal data (#42).
 - Photos in the incident detail of the web, for operators, administrators and the assigned technician: each photo is downloaded with the session, never through a public link. One that fails to load shows an error with *Try again* while the others stay, and a list that fails does not hide the rest of the detail (#194).
+- Audit log for administrators on the API (`GET /audit-entries`) and the web: who did what and when, newest first, with each actor's and record's current name and the values each change replaced and set. Filters by days, actor (from a row) and one or several actions, kept in the address with the page. The trail stays read-only: there is no operation to change or delete an entry (#41).
 - Password change with the current password (`POST /password-changes`), rate limited together with sign-in and audited without the password. A staff account that must change its password gets `403 PASSWORD_CHANGE_REQUIRED` and no session from sign-in, and the web asks it for a new password before it signs in. Changing it ends every session of the account, within about 15 minutes for the access tokens already issued. The dev dataset adds `dev.newstaff@example.com` to try it (#165).
 
 ### Changed
 
 - The incident list of the API answers `400` to an unknown query parameter or one without a value, instead of ignoring it (#182).
+
+### Fixed
+
+- The session recovers at the next request after a session refresh fails for any reason other than a rejected session, such as the network or a server error, instead of staying unusable until the app restarts (#161).
 
 ## [0.1.0] - 2026-11-03
 
