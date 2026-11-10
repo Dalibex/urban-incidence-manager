@@ -9,6 +9,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- User management for administrators, on the API and in the *Users* screen of the web app: list the accounts with filters by name, email and role (`GET /users`), read one (`GET /users/{userId}`), create a staff account with its role and an initial password that must be changed at the first sign-in (`POST /users`), and rename it, change its role, or disable and enable it again (`PATCH /users/{userId}`). Disabling ends its sessions at the next refresh. Administrators cannot change their own role or disable themselves, and a role cannot change from or to `CITIZEN`. Every change is recorded in the audit trail, a name change without the name (#191).
 - The history of an incident is a timeline on the web and the mobile app. Staff see who made each change and their role, and the category and priority changes among the status changes, with the values they replaced. Citizens see their report as theirs and every other change as the city council's, never a staff name (#169).
 - The technician's work on the web: the *Work queue* lists the incidents assigned to them, with the filters of the inbox, and opens on the `ASSIGNED` and `IN_PROGRESS` ones. Its detail leads back to the queue, accepts an assigned incident and resolves one in progress with the resolution notes. A change made on an incident someone else changed meanwhile asks to reload it, and the notes are kept (#187).
 - Assignment of an incident on the API: an operator or administrator assigns a validated or reopened incident to an active department and, optionally, an active technician and a team, or reassigns an assigned one. The previous assignment is kept, inactive, and a change made on an incident someone else changed meanwhile answers `409` with `CONCURRENT_MODIFICATION`. Staff see the active assignment in the incident detail; citizens only see that it is assigned. The active departments are listed for staff (#184).
@@ -27,6 +28,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- The user profile of the API (`UserResponse`, also in `GET /users/me`) includes `enabled`, whether the account can sign in (#191).
 - The incident list of the API answers `400` to an unknown query parameter or one without a value, instead of ignoring it (#182).
 
 ### Fixed

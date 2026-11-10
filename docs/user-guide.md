@@ -40,7 +40,7 @@ The API checks every permission again, so this is a convenience, not the protect
 | Who | How |
 | --- | --- |
 | Citizen | *Create an account* on the sign-in screen of the mobile app (see [Sign up](#sign-up)) |
-| Staff | An administrator creates the account with its role (Planned: #40) |
+| Staff | An administrator creates the account with its role in *Users* (see [Administrator](#-administrator-web)) and gives you the initial password; you choose your own at the first sign-in |
 | First administrator of a new deployment | Created once by the people who run the server ([deployment guide](deployment.md#-create-the-first-administrator)) |
 | Trying the apps | The sample accounts of the [demo script](demo.md#the-story) (one per role) or of *Development Dataset* in the [development guide](development.md). A local build can show one button per demo account on the sign-in screen ([Quick Sign-In](demo.md#quick-sign-in)) |
 
@@ -281,7 +281,26 @@ The menu shows *Users*, where you land, *Inbox*, *Audit log* and *Reports*.
 - **Inbox and incident detail:** an administrator can do everything an operator can
   ([ADR-0020](adr/0020-incident-lifecycle-transitions.md)), so see
   [Municipal Operator](#-municipal-operator-web).
-- **Users:** planned: #40.
+- **Users:** every account, staff and citizens, sorted by name, 20 per page, with its role and
+  whether it is *Active* or *Deactivated*. Your own row says *(you)*.
+  - Filter with *Name contains*, *Email contains* (the text anywhere in it, capitals or not) and
+    one or several *Roles*. The filters and the page stay in the address.
+  - **New staff account:** name, email, initial password (at least 8 characters) and role
+    (operator, technician, analyst or administrator; citizens create their own account in the
+    mobile app). Give the person the password in a safe way: at their first sign-in they must
+    choose their own, so the one you typed stops working. An email that already has an account
+    is refused under *Email*.
+  - **Edit** opens the account under its row: change the name or the role and select *Save changes*.
+    Only what you changed is sent, so a change another administrator made to a different field at
+    the same time is kept; if you both change the same field, the last save wins. A role change
+    reaches the person at the latest about 15 minutes later, when their session refreshes.
+  - *Deactivate account* asks you to confirm. The person cannot sign in any more, and their open
+    sessions end within about 15 minutes. Accounts are never deleted: incidents and the audit log
+    keep referring to them. *Reactivate account* lets them sign in again.
+  - You cannot change your own role or deactivate yourself, and a citizen account keeps its role.
+  - Every change appears in the *Audit log*; a name change records that the name changed, not the
+    name.
+  - If the server cannot be reached, the form says so with *Try again* and keeps what you typed.
 - **Audit log:** who did what and when, newest first, 20 entries per page. Each row shows the
   actor, the action, the record it was about and the values the change replaced and set
   (`role: TECHNICIAN → MUNICIPAL_OPERATOR`). Names and incident titles are the current ones; a

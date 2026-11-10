@@ -80,8 +80,8 @@ different one in every environment: whoever knows it can sign a token for any us
 - **Forced change at the first sign-in (#165).** An account with `password_change_required` gets
   `403 PASSWORD_CHANGE_REQUIRED` and no tokens from sign-in, so the password an administrator typed
   for it never opens a session. Sign-in only says so when the password is right, after the check
-  of a disabled account, so a wrong password does not reveal it. Today only the dev user
-  `dev.newstaff` has it; the accounts an administrator creates will have it (Planned: #40).
+  of a disabled account, so a wrong password does not reveal it. Every account an
+  administrator creates has it (`POST /users`, #191), and so does the dev user `dev.newstaff`.
 - **Password change** (`POST /password-changes`) is public: an account that must change its
   password has no tokens yet, so the current password is the credential. It is checked like
   sign-in (the same `401` for an unknown email, in a comparable time, and the same rate limit).
@@ -239,6 +239,10 @@ operation; the note says when the answer also depends on the resource. A role no
 | `POST /password-changes` | ✓ | | | | | |
 | `DELETE /sessions/current` | | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `GET /users/me` | | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `GET /users` | | | | | ✓ | |
+| `POST /users` | | | | | ✓, staff roles only | |
+| `GET /users/{id}` | | | | | ✓ | |
+| `PATCH /users/{id}` | | | | | ✓, staff roles only, not their own role or account | |
 | `GET /categories` | | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `GET /departments` | | | ✓ | ✓ | ✓ | |
 | `GET /incidents` | | own | ✓ | assigned | ✓ | |
@@ -256,6 +260,12 @@ operation; the note says when the answer also depends on the resource. A role no
 | `GET /incident-locations` | | | ✓ | assigned | ✓ | |
 | `GET /audit-entries` | | | | | ✓ | |
 | `GET /incident-reports` | | | | | ✓ | ✓ |
+
+User management is for administrators only. They cannot change their own role or disable their
+own account, nor give a staff role to a citizen account or the reverse (`422`), but two administrators who demote or disable each other at the same time can
+still leave none enabled: the `bootstrap-admin` profile then creates one again, because it only
+runs when no enabled administrator exists. A role change or a disabled account reaches the access
+tokens already issued at their next refresh, at most one access token lifetime later (ADR-0004).
 
 Outside `/api/v1` only `/actuator/health/**` and the API documentation (`/openapi.yml`,
 `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs/**`) are public.
