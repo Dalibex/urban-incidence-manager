@@ -85,3 +85,41 @@
   opacity: 0.6;
   cursor: progress;
 }
+
+/* Quick sign-in for the demo (#167), only rendered with VITE_QUICK_SIGN_IN=true. */
+.quickSignIn {
+  max-width: 360px;
+  margin-top: var(--space-xl);
+  padding-top: var(--space-md);
+  border-top: 1px solid color-mix(in srgb, var(--color-text-muted) 50%, transparent);
+}
+
+.subtitle {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--font-size-body);
+}
+
+.buttonRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.secondaryButton {
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid color-mix(in srgb, var(--color-text-muted) 50%, transparent);
+  border-radius: 6px;
+  background: var(--color-background);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.secondaryButton:hover:not(:disabled) {
+  border-color: var(--color-text);
+}
+
+.secondaryButton:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
