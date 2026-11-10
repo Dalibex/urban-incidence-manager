@@ -1,5 +1,10 @@
 import type { components, IncidentListQuery } from '@urbanpulse/api-client';
-import { INCIDENT_STATUSES, isIncidentStatus, type IncidentStatus } from '@urbanpulse/domain';
+import {
+  INCIDENT_STATUSES,
+  isIncidentStatus,
+  OPEN_STATUSES,
+  type IncidentStatus,
+} from '@urbanpulse/domain';
 import { startOfDay } from '@urbanpulse/ui';
 
 type Priority = components['schemas']['Priority'];
@@ -44,6 +49,13 @@ export const INBOX_DEFAULT_FILTERS: IncidentFilters = { status: ['REPORTED'] };
  * would mostly list finished work (#217).
  */
 export const WORK_QUEUE_DEFAULT_FILTERS: IncidentFilters = { status: ['ASSIGNED', 'IN_PROGRESS'] };
+
+/**
+ * What the map shows an operator when it is opened from the menu: the live incidents, every status
+ * that can still change (#196). A technician opens it on their pending work instead, the same as
+ * their queue.
+ */
+export const MAP_DEFAULT_FILTERS: IncidentFilters = { status: OPEN_STATUSES };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // A four-digit year from 1000: `Date.UTC` reads the years 0 to 99 as 1900 to 1999.
