@@ -11,6 +11,8 @@ import es.uma.urbanpulse.ApiContract;
 import es.uma.urbanpulse.TestcontainersConfiguration;
 import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.shared.security.TestTokens;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -94,6 +96,28 @@ class TechnicianApiIT {
         for (var id : ids) {
             assertThat(roleAndEnabledOf(id)).as(id.toString()).isEqualTo("TECHNICIAN true");
         }
+    }
+
+    // The contract orders the list by name. The technicians are written in an order that is neither
+    // the order of their names nor the order of their ids, so the test fails if the list comes in
+    // the order of the rows, by id, or in any order but the name.
+    @Test
+    void theListIsOrderedByName() throws Exception {
+        var written = new ArrayList<UUID>();
+        for (var name : List.of("Zoe", "Carmen", "Pablo", "Alba", "Teresa", "Hugo")) {
+            // Ids in reverse alphabetical order of the names: Zoe has the smallest one.
+            var rank = "ZTPHCA".indexOf(name.charAt(0)) + 1;
+            written.add(
+                    user(
+                            UUID.fromString("f0000000-0000-4000-8000-00000000000" + rank),
+                            name + " Technician"));
+        }
+        var byName = written.stream().sorted(Comparator.comparing(id -> nameOf(id))).toList();
+
+        var ids = idsIn(list(operator, Role.MUNICIPAL_OPERATOR).andExpect(status().isOk()));
+
+        assertThat(ids.stream().filter(written::contains).toList())
+                .containsExactlyElementsOf(byName);
     }
 
     // T12: technicians with the same name keep one order on every request.
@@ -202,6 +226,22 @@ class TechnicianApiIT {
                 "{bcrypt}hash-" + UUID.randomUUID(),
                 role.name(),
                 enabled);
+    }
+
+    /** An enabled technician with a chosen id, so a test controls the order of the ids. */
+    private UUID user(UUID id, String name) {
+        jdbc.update(
+                "INSERT INTO users (id, name, email, password_hash, role) VALUES (?, ?, ?, ?, ?)",
+                id,
+                name,
+                "technician-" + UUID.randomUUID() + "@example.com",
+                "{bcrypt}hash-" + UUID.randomUUID(),
+                Role.TECHNICIAN.name());
+        return id;
+    }
+
+    private String nameOf(UUID user) {
+        return jdbc.queryForObject("SELECT name FROM users WHERE id = ?", String.class, user);
     }
 
     private String emailOf(UUID user) {
