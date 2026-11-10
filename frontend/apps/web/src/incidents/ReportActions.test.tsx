@@ -45,6 +45,8 @@ const UNCLASSIFIED: Incident = {
   priorityReason: null,
 };
 
+const MESSAGE = 'Which street is it on? The position on the map is in the middle of a park.';
+
 const VALIDATED: Incident = { ...REPORTED, status: 'VALIDATED', version: 3 };
 
 type Action = 'validation' | 'rejection' | 'information-requests';
@@ -75,6 +77,10 @@ function api(server: Server, answers: Partial<Record<Action, Answer>> = {}) {
     [`GET /incidents/${REPORTED.id}/status-changes`]: () => json(200, []),
     [`GET /incidents/${REPORTED.id}/attachments`]: () => json(200, []),
     [`POST /incidents/${REPORTED.id}/validation`]: action('validation', VALIDATED),
+    [`POST /incidents/${REPORTED.id}/information-requests`]: action('information-requests', {
+      ...REPORTED,
+      version: REPORTED.version! + 1,
+    }),
   });
 }
 
@@ -212,5 +218,80 @@ describe('validate a reported incident (#189)', () => {
     await userEvent.click(send);
     expect(await screen.findByText('Incident validated: it can be assigned now.')).toBeDefined();
     expect(server.sent.validation).toHaveLength(3);
+  });
+});
+
+describe('ask the citizen for more information (#189)', () => {
+  it('asks for the message before sending, then sends it and empties the form', async () => {
+    const server = newServer();
+    renderApp(incidentPath(REPORTED.id), { role: 'MUNICIPAL_OPERATOR', fetch: api(server) });
+    const request = await form('Request information');
+
+    await userEvent.click(request.getByRole('button', { name: 'Send the request' }));
+    expect(await request.findByText('Write what you need to know.')).toBeDefined();
+    expect(server.sent['information-requests']).toEqual([]);
+
+    await userEvent.type(request.getByLabelText('Message to the citizen'), MESSAGE);
+    await userEvent.click(request.getByRole('button', { name: 'Send the request' }));
+
+    expect(
+      await screen.findByText('Request sent: the citizen sees it in the history.'),
+    ).toBeDefined();
+    expect(server.sent['information-requests']).toEqual([
+      { version: REPORTED.version, reason: MESSAGE },
+    ]);
+    // It stays reported, so the actions stay, and a second request starts empty.
+    expect(request.getByLabelText<HTMLTextAreaElement>('Message to the citizen').value).toBe('');
+    expect(screen.getByRole('form', { name: 'Validate' })).toBeDefined();
+  });
+
+  it('sends the next request with the new version', async () => {
+    const server = newServer();
+    renderApp(incidentPath(REPORTED.id), { role: 'MUNICIPAL_OPERATOR', fetch: api(server) });
+    const request = await form('Request information');
+
+    await userEvent.type(request.getByLabelText('Message to the citizen'), MESSAGE);
+    await userEvent.click(request.getByRole('button', { name: 'Send the request' }));
+    await screen.findByText('Request sent: the citizen sees it in the history.');
+    await userEvent.type(request.getByLabelText('Message to the citizen'), 'And which lamp post?');
+    await userEvent.click(request.getByRole('button', { name: 'Send the request' }));
+
+    await waitFor(() => expect(server.sent['information-requests']).toHaveLength(2));
+    expect(server.sent['information-requests'][1]).toEqual({
+      version: REPORTED.version! + 1,
+      reason: 'And which lamp post?',
+    });
+  });
+
+  // T14: the message stays after a 409, a network failure or a 5xx.
+  it('keeps the message after a 409, a network failure or a 5xx', async () => {
+    const server = newServer();
+    const answers: Answer[] = [
+      CONFLICT,
+      () => {
+        throw new TypeError('Failed to fetch');
+      },
+      () => json(500, { status: 500 }),
+    ];
+    renderApp(incidentPath(REPORTED.id), {
+      role: 'MUNICIPAL_OPERATOR',
+      fetch: api(server, { 'information-requests': () => answers.shift()!() }),
+    });
+    const request = await form('Request information');
+    const send = request.getByRole('button', { name: 'Send the request' });
+
+    await userEvent.type(request.getByLabelText('Message to the citizen'), MESSAGE);
+    await userEvent.click(send);
+    expect(await request.findByText(/The incident changed since you opened it/)).toBeDefined();
+    await userEvent.click(send);
+    expect((await request.findByRole('alert')).textContent).toContain(
+      'The server cannot be reached',
+    );
+    await userEvent.click(send);
+    expect((await request.findByRole('alert')).textContent).toContain('could not be saved');
+
+    expect(request.getByLabelText('Message to the citizen')).toHaveProperty('value', MESSAGE);
+    expect(screen.queryByText('Request sent: the citizen sees it in the history.')).toBeNull();
+    expect(server.sent['information-requests']).toHaveLength(3);
   });
 });

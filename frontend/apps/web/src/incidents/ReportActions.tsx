@@ -1,5 +1,5 @@
 import { ActionForm, type PanelProps } from './ActionForm';
-import { useValidateIncident } from './incident-queries';
+import { useRequestIncidentInformation, useValidateIncident } from './incident-queries';
 
 /** Operators see every incident, so a 404 means it is no longer there (docs/security.md). */
 const NOT_FOUND = 'This incident is no longer available. Reload it to check.';
@@ -26,6 +26,28 @@ export function ValidatePanel({ incident, ...callbacks }: PanelProps) {
       }
       sending={validate.isPending}
       send={(version) => validate.mutateAsync({ version })}
+      {...callbacks}
+    />
+  );
+}
+
+/**
+ * Asks the citizen for more information (#189, ADR-0020). The incident stays `REPORTED`, so this
+ * form stays too, empty, for another request.
+ */
+export function RequestInformationPanel({ incident, ...callbacks }: PanelProps) {
+  const request = useRequestIncidentInformation(incident.id);
+  return (
+    <ActionForm
+      incident={incident}
+      title="Request information"
+      lead="Ask the citizen for what you need to decide. They see your message in the history of their report; it stays reported."
+      submitLabel="Send the request"
+      done="Request sent: the citizen sees it in the history."
+      notFound={NOT_FOUND}
+      notes={{ label: 'Message to the citizen', missing: 'Write what you need to know.' }}
+      sending={request.isPending}
+      send={(version, message) => request.mutateAsync({ version, reason: message })}
       {...callbacks}
     />
   );

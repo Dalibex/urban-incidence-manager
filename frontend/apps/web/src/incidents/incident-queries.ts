@@ -12,6 +12,7 @@ import {
   listIncidents,
   listIncidentStatusChanges,
   reopenIncident,
+  requestIncidentInformation,
   resolveIncident,
   updateIncident,
   validateIncident,
@@ -227,6 +228,13 @@ export function useResolveIncident(incidentId: string) {
 export function useValidateIncident(incidentId: string) {
   return useIncidentChange((api, body: IncidentActionRequest) =>
     validateIncident(api, incidentId, body),
+  );
+}
+
+/** The operator asks the citizen for more information on the reported incident (#189). */
+export function useRequestIncidentInformation(incidentId: string) {
+  return useIncidentChange((api, body: IncidentReasonRequest) =>
+    requestIncidentInformation(api, incidentId, body),
   );
 }
 

@@ -97,6 +97,9 @@ export function ActionForm({
     try {
       const result = await send(incident.version ?? 0, text);
       if (result.ok) {
+        // An action that keeps the status, such as an information request, leaves this form on
+        // the page: empty it for the next one.
+        setText('');
         onDone({ message: done, from: incident.status });
       } else {
         setOutcome(outcomeOf(result));
