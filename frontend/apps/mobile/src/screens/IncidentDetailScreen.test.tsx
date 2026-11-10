@@ -4,7 +4,8 @@ import {
   listIncidentStatusChanges,
   type components,
 } from '@urbanpulse/api-client';
-import { fireEvent, screen, within } from '@testing-library/react-native';
+import { act, fireEvent, screen, within } from '@testing-library/react-native';
+import { SKELETON_DELAY_MS } from '@urbanpulse/ui';
 import type { ComponentProps } from 'react';
 
 import { failed, ok, renderWithQueries } from '../test-utils';
@@ -165,6 +166,35 @@ describe('IncidentDetailScreen', () => {
     expect(await screen.findByText(/This report was not found/)).toBeOnTheScreen();
     expect(screen.queryByText('Street light off')).not.toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeOnTheScreen();
+  });
+
+  // #174
+  it('draws the shape of the report while it loads', async () => {
+    jest.useFakeTimers();
+    try {
+      mockedGetIncident.mockReturnValue(new Promise(() => undefined));
+      await renderScreen();
+
+      expect(screen.getByRole('progressbar', { name: 'Loading the report' })).toBeOnTheScreen();
+      await act(async () => {
+        jest.advanceTimersByTime(SKELETON_DELAY_MS);
+      });
+      expect(within(screen.getByTestId('skeleton')).getByText('Location')).toBeOnTheScreen();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  // #174
+  it('keeps the report when only its history fails, and offers to load it again', async () => {
+    mockedListStatusChanges.mockResolvedValue(
+      failed({ kind: 'problem', status: 500, code: undefined }),
+    );
+    await renderScreen();
+
+    expect(await screen.findByText(/The history could not be loaded/)).toBeOnTheScreen();
+    expect(screen.getByText('Street light off')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeOnTheScreen();
   });
 
   it('offers to try again when the report cannot be loaded (#68 T1)', async () => {
