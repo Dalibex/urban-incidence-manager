@@ -1,7 +1,8 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { components } from '@urbanpulse/api-client';
-import { describe, expect, it } from 'vitest';
+import { focusManager } from '@tanstack/react-query';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { incidentPath } from '../routing/access';
 import { fakeApi, json, renderApp } from '../test-utils';
@@ -144,6 +145,11 @@ function problem(status: number) {
 }
 
 describe('incident timeline', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    focusManager.setFocused(undefined);
+  });
+
   it('shows staff every change in order, with its actor, role and the internal mark (#170 T4, T13)', async () => {
     renderApp(incidentPath(INCIDENT.id), {
       role: 'MUNICIPAL_OPERATOR',
@@ -283,7 +289,29 @@ describe('incident timeline', () => {
     expect(await entries()).toHaveLength(1);
   });
 
-  it('shows a classification saved from the detail once, without reloading the page (#170 T10)', async () => {
+  it('shows a status change made by another user once, when the timeline is read again (#170 T10)', async () => {
+    let history = [REPORTED];
+    const state = server([], [], { history: () => json(200, history) });
+    renderApp(incidentPath(INCIDENT.id), { role: 'MUNICIPAL_OPERATOR', fetch: api(state) });
+    await waitFor(async () => expect(await entries()).toHaveLength(1));
+
+    // Jorge Ruiz validates the incident from his own session while Lucía has it open.
+    history = [REPORTED, VALIDATED];
+    // The data is stale after 30 s, and coming back to the window reads it again.
+    const now = Date.now();
+    vi.spyOn(Date, 'now').mockReturnValue(now + 31_000);
+    focusManager.setFocused(false);
+    focusManager.setFocused(true);
+
+    await waitFor(async () => expect(await entries()).toHaveLength(2));
+    const [reported, validated] = await entries();
+    expect(reported).toContain('Reported');
+    expect(validated).toContain('Validated');
+    expect(validated).toContain('By Jorge Ruiz, administrator');
+    expect((await entries()).filter((entry) => entry.includes('Validated'))).toHaveLength(1);
+  });
+
+  it('shows a classification saved from the detail once, without reloading the page', async () => {
     const changes = [CLASSIFIED];
     const fetch = fakeApi({
       [`GET /incidents/${INCIDENT.id}`]: () => json(200, INCIDENT),
