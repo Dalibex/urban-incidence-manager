@@ -58,6 +58,15 @@ class IncidentLifecycleController {
         return change(user, incidentId, request, IncidentTransition.CLOSURE);
     }
 
+    @PostMapping("/reopening")
+    @PreAuthorize("hasAnyRole('MUNICIPAL_OPERATOR', 'ADMINISTRATOR')")
+    IncidentResponse reopen(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @PathVariable UUID incidentId,
+            @RequestBody IncidentActionRequest request) {
+        return change(user, incidentId, request, IncidentTransition.REOPENING);
+    }
+
     private IncidentResponse change(
             AuthenticatedUser user,
             UUID incidentId,

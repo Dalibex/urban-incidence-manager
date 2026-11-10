@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.assertj.core.groups.Tuple;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,7 +54,8 @@ class IncidentClosureApiIT {
 
     private static final String INCIDENTS = "/api/v1/incidents";
     private static final String CLOSURE = "closure";
-    private static final String[] ACTIONS = {CLOSURE};
+    private static final String REOPENING = "reopening";
+    private static final String[] ACTIONS = {CLOSURE, REOPENING};
 
     /** Every status but {@code RESOLVED}, the only one these actions start from (ADR-0020). */
     private static final String[] OTHER_STATUSES = {
@@ -63,6 +65,8 @@ class IncidentClosureApiIT {
     private static final Instant REPORTED_AT = Instant.parse("2026-11-02T09:00:00Z");
     private static final Instant RESOLVED_AT = Instant.parse("2026-11-03T12:00:00Z");
     private static final String CLOSURE_NOTE = "Checked on site: the lamp works.";
+    private static final String REOPENING_REASON =
+            "The neighbours report that the lamp went off again the same night.";
 
     @Autowired private MockMvc mvc;
     @Autowired private JdbcTemplate jdbc;
@@ -76,6 +80,7 @@ class IncidentClosureApiIT {
     private UUID otherOperator;
     private UUID administrator;
     private UUID technician;
+    private UUID otherTechnician;
     private UUID analyst;
     private UUID category;
     private UUID department;
@@ -87,6 +92,7 @@ class IncidentClosureApiIT {
         otherOperator = user(Role.MUNICIPAL_OPERATOR);
         administrator = user(Role.ADMINISTRATOR);
         technician = user(Role.TECHNICIAN);
+        otherTechnician = user(Role.TECHNICIAN);
         analyst = user(Role.ANALYST);
         category =
                 jdbc.queryForObject(
@@ -192,6 +198,112 @@ class IncidentClosureApiIT {
         assertThat(closedAtOf(blankNote)).isNull();
     }
 
+    // An operator reopens a resolved incident with a reason: RESOLVED to REOPENED, and it is not
+    // closed.
+    @Test
+    void anOperatorReopensWithAReason() throws Exception {
+        UUID incident = inStatus("RESOLVED");
+        int version = versionOf(incident);
+
+        act(operator, incident, REOPENING, body(version, REOPENING_REASON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("REOPENED"))
+                .andExpect(jsonPath("$.version").value(version + 1))
+                .andExpect(jsonPath("$.closedAt").doesNotExist());
+
+        assertThat(statusOf(incident)).isEqualTo("REOPENED");
+        assertThat(closedAtOf(incident)).isNull();
+        assertThat(historyCount(incident)).isEqualTo(3);
+        assertThat(lastHistoryEntry(incident))
+                .containsEntry("previous_status", "RESOLVED")
+                .containsEntry("new_status", "REOPENED")
+                .containsEntry("actor_id", operator)
+                .containsEntry("reason", REOPENING_REASON);
+    }
+
+    // T3: reopening without a reason, or with a blank one, is 422 and changes nothing.
+    @Test
+    void reopeningWithoutAReasonIsUnprocessable() throws Exception {
+        UUID incident = inStatus("RESOLVED");
+
+        for (String reason : new String[] {null, "", " \n "}) {
+            expectUnprocessable(act(administrator, incident, REOPENING, body(0, reason)), "reason");
+        }
+
+        assertUnchanged(incident, "RESOLVED", 0, 2);
+    }
+
+    // T3: the reason has the limit of the contract (maxLength 2000).
+    @Test
+    void aReopeningReasonOverTheLimitIsUnprocessable() throws Exception {
+        UUID incident = inStatus("RESOLVED");
+
+        expectUnprocessable(
+                act(operator, incident, REOPENING, body(0, "a".repeat(2001))), "reason");
+        assertUnchanged(incident, "RESOLVED", 0, 2);
+
+        act(operator, incident, REOPENING, body(0, "a".repeat(2000))).andExpect(status().isOk());
+    }
+
+    // T4: a reopened incident can be assigned again; the previous assignment is kept, inactive.
+    @Test
+    void aReopenedIncidentCanBeAssignedAgain() throws Exception {
+        UUID incident = inStatus("RESOLVED");
+
+        act(operator, incident, REOPENING, body(versionOf(incident), REOPENING_REASON))
+                .andExpect(status().isOk());
+        int version = versionOf(incident);
+        mvc.perform(
+                        as(
+                                operator,
+                                post(INCIDENTS + "/" + incident + "/assignments")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(
+                                                "{\"version\": "
+                                                        + version
+                                                        + ", \"departmentId\": \""
+                                                        + department
+                                                        + "\", \"technicianId\": \""
+                                                        + otherTechnician
+                                                        + "\"}")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ASSIGNED"))
+                .andExpect(jsonPath("$.version").value(version + 1));
+
+        assertThat(statusOf(incident)).isEqualTo("ASSIGNED");
+        assertThat(lastHistoryEntry(incident))
+                .containsEntry("previous_status", "REOPENED")
+                .containsEntry("new_status", "ASSIGNED");
+        assertThat(
+                        jdbc.queryForList(
+                                "SELECT technician_id, is_active FROM assignment"
+                                        + " WHERE incident_id = ? ORDER BY assigned_at",
+                                incident))
+                .extracting(row -> row.get("technician_id"), row -> row.get("is_active"))
+                .containsExactly(
+                        Tuple.tuple(technician, false), Tuple.tuple(otherTechnician, true));
+    }
+
+    // T10: the citizen sees the incident REOPENED, but not the reason nor who reopened it.
+    @Test
+    void theCitizenSeesTheReopeningButNotTheReason() throws Exception {
+        UUID incident = inStatus("RESOLVED");
+
+        act(operator, incident, REOPENING, body(versionOf(incident), REOPENING_REASON))
+                .andExpect(status().isOk());
+
+        String history = citizenHistoryText(incident);
+        List<Map<String, Object>> entries = JsonPath.read(history, "$");
+        assertThat(entries)
+                .extracting(entry -> entry.get("newStatus"))
+                .containsExactly("REPORTED", "RESOLVED", "REOPENED");
+        assertThat(entries).extracting(entry -> entry.get("reason")).containsOnlyNulls();
+        assertThat(entries)
+                .allSatisfy(
+                        entry -> assertThat(entry).doesNotContainKeys("actor", "visibleToCitizen"));
+        assertThat(history).doesNotContain(REOPENING_REASON).doesNotContain(operator.toString());
+    }
+
     // T5 and T11: only operators and administrators close or reopen (docs/security.md); the
     // technician, even the assigned one, the citizen, even the reporter, and an analyst get 403.
     @Test
@@ -259,6 +371,21 @@ class IncidentClosureApiIT {
         assertUnchanged(incident, "CLOSED", version + 1, 3);
         assertThat(closedAtOf(incident)).isEqualTo(closedAt);
         assertThat(lastHistoryEntry(incident)).containsEntry("actor_id", operator);
+    }
+
+    // T9: one operator closes and another reopens what they read before: only the closure is kept.
+    @Test
+    void aReopeningAfterAClosureOnTheSameVersionIsAConflict() throws Exception {
+        UUID incident = inStatus("RESOLVED");
+        int version = versionOf(incident);
+
+        act(operator, incident, CLOSURE, body(version, null)).andExpect(status().isOk());
+        act(otherOperator, incident, REOPENING, body(version, REOPENING_REASON))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CONCURRENT_MODIFICATION"));
+
+        assertUnchanged(incident, "CLOSED", version + 1, 3);
+        assertThat(lastHistoryEntry(incident)).containsEntry("reason", null);
     }
 
     // ADR-0020, "Errors": a missing or negative version is invalid data, so it is a 422 only after
@@ -398,6 +525,7 @@ class IncidentClosureApiIT {
     private static String validBody(String action, int version) {
         return switch (action) {
             case CLOSURE -> body(version, null);
+            case REOPENING -> body(version, REOPENING_REASON);
             default -> throw new IllegalArgumentException(action);
         };
     }
