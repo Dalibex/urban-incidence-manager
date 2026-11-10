@@ -52,6 +52,11 @@ backend and the web app, so the machine needs no Java and no Node. From the repo
 The mobile app needs the same address in `EXPO_PUBLIC_API_BASE_URL`, followed by `/api/v1`, when
 it is built.
 
+The web image is built without any `.env` (`frontend/.dockerignore` leaves them out), so the quick
+sign-in of the demo (`VITE_QUICK_SIGN_IN`) is always off in it: the demo password never goes into a
+deployed build ([twelve-factor](twelve-factor.md#iii-config)). Sign in with the email and password
+of each demo user instead ([demo script](demo.md)).
+
 **HTTPS is not set up yet.** ADR-0017 requires it before the system is reachable from the
 internet: without it, passwords and tokens travel in plain text, and release builds of the mobile
 app refuse plain HTTP. Use this deployment on a machine or a network you trust, such as the demo
