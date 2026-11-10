@@ -1,5 +1,6 @@
 import {
   acceptIncident,
+  closeIncident,
   getAttachmentContent,
   getIncident,
   listCategories,
@@ -7,6 +8,7 @@ import {
   listIncidentAttachments,
   listIncidents,
   listIncidentStatusChanges,
+  reopenIncident,
   resolveIncident,
   updateIncident,
   type ApiClient,
@@ -169,6 +171,20 @@ export function useAcceptIncident(incidentId: string) {
 export function useResolveIncident(incidentId: string) {
   return useIncidentChange((api, body: IncidentReasonRequest) =>
     resolveIncident(api, incidentId, body),
+  );
+}
+
+/** The operator closes the resolved incident after checking the work (#52). */
+export function useCloseIncident(incidentId: string) {
+  return useIncidentChange((api, body: IncidentActionRequest) =>
+    closeIncident(api, incidentId, body),
+  );
+}
+
+/** The operator reopens the resolved incident, with the reason the API requires (#52). */
+export function useReopenIncident(incidentId: string) {
+  return useIncidentChange((api, body: IncidentReasonRequest) =>
+    reopenIncident(api, incidentId, body),
   );
 }
 
