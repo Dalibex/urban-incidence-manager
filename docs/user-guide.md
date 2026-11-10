@@ -66,6 +66,13 @@ What the sign-in messages mean:
 | *UrbanPulse cannot be reached. Check your connection and try again.* | The device has no connection, or the server is down |
 | *Your session has expired. Sign in again.* | The session ended; sign in again, nothing you saved is lost |
 
+**First sign-in of a staff account:** an account an administrator creates must choose its own
+password before it can sign in, so the one the administrator typed stops working. After the email
+and that password, the website shows *Choose your password*: type the new password twice (at least
+8 characters, different from the one you were given) and select *Change the password*. You go back
+to the sign-in form; sign in with the new password. *Back to sign in* leaves the password as it was,
+and the next sign-in asks again. Changing the password also ends your sessions on other devices, within about 15 minutes.
+
 **How long you stay signed in:**
 
 - **Website:** while the tab is open. The session is kept in memory only, so **reloading the page,
