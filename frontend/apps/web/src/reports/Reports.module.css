@@ -32,6 +32,23 @@
   font-weight: 600;
 }
 
+/* The chart sits in a frame like the table's, the same while Plotly loads, so nothing moves. */
+.chart {
+  margin-bottom: var(--space-md);
+  padding: var(--space-sm);
+  border: 1px solid color-mix(in srgb, var(--color-text-muted) 30%, transparent);
+  border-radius: 8px;
+}
+
+.chart > p {
+  margin: 0;
+}
+
+.chartLoading {
+  display: grid;
+  place-items: center;
+}
+
 .table .number {
   text-align: right;
   font-variant-numeric: tabular-nums;

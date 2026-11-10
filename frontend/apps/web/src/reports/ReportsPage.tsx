@@ -1,14 +1,13 @@
 import type { components } from '@urbanpulse/api-client';
-import { isIncidentStatus } from '@urbanpulse/domain';
-import { NOT_AVAILABLE, STATUS_LABELS } from '@urbanpulse/ui';
+import { NOT_AVAILABLE } from '@urbanpulse/ui';
 import { useId, useState, type FormEvent } from 'react';
 
 import filterStyles from '../incidents/filters/IncidentFilterBar.module.css';
-import { isPriority } from '../incidents/filters/incident-filters';
 import styles from '../incidents/Incidents.module.css';
-import { PRIORITY_LABELS } from '../incidents/labels';
 import { LoadFailure } from '../incidents/LoadFailure';
 import { ApiCallError } from '../query-client';
+import { LazyReportChart } from './LazyReportChart';
+import { groupLabel } from './report-groups';
 import {
   defaultRequest,
   GROUPING_LABELS,
@@ -157,6 +156,7 @@ export function ReportsPage() {
                 : 'The file could not be downloaded. Try again in a moment.'}
             </p>
           )}
+          <LazyReportChart groupBy={shown.groupBy} rows={report.data.rows} />
           <ReportTable
             groupBy={shown.groupBy}
             rows={report.data.rows}
@@ -227,20 +227,6 @@ function ReportTable({
       </table>
     </div>
   );
-}
-
-/** The group as the screens name it; the CSV keeps the values of the API. */
-function groupLabel(groupBy: ReportGrouping, group: string | null): string {
-  if (group === null) {
-    return NOT_AVAILABLE;
-  }
-  if (groupBy === 'status' && isIncidentStatus(group)) {
-    return STATUS_LABELS[group];
-  }
-  if (groupBy === 'priority' && isPriority(group)) {
-    return PRIORITY_LABELS[group];
-  }
-  return group;
 }
 
 // A group with no closed incident has no resolution time: a dash, never 0.
