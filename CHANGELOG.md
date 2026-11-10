@@ -19,6 +19,10 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 - The incident list of the API answers `400` to an unknown query parameter or one without a value, instead of ignoring it (#182).
 
+### Fixed
+
+- The mobile app keeps the saved session when it starts without network, or when the server fails or does not answer in 10 seconds: it shows the reason and *Try again* instead of the sign-in screen, where signing in again opened a second session and left the first one alive. Only an ended session leads to the sign-in screen (#163).
+
 ## [0.1.0] - 2026-11-03
 
 End of Sprint 1: a citizen signs up on the mobile app, reports an incident with its position and sees it in their list, and an operator signs in on the web app and sees it in the inbox and its detail. The web app still runs only with the Vite development server.

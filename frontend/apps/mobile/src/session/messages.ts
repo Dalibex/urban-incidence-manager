@@ -58,3 +58,11 @@ export function reportIncidentMessage(failure: ApiFailure): string {
   }
   return 'The incident could not be reported. Try again in a moment.';
 }
+
+/** The saved session could not be checked at start-up; the session is kept. */
+export function sessionCheckMessage(failure: ApiFailure): string {
+  if (failure.kind === 'network') {
+    return NETWORK;
+  }
+  return 'Your session could not be checked. Try again in a moment.';
+}

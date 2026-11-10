@@ -1,5 +1,6 @@
 import { ActivityIndicator, View } from 'react-native';
 
+import { SessionCheckFailedScreen } from '../screens/SessionCheckFailedScreen';
 import { screenStyles } from '../screens/styles';
 import { UseWebScreen } from '../screens/UseWebScreen';
 import { useSession } from '../session/SessionContext';
@@ -11,12 +12,21 @@ import { MainTabs } from './MainTabs';
  * out swaps the whole tree, so the back gesture cannot return to a screen of the other state.
  */
 export function RootNavigator() {
-  const { restoring, user } = useSession();
-  if (restoring) {
+  const { restore, retryRestore, user } = useSession();
+  if (restore.status === 'checking') {
     return (
       <View style={[screenStyles.screen, screenStyles.centered]}>
         <ActivityIndicator accessibilityLabel="Loading" size="large" />
       </View>
+    );
+  }
+  if (restore.status === 'failed') {
+    return (
+      <SessionCheckFailedScreen
+        failure={restore.failure}
+        retrying={restore.retrying}
+        onRetry={retryRestore}
+      />
     );
   }
   if (!user) {
