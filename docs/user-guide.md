@@ -65,6 +65,7 @@ What the sign-in messages mean:
 | *This account is disabled.* | Ask an administrator (staff) or the city council (citizens) to enable it |
 | *UrbanPulse cannot be reached. Check your connection and try again.* | The device has no connection, or the server is down |
 | *Your session has expired. Sign in again.* | The session ended; sign in again, nothing you saved is lost |
+| *Your session could not be checked. Try again in a moment.* | The phone app started, but the server failed to check the saved session; you are still signed in, press *Try again* |
 
 **How long you stay signed in:**
 
@@ -72,7 +73,9 @@ What the sign-in messages mean:
   opening a link in a new tab or closing the browser signs you out**. This is on purpose: no other
   script on the page can read a session that is not stored ([security guide](security.md)).
 - **Mobile app:** on that phone until you sign out from *Profile*; the session is kept in the
-  phone's secure storage.
+  phone's secure storage. If the app starts without a connection, or the server fails or takes
+  more than 10 seconds to answer, it keeps the session and offers *Try again* instead of asking you
+  to sign in. It asks you to sign in only when the session has ended.
 
 *Sign out* (in the top bar of the website, in *Profile* on the phone) ends the session on that
 device only; your other devices stay signed in.
