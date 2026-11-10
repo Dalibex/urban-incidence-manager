@@ -2,9 +2,10 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Navigate, useLocation } from 'react-router';
 
 import { signInReturnPath } from '../routing/access';
-import { useSession } from '../session/SessionContext';
+import { type Credentials, useSession } from '../session/SessionContext';
 import styles from './Page.module.css';
 import { PasswordChangeForm } from './PasswordChangeForm';
+import { QuickSignIn } from './QuickSignIn';
 import { UNEXPECTED_SIGN_IN_ERROR, signInMessage } from './sign-in-messages';
 
 const ERROR_ID = 'sign-in-error';
@@ -32,6 +33,8 @@ export function SignInPage() {
       passwordField.current?.focus();
     }
   }, [passwordChanged]);
+  // Only a failure of the form marks its fields invalid; a quick sign-in leaves them untouched.
+  const [errorFromForm, setErrorFromForm] = useState(false);
 
   if (user) {
     return <Navigate to={signInReturnPath(location.state)} replace />;
@@ -56,14 +59,17 @@ export function SignInPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+  // The form and the quick sign-in share this path, so one guard stops any second request.
+  async function signInWith(credentials: Credentials, source: 'form' | 'quick') {
     if (submitting) {
       return;
     }
     setSubmitting(true);
     setError(null);
     setPasswordChanged(false);
+    setErrorFromForm(source === 'form');
     try {
-      const result = await signIn({ email: email.trim(), password });
+      const result = await signIn(credentials);
       // On success the session changes and this page redirects; only a failure needs a message.
       if (result.ok) {
         return;
@@ -83,7 +89,13 @@ export function SignInPage() {
     }
   }
 
-  const fieldErrorProps = error ? { 'aria-invalid': true, 'aria-describedby': ERROR_ID } : {};
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void signInWith({ email: email.trim(), password }, 'form');
+  }
+
+  const fieldErrorProps =
+    error && errorFromForm ? { 'aria-invalid': true, 'aria-describedby': ERROR_ID } : {};
 
   return (
     <main className={styles.standalone}>
@@ -100,7 +112,7 @@ export function SignInPage() {
         {expired && !passwordChanged && !error && (
           <p className={styles.notice}>Your session has expired. Sign in again.</p>
         )}
-        <form className={styles.form} onSubmit={(event) => void handleSubmit(event)}>
+        <form className={styles.form} onSubmit={handleSubmit}>
           {/* Always in the page, so screen readers announce the message when it appears. */}
           <p id={ERROR_ID} role="alert" className={styles.error}>
             {error}
@@ -134,6 +146,10 @@ export function SignInPage() {
             {submitting ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
+        <QuickSignIn
+          onSignIn={(credentials) => void signInWith(credentials, 'quick')}
+          disabled={submitting}
+        />
       </section>
     </main>
   );

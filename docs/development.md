@@ -206,7 +206,8 @@ pnpm dev:web
 The web app opens at `http://localhost:5173`. It calls the API on its own origin (`/api/v1`) and
 Vite forwards `/api` to the backend at `http://localhost:8080`, so the browser needs no CORS. To
 use another backend, set `API_PROXY_TARGET` before `pnpm dev:web`. The web keeps the session in
-memory only: reloading the page asks for sign-in again.
+memory only: reloading the page asks for sign-in again. To sign in as each demo user with one
+click, see *Quick Sign-In* in the [demo script](demo.md); it is off by default.
 
 The web reads the API through React Query ([ADR-0006](adr/0006-frontend-web-technology.md)): each
 screen calls a hook such as `useIncidentPage` (`apps/web/src/incidents/incident-queries.ts`), which

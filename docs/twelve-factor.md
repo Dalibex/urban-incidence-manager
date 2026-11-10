@@ -63,13 +63,16 @@ Only the toolchain is installed by hand: Java 25, Docker and Node 24 (README, *P
 
 **Done.** Every value that changes between environments is an environment variable:
 `application.yaml` reads them, `backend/docker-compose.yaml` passes them to the container, and the
-[deployment guide](deployment.md) lists each one, secrets marked. `backend/.env.example` and
-`frontend/apps/mobile/.env.example` are versioned; `.env` is ignored. The backend does not start
-without `JWT_SECRET`.
+[deployment guide](deployment.md) lists each one, secrets marked. `backend/.env.example`,
+`frontend/apps/web/.env.example` and `frontend/apps/mobile/.env.example` are versioned; `.env` is
+ignored. The backend does not start without `JWT_SECRET`.
 
 The clients read their configuration when they are built: the web calls the relative `/api/v1` by
 default (`VITE_API_BASE_URL`), so one bundle works on any host; the mobile app gets
-`EXPO_PUBLIC_API_BASE_URL`, which ends up inside the app, so it never holds a secret.
+`EXPO_PUBLIC_API_BASE_URL`, which ends up inside the app, so it never holds a secret. The one
+exception is the quick sign-in of the demo (`VITE_QUICK_SIGN_IN`, `EXPO_PUBLIC_QUICK_SIGN_IN`):
+with the flag on, the demo password goes into the build, so that build is local only and never
+deployed ([demo script](demo.md)).
 
 - **It would break if:** a credential were committed, or the code asked which environment it runs
   in.
