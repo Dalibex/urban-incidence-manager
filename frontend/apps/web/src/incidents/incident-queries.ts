@@ -1,16 +1,19 @@
 import {
   acceptIncident,
+  createIncidentComment,
   getAttachmentContent,
   getIncident,
   listCategories,
   listDepartments,
   listIncidentAttachments,
   listIncidentClassificationChanges,
+  listIncidentComments,
   listIncidents,
   listIncidentStatusChanges,
   resolveIncident,
   updateIncident,
   type ApiClient,
+  type ApiResult,
   type components,
   type FormResult,
 } from '@urbanpulse/api-client';
@@ -33,7 +36,6 @@ type Incident = components['schemas']['IncidentResponse'];
 type UpdateIncidentRequest = components['schemas']['UpdateIncidentRequest'];
 type IncidentActionRequest = components['schemas']['IncidentActionRequest'];
 type IncidentReasonRequest = components['schemas']['IncidentReasonRequest'];
-type ClassificationChange = components['schemas']['ClassificationChangeResponse'];
 
 const incidentKeys = {
   page: (page: number, filters: IncidentFilters) => ['incidents', 'page', page, filters] as const,
@@ -42,6 +44,7 @@ const incidentKeys = {
   classificationChanges: (incidentId: string) =>
     ['incidents', incidentId, 'classification-changes'] as const,
   attachments: (incidentId: string) => ['incidents', incidentId, 'attachments'] as const,
+  comments: (incidentId: string) => ['incidents', incidentId, 'comments'] as const,
   categories: ['categories'] as const,
 };
 
@@ -79,31 +82,43 @@ export function useIncidentHistory(incidentId: string) {
 }
 
 /** The most the API returns in one page (docs/api.md, "Listings"). */
-const CLASSIFICATION_PAGE_SIZE = 100;
+const MAX_PAGE_SIZE = 100;
 
-/**
- * Every classification change of the incident, oldest first, for the timeline of staff (#169).
- * The API pages them, so this reads page after page until the last one.
- */
+interface Page<T> {
+  content: T[];
+  page: { totalPages: number };
+}
+
+/** Every item of a paged listing, read page after page until the last one. */
+async function readAllPages<T>(
+  readPage: (query: { page: number; size: number }) => Promise<ApiResult<Page<T>>>,
+): Promise<T[]> {
+  const items: T[] = [];
+  for (let page = 0; ; page++) {
+    const result = await dataOf(readPage({ page, size: MAX_PAGE_SIZE }));
+    items.push(...result.content);
+    if (page + 1 >= result.page.totalPages) {
+      return items;
+    }
+  }
+}
+
+/** Every classification change of the incident, oldest first, for the timeline of staff (#169). */
 export function useClassificationChanges(incidentId: string) {
   const { api } = useSession();
   return useQuery({
     queryKey: incidentKeys.classificationChanges(incidentId),
-    queryFn: async () => {
-      const changes: ClassificationChange[] = [];
-      for (let page = 0; ; page++) {
-        const result = await dataOf(
-          listIncidentClassificationChanges(api, incidentId, {
-            page,
-            size: CLASSIFICATION_PAGE_SIZE,
-          }),
-        );
-        changes.push(...result.content);
-        if (page + 1 >= result.page.totalPages) {
-          return changes;
-        }
-      }
-    },
+    queryFn: () =>
+      readAllPages((query) => listIncidentClassificationChanges(api, incidentId, query)),
+  });
+}
+
+/** Every internal comment of the incident, oldest first, for the timeline of staff (#50). */
+export function useIncidentComments(incidentId: string) {
+  const { api } = useSession();
+  return useQuery({
+    queryKey: incidentKeys.comments(incidentId),
+    queryFn: () => readAllPages((query) => listIncidentComments(api, incidentId, query)),
   });
 }
 
@@ -203,6 +218,24 @@ export function useResolveIncident(incidentId: string) {
   return useIncidentChange((api, body: IncidentReasonRequest) =>
     resolveIncident(api, incidentId, body),
   );
+}
+
+/**
+ * Adds an internal comment (#50). Like the changes of the incident, it resolves with the API's
+ * answer, a failure included. A comment does not change the incident, so only the comments of the
+ * timeline are read again.
+ */
+export function useAddComment(incidentId: string) {
+  const { api } = useSession();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (text: string) => createIncidentComment(api, incidentId, { text }),
+    onSuccess: (result) => {
+      if (result.ok) {
+        void queryClient.invalidateQueries({ queryKey: incidentKeys.comments(incidentId) });
+      }
+    },
+  });
 }
 
 /** Reads the incident again, for example after a `409` that says it changed meanwhile. */

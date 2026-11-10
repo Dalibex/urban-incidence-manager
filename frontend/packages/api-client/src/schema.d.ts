@@ -656,13 +656,12 @@ export interface paths {
         };
         /**
          * List the internal comments of an incident
-         * @description Planned: #50.
-         *
-         *     Paginated comments. In the MVP every comment is internal, so citizens never get one, in this
+         * @description Paginated comments. In the MVP every comment is internal, so citizens never get one, in this
          *     or any other response.
          *
          *     Sortable property: `createdAt`. Default `createdAt,asc` (oldest first, as the history); `id`
-         *     is always added as the last criterion so the order is stable between pages.
+         *     is always added as the last criterion so the order is stable between pages. An unknown
+         *     parameter, or one without a value, returns `400`.
          *
          *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`, `TECHNICIAN` (actively assigned; any other
          *     technician gets `404`). `CITIZEN` and `ANALYST` get `403`.
@@ -671,9 +670,7 @@ export interface paths {
         put?: never;
         /**
          * Add an internal comment to an incident
-         * @description Planned: #50.
-         *
-         *     The author is the user of the access token. There is no `Location` header because a comment
+         * @description The author is the user of the access token. There is no `Location` header because a comment
          *     has no read operation of its own: it appears in `listIncidentComments`.
          *
          *     Roles: the same as `listIncidentComments`, with the same `404` rule.

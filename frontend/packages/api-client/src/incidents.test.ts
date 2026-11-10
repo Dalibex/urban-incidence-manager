@@ -3,10 +3,12 @@ import {
   acceptIncident,
   createApiClient,
   createIncident,
+  createIncidentComment,
   getIncident,
   listCategories,
   listDepartments,
   listIncidentClassificationChanges,
+  listIncidentComments,
   listIncidents,
   resolveIncident,
   updateIncident,
@@ -213,6 +215,19 @@ describe('incident calls', () => {
     expect(result).toEqual({ ok: true, data: page });
   });
 
+  it('asks for one page of the comments of an incident', async () => {
+    const page = { content: [], page: { number: 0, size: 100, totalElements: 0, totalPages: 0 } };
+    const { fetch, client } = clientAnswering(200, page);
+
+    const result = await listIncidentComments(client, INCIDENT_ID, { page: 0, size: 100 });
+
+    const url = new URL(fetch.mock.calls[0]![0].url);
+    expect(url.pathname).toBe(`/api/v1/incidents/${INCIDENT_ID}/comments`);
+    expect(url.searchParams.get('page')).toBe('0');
+    expect(url.searchParams.get('size')).toBe('100');
+    expect(result).toEqual({ ok: true, data: page });
+  });
+
   it('reports a missing incident as a 404 problem', async () => {
     const { fetch, client } = clientAnswering(404, { status: 404 });
 
@@ -307,6 +322,47 @@ describe.each([
       ok: false,
       failure: { kind: 'problem', status: 409, code: 'INVALID_TRANSITION' },
       fieldErrors: [],
+    });
+  });
+});
+
+describe('createIncidentComment', () => {
+  const COMMENT: components['schemas']['CommentResponse'] = {
+    id: 'f6a7b8c9-d0e1-4f2a-b3c4-d5e6f7a8b9c0',
+    author: {
+      id: '7c2e4b1a-9d3f-4e8a-b6c5-1f0a2d3e4b5c',
+      name: 'Lucía Martín',
+      role: 'MUNICIPAL_OPERATOR',
+    },
+    text: 'The access is through the back street.',
+    createdAt: '2026-11-02T12:05:00Z',
+  };
+
+  it('sends the text to /comments and returns the created comment', async () => {
+    let sent: unknown = undefined;
+    const fetch = vi.fn(async (request: Request) => {
+      expect(request.method).toBe('POST');
+      expect(new URL(request.url).pathname).toBe(`/api/v1/incidents/${INCIDENT_ID}/comments`);
+      sent = await request.json();
+      return json(201, COMMENT);
+    });
+    const client = createApiClient(BASE_URL, { tokenStore: memoryStore(TOKENS), fetch });
+
+    expect(await createIncidentComment(client, INCIDENT_ID, { text: COMMENT.text })).toEqual({
+      ok: true,
+      data: COMMENT,
+    });
+    expect(sent).toEqual({ text: COMMENT.text });
+  });
+
+  it('carries the per-field errors of a 422 problem', async () => {
+    const errors = [{ field: 'text', message: 'Write the comment.' }];
+    const { client } = clientAnswering(422, { status: 422, code: 'VALIDATION_FAILED', errors });
+
+    expect(await createIncidentComment(client, INCIDENT_ID, { text: ' ' })).toEqual({
+      ok: false,
+      failure: { kind: 'problem', status: 422, code: 'VALIDATION_FAILED' },
+      fieldErrors: errors,
     });
   });
 });

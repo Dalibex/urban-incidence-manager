@@ -129,6 +129,8 @@ function inboxApi(incident: Incident, history: StatusChange[]) {
     [`GET /incidents/${incident.id}/status-changes`]: () => json(200, history),
     [`GET /incidents/${incident.id}/classification-changes`]: () =>
       json(200, { content: [], page: { number: 0, size: 100, totalElements: 0, totalPages: 0 } }),
+    [`GET /incidents/${incident.id}/comments`]: () =>
+      json(200, { content: [], page: { number: 0, size: 100, totalElements: 0, totalPages: 0 } }),
     [`GET /incidents/${incident.id}/attachments`]: () => json(200, []),
   });
 }
