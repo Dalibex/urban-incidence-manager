@@ -195,7 +195,7 @@ ticked. *Clear filters* lists every incident.
   citizen does not see are marked *Internal*.
 - **Actions:** the actions allowed for the status of the incident. When there are none, as on a
   rejected or closed incident, it says *No actions are available for this incident.* Planned: #48,
-  #49, #50, #52.
+  #49, #50.
 - **Classification:** choose the category and the priority, write why the incident has that
   priority and press *Save classification*. A priority always needs its reason; you can change
   only the category, only the priority or both. The button stays disabled until you change
@@ -205,6 +205,16 @@ ticked. *Clear filters* lists every incident.
     incident*, check the new values and save again. What you typed is kept.
   - If the server cannot be reached or answers with an error, nothing is saved and what you typed
     is kept, so you can save again.
+- **Verify and close, or reopen:** on a resolved incident, check the technician's work. Press
+  *Close the incident* when it is well done: closing is final, the incident shows when it was
+  closed and the citizen sees it as closed. When it is not well done, write why in *Reason for
+  reopening* and press *Reopen the incident*: it goes back to *Reopened*, so it can be assigned
+  again, and the citizen sees the status but not your reason. The page says *Incident closed.* or
+  *Incident reopened: it can be assigned again.* only once the server has kept it.
+  - If someone else changed the incident since you opened it, or already closed or reopened it,
+    nothing is saved: press *Reload the incident* and check its status. Your reason is kept.
+  - If the server cannot be reached or answers with an error, nothing is saved and your reason is
+    kept, so you can send it again.
 
 *Back to the inbox* returns to the list as you left it. An incident that does not exist shows
 *Incident not found*.
