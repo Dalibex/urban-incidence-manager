@@ -1,10 +1,18 @@
 /* Placeholders of the parts still loading (#174). Colors come from the shared tokens (theme.ts). */
 
+/* With its margins, a line takes the height of a line of body text (line-height 1.5), so the
+   real content does not push what follows when it arrives. */
 .line {
   display: block;
   height: 0.9em;
+  margin-block: 0.3em;
   border-radius: 4px;
   background: color-mix(in srgb, var(--color-text-muted) 22%, transparent);
+}
+
+/* A grid, so the margins of the lines add up instead of collapsing, as lines of text do. */
+.text {
+  display: grid;
 }
 
 /* Only a slow pulse, and none for people who ask for less motion. */

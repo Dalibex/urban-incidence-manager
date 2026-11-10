@@ -34,9 +34,27 @@ export function LoadingSkeleton({ what, children }: LoadingSkeletonProps) {
   );
 }
 
-/** One line of text still to come; `width` is a share of its container, such as `'60%'`. */
-export function SkeletonLine({ width = '100%' }: { width?: string }) {
-  return <span className={skeleton.line} style={{ width }} />;
+interface SkeletonLineProps {
+  /** A share of its container, such as `'60%'`, or a length, such as `'6em'`. */
+  width?: string;
+  /** The size of the text it stands for, such as `'var(--font-size-title)'`; body text by default. */
+  height?: string;
+}
+
+/** One line of text still to come. */
+export function SkeletonLine({ width = '100%', height }: SkeletonLineProps) {
+  return <span className={skeleton.line} style={{ width, height }} />;
+}
+
+/** A text of several lines still to come, one per width, spaced like the lines of a paragraph. */
+export function SkeletonText({ widths }: { widths: readonly string[] }) {
+  return (
+    <span className={skeleton.text}>
+      {widths.map((width, line) => (
+        <SkeletonLine key={line} width={width} />
+      ))}
+    </span>
+  );
 }
 
 function useLoadingStage(): LoadingStage {

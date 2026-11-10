@@ -14,6 +14,9 @@ import {
 
 type Incident = components['schemas']['IncidentResponse'];
 
+/** Shared with the skeleton of the detail, so the panel keeps its title while the incident loads. */
+export const ACTIONS_TITLE = 'Actions';
+
 /**
  * Where staff act on the incident. Each feature adds the panels of its statuses to the branch of
  * that status below: the operator's (#48, #49, #52) and the technician's (#187). The detail page
@@ -51,7 +54,7 @@ export function IncidentActions({ incident }: { incident: Incident }) {
   return (
     <section className={`${styles.panel} ${styles.actions}`} aria-labelledby="actions-title">
       <h2 id="actions-title" className={styles.panelTitle}>
-        Actions
+        {ACTIONS_TITLE}
       </h2>
       <p ref={message} role="status" tabIndex={-1} className={styles.formMessage}>
         {done?.message}
