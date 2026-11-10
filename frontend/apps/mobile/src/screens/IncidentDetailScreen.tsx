@@ -39,6 +39,12 @@ type StatusChange = components['schemas']['StatusChangeResponse'];
 /** The sections of the report, also drawn by its skeleton. */
 const SECTIONS = { details: 'Details', location: 'Location' } as const;
 
+/**
+ * The fields every report has in each section, drawn while it loads: never a count to read.
+ * Details: category, reported on and updated on. Location: the five of {@link IncidentData}.
+ */
+const SKELETON_FIELDS: Record<keyof typeof SECTIONS, number> = { details: 3, location: 5 };
+
 /** One of the citizen's reports: its data, where it is and what has happened to it (RF06). */
 export function IncidentDetailScreen({ navigation, route }: Props) {
   const { incidentId } = route.params;
@@ -162,7 +168,10 @@ function IncidentData({ incident }: { incident: Incident }) {
   );
 }
 
-/** The title, the status, the description and the two sections of {@link IncidentData}. */
+/**
+ * The title, the status, the description and the two sections of {@link IncidentData}, each field
+ * as its label above its value, so the sections do not grow when the report arrives.
+ */
 function IncidentDataSkeleton() {
   return (
     <View style={styles.skeleton}>
@@ -175,12 +184,15 @@ function IncidentDataSkeleton() {
         <SkeletonBlock width="90%" />
         <SkeletonBlock width="60%" />
       </View>
-      {[SECTIONS.details, SECTIONS.location].map((section) => (
+      {(['details', 'location'] as const).map((section) => (
         <View key={section} style={styles.section}>
-          <Text style={styles.sectionTitle}>{section}</Text>
-          <SkeletonBlock width="50%" />
-          <SkeletonBlock width="70%" />
-          <SkeletonBlock width="40%" />
+          <Text style={styles.sectionTitle}>{SECTIONS[section]}</Text>
+          {Array.from({ length: SKELETON_FIELDS[section] }, (_, field) => (
+            <View key={field} style={styles.field}>
+              <SkeletonBlock width="35%" />
+              <SkeletonBlock width="60%" />
+            </View>
+          ))}
         </View>
       ))}
     </View>
