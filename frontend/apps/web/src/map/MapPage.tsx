@@ -16,7 +16,7 @@ import { useIncidentLocations } from '../incidents/incident-queries';
 import incidentStyles from '../incidents/Incidents.module.css';
 import { PRIORITY_LABELS } from '../incidents/labels';
 import { LoadFailure } from '../incidents/LoadFailure';
-import { CLUSTER_PRIORITY_COLORS } from './incident-features';
+import { HIGH_BORDER, PRIORITY_MARKS, PRIORITY_RANK } from './incident-features';
 import { IncidentPanel } from './IncidentPanel';
 import styles from './Map.module.css';
 import { INCIDENT_ZOOM } from './map-config';
@@ -192,11 +192,14 @@ export function MapPage() {
   );
 }
 
-/** What the colors of the map mean; the list and the panel say the same in words. */
+/**
+ * What the map draws: the color is the status, the size the priority, and a group shows how many
+ * incidents it holds and their highest priority. The list and the panel say the same in words.
+ */
 function MapLegend() {
   return (
     <div className={styles.legend}>
-      <p className={styles.legendTitle}>Markers by status</p>
+      <p className={styles.legendTitle}>Color: status</p>
       <ul className={styles.legendItems}>
         {INCIDENT_STATUSES.map((status) => (
           <li key={status}>
@@ -209,14 +212,34 @@ function MapLegend() {
           </li>
         ))}
       </ul>
-      <p className={styles.legendTitle}>Groups by their highest priority</p>
+      <p className={styles.legendTitle}>Size: priority</p>
       <ul className={styles.legendItems}>
-        {CLUSTER_PRIORITY_COLORS.map(({ label, color }) => (
+        {PRIORITY_MARKS.map(({ rank, label, radius }) => (
           <li key={label}>
-            <span className={styles.swatch} style={{ background: color }} aria-hidden="true" />
-            {label}
+            <span
+              className={styles.sizeSwatch}
+              style={
+                {
+                  '--swatch-size': `${radius * 2}px`,
+                  ...(rank === PRIORITY_RANK.HIGH && {
+                    '--swatch-border': `${HIGH_BORDER.width}px solid ${HIGH_BORDER.color}`,
+                  }),
+                } as CSSProperties
+              }
+              aria-hidden="true"
+            />
+            {rank === PRIORITY_RANK.HIGH ? `${label}, with a dark border` : label}
           </li>
         ))}
+      </ul>
+      <p className={styles.legendTitle}>Groups</p>
+      <ul className={styles.legendItems}>
+        <li>
+          <span className={styles.groupSwatch} aria-hidden="true">
+            8
+          </span>
+          The number of incidents, with their highest priority written under it
+        </li>
       </ul>
     </div>
   );

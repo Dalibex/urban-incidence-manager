@@ -2,6 +2,8 @@ import type { components } from '@urbanpulse/api-client';
 import type { IncidentStatus } from '@urbanpulse/domain';
 import { colors, statusColor } from '@urbanpulse/ui';
 
+import { PRIORITY_LABELS } from '../incidents/labels';
+
 type IncidentPosition = components['schemas']['IncidentPosition'];
 type Priority = components['schemas']['Priority'];
 
@@ -58,13 +60,28 @@ export function toFeatureCollection(
   };
 }
 
+/** How the map draws one level of priority, never with a color: the color is the status. */
+export interface PriorityMark {
+  rank: number;
+  /** The level in words, as the lists say it; the label under a cluster with this highest level. */
+  label: string;
+  /** Radius of an incident marker, in pixels: a higher priority draws a bigger marker. */
+  radius: number;
+}
+
 /**
- * The color of a cluster by the highest priority inside it, from none to `HIGH`. The legend of the
- * map reads the same table, so both never disagree.
+ * The marks of each priority, from none to `HIGH`. The layers and the legend of the map read this
+ * one table, so they never disagree. A `HIGH` marker also has a dark border ({@link HIGH_BORDER}).
  */
-export const CLUSTER_PRIORITY_COLORS: readonly { rank: number; label: string; color: string }[] = [
-  { rank: 0, label: 'No priority', color: colors.textMuted },
-  { rank: PRIORITY_RANK.LOW, label: 'Low', color: colors.primary },
-  { rank: PRIORITY_RANK.MEDIUM, label: 'Medium', color: colors.warning },
-  { rank: PRIORITY_RANK.HIGH, label: 'High', color: colors.danger },
+export const PRIORITY_MARKS: readonly PriorityMark[] = [
+  { rank: 0, label: 'No priority', radius: 5 },
+  { rank: PRIORITY_RANK.LOW, label: PRIORITY_LABELS.LOW, radius: 7 },
+  { rank: PRIORITY_RANK.MEDIUM, label: PRIORITY_LABELS.MEDIUM, radius: 9 },
+  { rank: PRIORITY_RANK.HIGH, label: PRIORITY_LABELS.HIGH, radius: 11 },
 ];
+
+/** The border that sets a `HIGH` incident apart, besides its size. */
+export const HIGH_BORDER = { color: colors.text, width: 3 } as const;
+
+/** The neutral fill of a cluster: it holds incidents of several statuses, so it has no status color. */
+export const CLUSTER_COLOR = colors.text;

@@ -1,7 +1,14 @@
-import { colors, statusColor } from '@urbanpulse/ui';
+import { INCIDENT_STATUSES } from '@urbanpulse/domain';
+import { statusColor } from '@urbanpulse/ui';
 import { describe, expect, it } from 'vitest';
 
-import { CLUSTER_PRIORITY_COLORS, priorityRank, toFeatureCollection } from './incident-features';
+import {
+  CLUSTER_COLOR,
+  HIGH_BORDER,
+  PRIORITY_MARKS,
+  priorityRank,
+  toFeatureCollection,
+} from './incident-features';
 
 describe('toFeatureCollection', () => {
   it('orders each position as [longitude, latitude], as GeoJSON does (#76 T1)', () => {
@@ -34,10 +41,30 @@ describe('priorityRank', () => {
   });
 });
 
-describe('CLUSTER_PRIORITY_COLORS', () => {
-  it('goes up by rank, so the step expression of the clusters can read it, and ends in danger', () => {
-    const ranks = CLUSTER_PRIORITY_COLORS.map(({ rank }) => rank);
-    expect(ranks).toEqual([...ranks].sort((a, b) => a - b));
-    expect(CLUSTER_PRIORITY_COLORS.at(-1)).toMatchObject({ label: 'High', color: colors.danger });
+describe('PRIORITY_MARKS', () => {
+  it('goes up by rank, so the step expressions of the layers can read it', () => {
+    const ranks = PRIORITY_MARKS.map(({ rank }) => rank);
+    expect(ranks).toEqual([0, 1, 2, 3]);
+  });
+
+  it('draws a higher priority bigger, and names each level as the lists do', () => {
+    const radii = PRIORITY_MARKS.map(({ radius }) => radius);
+    expect(radii).toEqual([...new Set(radii)].sort((a, b) => a - b));
+    expect(PRIORITY_MARKS.map(({ label }) => label)).toEqual([
+      'No priority',
+      'Low',
+      'Medium',
+      'High',
+    ]);
+  });
+});
+
+describe('colors of the map', () => {
+  // #196: the color of a marker is its status; neither the clusters nor the border of HIGH may use a
+  // status color, or a red cluster would read as a reopened incident.
+  it('keeps every status color for the status only', () => {
+    const statusColors = new Set(INCIDENT_STATUSES.map(statusColor));
+    expect(statusColors.has(CLUSTER_COLOR)).toBe(false);
+    expect(statusColors.has(HIGH_BORDER.color)).toBe(false);
   });
 });

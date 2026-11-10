@@ -1,6 +1,7 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 import type { components } from '@urbanpulse/api-client';
+import { colors } from '@urbanpulse/ui';
 import {
   addProtocol,
   setWorkerUrl,
@@ -20,9 +21,13 @@ import Map, {
 } from 'react-map-gl/maplibre';
 
 import {
-  CLUSTER_PRIORITY_COLORS,
+  CLUSTER_COLOR,
+  HIGH_BORDER,
+  PRIORITY_MARKS,
+  PRIORITY_RANK,
   toFeatureCollection,
   type IncidentFeatureProperties,
+  type PriorityMark,
 } from './incident-features';
 import styles from './Map.module.css';
 import { CLUSTER_MAX_ZOOM, MALAGA_VIEW, mapStyleUrl } from './map-config';
@@ -46,16 +51,29 @@ const CLUSTER_RADIUS = 50;
 /** The highest priority of a cluster's incidents, as a cluster property. */
 const MAX_PRIORITY = 'maxPriorityRank';
 
+// One meaning per visual channel (#196): the color of a marker is its status, as in the badges of
+// the lists, and the priority is its size, a dark border for `HIGH` and, on a cluster, a label.
+
 /**
- * The color of a cluster by its highest priority; the legend reads the same table. A `step`
- * expression takes the color of the highest rank not above the value.
+ * A `step` expression over a priority rank: the value of the highest rank not above it, read from
+ * {@link PRIORITY_MARKS} so the map and its legend never disagree.
  */
-const clusterColor: ExpressionSpecification = [
-  'step',
-  ['get', MAX_PRIORITY],
-  CLUSTER_PRIORITY_COLORS[0]!.color,
-  ...CLUSTER_PRIORITY_COLORS.slice(1).flatMap(({ rank, color }) => [rank, color]),
-] as ExpressionSpecification;
+function byPriority(
+  rank: ExpressionSpecification,
+  valueOf: (mark: PriorityMark) => string | number,
+): ExpressionSpecification {
+  const [none, ...levels] = PRIORITY_MARKS;
+  return [
+    'step',
+    rank,
+    valueOf(none!),
+    ...levels.flatMap((mark) => [mark.rank, valueOf(mark)]),
+  ] as ExpressionSpecification;
+}
+
+/** Cluster radius by the number of incidents, in three steps so sizes stay comparable. */
+const CLUSTER_SIZES = { small: 16, medium: 22, large: 28, mediumFrom: 10, largeFrom: 50 } as const;
+const CLUSTER_LABEL_SIZE = 12;
 
 const clusterLayer: LayerProps = {
   id: CLUSTER_LAYER,
@@ -63,13 +81,23 @@ const clusterLayer: LayerProps = {
   source: SOURCE_ID,
   filter: ['has', 'point_count'],
   paint: {
-    'circle-color': clusterColor,
-    // Bigger with more incidents, in three steps so sizes stay comparable.
-    'circle-radius': ['step', ['get', 'point_count'], 16, 10, 22, 50, 28],
+    'circle-color': CLUSTER_COLOR,
+    'circle-radius': [
+      'step',
+      ['get', 'point_count'],
+      CLUSTER_SIZES.small,
+      CLUSTER_SIZES.mediumFrom,
+      CLUSTER_SIZES.medium,
+      CLUSTER_SIZES.largeFrom,
+      CLUSTER_SIZES.large,
+    ],
     'circle-stroke-width': 2,
     'circle-stroke-color': '#ffffff',
   },
 };
+
+/** A font of the self-hosted glyphs (tiles/Dockerfile), never one from an external host. */
+const LABEL_FONT = ['Noto Sans Bold'];
 
 const clusterCountLayer: LayerProps = {
   id: 'incident-cluster-count',
@@ -78,13 +106,44 @@ const clusterCountLayer: LayerProps = {
   filter: ['has', 'point_count'],
   layout: {
     'text-field': ['get', 'point_count_abbreviated'],
-    // A font of the self-hosted glyphs (tiles/Dockerfile), never one from an external host.
-    'text-font': ['Noto Sans Bold'],
+    'text-font': LABEL_FONT,
     'text-size': 13,
     'text-allow-overlap': true,
   },
   paint: { 'text-color': '#ffffff' },
 };
+
+/** Just below a cluster circle of each size, in ems of the label. */
+function labelOffset(radius: number): ['literal', [number, number]] {
+  return ['literal', [0, radius / CLUSTER_LABEL_SIZE + 0.25]];
+}
+
+/** The highest priority of a cluster in words, under it; a cluster without priority has none. */
+const clusterPriorityLayer: LayerProps = {
+  id: 'incident-cluster-priority',
+  type: 'symbol',
+  source: SOURCE_ID,
+  filter: ['all', ['has', 'point_count'], ['>', ['get', MAX_PRIORITY], 0]],
+  layout: {
+    'text-field': byPriority(['get', MAX_PRIORITY], ({ rank, label }) => (rank > 0 ? label : '')),
+    'text-font': LABEL_FONT,
+    'text-size': CLUSTER_LABEL_SIZE,
+    'text-anchor': 'top',
+    'text-offset': [
+      'step',
+      ['get', 'point_count'],
+      labelOffset(CLUSTER_SIZES.small),
+      CLUSTER_SIZES.mediumFrom,
+      labelOffset(CLUSTER_SIZES.medium),
+      CLUSTER_SIZES.largeFrom,
+      labelOffset(CLUSTER_SIZES.large),
+    ],
+    'text-allow-overlap': true,
+  },
+  paint: { 'text-color': CLUSTER_COLOR, 'text-halo-color': '#ffffff', 'text-halo-width': 2 },
+};
+
+const isHigh: ExpressionSpecification = ['==', ['get', 'priorityRank'], PRIORITY_RANK.HIGH];
 
 const pointLayer: LayerProps = {
   id: POINT_LAYER,
@@ -93,13 +152,13 @@ const pointLayer: LayerProps = {
   filter: ['!', ['has', 'point_count']],
   paint: {
     'circle-color': ['get', 'color'],
-    // A higher priority draws a bigger marker, so it stands out among its neighbours.
-    'circle-radius': ['interpolate', ['linear'], ['get', 'priorityRank'], 0, 6, 3, 10],
-    'circle-stroke-width': 2,
-    'circle-stroke-color': '#ffffff',
+    'circle-radius': byPriority(['get', 'priorityRank'], ({ radius }) => radius),
+    'circle-stroke-width': ['case', isHigh, HIGH_BORDER.width, 2],
+    'circle-stroke-color': ['case', isHigh, HIGH_BORDER.color, '#ffffff'],
   },
 };
 
+/** A ring around the selected incident, with a gap so it never reads as the border of `HIGH`. */
 function selectedLayer(incidentId: string | null): LayerProps {
   return {
     id: 'incident-selected',
@@ -108,9 +167,9 @@ function selectedLayer(incidentId: string | null): LayerProps {
     filter: ['all', ['!', ['has', 'point_count']], ['==', ['get', 'id'], incidentId ?? '']],
     paint: {
       'circle-color': 'rgba(0, 0, 0, 0)',
-      'circle-radius': 15,
-      'circle-stroke-width': 3,
-      'circle-stroke-color': '#0f172a',
+      'circle-radius': 18,
+      'circle-stroke-width': 2,
+      'circle-stroke-color': colors.text,
     },
   };
 }
@@ -123,8 +182,9 @@ export interface IncidentMapProps {
 }
 
 /**
- * The incidents on the self-hosted base map (ADR-0016), clustered by zoom: each cluster keeps the
- * highest priority of its incidents in its color, and a click on it zooms in until it splits. A
+ * The incidents on the self-hosted base map (ADR-0016), clustered by zoom: each cluster shows how
+ * many incidents it holds and, under it, the highest priority among them, and a click on it zooms
+ * in until it splits. A
  * click on a marker selects its incident. If the base map cannot load, a notice says so and the
  * rest of the screen keeps working.
  */
@@ -188,6 +248,7 @@ export function IncidentMap({ positions, selectedId, onSelect, ref }: IncidentMa
         >
           <Layer {...clusterLayer} />
           <Layer {...clusterCountLayer} />
+          <Layer {...clusterPriorityLayer} />
           <Layer {...pointLayer} />
           <Layer {...selectedLayer(selectedId)} />
         </Source>
