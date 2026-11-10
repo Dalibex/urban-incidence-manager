@@ -1,5 +1,9 @@
 import { ActionForm, type PanelProps } from './ActionForm';
-import { useRequestIncidentInformation, useValidateIncident } from './incident-queries';
+import {
+  useRejectIncident,
+  useRequestIncidentInformation,
+  useValidateIncident,
+} from './incident-queries';
 
 /** Operators see every incident, so a 404 means it is no longer there (docs/security.md). */
 const NOT_FOUND = 'This incident is no longer available. Reload it to check.';
@@ -48,6 +52,28 @@ export function RequestInformationPanel({ incident, ...callbacks }: PanelProps) 
       notes={{ label: 'Message to the citizen', missing: 'Write what you need to know.' }}
       sending={request.isPending}
       send={(version, message) => request.mutateAsync({ version, reason: message })}
+      {...callbacks}
+    />
+  );
+}
+
+/**
+ * `REPORTED` to `REJECTED`, which is final, with the reason the citizen sees (#189, ADR-0020). It
+ * needs no classification, so a report that is not an incident is rejected straight away.
+ */
+export function RejectPanel({ incident, ...callbacks }: PanelProps) {
+  const reject = useRejectIncident(incident.id);
+  return (
+    <ActionForm
+      incident={incident}
+      title="Reject"
+      lead="Reject it when it is not an incident the city council handles. Rejecting is final, and the citizen sees your reason, so do not write internal data in it."
+      submitLabel="Reject the incident"
+      done="Incident rejected."
+      notFound={NOT_FOUND}
+      notes={{ label: 'Reason for the citizen', missing: 'Write why it is rejected.' }}
+      sending={reject.isPending}
+      send={(version, reason) => reject.mutateAsync({ version, reason })}
       {...callbacks}
     />
   );

@@ -6,7 +6,7 @@ import { ClassificationPanel } from './ClassificationPanel';
 import { CommentPanel } from './CommentPanel';
 import styles from './Incidents.module.css';
 import { ClosePanel, ReopenPanel } from './OperatorActions';
-import { RequestInformationPanel, ValidatePanel } from './ReportActions';
+import { RejectPanel, RequestInformationPanel, ValidatePanel } from './ReportActions';
 import type { ActionCallbacks, ActionDone } from './ActionForm';
 import { AcceptPanel, ResolvePanel } from './TechnicianActions';
 
@@ -77,6 +77,7 @@ function operatorPanels(incident: Incident, callbacks: ActionCallbacks): ReactNo
           {classification}
           <ValidatePanel incident={incident} {...callbacks} />
           <RequestInformationPanel incident={incident} {...callbacks} />
+          <RejectPanel incident={incident} {...callbacks} />
         </>
       );
     case 'VALIDATED':

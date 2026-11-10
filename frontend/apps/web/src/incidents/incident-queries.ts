@@ -11,6 +11,7 @@ import {
   listIncidentComments,
   listIncidents,
   listIncidentStatusChanges,
+  rejectIncident,
   reopenIncident,
   requestIncidentInformation,
   resolveIncident,
@@ -235,6 +236,13 @@ export function useValidateIncident(incidentId: string) {
 export function useRequestIncidentInformation(incidentId: string) {
   return useIncidentChange((api, body: IncidentReasonRequest) =>
     requestIncidentInformation(api, incidentId, body),
+  );
+}
+
+/** The operator rejects the reported incident, with the reason the citizen sees (#189). */
+export function useRejectIncident(incidentId: string) {
+  return useIncidentChange((api, body: IncidentReasonRequest) =>
+    rejectIncident(api, incidentId, body),
   );
 }
 

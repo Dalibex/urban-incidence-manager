@@ -48,6 +48,9 @@ const UNCLASSIFIED: Incident = {
 const MESSAGE = 'Which street is it on? The position on the map is in the middle of a park.';
 
 const VALIDATED: Incident = { ...REPORTED, status: 'VALIDATED', version: 3 };
+const REJECTED: Incident = { ...REPORTED, status: 'REJECTED', version: 3 };
+
+const REASON = 'This streetlight belongs to a private estate; please contact its owners.';
 
 type Action = 'validation' | 'rejection' | 'information-requests';
 type Answer = () => Response | Promise<Response>;
@@ -77,6 +80,7 @@ function api(server: Server, answers: Partial<Record<Action, Answer>> = {}) {
     [`GET /incidents/${REPORTED.id}/status-changes`]: () => json(200, []),
     [`GET /incidents/${REPORTED.id}/attachments`]: () => json(200, []),
     [`POST /incidents/${REPORTED.id}/validation`]: action('validation', VALIDATED),
+    [`POST /incidents/${REPORTED.id}/rejection`]: action('rejection', REJECTED),
     [`POST /incidents/${REPORTED.id}/information-requests`]: action('information-requests', {
       ...REPORTED,
       version: REPORTED.version! + 1,
@@ -293,5 +297,47 @@ describe('ask the citizen for more information (#189)', () => {
     expect(request.getByLabelText('Message to the citizen')).toHaveProperty('value', MESSAGE);
     expect(screen.queryByText('Request sent: the citizen sees it in the history.')).toBeNull();
     expect(server.sent['information-requests']).toHaveLength(3);
+  });
+});
+
+describe('reject a reported incident (#189)', () => {
+  it('rejects an incident without classification, with the reason, and then offers nothing more', async () => {
+    const server = newServer(UNCLASSIFIED);
+    renderApp(incidentPath(REPORTED.id), { role: 'MUNICIPAL_OPERATOR', fetch: api(server) });
+    const reject = await form('Reject');
+
+    await userEvent.click(reject.getByRole('button', { name: 'Reject the incident' }));
+    expect(await reject.findByText('Write why it is rejected.')).toBeDefined();
+    expect(server.sent.rejection).toEqual([]);
+
+    await userEvent.type(reject.getByLabelText('Reason for the citizen'), REASON);
+    await userEvent.click(reject.getByRole('button', { name: 'Reject the incident' }));
+
+    expect(await screen.findByText('Incident rejected.')).toBeDefined();
+    expect(await screen.findByText('Only comments are available for this incident.')).toBeDefined();
+    expect(server.sent.rejection).toEqual([{ version: REPORTED.version, reason: REASON }]);
+    await waitFor(() => expect(document.activeElement?.textContent).toBe('Incident rejected.'));
+  });
+
+  // T14: someone else validated it meanwhile; the reason stays.
+  it('says when the incident no longer allows rejecting it, and keeps the reason', async () => {
+    renderApp(incidentPath(REPORTED.id), {
+      role: 'MUNICIPAL_OPERATOR',
+      fetch: api(newServer(), {
+        rejection: () => json(409, { status: 409, code: 'INVALID_TRANSITION', title: 'Conflict' }),
+      }),
+    });
+    const reject = await form('Reject');
+
+    await userEvent.type(reject.getByLabelText('Reason for the citizen'), REASON);
+    await userEvent.click(reject.getByRole('button', { name: 'Reject the incident' }));
+
+    expect(
+      await reject.findByText(
+        'This incident no longer allows this action. Reload it to see its status.',
+      ),
+    ).toBeDefined();
+    expect(reject.getByLabelText('Reason for the citizen')).toHaveProperty('value', REASON);
+    expect(screen.queryByText('Incident rejected.')).toBeNull();
   });
 });
