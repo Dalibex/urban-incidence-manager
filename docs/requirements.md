@@ -110,6 +110,7 @@ for its code (#57).
   | `ASSIGNED` | *Reassign* | #49 |
   | `RESOLVED` | *Verify and close*, *Reopen* (reason required) | #52 |
   | Any but `REJECTED` and `CLOSED` | *Classify* (category and priority with a justification) | #47 |
+  | Any | *Comment* (internal, for the staff of the incident) | #50 |
 
 - **Not in the MVP:** urban context, nearby urban assets and duplicate warnings in the detail
   (RF16, RF22–RF24).
