@@ -11,9 +11,12 @@ import {
   listIncidentClassificationChanges,
   listIncidentComments,
   listIncidents,
+  rejectIncident,
   reopenIncident,
+  requestIncidentInformation,
   resolveIncident,
   updateIncident,
+  validateIncident,
   type ApiClient,
   type SessionTokens,
   type TokenStore,
@@ -288,10 +291,31 @@ describe('updateIncident', () => {
 
 const ACCEPTANCE = { version: 3 };
 const RESOLUTION = { version: 3, reason: 'Replaced the lamp and checked it at night.' };
+const VALIDATION = { version: 0 };
+const REJECTION = { version: 0, reason: 'This streetlight belongs to a private estate.' };
+const INFORMATION_REQUEST = { version: 0, reason: 'Which street is it on?' };
 const CLOSURE = { version: 4 };
 const REOPENING = { version: 4, reason: 'The lamp went off again the same night.' };
 
 describe.each([
+  [
+    'validateIncident',
+    'validation',
+    VALIDATION,
+    (client: ApiClient) => validateIncident(client, INCIDENT_ID, VALIDATION),
+  ],
+  [
+    'rejectIncident',
+    'rejection',
+    REJECTION,
+    (client: ApiClient) => rejectIncident(client, INCIDENT_ID, REJECTION),
+  ],
+  [
+    'requestIncidentInformation',
+    'information-requests',
+    INFORMATION_REQUEST,
+    (client: ApiClient) => requestIncidentInformation(client, INCIDENT_ID, INFORMATION_REQUEST),
+  ],
   [
     'acceptIncident',
     'acceptance',
