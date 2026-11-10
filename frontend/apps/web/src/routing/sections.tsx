@@ -4,8 +4,8 @@ import type { ReactNode } from 'react';
 import { AuditLogPage } from '../audit/AuditLogPage';
 import { InboxPage } from '../incidents/InboxPage';
 import { WorkQueuePage } from '../incidents/WorkQueuePage';
-import { PlaceholderPage } from '../pages/PlaceholderPage';
 import { ReportsPage } from '../reports/ReportsPage';
+import { UsersPage } from '../users/UsersPage';
 import { INBOX_DEFAULT_PATH, OPERATOR_ROLES, PATHS, WORK_QUEUE_DEFAULT_PATH } from './access';
 
 /** A screen of the signed-in area. The navbar links to the sections the user's role can open. */
@@ -39,7 +39,7 @@ export const SECTIONS: readonly Section[] = [
     path: PATHS.users,
     label: 'Users',
     roles: ['ADMINISTRATOR'],
-    element: <PlaceholderPage title="Users" summary="Accounts, roles and access." />,
+    element: <UsersPage />,
   },
   {
     path: PATHS.auditLog,
