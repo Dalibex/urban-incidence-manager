@@ -164,6 +164,27 @@ export function getIncident(
   return callApi(() => client.GET('/incidents/{incidentId}', { params: { path: { incidentId } } }));
 }
 
+/** Query of `listIncidentClassificationChanges`: `page` starts at 0, `size` is at most 100. */
+export type ClassificationChangeQuery = NonNullable<
+  operations['listIncidentClassificationChanges']['parameters']['query']
+>;
+
+/**
+ * A page of the classification changes of an incident, oldest first (#47). Only staff may read
+ * them; a citizen gets `403`.
+ */
+export function listIncidentClassificationChanges(
+  client: ApiClient,
+  incidentId: string,
+  query: ClassificationChangeQuery = {},
+): Promise<ApiResult<Schemas['ClassificationChangePageResponse']>> {
+  return callApi(() =>
+    client.GET('/incidents/{incidentId}/classification-changes', {
+      params: { path: { incidentId }, query },
+    }),
+  );
+}
+
 /** The status history of an incident, oldest first. */
 export function listIncidentStatusChanges(
   client: ApiClient,

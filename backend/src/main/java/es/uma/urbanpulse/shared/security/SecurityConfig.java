@@ -30,16 +30,20 @@ class SecurityConfig {
         "/openapi.yml", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**"
     };
 
-    // Operations of the contract marked with `security: []`: sign-up, sign-in and refresh.
+    // Operations of the contract marked with `security: []`: sign-up, sign-in, refresh and the
+    // password change.
     private static final String[] PUBLIC_API_POSTS = {
-        "/api/v1/registrations", "/api/v1/sessions", "/api/v1/sessions/refresh"
+        "/api/v1/registrations",
+        "/api/v1/sessions",
+        "/api/v1/sessions/refresh",
+        "/api/v1/password-changes"
     };
 
     /**
-     * Sign-up, sign-in and refresh have their own chain, without the bearer token filter. In the
-     * main chain that filter rejects any {@code Authorization: Bearer} it cannot validate before
-     * {@code permitAll} is checked, so a client that sends its expired access token along with the
-     * refresh request would get {@code 401} and lose the session.
+     * The public operations have their own chain, without the bearer token filter. In the main
+     * chain that filter rejects any {@code Authorization: Bearer} it cannot validate before {@code
+     * permitAll} is checked, so a client that sends its expired access token along with the refresh
+     * request would get {@code 401} and lose the session.
      */
     @Bean
     @Order(1)

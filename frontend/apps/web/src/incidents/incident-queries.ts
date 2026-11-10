@@ -6,6 +6,7 @@ import {
   listCategories,
   listDepartments,
   listIncidentAttachments,
+  listIncidentClassificationChanges,
   listIncidents,
   listIncidentStatusChanges,
   resolveIncident,
@@ -33,11 +34,14 @@ type Incident = components['schemas']['IncidentResponse'];
 type UpdateIncidentRequest = components['schemas']['UpdateIncidentRequest'];
 type IncidentActionRequest = components['schemas']['IncidentActionRequest'];
 type IncidentReasonRequest = components['schemas']['IncidentReasonRequest'];
+type ClassificationChange = components['schemas']['ClassificationChangeResponse'];
 
 const incidentKeys = {
   page: (page: number, filters: IncidentFilters) => ['incidents', 'page', page, filters] as const,
   detail: (incidentId: string) => ['incidents', incidentId] as const,
   history: (incidentId: string) => ['incidents', incidentId, 'status-changes'] as const,
+  classificationChanges: (incidentId: string) =>
+    ['incidents', incidentId, 'classification-changes'] as const,
   attachments: (incidentId: string) => ['incidents', incidentId, 'attachments'] as const,
   comments: (incidentId: string) => ['incidents', incidentId, 'comments'] as const,
   categories: ['categories'] as const,
@@ -73,6 +77,35 @@ export function useIncidentHistory(incidentId: string) {
   return useQuery({
     queryKey: incidentKeys.history(incidentId),
     queryFn: () => dataOf(listIncidentStatusChanges(api, incidentId)),
+  });
+}
+
+/** The most the API returns in one page (docs/api.md, "Listings"). */
+const CLASSIFICATION_PAGE_SIZE = 100;
+
+/**
+ * Every classification change of the incident, oldest first, for the timeline of staff (#169).
+ * The API pages them, so this reads page after page until the last one.
+ */
+export function useClassificationChanges(incidentId: string) {
+  const { api } = useSession();
+  return useQuery({
+    queryKey: incidentKeys.classificationChanges(incidentId),
+    queryFn: async () => {
+      const changes: ClassificationChange[] = [];
+      for (let page = 0; ; page++) {
+        const result = await dataOf(
+          listIncidentClassificationChanges(api, incidentId, {
+            page,
+            size: CLASSIFICATION_PAGE_SIZE,
+          }),
+        );
+        changes.push(...result.content);
+        if (page + 1 >= result.page.totalPages) {
+          return changes;
+        }
+      }
+    },
   });
 }
 

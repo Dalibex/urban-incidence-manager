@@ -141,6 +141,11 @@ Every user signs in with the password `urbanpulse-dev`:
 | `dev.technician2@example.com` | `TECHNICIAN` |
 | `dev.admin@example.com` | `ADMINISTRATOR` |
 | `dev.analyst@example.com` | `ANALYST` |
+| `dev.newstaff@example.com` | `MUNICIPAL_OPERATOR`, must change the password at its first sign-in (#165) |
+
+`dev.newstaff` behaves like an account an administrator has just created: the web asks for a new
+password before it signs in. Once changed, it keeps the new one until `R__dev_data.sql` changes or
+the database is reset.
 
 When `R__dev_data.sql` changes, its users and urban assets are updated in place by their fixed ids;
 incidents are deleted and inserted again (see *When the data reloads* in the
@@ -201,7 +206,8 @@ pnpm dev:web
 The web app opens at `http://localhost:5173`. It calls the API on its own origin (`/api/v1`) and
 Vite forwards `/api` to the backend at `http://localhost:8080`, so the browser needs no CORS. To
 use another backend, set `API_PROXY_TARGET` before `pnpm dev:web`. The web keeps the session in
-memory only: reloading the page asks for sign-in again.
+memory only: reloading the page asks for sign-in again. To sign in as each demo user with one
+click, see *Quick Sign-In* in the [demo script](demo.md); it is off by default.
 
 The web reads the API through React Query ([ADR-0006](adr/0006-frontend-web-technology.md)): each
 screen calls a hook such as `useIncidentPage` (`apps/web/src/incidents/incident-queries.ts`), which

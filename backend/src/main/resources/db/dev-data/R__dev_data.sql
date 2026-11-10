@@ -14,32 +14,37 @@
 -- of incident 6.
 --
 -- Every user's password is "urbanpulse-dev", hashed with the application's PasswordEncoder.
+-- dev.newstaff must change it at its first sign-in, like an account an administrator creates
+-- (#165); the others sign in directly.
 -- Coordinates are WGS 84, longitude first (ST_MakePoint(longitude, latitude)).
 
 TRUNCATE incident, location, status_change, assignment, comment, attachment, urban_context,
     external_observation, incident_asset, notification CASCADE;
 
-INSERT INTO users (id, name, email, password_hash, role, enabled) VALUES
+INSERT INTO users (id, name, email, password_hash, role, enabled, password_change_required) VALUES
     ('d0000000-0000-4000-8000-000000000001', 'Carmen Ruiz', 'dev.citizen@example.com',
-     '{bcrypt}$2a$10$wYwdfaZhrN/Wu0rQWhFwYeJpwRhrLBLykizo9mJWLx6btJqIBUxMW', 'CITIZEN', true),
+     '{bcrypt}$2a$10$wYwdfaZhrN/Wu0rQWhFwYeJpwRhrLBLykizo9mJWLx6btJqIBUxMW', 'CITIZEN', true, false),
     ('d0000000-0000-4000-8000-000000000002', 'Javier Moreno', 'dev.citizen2@example.com',
-     '{bcrypt}$2a$10$wYwdfaZhrN/Wu0rQWhFwYeJpwRhrLBLykizo9mJWLx6btJqIBUxMW', 'CITIZEN', true),
+     '{bcrypt}$2a$10$wYwdfaZhrN/Wu0rQWhFwYeJpwRhrLBLykizo9mJWLx6btJqIBUxMW', 'CITIZEN', true, false),
     ('d0000000-0000-4000-8000-000000000003', 'Lucía Torres', 'dev.operator@example.com',
-     '{bcrypt}$2a$10$wYwdfaZhrN/Wu0rQWhFwYeJpwRhrLBLykizo9mJWLx6btJqIBUxMW', 'MUNICIPAL_OPERATOR', true),
+     '{bcrypt}$2a$10$wYwdfaZhrN/Wu0rQWhFwYeJpwRhrLBLykizo9mJWLx6btJqIBUxMW', 'MUNICIPAL_OPERATOR', true, false),
     ('d0000000-0000-4000-8000-000000000004', 'Antonio Gómez', 'dev.technician@example.com',
-     '{bcrypt}$2a$10$wYwdfaZhrN/Wu0rQWhFwYeJpwRhrLBLykizo9mJWLx6btJqIBUxMW', 'TECHNICIAN', true),
+     '{bcrypt}$2a$10$wYwdfaZhrN/Wu0rQWhFwYeJpwRhrLBLykizo9mJWLx6btJqIBUxMW', 'TECHNICIAN', true, false),
     ('d0000000-0000-4000-8000-000000000005', 'Pablo Navarro', 'dev.technician2@example.com',
-     '{bcrypt}$2a$10$wYwdfaZhrN/Wu0rQWhFwYeJpwRhrLBLykizo9mJWLx6btJqIBUxMW', 'TECHNICIAN', true),
+     '{bcrypt}$2a$10$wYwdfaZhrN/Wu0rQWhFwYeJpwRhrLBLykizo9mJWLx6btJqIBUxMW', 'TECHNICIAN', true, false),
     ('d0000000-0000-4000-8000-000000000006', 'Elena Castro', 'dev.admin@example.com',
-     '{bcrypt}$2a$10$wYwdfaZhrN/Wu0rQWhFwYeJpwRhrLBLykizo9mJWLx6btJqIBUxMW', 'ADMINISTRATOR', true),
+     '{bcrypt}$2a$10$wYwdfaZhrN/Wu0rQWhFwYeJpwRhrLBLykizo9mJWLx6btJqIBUxMW', 'ADMINISTRATOR', true, false),
     ('d0000000-0000-4000-8000-000000000007', 'Marta Vidal', 'dev.analyst@example.com',
-     '{bcrypt}$2a$10$wYwdfaZhrN/Wu0rQWhFwYeJpwRhrLBLykizo9mJWLx6btJqIBUxMW', 'ANALYST', true)
+     '{bcrypt}$2a$10$wYwdfaZhrN/Wu0rQWhFwYeJpwRhrLBLykizo9mJWLx6btJqIBUxMW', 'ANALYST', true, false),
+    ('d0000000-0000-4000-8000-000000000008', 'Rosa Medina', 'dev.newstaff@example.com',
+     '{bcrypt}$2a$10$wYwdfaZhrN/Wu0rQWhFwYeJpwRhrLBLykizo9mJWLx6btJqIBUxMW', 'MUNICIPAL_OPERATOR', true, true)
 ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
     email = EXCLUDED.email,
     password_hash = EXCLUDED.password_hash,
     role = EXCLUDED.role,
-    enabled = EXCLUDED.enabled;
+    enabled = EXCLUDED.enabled,
+    password_change_required = EXCLUDED.password_change_required;
 
 INSERT INTO urban_asset (id, external_id, type, source, geometry, metadata) VALUES
     ('d9000000-0000-4000-8000-000000000001', 'MLG-FOUNTAIN-0412', 'FOUNTAIN', 'malaga-open-data',

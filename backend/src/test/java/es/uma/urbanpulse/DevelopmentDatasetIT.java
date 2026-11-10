@@ -39,7 +39,7 @@ class DevelopmentDatasetIT {
     /** Rows of the dataset per table, counted by the prefix of their fixed ids. */
     private static final Map<String, DatasetRows> ROWS =
             Map.ofEntries(
-                    Map.entry("users", new DatasetRows("d0000000-", 7)),
+                    Map.entry("users", new DatasetRows("d0000000-", 8)),
                     Map.entry("incident", new DatasetRows("d1000000-", 10)),
                     Map.entry("status_change", new DatasetRows("d2000000-", 35)),
                     Map.entry("location", new DatasetRows("d3000000-", 10)),
@@ -130,9 +130,11 @@ class DevelopmentDatasetIT {
     void everyDevelopmentUserSignsInWithTheDocumentedPassword() throws Exception {
         var emails =
                 jdbc.queryForList(
-                        "SELECT email FROM users WHERE enabled AND id::text LIKE 'd0000000-%'",
+                        "SELECT email FROM users WHERE enabled AND NOT password_change_required"
+                                + " AND id::text LIKE 'd0000000-%'",
                         String.class);
-        assertThat(emails).hasSize(ROWS.get("users").count());
+        // dev.newstaff must change the password first (#165): every other user signs in.
+        assertThat(emails).hasSize(ROWS.get("users").count() - 1);
 
         for (int i = 0; i < emails.size(); i++) {
             var clientAddress = "10.83.0." + (i + 1);
