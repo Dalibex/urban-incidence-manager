@@ -18,12 +18,14 @@ export {
 } from './account';
 export {
   acceptIncident,
+  closeIncident,
   createIncident,
   getIncident,
   listCategories,
   listDepartments,
   listIncidents,
   listIncidentStatusChanges,
+  reopenIncident,
   resolveIncident,
   updateIncident,
   type CreateIncidentResult,

@@ -85,6 +85,46 @@ export function resolveIncident(
   );
 }
 
+/**
+ * An operator or administrator closes a resolved incident: `RESOLVED` to `CLOSED`, which is final
+ * and sets `closedAt` (ADR-0020). A stale `version` answers `409` with `CONCURRENT_MODIFICATION`
+ * and a status that does not allow it `409` with `INVALID_TRANSITION`.
+ */
+export function closeIncident(
+  client: ApiClient,
+  incidentId: string,
+  body: Schemas['IncidentActionRequest'],
+): Promise<FormResult<IncidentResponse>> {
+  return callForm(
+    () =>
+      client.POST('/incidents/{incidentId}/closure', {
+        params: { path: { incidentId } },
+        body,
+      }),
+    'the incident',
+  );
+}
+
+/**
+ * An operator or administrator reopens a resolved incident: `RESOLVED` to `REOPENED`, after which
+ * it can be assigned again (ADR-0020). `reason` is required and only staff see it. It answers as
+ * {@link closeIncident} does, and `422` when the reason is missing.
+ */
+export function reopenIncident(
+  client: ApiClient,
+  incidentId: string,
+  body: Schemas['IncidentReasonRequest'],
+): Promise<FormResult<IncidentResponse>> {
+  return callForm(
+    () =>
+      client.POST('/incidents/{incidentId}/reopening', {
+        params: { path: { incidentId } },
+        body,
+      }),
+    'the incident',
+  );
+}
+
 async function callForm<T>(
   call: () => Promise<{ data?: T; error?: unknown; response: Response }>,
   what: string,
