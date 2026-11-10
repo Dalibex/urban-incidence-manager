@@ -16,10 +16,8 @@ const MALAGA_CENTER: [number, number] = [-4.42, 36.72];
 const CITY_ZOOM = 12;
 const MAP_HEIGHT = 220;
 
-export const MAP_NOT_CONFIGURED =
-  'The map is not configured. You can still report the incident with your location.';
-export const MAP_LOAD_FAILED =
-  'The map could not load. You can still report the incident with your location.';
+export const MAP_NOT_CONFIGURED = 'The map is not configured. You can still report the incident.';
+export const MAP_LOAD_FAILED = 'The map could not load. You can still report the incident.';
 
 /**
  * Self-hosted OpenStreetMap base map (ADR-0016). The style comes from `EXPO_PUBLIC_MAP_STYLE_URL`
