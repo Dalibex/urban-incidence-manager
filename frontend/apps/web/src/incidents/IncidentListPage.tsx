@@ -13,6 +13,7 @@ import {
 import { useIncidentPage } from './incident-queries';
 import styles from './Incidents.module.css';
 import { LoadFailure } from './LoadFailure';
+import { pageFrom, Pagination } from './Pagination';
 import { PRIORITY_LABELS } from './labels';
 import { StatusBadge } from './StatusBadge';
 
@@ -122,6 +123,7 @@ export function IncidentListPage({ title, lead, noIncidents, rowAction }: Incide
           />
           <Pagination
             label={`Pages of the ${title.toLowerCase()}`}
+            noun={['incident', 'incidents']}
             page={page}
             totalPages={incidents.data.page.totalPages}
             totalElements={incidents.data.page.totalElements}
@@ -186,48 +188,4 @@ function IncidentTable({ rows, loading, rowAction }: IncidentTableProps) {
       </table>
     </div>
   );
-}
-
-interface PaginationProps {
-  label: string;
-  page: number;
-  totalPages: number;
-  totalElements: number;
-  loading: boolean;
-  onGoTo: (page: number) => void;
-}
-
-function Pagination({ label, page, totalPages, totalElements, loading, onGoTo }: PaginationProps) {
-  return (
-    <nav className={styles.pagination} aria-label={label}>
-      <p className={styles.muted} aria-live="polite">
-        Page {page} of {totalPages} ({totalElements}{' '}
-        {totalElements === 1 ? 'incident' : 'incidents'})
-      </p>
-      <div className={styles.pageButtons}>
-        <button
-          type="button"
-          className={styles.button}
-          onClick={() => onGoTo(page - 1)}
-          disabled={loading || page <= 1}
-        >
-          Previous page
-        </button>
-        <button
-          type="button"
-          className={styles.button}
-          onClick={() => onGoTo(page + 1)}
-          disabled={loading || page >= totalPages}
-        >
-          Next page
-        </button>
-      </div>
-    </nav>
-  );
-}
-
-/** The page of the address, starting at 1; anything else shows the first page. */
-function pageFrom(value: string | null): number {
-  const page = Number(value);
-  return Number.isInteger(page) && page >= 1 ? page : 1;
 }

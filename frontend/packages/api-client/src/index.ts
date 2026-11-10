@@ -17,6 +17,7 @@ export {
   type ApiFailure,
   type ApiResult,
 } from './account';
+export { listAuditEntries, type AuditEntryListQuery } from './audit';
 export {
   acceptIncident,
   createIncident,
