@@ -613,9 +613,7 @@ export interface paths {
         put?: never;
         /**
          * Close a resolved incident
-         * @description Planned: #52.
-         *
-         *     `RESOLVED` to `CLOSED`, which is final, and sets `closedAt`. The citizen sees the status.
+         * @description `RESOLVED` to `CLOSED`, which is final, and sets `closedAt`. The citizen sees the status.
          *
          *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`.
          */
