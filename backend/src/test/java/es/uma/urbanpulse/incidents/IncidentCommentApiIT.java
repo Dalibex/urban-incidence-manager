@@ -303,7 +303,8 @@ class IncidentCommentApiIT {
         assertThat(new HashSet<>(read)).hasSize(25);
     }
 
-    // T9: newest first is the documented alternative; other sorts and unknown parameters are 400.
+    // T9: newest first is the documented alternative; other sorts, unknown parameters and a page or
+    // size outside the limits of the contract are 400.
     @Test
     void theListOnlyAcceptsTheDocumentedParameters() throws Exception {
         UUID incident = assignedTo(technician);
@@ -315,7 +316,14 @@ class IncidentCommentApiIT {
                                 list(operator, incident, "?sort=createdAt,desc")
                                         .andExpect(status().isOk())))
                 .containsExactly("Newer", "Older");
-        for (String query : List.of("?sort=text,asc", "?author=" + operator, "?page=")) {
+        for (String query :
+                List.of(
+                        "?sort=text,asc",
+                        "?author=" + operator,
+                        "?page=",
+                        "?page=-1",
+                        "?size=0",
+                        "?size=101")) {
             list(operator, incident, query).andExpect(status().isBadRequest());
         }
     }
