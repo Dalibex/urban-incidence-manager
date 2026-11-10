@@ -2,12 +2,14 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useQueryClient } from '@tanstack/react-query';
 import type { components } from '@urbanpulse/api-client';
 import {
+  buildTimeline,
+  CITY_COUNCIL,
   colors,
   fontSizes,
   formatInstant,
-  historyEventLabel,
   NOT_AVAILABLE,
   spacing,
+  type StatusTimelineEntry,
 } from '@urbanpulse/ui';
 import { useState, type ReactNode } from 'react';
 import {
@@ -19,6 +21,7 @@ import {
   View,
 } from 'react-native';
 
+import { Button } from '../components/Button';
 import { FormMessage } from '../components/FormMessage';
 import { LoadFailure } from '../components/LoadFailure';
 import { StatusBadge } from '../components/StatusBadge';
@@ -33,7 +36,7 @@ type Incident = components['schemas']['IncidentResponse'];
 type StatusChange = components['schemas']['StatusChangeResponse'];
 
 /** One of the citizen's reports: its data, where it is and what has happened to it (RF06). */
-export function IncidentDetailScreen({ route }: Props) {
+export function IncidentDetailScreen({ navigation, route }: Props) {
   const { incidentId } = route.params;
   const incident = useIncident(incidentId);
   const history = useIncidentHistory(incidentId);
@@ -89,6 +92,14 @@ export function IncidentDetailScreen({ route }: Props) {
         <FormMessage message="The report could not be refreshed. This is the last version loaded." />
       )}
       <IncidentData incident={incident.data} />
+      {/* The API lets the reporter add photos only while the report waits for review (#44). */}
+      {incident.data.status === 'REPORTED' && (
+        <Button
+          label="Add photos"
+          variant="secondary"
+          onPress={() => navigation.navigate('AddPhotos', { incidentId })}
+        />
+      )}
       <Section title="History">
         {history.isPending ? (
           <ActivityIndicator accessibilityLabel="Loading the history" />
@@ -100,7 +111,7 @@ export function IncidentDetailScreen({ route }: Props) {
             onRetry={() => void history.refetch()}
           />
         ) : (
-          <Timeline entries={history.data} />
+          <Timeline changes={history.data} />
         )}
       </Section>
     </ScrollView>
@@ -145,22 +156,30 @@ function IncidentData({ incident }: { incident: Incident }) {
   );
 }
 
-/** The visible history, oldest first, as the API returns it. */
-function Timeline({ entries }: { entries: StatusChange[] }) {
+/**
+ * The visible history, oldest first (#169). The API never tells a citizen who made a change, so
+ * the city council stands for staff; the report is the citizen's own. Classification changes are
+ * staff-only and never requested here.
+ */
+function Timeline({ changes }: { changes: StatusChange[] }) {
   return (
-    <View style={styles.timeline} testID="history-timeline">
-      {entries.map((entry) => (
-        <View key={entry.id} style={styles.entry}>
-          <View style={styles.entryMark} />
-          <View style={styles.entryBody}>
-            <Text style={styles.entryTitle}>
-              {historyEventLabel(entry.previousStatus, entry.newStatus)}
-            </Text>
-            <Text style={screenStyles.note}>{formatInstant(entry.instant)}</Text>
-            {entry.reason !== null && <EntryReason entry={entry} reason={entry.reason} />}
-          </View>
-        </View>
-      ))}
+    <View style={styles.timeline} testID="history-timeline" accessibilityRole="list">
+      {buildTimeline(changes).map(
+        (entry) =>
+          entry.kind === 'status' && (
+            <View key={entry.key} style={styles.entry}>
+              <View style={styles.entryMark} />
+              <View style={styles.entryBody}>
+                <Text style={styles.entryTitle}>{entry.title}</Text>
+                <Text style={screenStyles.note}>
+                  {formatInstant(entry.instant)} ·{' '}
+                  {entry.previousStatus === null ? 'You' : CITY_COUNCIL}
+                </Text>
+                {entry.reason !== null && <EntryReason entry={entry} reason={entry.reason} />}
+              </View>
+            </View>
+          ),
+      )}
     </View>
   );
 }
@@ -169,8 +188,8 @@ function Timeline({ entries }: { entries: StatusChange[] }) {
  * An information request (ADR-0020: `REPORTED` to `REPORTED`) is a question from the city council
  * to the citizen; any other reason the citizen receives explains the change, such as a rejection.
  */
-function EntryReason({ entry, reason }: { entry: StatusChange; reason: string }) {
-  const informationRequest = entry.previousStatus === 'REPORTED' && entry.newStatus === 'REPORTED';
+function EntryReason({ entry, reason }: { entry: StatusTimelineEntry; reason: string }) {
+  const informationRequest = entry.previousStatus === 'REPORTED' && entry.status === 'REPORTED';
   return (
     <View style={informationRequest ? styles.message : undefined}>
       <Text style={styles.reasonLabel}>

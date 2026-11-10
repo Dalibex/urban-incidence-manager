@@ -12,7 +12,6 @@ import java.time.ZoneOffset;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,55 +27,40 @@ public class SessionService {
     private final UserRepository users;
     private final RefreshTokenRepository refreshTokens;
     private final AccessTokenService accessTokens;
-    private final PasswordEncoder passwordEncoder;
+    private final CredentialCheck credentials;
     private final AccountSecurityProperties properties;
     private final Clock clock;
-    private final AttemptLimiter signInLimiter;
-
-    // Compared against when the email has no account, so a wrong email takes as long as a wrong
-    // password and the response time does not reveal which emails exist.
-    private final String timingHash;
 
     public SessionService(
             UserRepository users,
             RefreshTokenRepository refreshTokens,
             AccessTokenService accessTokens,
-            PasswordEncoder passwordEncoder,
+            CredentialCheck credentials,
             AccountSecurityProperties properties,
             Clock clock) {
         this.users = users;
         this.refreshTokens = refreshTokens;
         this.accessTokens = accessTokens;
-        this.passwordEncoder = passwordEncoder;
+        this.credentials = credentials;
         this.properties = properties;
         this.clock = clock;
-        this.signInLimiter = new AttemptLimiter(properties.signInAttempts(), clock);
-        this.timingHash = passwordEncoder.encode(RefreshTokens.generate());
     }
 
     /**
-     * Checks the credentials and opens a session. Attempts count per email and client address and a
-     * right password gives them back, so only failures add up; once the limit is reached even the
-     * right password waits for the window to end.
+     * Checks the credentials ({@link CredentialCheck}) and opens a session. An account that must
+     * change its password gets no session; that is only said when the password is right, so a wrong
+     * one does not reveal it.
      *
-     * <p>Not transactional on purpose: bcrypt takes about 100 ms and would hold a database
-     * connection all that time. The read and the insert of the new session have their own.
+     * <p>Not transactional on purpose: bcrypt would hold a database connection. The read and the
+     * insert of the new session have their own.
      */
     public SessionResponse signIn(CreateSessionRequest request, String clientAddress) {
         var email = EmailAddresses.normalize(request.email());
-        var limiterKey = email + "|" + clientAddress;
-        signInLimiter.acquire(limiterKey);
-
-        var user = users.findByEmail(email);
-        var hash = user.map(User::getPasswordHash).orElse(timingHash);
-        if (!passwordEncoder.matches(request.password(), hash) || user.isEmpty()) {
-            throw new InvalidCredentialsException();
+        var user = credentials.verify(email, request.password(), clientAddress);
+        if (Boolean.TRUE.equals(user.getPasswordChangeRequired())) {
+            throw new PasswordChangeRequiredException();
         }
-        signInLimiter.reset(limiterKey);
-        if (!Boolean.TRUE.equals(user.get().getEnabled())) {
-            throw new AccountDisabledException();
-        }
-        return openSession(user.get());
+        return openSession(user);
     }
 
     /**

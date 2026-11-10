@@ -94,6 +94,16 @@ class PerformanceDatasetIT {
         new DatasetHistories(jdbc).assertEveryHistoryFollowsTheTransitionTable();
     }
 
+    /** Only comments the API could create (#50): internal, and written by staff. */
+    @Test
+    void seedsOnlyInternalCommentsWrittenByStaff() {
+        assertThat(
+                        count(
+                                "SELECT count(*) FROM comment c JOIN users u ON u.id = c.author_id"
+                                        + " WHERE c.visible_to_citizen OR u.role = 'CITIZEN'"))
+                .isZero();
+    }
+
     @Test
     void spreadsTheReportsOverMonths() {
         var months =

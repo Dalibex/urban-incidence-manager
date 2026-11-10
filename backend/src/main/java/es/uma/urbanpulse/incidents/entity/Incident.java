@@ -54,6 +54,9 @@ public class Incident {
     // maxLength of the reason in the contract (IncidentActionRequest, IncidentReasonRequest).
     static final int MAX_REASON_LENGTH = 2000;
 
+    /** maxLength of {@code priorityReason} in the contract ({@code UpdateIncidentRequest}). */
+    public static final int MAX_PRIORITY_REASON_LENGTH = 2000;
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
@@ -237,6 +240,18 @@ public class Incident {
         }
     }
 
+    /**
+     * Whether the category and the priority may still change: not on a {@code REJECTED} or {@code
+     * CLOSED} incident (ADR-0020, "Classification is not a transition").
+     *
+     * @throws ClassificationNotAllowedException if they may not
+     */
+    public void checkClassifiable() {
+        if (status == IncidentStatus.REJECTED || status == IncidentStatus.CLOSED) {
+            throw new ClassificationNotAllowedException(status);
+        }
+    }
+
     /** Sets or changes the category. Validation needs it (ADR-0020). */
     public void classify(Category category, Instant now) {
         this.category = Objects.requireNonNull(category, "category");
@@ -247,18 +262,16 @@ public class Incident {
      * Sets the priority with its justification and the origin of the decision, which are always
      * kept together (AGENTS.md, section 3). Validation needs it (ADR-0020).
      *
-     * @throws InvalidIncidentDataException if the justification is blank
+     * @throws InvalidIncidentDataException if the justification is blank or too long
      */
     public void prioritize(
             Priority priority, String reason, PrioritySource source, User setter, Instant now) {
         Objects.requireNonNull(priority, "priority");
         Objects.requireNonNull(source, "source");
         Objects.requireNonNull(setter, "setter");
-        if (isBlank(reason)) {
-            throw new InvalidIncidentDataException(
-                    List.of(
-                            new FieldError(
-                                    "priorityReason", "A priority needs its justification.")));
+        var invalid = priorityErrors(priority, reason);
+        if (!invalid.isEmpty()) {
+            throw new InvalidIncidentDataException(invalid);
         }
         this.priority = priority;
         this.priorityReason = reason;
@@ -368,6 +381,40 @@ public class Incident {
                                     + " characters."));
         }
         return invalid;
+    }
+
+    /**
+     * What is wrong with a priority and its justification, as {@code UpdateIncidentRequest} sends
+     * them; empty when they are valid. The justification travels only with a priority, and a
+     * priority needs one with a visible character ({@code pattern: "\\S"}, with the white space of
+     * the contract) and at most {@link #MAX_PRIORITY_REASON_LENGTH} characters. A service that
+     * checks the rest of the request uses it to report every invalid field at once.
+     *
+     * @param priority {@code null} when the request keeps the current one
+     * @param reason {@code null} when the request does not send it
+     */
+    public static List<FieldError> priorityErrors(Priority priority, String reason) {
+        if (priority == null) {
+            return reason == null
+                    ? List.of()
+                    : List.of(
+                            new FieldError(
+                                    "priorityReason",
+                                    "Send the justification together with a priority."));
+        }
+        if (reason == null || onlyWhiteSpace(reason)) {
+            return List.of(new FieldError("priorityReason", "A priority needs its justification."));
+        }
+        // Code points, as JSON Schema counts maxLength: an emoji is one character.
+        if (reason.codePointCount(0, reason.length()) > MAX_PRIORITY_REASON_LENGTH) {
+            return List.of(
+                    new FieldError(
+                            "priorityReason",
+                            "The justification can have up to "
+                                    + MAX_PRIORITY_REASON_LENGTH
+                                    + " characters."));
+        }
+        return List.of();
     }
 
     /**

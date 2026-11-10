@@ -1,11 +1,18 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  acceptIncident,
   createApiClient,
   createIncident,
+  createIncidentComment,
   getIncident,
   listCategories,
   listDepartments,
+  listIncidentClassificationChanges,
+  listIncidentComments,
   listIncidents,
+  resolveIncident,
+  updateIncident,
+  type ApiClient,
   type SessionTokens,
   type TokenStore,
 } from './index';
@@ -192,6 +199,35 @@ describe('incident calls', () => {
     expect(url.searchParams.getAll('status')).toEqual(['REPORTED', 'VALIDATED']);
   });
 
+  it('asks for one page of the classification changes of an incident', async () => {
+    const page = { content: [], page: { number: 1, size: 100, totalElements: 100, totalPages: 1 } };
+    const { fetch, client } = clientAnswering(200, page);
+
+    const result = await listIncidentClassificationChanges(client, INCIDENT_ID, {
+      page: 1,
+      size: 100,
+    });
+
+    const url = new URL(fetch.mock.calls[0]![0].url);
+    expect(url.pathname).toBe(`/api/v1/incidents/${INCIDENT_ID}/classification-changes`);
+    expect(url.searchParams.get('page')).toBe('1');
+    expect(url.searchParams.get('size')).toBe('100');
+    expect(result).toEqual({ ok: true, data: page });
+  });
+
+  it('asks for one page of the comments of an incident', async () => {
+    const page = { content: [], page: { number: 0, size: 100, totalElements: 0, totalPages: 0 } };
+    const { fetch, client } = clientAnswering(200, page);
+
+    const result = await listIncidentComments(client, INCIDENT_ID, { page: 0, size: 100 });
+
+    const url = new URL(fetch.mock.calls[0]![0].url);
+    expect(url.pathname).toBe(`/api/v1/incidents/${INCIDENT_ID}/comments`);
+    expect(url.searchParams.get('page')).toBe('0');
+    expect(url.searchParams.get('size')).toBe('100');
+    expect(result).toEqual({ ok: true, data: page });
+  });
+
   it('reports a missing incident as a 404 problem', async () => {
     const { fetch, client } = clientAnswering(404, { status: 404 });
 
@@ -201,6 +237,132 @@ describe('incident calls', () => {
     expect(result).toEqual({
       ok: false,
       failure: { kind: 'problem', status: 404, code: undefined },
+    });
+  });
+});
+
+describe('updateIncident', () => {
+  const UPDATE: components['schemas']['UpdateIncidentRequest'] = {
+    version: 3,
+    priority: 'HIGH',
+    priorityReason: 'The street is dark near a school.',
+  };
+
+  it('sends a PATCH with the body and returns the incident with its new version', async () => {
+    let sent: unknown = undefined;
+    const fetch = vi.fn(async (request: Request) => {
+      expect(request.method).toBe('PATCH');
+      expect(new URL(request.url).pathname).toBe(`/api/v1/incidents/${INCIDENT_ID}`);
+      sent = await request.json();
+      return json(200, CREATED);
+    });
+    const client = createApiClient(BASE_URL, { tokenStore: memoryStore(TOKENS), fetch });
+
+    expect(await updateIncident(client, INCIDENT_ID, UPDATE)).toEqual({ ok: true, data: CREATED });
+    expect(sent).toEqual(UPDATE);
+  });
+
+  it('carries the code of a 409, so the screen can ask to reload', async () => {
+    const { client } = clientAnswering(409, { status: 409, code: 'CONCURRENT_MODIFICATION' });
+
+    expect(await updateIncident(client, INCIDENT_ID, UPDATE)).toEqual({
+      ok: false,
+      failure: { kind: 'problem', status: 409, code: 'CONCURRENT_MODIFICATION' },
+      fieldErrors: [],
+    });
+  });
+
+  it('carries the per-field errors of a 422 problem', async () => {
+    const errors = [{ field: 'priorityReason', message: 'A priority needs its justification.' }];
+    const { client } = clientAnswering(422, { status: 422, code: 'VALIDATION_FAILED', errors });
+
+    expect(await updateIncident(client, INCIDENT_ID, UPDATE)).toEqual({
+      ok: false,
+      failure: { kind: 'problem', status: 422, code: 'VALIDATION_FAILED' },
+      fieldErrors: errors,
+    });
+  });
+});
+
+const ACCEPTANCE = { version: 3 };
+const RESOLUTION = { version: 3, reason: 'Replaced the lamp and checked it at night.' };
+
+describe.each([
+  [
+    'acceptIncident',
+    'acceptance',
+    ACCEPTANCE,
+    (client: ApiClient) => acceptIncident(client, INCIDENT_ID, ACCEPTANCE),
+  ],
+  [
+    'resolveIncident',
+    'resolution',
+    RESOLUTION,
+    (client: ApiClient) => resolveIncident(client, INCIDENT_ID, RESOLUTION),
+  ],
+] as const)('%s', (_name, resource, body, send) => {
+  it(`sends a POST to /${resource} and returns the incident with its new version`, async () => {
+    let sent: unknown = undefined;
+    const fetch = vi.fn(async (request: Request) => {
+      expect(request.method).toBe('POST');
+      expect(new URL(request.url).pathname).toBe(`/api/v1/incidents/${INCIDENT_ID}/${resource}`);
+      sent = await request.json();
+      return json(200, CREATED);
+    });
+    const client = createApiClient(BASE_URL, { tokenStore: memoryStore(TOKENS), fetch });
+
+    expect(await send(client)).toEqual({ ok: true, data: CREATED });
+    expect(sent).toEqual(body);
+  });
+
+  it('carries the code of a 409, so the screen can say why', async () => {
+    const { client } = clientAnswering(409, { status: 409, code: 'INVALID_TRANSITION' });
+
+    expect(await send(client)).toEqual({
+      ok: false,
+      failure: { kind: 'problem', status: 409, code: 'INVALID_TRANSITION' },
+      fieldErrors: [],
+    });
+  });
+});
+
+describe('createIncidentComment', () => {
+  const COMMENT: components['schemas']['CommentResponse'] = {
+    id: 'f6a7b8c9-d0e1-4f2a-b3c4-d5e6f7a8b9c0',
+    author: {
+      id: '7c2e4b1a-9d3f-4e8a-b6c5-1f0a2d3e4b5c',
+      name: 'Lucía Martín',
+      role: 'MUNICIPAL_OPERATOR',
+    },
+    text: 'The access is through the back street.',
+    createdAt: '2026-11-02T12:05:00Z',
+  };
+
+  it('sends the text to /comments and returns the created comment', async () => {
+    let sent: unknown = undefined;
+    const fetch = vi.fn(async (request: Request) => {
+      expect(request.method).toBe('POST');
+      expect(new URL(request.url).pathname).toBe(`/api/v1/incidents/${INCIDENT_ID}/comments`);
+      sent = await request.json();
+      return json(201, COMMENT);
+    });
+    const client = createApiClient(BASE_URL, { tokenStore: memoryStore(TOKENS), fetch });
+
+    expect(await createIncidentComment(client, INCIDENT_ID, { text: COMMENT.text })).toEqual({
+      ok: true,
+      data: COMMENT,
+    });
+    expect(sent).toEqual({ text: COMMENT.text });
+  });
+
+  it('carries the per-field errors of a 422 problem', async () => {
+    const errors = [{ field: 'text', message: 'Write the comment.' }];
+    const { client } = clientAnswering(422, { status: 422, code: 'VALIDATION_FAILED', errors });
+
+    expect(await createIncidentComment(client, INCIDENT_ID, { text: ' ' })).toEqual({
+      ok: false,
+      failure: { kind: 'problem', status: 422, code: 'VALIDATION_FAILED' },
+      fieldErrors: errors,
     });
   });
 });

@@ -4,9 +4,13 @@ import {
   signIn as signInOnApi,
   signOut as signOutOnApi,
   signUp as signUpOnApi,
+  uploadIncidentAttachment,
   type ApiClient,
   type ApiFailure,
   type ApiResult,
+  type components,
+  type LocalFile,
+  type SessionTokens,
 } from '@urbanpulse/api-client';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Role } from '@urbanpulse/domain';
@@ -42,8 +46,8 @@ export interface Registration extends Credentials {
 
 /**
  * The check of the session saved on the device at start-up. `failed` means it could not be checked
- * (no network, a server error, no answer in time): the tokens stay, because only a rejected refresh
- * token ends the session.
+ * (no network, a server error, no answer in time): the tokens stay. Only an ended session (the API
+ * rejected the refresh token, or the new tokens could not be saved) or an unreadable one is gone.
  */
 export type RestoreState =
   | { status: 'checking' }
@@ -59,6 +63,12 @@ interface SessionValue {
   expired: boolean;
   /** Typed client of the current session; it sends the access token and refreshes on its own. */
   api: ApiClient;
+  /** Uploads a photo to an incident with the session's token, reporting the fraction sent. */
+  uploadAttachment: (
+    incidentId: string,
+    photo: LocalFile,
+    onProgress: (fraction: number) => void,
+  ) => Promise<ApiResult<components['schemas']['AttachmentResponse']>>;
   signIn: (credentials: Credentials) => Promise<ApiResult<void>>;
   signUp: (registration: Registration) => Promise<ApiResult<void>>;
   signOut: () => Promise<void>;
@@ -85,28 +95,41 @@ type CheckOutcome =
   | { kind: 'signedOut' }
   | { kind: 'unverified'; failure: ApiFailure };
 
-async function checkSavedSession(api: ApiClient): Promise<CheckOutcome> {
+/** The saved tokens, or `null` if there are none or they cannot be read. */
+async function readSavedTokens(): Promise<SessionTokens | null> {
   try {
-    if (!(await secureTokenStore.load())) {
-      return { kind: 'signedOut' };
-    }
-    // Refreshes on its own if the access token expired while the app was closed.
-    const me = await getCurrentUser(api);
-    if (me.ok) {
-      return { kind: 'signedIn', user: me.data };
-    }
-    // A 401 does not say the session ended: the refresh may have failed for lack of network. The
-    // client clears the tokens exactly when the API rejects the refresh token, so the store says it.
-    return (await secureTokenStore.load())
-      ? { kind: 'unverified', failure: me.failure }
-      : { kind: 'signedOut' };
+    return await secureTokenStore.load();
   } catch (error) {
     // A session that cannot be read (for example, the Keystore cannot decrypt it after a backup
     // restore) must not block the app: discard it and ask for sign-in.
     console.warn('Discarding the saved session', error);
     await secureTokenStore.clear().catch(() => undefined);
+    return null;
+  }
+}
+
+async function checkSavedSession(api: ApiClient): Promise<CheckOutcome> {
+  if (!(await readSavedTokens())) {
     return { kind: 'signedOut' };
   }
+  let me: Awaited<ReturnType<typeof getCurrentUser>>;
+  try {
+    // Refreshes on its own if the access token expired while the app was closed.
+    me = await getCurrentUser(api);
+  } catch (error) {
+    // Only an unreadable store discards a session. `callApi` rethrows the network errors of Expo's
+    // `fetch` as unknown ones (#244), and the session may still be valid: keep it.
+    console.warn('The saved session could not be checked', error);
+    return { kind: 'unverified', failure: { kind: 'network' } };
+  }
+  if (me.ok) {
+    return { kind: 'signedIn', user: me.data };
+  }
+  // A 401 does not say the session ended: the refresh may have failed for lack of network. The
+  // client clears the tokens exactly when the session ends, so the store says it.
+  return (await readSavedTokens())
+    ? { kind: 'unverified', failure: me.failure }
+    : { kind: 'signedOut' };
 }
 
 /** The outcome of `work`, or `late` if it takes longer than `ms`; a late outcome is dropped. */
@@ -187,6 +210,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       user,
       expired,
       api,
+      uploadAttachment: (incidentId, photo, onProgress) =>
+        uploadIncidentAttachment(api, incidentId, photo, {
+          baseUrl: API_BASE_URL,
+          tokenStore: secureTokenStore,
+          onProgress,
+        }),
       signIn: async (credentials) => {
         const session = await signInOnApi(api, secureTokenStore, credentials);
         if (!session.ok) {

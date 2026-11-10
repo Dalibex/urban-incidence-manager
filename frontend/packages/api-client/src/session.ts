@@ -38,7 +38,9 @@ export function createSessionFetch(baseUrl: string, options: SessionOptions) {
   // The placeholder origin only lets a relative base URL ("/api/v1") be parsed.
   const basePath = withoutTrailingSlashes(new URL(baseUrl, 'http://placeholder').pathname);
   // The last refresh and the access token it replaced. Requests rejected with that token wait for
-  // it instead of starting another one, even if the store has not saved the new tokens yet.
+  // it instead of starting another one, even if the store has not saved the new tokens yet. A
+  // refresh that ended the session stays here too: the store may still answer with the old tokens,
+  // and sending them again would look like a stolen token to the server.
   let lastRefresh: { replaces: string; tokens: Promise<SessionTokens | null> } | null = null;
 
   function operationPath(request: Request): string {
@@ -52,7 +54,22 @@ export function createSessionFetch(baseUrl: string, options: SessionOptions) {
     return null;
   }
 
-  async function refresh(refreshToken: string, rejectedUrl: string): Promise<SessionTokens | null> {
+  /**
+   * The refresh said nothing about the token, so the session may still be valid: keep the tokens,
+   * let the caller see the original 401, and let the next 401 try again. Requests already waiting
+   * for this refresh still share its result.
+   */
+  function retryAtNextRejection(accessToken: string): null {
+    if (lastRefresh?.replaces === accessToken) {
+      lastRefresh = null;
+    }
+    return null;
+  }
+
+  async function refresh(
+    current: SessionTokens,
+    rejectedUrl: string,
+  ): Promise<SessionTokens | null> {
     let response: Response;
     try {
       response = await send(
@@ -60,19 +77,17 @@ export function createSessionFetch(baseUrl: string, options: SessionOptions) {
         new Request(new URL(`${basePath}${REFRESH_PATH}`, rejectedUrl), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refreshToken }),
+          body: JSON.stringify({ refreshToken: current.refreshToken }),
         }),
       );
     } catch {
-      // Without network the session may still be valid: keep the tokens and let the caller see
-      // the original 401.
-      return null;
+      return retryAtNextRejection(current.accessToken);
     }
     if (response.status === 401) {
       return endSession();
     }
     if (!response.ok) {
-      return null;
+      return retryAtNextRejection(current.accessToken);
     }
     try {
       const tokens = (await response.json()) as SessionTokens;
@@ -99,9 +114,7 @@ export function createSessionFetch(baseUrl: string, options: SessionOptions) {
       if (!current) {
         return null;
       }
-      return current.accessToken === used.accessToken
-        ? refresh(current.refreshToken, rejectedUrl)
-        : current;
+      return current.accessToken === used.accessToken ? refresh(current, rejectedUrl) : current;
     })();
     lastRefresh = { replaces: used.accessToken, tokens };
     return tokens;
@@ -124,7 +137,7 @@ export function createSessionFetch(baseUrl: string, options: SessionOptions) {
  * openapi-fetch drops a trailing slash too, so "/api/v1/" and "/api/v1" call the same paths. A loop
  * instead of `/\/+$/`, whose backtracking is quadratic on long runs of slashes (CodeQL ReDoS).
  */
-function withoutTrailingSlashes(path: string): string {
+export function withoutTrailingSlashes(path: string): string {
   let end = path.length;
   while (end > 0 && path[end - 1] === '/') {
     end -= 1;

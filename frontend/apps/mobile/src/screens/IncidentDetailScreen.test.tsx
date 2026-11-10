@@ -1,5 +1,10 @@
-import { getIncident, listIncidentStatusChanges, type components } from '@urbanpulse/api-client';
-import { screen, within } from '@testing-library/react-native';
+import {
+  getIncident,
+  listIncidentClassificationChanges,
+  listIncidentStatusChanges,
+  type components,
+} from '@urbanpulse/api-client';
+import { fireEvent, screen, within } from '@testing-library/react-native';
 import type { ComponentProps } from 'react';
 
 import { failed, ok, renderWithQueries } from '../test-utils';
@@ -7,6 +12,7 @@ import { IncidentDetailScreen } from './IncidentDetailScreen';
 
 jest.mock('@urbanpulse/api-client', () => ({
   getIncident: jest.fn(),
+  listIncidentClassificationChanges: jest.fn(),
   listIncidentStatusChanges: jest.fn(),
 }));
 jest.mock('../session/SessionContext', () => ({ useSession: () => ({ api: {} }) }));
@@ -47,10 +53,10 @@ function change(
   return { id, instant: '2026-11-02T10:00:00Z', previousStatus, newStatus, reason };
 }
 
-async function renderScreen() {
+async function renderScreen(navigation = { navigate: jest.fn() }) {
   return renderWithQueries(
     <IncidentDetailScreen
-      navigation={{} as Props['navigation']}
+      navigation={navigation as unknown as Props['navigation']}
       route={{ key: 'ReportDetail', name: 'ReportDetail', params: { incidentId: 'a' } }}
     />,
   );
@@ -96,6 +102,48 @@ describe('IncidentDetailScreen', () => {
     expect(within(timeline).getByText('It is the same as another report.')).toBeOnTheScreen();
   });
 
+  it("shows the city council instead of a person, and the report as the citizen's (#170 T2)", async () => {
+    mockedListStatusChanges.mockResolvedValue(
+      ok([
+        change('1', null, 'REPORTED'),
+        // The API sends a citizen no actor; even if one came, no staff name is shown.
+        {
+          ...change('2', 'REPORTED', 'VALIDATED'),
+          actor: { id: 'o', name: 'Lucía Martín', role: 'MUNICIPAL_OPERATOR' },
+        },
+      ]),
+    );
+    await renderScreen();
+
+    const timeline = await screen.findByTestId('history-timeline');
+    expect(within(timeline).getByText(/· You$/)).toBeOnTheScreen();
+    expect(within(timeline).getByText(/· City council$/)).toBeOnTheScreen();
+    expect(within(timeline).queryByText(/Lucía Martín/)).toBeNull();
+  });
+
+  it('keeps one order for entries of the same instant (#170 T11)', async () => {
+    mockedListStatusChanges.mockResolvedValue(
+      ok([change('9', 'REPORTED', 'VALIDATED'), change('1', 'REPORTED', 'REPORTED', 'Which?')]),
+    );
+    await renderScreen();
+
+    const timeline = await screen.findByTestId('history-timeline');
+    expect(
+      within(timeline)
+        .getAllByText(/^(Validated|Information requested)$/)
+        .map((entry) => entry.props.children),
+    ).toEqual(['Information requested', 'Validated']);
+  });
+
+  it('never asks for the classification changes, which are for staff (#170 T14)', async () => {
+    mockedListStatusChanges.mockResolvedValue(ok([change('1', null, 'REPORTED')]));
+    await renderScreen();
+
+    await screen.findByTestId('history-timeline');
+    expect(jest.mocked(listIncidentClassificationChanges)).not.toHaveBeenCalled();
+    expect(screen.queryByText('Classification changed')).toBeNull();
+  });
+
   it('shows "Not available" for the place data that is not known (#68 T5)', async () => {
     mockedGetIncident.mockResolvedValue(
       ok({
@@ -136,5 +184,22 @@ describe('IncidentDetailScreen', () => {
 
     expect(await screen.findByText(/could not be refreshed/)).toBeOnTheScreen();
     expect(screen.getByText('Street light off')).toBeOnTheScreen();
+  });
+
+  it('offers to add photos while the report waits for review (#193)', async () => {
+    mockedGetIncident.mockResolvedValue(ok({ ...INCIDENT, status: 'REPORTED' }));
+    const navigation = { navigate: jest.fn() };
+    await renderScreen(navigation);
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Add photos' }));
+
+    expect(navigation.navigate).toHaveBeenCalledWith('AddPhotos', { incidentId: 'a' });
+  });
+
+  it('does not offer photos once the report left REPORTED, as the API refuses them', async () => {
+    await renderScreen();
+
+    expect(await screen.findByText('Street light off')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Add photos' })).not.toBeOnTheScreen();
   });
 });
