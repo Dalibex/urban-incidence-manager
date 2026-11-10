@@ -42,7 +42,7 @@ The API checks every permission again, so this is a convenience, not the protect
 | Citizen | *Create an account* on the sign-in screen of the mobile app (see [Sign up](#sign-up)) |
 | Staff | An administrator creates the account with its role (Planned: #40) |
 | First administrator of a new deployment | Created once by the people who run the server ([deployment guide](deployment.md#-create-the-first-administrator)) |
-| Trying the apps | The sample accounts of the [demo script](demo.md#the-story) (one per role) or of *Development Dataset* in the [development guide](development.md) |
+| Trying the apps | The sample accounts of the [demo script](demo.md#the-story) (one per role) or of *Development Dataset* in the [development guide](development.md). A local build can show one button per demo account on the sign-in screen ([Quick Sign-In](demo.md#quick-sign-in)) |
 
 ## 🔑 Signing In and Out
 
@@ -65,6 +65,13 @@ What the sign-in messages mean:
 | *This account is disabled.* | Ask an administrator (staff) or the city council (citizens) to enable it |
 | *UrbanPulse cannot be reached. Check your connection and try again.* | The device has no connection, or the server is down |
 | *Your session has expired. Sign in again.* | The session ended; sign in again, nothing you saved is lost |
+
+**First sign-in of a staff account:** an account an administrator creates must choose its own
+password before it can sign in, so the one the administrator typed stops working. After the email
+and that password, the website shows *Choose your password*: type the new password twice (at least
+8 characters, different from the one you were given) and select *Change the password*. You go back
+to the sign-in form; sign in with the new password. *Back to sign in* leaves the password as it was,
+and the next sign-in asks again. Changing the password also ends your sessions on other devices, within about 15 minutes.
 
 **How long you stay signed in:**
 
@@ -144,8 +151,10 @@ Scroll down to load more. Tap a report to see:
   when it was last updated and, once closed, when it was closed.
 - **Location:** address, neighbourhood, district, coordinates and accuracy; *Not available* when
   a value is not known.
-- **History:** each change of status with its date. A rejection shows its **reason**. When the
-  city needs more details, the entry shows a *Message from the city council*.
+- **History:** a timeline of each change of status, oldest first, with its date and time. Your
+  report shows as yours (*You*) and every other change as the *City council*'s. A rejection shows
+  its **reason**. When the city needs more details, the entry shows a *Message from the city
+  council*.
 
 You only see what the city shares with you: internal notes of the staff, priorities and who made
 each change are not shown to citizens.
@@ -191,8 +200,11 @@ ticked. *Clear filters* lists every incident.
 - **Location:** address, neighbourhood, district, coordinates and the accuracy the phone reported
   (for example *within 12.5 m*). A value that is not known says *Not available*: it is never left
   empty or guessed.
-- **History:** every change of status, oldest first, with who made it and the reason. Entries the
-  citizen does not see are marked *Internal*.
+- **History:** a timeline of every change of status, oldest first, with its date and time, who made
+  it, their role and the reason. Entries the citizen does not see are marked *Internal*. The changes
+  of category and priority appear among them as *Classification changed*, with who made them and
+  each new value next to the one it replaced; they are always internal. If they cannot be loaded,
+  the status changes stay on screen with *Try again* for the rest.
 - **Actions:** the actions allowed for the status of the incident. When there are none, as on a
   rejected or closed incident, it says *No actions are available for this incident.* Planned: #48,
   #49, #50, #52.

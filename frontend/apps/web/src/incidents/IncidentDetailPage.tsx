@@ -1,14 +1,14 @@
 import type { components } from '@urbanpulse/api-client';
-import { formatInstant, historyEventLabel, NOT_AVAILABLE, statusColor } from '@urbanpulse/ui';
-import type { CSSProperties, ReactNode } from 'react';
+import { formatInstant, NOT_AVAILABLE } from '@urbanpulse/ui';
+import type { ReactNode } from 'react';
 import { Link, useLocation, useParams } from 'react-router';
 
-import { ROLE_LABELS } from '../layout/role-labels';
 import { ApiCallError } from '../query-client';
 import { incidentListOf, listReturnPath, type IncidentList } from '../routing/access';
 import { useSession } from '../session/SessionContext';
-import { useIncident, useIncidentHistory } from './incident-queries';
+import { useIncident } from './incident-queries';
 import { IncidentActions } from './IncidentActions';
+import { IncidentTimeline } from './IncidentTimeline';
 import styles from './Incidents.module.css';
 import { LoadFailure } from './LoadFailure';
 import { PRIORITY_LABELS } from './labels';
@@ -17,7 +17,6 @@ import { StatusBadge } from './StatusBadge';
 
 type Incident = components['schemas']['IncidentResponse'];
 type IncidentLocation = components['schemas']['IncidentLocation'];
-type StatusChange = components['schemas']['StatusChangeResponse'];
 
 const BACK_LABELS: Record<IncidentList, string> = {
   inbox: 'Back to the inbox',
@@ -82,7 +81,7 @@ function IncidentDetail({ incident }: { incident: Incident }) {
           <ReportPanel incident={incident} />
           <PhotoGallery incidentId={incident.id} />
           <LocationPanel location={incident.location} />
-          <HistoryPanel incidentId={incident.id} />
+          <IncidentTimeline incidentId={incident.id} />
         </div>
       </div>
     </>
@@ -161,60 +160,6 @@ function LocationPanel({ location }: { location: IncidentLocation }) {
         </Fact>
       </dl>
     </section>
-  );
-}
-
-function HistoryPanel({ incidentId }: { incidentId: string }) {
-  const history = useIncidentHistory(incidentId);
-  return (
-    <section className={styles.panel} aria-labelledby="history-title">
-      <h2 id="history-title" className={styles.panelTitle}>
-        History
-      </h2>
-      {history.isPending ? (
-        <p className={styles.muted} role="status">
-          Loading the history…
-        </p>
-      ) : history.isError ? (
-        <LoadFailure
-          what="The history"
-          error={history.error}
-          retrying={history.isFetching}
-          onRetry={() => void history.refetch()}
-        />
-      ) : (
-        <ol className={styles.history}>
-          {history.data.map((change) => (
-            <HistoryEntry key={change.id} change={change} />
-          ))}
-        </ol>
-      )}
-    </section>
-  );
-}
-
-function HistoryEntry({ change }: { change: StatusChange }) {
-  return (
-    <li
-      className={styles.entry}
-      style={{ '--status-color': statusColor(change.newStatus) } as CSSProperties}
-    >
-      <p className={styles.entryHeading}>
-        <span className={styles.event}>
-          {historyEventLabel(change.previousStatus, change.newStatus)}
-        </span>
-        <span className={styles.muted}>
-          <Instant value={change.instant} />
-        </span>
-        {change.visibleToCitizen === false && <span className={styles.internal}>Internal</span>}
-      </p>
-      {change.actor && (
-        <p className={`${styles.reason} ${styles.muted}`}>
-          By <span>{change.actor.name}</span>, {ROLE_LABELS[change.actor.role].toLowerCase()}
-        </p>
-      )}
-      {change.reason && <p className={styles.reason}>{change.reason}</p>}
-    </li>
   );
 }
 

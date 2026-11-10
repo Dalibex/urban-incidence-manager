@@ -59,6 +59,8 @@ function incidentsApi() {
       }),
     [`GET /incidents/${INCIDENT.id}`]: () => json(200, INCIDENT),
     [`GET /incidents/${INCIDENT.id}/status-changes`]: () => json(200, []),
+    [`GET /incidents/${INCIDENT.id}/classification-changes`]: () =>
+      json(200, { content: [], page: { number: 0, size: 100, totalElements: 0, totalPages: 0 } }),
     // The landing of the analyst asks for its report.
     'GET /incident-reports': () => json(200, { rows: [] }),
     // The filters of the technician's work queue.
