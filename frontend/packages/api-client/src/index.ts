@@ -9,6 +9,7 @@ export type { components, paths } from './schema';
 export type { SessionOptions, SessionTokens, TokenStore } from './session';
 export {
   callApi,
+  changePassword,
   getCurrentUser,
   signIn,
   signOut,

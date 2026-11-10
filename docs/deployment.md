@@ -235,8 +235,7 @@ How it behaves:
   promoted.
 - Run it once at a time: two runs at the same moment with different emails could create two
   administrators.
-- If the administrator cannot sign in (a wrong password, and there is no password change yet),
-  disable the account in the database (`UPDATE users SET enabled = false WHERE email = '...'`) and
+- If the administrator forgot the password (there is no recovery by email), disable the account in the database (`UPDATE users SET enabled = false WHERE email = '...'`) and
   run the process again with another email: the old email now belongs to another account.
 - The password never appears in the output or in the logs.
 - `--spring.profiles.include` adds `bootstrap-admin` to `SPRING_PROFILES_ACTIVE`, so a database that

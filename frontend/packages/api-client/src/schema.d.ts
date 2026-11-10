@@ -51,7 +51,7 @@ export interface paths {
          *
          *     `PASSWORD_CHANGE_REQUIRED` is also only returned when the password is right, so a wrong
          *     password does not reveal that an account has to change it. The client then calls
-         *     `createPasswordChange` and signs in again. Planned: #165.
+         *     `createPasswordChange` and signs in again.
          *
          *     Roles: public.
          */
@@ -130,9 +130,7 @@ export interface paths {
         put?: never;
         /**
          * Change the password with the current one
-         * @description Planned: #165.
-         *
-         *     Replaces the password, clears the obligation to change it, revokes every refresh token of
+         * @description Replaces the password, clears the obligation to change it, revokes every refresh token of
          *     the user and records a `CHANGE_PASSWORD` audit entry without any password, in one
          *     transaction. It is public because an account that must change its password has no tokens
          *     yet, so the current password is the credential. It works for every account, whether it is
@@ -2037,7 +2035,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description The credentials are right but no session can start: the account is disabled, code `ACCOUNT_DISABLED`, or its password must change first, code `PASSWORD_CHANGE_REQUIRED` (planned: #165). */
+            /** @description The credentials are right but no session can start: the account is disabled, code `ACCOUNT_DISABLED`, or its password must change first, code `PASSWORD_CHANGE_REQUIRED`. */
             403: {
                 headers: {
                     [name: string]: unknown;
