@@ -1,28 +1,37 @@
 import type { components } from '@urbanpulse/api-client';
-import { formatInstant, historyEventLabel, NOT_AVAILABLE, statusColor } from '@urbanpulse/ui';
-import type { CSSProperties, ReactNode } from 'react';
+import { formatInstant, NOT_AVAILABLE } from '@urbanpulse/ui';
+import { Fragment, type ReactNode } from 'react';
 import { Link, useLocation, useParams } from 'react-router';
 
-import { ROLE_LABELS } from '../layout/role-labels';
 import { ApiCallError } from '../query-client';
 import { incidentListOf, listReturnPath, type IncidentList } from '../routing/access';
 import { useSession } from '../session/SessionContext';
-import { useIncident, useIncidentHistory } from './incident-queries';
-import { IncidentActions } from './IncidentActions';
+import { useIncident } from './incident-queries';
+import { ACTIONS_TITLE, IncidentActions } from './IncidentActions';
+import { IncidentTimeline } from './IncidentTimeline';
 import styles from './Incidents.module.css';
 import { LoadFailure } from './LoadFailure';
 import { PRIORITY_LABELS } from './labels';
 import { PhotoGallery } from './PhotoGallery';
+import { LoadingSkeleton, SkeletonLine, SkeletonText } from './Skeleton';
 import { StatusBadge } from './StatusBadge';
 
 type Incident = components['schemas']['IncidentResponse'];
 type IncidentLocation = components['schemas']['IncidentLocation'];
-type StatusChange = components['schemas']['StatusChangeResponse'];
 
 const BACK_LABELS: Record<IncidentList, string> = {
   inbox: 'Back to the inbox',
   workQueue: 'Back to the work queue',
 };
+
+/** The titles of the panels that come with the incident, shared by the skeleton. */
+const PANEL_TITLES = { report: 'Report', location: 'Location' } as const;
+
+/**
+ * The facts every incident has in each panel, drawn while it loads: never a count the user reads.
+ * Report: category, priority, reported and last change. Location: the five of {@link LocationPanel}.
+ */
+const SKELETON_FACTS = { report: 4, location: 5 } as const;
 
 /**
  * Everything about one incident, and the place where the lifecycle actions are added (#46). An
@@ -41,9 +50,9 @@ export function IncidentDetailPage() {
         {BACK_LABELS[list]}
       </Link>
       {incident.isPending ? (
-        <p className={styles.state} role="status">
-          Loading the incident…
-        </p>
+        <LoadingSkeleton what="the incident">
+          <IncidentDetailSkeleton />
+        </LoadingSkeleton>
       ) : incident.isError ? (
         isNotFound(incident.error) ? (
           <div className={styles.state}>
@@ -82,10 +91,62 @@ function IncidentDetail({ incident }: { incident: Incident }) {
           <ReportPanel incident={incident} />
           <PhotoGallery incidentId={incident.id} />
           <LocationPanel location={incident.location} />
-          <HistoryPanel incidentId={incident.id} />
+          <IncidentTimeline incidentId={incident.id} />
         </div>
       </div>
     </>
+  );
+}
+
+/**
+ * The parts of {@link IncidentDetail} that come with the incident, in the same places: the title
+ * and status, the actions, the report and the location. The photos and the history load on their
+ * own once the incident is there, each with its own loading state.
+ */
+function IncidentDetailSkeleton() {
+  return (
+    <>
+      <div className={styles.detailHeader}>
+        <SkeletonLine width="60%" height="var(--font-size-title)" />
+        <SkeletonLine width="6em" />
+      </div>
+      <div className={styles.detail}>
+        <div className={`${styles.panel} ${styles.actions}`}>
+          <h2 className={styles.panelTitle}>{ACTIONS_TITLE}</h2>
+          <SkeletonText widths={['80%', '60%']} />
+        </div>
+        <div>
+          <div className={styles.panel}>
+            <h2 className={styles.panelTitle}>{PANEL_TITLES.report}</h2>
+            <div className={styles.description}>
+              <SkeletonText widths={['100%', '95%', '70%']} />
+            </div>
+            <FactsSkeleton rows={SKELETON_FACTS.report} />
+          </div>
+          <div className={styles.panel}>
+            <h2 className={styles.panelTitle}>{PANEL_TITLES.location}</h2>
+            <FactsSkeleton rows={SKELETON_FACTS.location} />
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function FactsSkeleton({ rows }: { rows: number }) {
+  return (
+    <dl className={styles.facts}>
+      {Array.from({ length: rows }, (_, row) => (
+        <Fragment key={row}>
+          <dt>
+            <SkeletonLine width="7em" />
+          </dt>
+          <dd>
+            <SkeletonLine width="60%" />
+          </dd>
+        </Fragment>
+      ))}
+    </dl>
   );
 }
 
@@ -93,7 +154,7 @@ function ReportPanel({ incident }: { incident: Incident }) {
   return (
     <section className={styles.panel} aria-labelledby="report-title">
       <h2 id="report-title" className={styles.panelTitle}>
-        Report
+        {PANEL_TITLES.report}
       </h2>
       <p className={styles.description}>{incident.description}</p>
       <dl className={styles.facts}>
@@ -137,7 +198,7 @@ function LocationPanel({ location }: { location: IncidentLocation }) {
   return (
     <section className={styles.panel} aria-labelledby="location-title">
       <h2 id="location-title" className={styles.panelTitle}>
-        Location
+        {PANEL_TITLES.location}
       </h2>
       <dl className={styles.facts}>
         <Fact label="Address">
@@ -161,60 +222,6 @@ function LocationPanel({ location }: { location: IncidentLocation }) {
         </Fact>
       </dl>
     </section>
-  );
-}
-
-function HistoryPanel({ incidentId }: { incidentId: string }) {
-  const history = useIncidentHistory(incidentId);
-  return (
-    <section className={styles.panel} aria-labelledby="history-title">
-      <h2 id="history-title" className={styles.panelTitle}>
-        History
-      </h2>
-      {history.isPending ? (
-        <p className={styles.muted} role="status">
-          Loading the history…
-        </p>
-      ) : history.isError ? (
-        <LoadFailure
-          what="The history"
-          error={history.error}
-          retrying={history.isFetching}
-          onRetry={() => void history.refetch()}
-        />
-      ) : (
-        <ol className={styles.history}>
-          {history.data.map((change) => (
-            <HistoryEntry key={change.id} change={change} />
-          ))}
-        </ol>
-      )}
-    </section>
-  );
-}
-
-function HistoryEntry({ change }: { change: StatusChange }) {
-  return (
-    <li
-      className={styles.entry}
-      style={{ '--status-color': statusColor(change.newStatus) } as CSSProperties}
-    >
-      <p className={styles.entryHeading}>
-        <span className={styles.event}>
-          {historyEventLabel(change.previousStatus, change.newStatus)}
-        </span>
-        <span className={styles.muted}>
-          <Instant value={change.instant} />
-        </span>
-        {change.visibleToCitizen === false && <span className={styles.internal}>Internal</span>}
-      </p>
-      {change.actor && (
-        <p className={`${styles.reason} ${styles.muted}`}>
-          By <span>{change.actor.name}</span>, {ROLE_LABELS[change.actor.role].toLowerCase()}
-        </p>
-      )}
-      {change.reason && <p className={styles.reason}>{change.reason}</p>}
-    </li>
   );
 }
 

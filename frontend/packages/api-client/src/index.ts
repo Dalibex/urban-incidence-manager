@@ -17,17 +17,23 @@ export {
   type ApiFailure,
   type ApiResult,
 } from './account';
+export { listAuditEntries, type AuditEntryListQuery } from './audit';
 export {
   acceptIncident,
   createIncident,
+  createIncidentComment,
   getIncident,
   listCategories,
   listDepartments,
+  listIncidentClassificationChanges,
+  listIncidentComments,
   listIncidentLocations,
   listIncidents,
   listIncidentStatusChanges,
   resolveIncident,
   updateIncident,
+  type ClassificationChangeQuery,
+  type CommentQuery,
   type CreateIncidentResult,
   type FieldError,
   type FormResult,

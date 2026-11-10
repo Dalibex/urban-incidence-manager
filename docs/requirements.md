@@ -43,7 +43,7 @@ or *No* (after the MVP). Whether an issue is finished is in GitHub, not here.
 | RF02 | **Roles and permissions.** Different permissions for citizens, operators, technicians, administrators and analysts. | Yes | #35, #39, #100, #40; [permission matrix](security.md#permission-matrix) |
 | RF03 | **Report an incident** with a title, description, position and optional category. | Yes | #43 |
 | RF04 | **Location.** The incident keeps coordinates, normalized address and accuracy. | Partly. Coordinates and accuracy; correcting the position on a map is a stretch goal. The normalized address has no issue. | #43; #60 (stretch) |
-| RF06 | **Consultation and tracking.** A user sees the detail, status, dates and visible history of their incidents. | Yes | #45 (citizen), #46 (staff), #100 |
+| RF06 | **Consultation and tracking.** A user sees the detail, status, dates and visible history of their incidents. | Yes | #45 (citizen), #46 (staff), #100, #169 (timeline) |
 | RF09 | **Validation.** An operator validates, requests more information or rejects a report with a reason. | Yes | #48 |
 | RF11 | **Assignment** of a validated incident to a department, team or technician. | Yes | #49 (#184, #185) |
 | RF12 | **Lifecycle.** Status changes follow the allowed transitions and are audited. | Yes | ADR-0020; #37, #99, #101, #102, #49, #51, #52 |
@@ -114,6 +114,7 @@ for its code (#57).
   | `ASSIGNED` | *Reassign* | #49 |
   | `RESOLVED` | *Verify and close*, *Reopen* (reason required) | #52 |
   | Any but `REJECTED` and `CLOSED` | *Classify* (category and priority with a justification) | #47 |
+  | Any | *Comment* (internal, for the staff of the incident) | #50 |
 
 - **Not in the MVP:** urban context, nearby urban assets and duplicate warnings in the detail
   (RF16, RF22–RF24).

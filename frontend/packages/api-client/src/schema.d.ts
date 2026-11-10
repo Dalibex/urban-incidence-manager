@@ -283,9 +283,7 @@ export interface paths {
         };
         /**
          * List the audit trail
-         * @description Planned: #41.
-         *
-         *     Paginated entries of the audit trail (RF18): who did what, when and on which record. The
+         * @description Paginated entries of the audit trail (RF18): who did what, when and on which record. The
          *     trail is append-only, so this collection has no operation to create, change or delete an
          *     entry; entries are written by the operations they record (docs/security.md).
          *
@@ -293,7 +291,9 @@ export interface paths {
          *     was written: a user renamed later shows their current name.
          *
          *     Sortable property: `instant`. Default `instant,desc` (newest first); `id` is always added as
-         *     the last criterion so the order is stable between pages.
+         *     the last criterion so the order is stable between pages. Filters that match nothing,
+         *     including an `actorId` of a user who never acted, return `200` with an empty page. An
+         *     unknown parameter, or one without a value, returns `400`.
          *
          *     Roles: `ADMINISTRATOR`.
          */
@@ -658,13 +658,12 @@ export interface paths {
         };
         /**
          * List the internal comments of an incident
-         * @description Planned: #50.
-         *
-         *     Paginated comments. In the MVP every comment is internal, so citizens never get one, in this
+         * @description Paginated comments. In the MVP every comment is internal, so citizens never get one, in this
          *     or any other response.
          *
          *     Sortable property: `createdAt`. Default `createdAt,asc` (oldest first, as the history); `id`
-         *     is always added as the last criterion so the order is stable between pages.
+         *     is always added as the last criterion so the order is stable between pages. An unknown
+         *     parameter, or one without a value, returns `400`.
          *
          *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`, `TECHNICIAN` (actively assigned; any other
          *     technician gets `404`). `CITIZEN` and `ANALYST` get `403`.
@@ -673,9 +672,7 @@ export interface paths {
         put?: never;
         /**
          * Add an internal comment to an incident
-         * @description Planned: #50.
-         *
-         *     The author is the user of the access token. There is no `Location` header because a comment
+         * @description The author is the user of the access token. There is no `Location` header because a comment
          *     has no read operation of its own: it appears in `listIncidentComments`.
          *
          *     Roles: the same as `listIncidentComments`, with the same `404` rule.

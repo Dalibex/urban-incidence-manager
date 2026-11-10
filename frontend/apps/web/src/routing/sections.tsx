@@ -1,6 +1,7 @@
 import type { Role } from '@urbanpulse/domain';
 import type { ReactNode } from 'react';
 
+import { AuditLogPage } from '../audit/AuditLogPage';
 import { InboxPage } from '../incidents/InboxPage';
 import { WorkQueuePage } from '../incidents/WorkQueuePage';
 import { MapPage } from '../map/MapPage';
@@ -57,6 +58,12 @@ export const SECTIONS: readonly Section[] = [
     label: 'Users',
     roles: ['ADMINISTRATOR'],
     element: <PlaceholderPage title="Users" summary="Accounts, roles and access." />,
+  },
+  {
+    path: PATHS.auditLog,
+    label: 'Audit log',
+    roles: ['ADMINISTRATOR'],
+    element: <AuditLogPage />,
   },
   {
     path: PATHS.reports,

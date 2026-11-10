@@ -174,7 +174,8 @@ export function isDay(value: string): value is string {
   return date.getUTCMonth() === month! - 1 && date.getUTCDate() === day;
 }
 
-function nextDay(day: string): string {
+/** The day after `day`, both `YYYY-MM-DD`. */
+export function nextDay(day: string): string {
   const [year, month, date] = day.split('-').map(Number);
   return new Date(Date.UTC(year!, month! - 1, date! + 1)).toISOString().slice(0, 10);
 }

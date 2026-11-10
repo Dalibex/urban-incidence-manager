@@ -48,6 +48,7 @@ const SECTION_ROLES: Record<string, readonly Role[]> = {
   [PATHS.workQueue]: ['TECHNICIAN'],
   [PATHS.map]: ['MUNICIPAL_OPERATOR', 'ADMINISTRATOR', 'TECHNICIAN'],
   [PATHS.users]: ['ADMINISTRATOR'],
+  [PATHS.auditLog]: ['ADMINISTRATOR'],
   [PATHS.reports]: ['ANALYST', 'ADMINISTRATOR'],
 };
 
@@ -60,6 +61,10 @@ function incidentsApi() {
       }),
     [`GET /incidents/${INCIDENT.id}`]: () => json(200, INCIDENT),
     [`GET /incidents/${INCIDENT.id}/status-changes`]: () => json(200, []),
+    [`GET /incidents/${INCIDENT.id}/classification-changes`]: () =>
+      json(200, { content: [], page: { number: 0, size: 100, totalElements: 0, totalPages: 0 } }),
+    [`GET /incidents/${INCIDENT.id}/comments`]: () =>
+      json(200, { content: [], page: { number: 0, size: 100, totalElements: 0, totalPages: 0 } }),
     // The landing of the analyst asks for its report.
     'GET /incident-reports': () => json(200, { rows: [] }),
     // The filters of the technician's work queue.
@@ -127,7 +132,7 @@ describe('incident inbox access (#127)', () => {
 
   it.each([
     ['MUNICIPAL_OPERATOR', ['Inbox', 'Map']],
-    ['ADMINISTRATOR', ['Inbox', 'Map', 'Users', 'Reports']],
+    ['ADMINISTRATOR', ['Inbox', 'Map', 'Users', 'Audit log', 'Reports']],
     ['TECHNICIAN', ['Work queue', 'Map']],
     ['ANALYST', ['Reports']],
   ] as const)('links the navbar of a %s to %j', async (role, links) => {

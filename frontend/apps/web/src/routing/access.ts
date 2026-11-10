@@ -15,6 +15,7 @@ export const PATHS = {
   workQueue: '/work-queue',
   map: '/map',
   users: '/users',
+  auditLog: '/audit-log',
   reports: '/reports',
   useMobile: '/use-mobile',
 } as const;
