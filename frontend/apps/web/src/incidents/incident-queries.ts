@@ -14,6 +14,7 @@ import {
   reopenIncident,
   resolveIncident,
   updateIncident,
+  validateIncident,
   type ApiClient,
   type ApiResult,
   type components,
@@ -219,6 +220,13 @@ export function useAcceptIncident(incidentId: string) {
 export function useResolveIncident(incidentId: string) {
   return useIncidentChange((api, body: IncidentReasonRequest) =>
     resolveIncident(api, incidentId, body),
+  );
+}
+
+/** The operator validates the reported incident once it is classified (#189). */
+export function useValidateIncident(incidentId: string) {
+  return useIncidentChange((api, body: IncidentActionRequest) =>
+    validateIncident(api, incidentId, body),
   );
 }
 

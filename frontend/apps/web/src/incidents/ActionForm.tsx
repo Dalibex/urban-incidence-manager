@@ -46,13 +46,15 @@ interface ActionFormProps extends ActionCallbacks {
   notFound: string;
   /** Required notes, sent as `reason`; without it the action sends only the `version`. */
   notes?: { label: string; missing: string };
+  /** Why the action cannot be sent yet; while set, it is shown and the button is disabled. */
+  blocked?: string;
   sending: boolean;
   send: (version: number, notes: string) => Promise<FormResult<Incident>>;
 }
 
 /**
- * One lifecycle action, of the technician or of the operator. It sends the `version` of the incident it shows, keeps
- * the notes whatever the answer, and ignores a second click while sending. On success the incident
+ * One lifecycle action, of the technician or of the operator. It sends the `version` of the
+ * incident it shows, keeps the notes whatever the answer, and ignores a second click while sending. On success the incident
  * changes status, so this form gives way to the next one and the parent announces `done` and moves
  * the focus.
  */
@@ -64,6 +66,7 @@ export function ActionForm({
   done,
   notFound,
   notes,
+  blocked,
   sending,
   send,
   onSending,
@@ -116,6 +119,7 @@ export function ActionForm({
         {title}
       </h3>
       <p className={styles.fieldNote}>{lead}</p>
+      {blocked && <p className={styles.fieldNote}>{blocked}</p>}
       {notes && (
         <div className={styles.field}>
           <label htmlFor={`${titleId}-notes-field`}>{notes.label}</label>
@@ -138,7 +142,11 @@ export function ActionForm({
       )}
       <OutcomeMessage outcome={outcome} notFound={notFound} onReload={() => void reload()} />
       <p>
-        <button type="submit" className={styles.primaryButton} disabled={sending}>
+        <button
+          type="submit"
+          className={styles.primaryButton}
+          disabled={sending || blocked !== undefined}
+        >
           {sending ? 'Saving…' : submitLabel}
         </button>
       </p>
