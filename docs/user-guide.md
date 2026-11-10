@@ -242,7 +242,9 @@ every status that can still change: everything except *Rejected* and *Closed*.
   a priority). Click it to zoom in until it splits.
 - **Summary:** click a marker to open its summary at the side: title, status, priority, category,
   when it was reported and the description. *Manage* opens its detail, and *Close* or *Escape*
-  closes the summary.
+  closes the summary. If the incident left your view since the last refresh (it was closed, or is
+  no longer assigned to you), the summary says *Incident not found*, and the next refresh removes
+  its marker.
 - **Live:** the map reads the incidents again every 15 seconds, so a new report appears without
   reloading the page.
 - **List:** *List of the incidents on the map*, under the legend, has every incident on the map,

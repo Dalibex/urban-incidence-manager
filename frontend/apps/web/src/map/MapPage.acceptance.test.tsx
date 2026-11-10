@@ -196,6 +196,29 @@ describe('incident map on the web (#196, test #76)', () => {
     expect(router.state.location.pathname).toBe(incidentPath(POTHOLE.id));
   });
 
+  // Failure case 404: the incident left the user's scope (closed, or no longer assigned to a
+  // technician) between a refresh of the map and the click on its marker.
+  it('says the incident is no longer visible, and keeps the map, when its summary answers 404', async () => {
+    renderApp(PATHS.map, {
+      role: 'TECHNICIAN',
+      fetch: fakeApi({
+        'GET /incident-locations': positions([POTHOLE, LAMP]),
+        [`GET /incidents/${POTHOLE.id}`]: () =>
+          json(404, { status: 404, code: 'NOT_FOUND', title: 'Not Found' }),
+        'GET /categories': () => json(200, []),
+        'GET /departments': () => json(200, []),
+      }),
+    });
+
+    await userEvent.click(await screen.findByRole('button', { name: `Marker ${POTHOLE.id}` }));
+
+    const panel = await screen.findByRole('complementary', { name: 'Incident not found' });
+    expect(within(panel).getByText('It does not exist, or you cannot see it.')).toBeDefined();
+    expect(within(panel).queryByRole('button', { name: 'Try again' })).toBeNull();
+    expect(within(panel).queryByRole('link')).toBeNull();
+    expect(markers()).toEqual([`Marker ${POTHOLE.id}`, `Marker ${LAMP.id}`]);
+  });
+
   // T17
   it('reaches the summary and Manage with the keyboard alone, through the list', async () => {
     renderApp(PATHS.map, {

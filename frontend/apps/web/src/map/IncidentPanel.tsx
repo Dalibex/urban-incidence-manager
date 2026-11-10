@@ -6,6 +6,7 @@ import { useIncident } from '../incidents/incident-queries';
 import incidentStyles from '../incidents/Incidents.module.css';
 import { PRIORITY_LABELS } from '../incidents/labels';
 import { LoadFailure } from '../incidents/LoadFailure';
+import { isNotFound } from '../incidents/not-found';
 import { StatusBadge } from '../incidents/StatusBadge';
 import { incidentPath } from '../routing/access';
 import styles from './Map.module.css';
@@ -21,6 +22,9 @@ interface IncidentPanelProps {
  */
 export function IncidentPanel({ incidentId, onClose }: IncidentPanelProps) {
   const incident = useIncident(incidentId);
+  // The marker may be older than the incident: it can leave the user's scope (closed, or no longer
+  // assigned to a technician) before the next refresh of the map removes it.
+  const notFound = incident.isError && isNotFound(incident.error);
   const heading = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
@@ -39,7 +43,7 @@ export function IncidentPanel({ incidentId, onClose }: IncidentPanelProps) {
     >
       <header className={styles.panelHeader}>
         <h2 id="incident-panel-title" ref={heading} tabIndex={-1} className={styles.panelTitle}>
-          {incident.data?.title ?? 'Selected incident'}
+          {notFound ? 'Incident not found' : (incident.data?.title ?? 'Selected incident')}
         </h2>
         <button type="button" className={incidentStyles.button} onClick={onClose}>
           Close
@@ -48,6 +52,8 @@ export function IncidentPanel({ incidentId, onClose }: IncidentPanelProps) {
 
       {incident.isPending ? (
         <p role="status">Loading the incident…</p>
+      ) : notFound ? (
+        <p>It does not exist, or you cannot see it.</p>
       ) : incident.isError ? (
         <LoadFailure
           what="The incident"
