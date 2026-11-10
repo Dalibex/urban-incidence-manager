@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildTimeline,
   type TimelineClassificationChange,
+  type TimelineComment,
   type TimelineStatusChange,
 } from './timeline';
 
@@ -32,6 +33,13 @@ const CLASSIFIED: TimelineClassificationChange = {
   actor: { name: 'Lucía Martín' },
   before: { category: null, priority: null, priorityReason: null },
   after: { category: { name: 'Street lighting' }, priority: 'HIGH', priorityReason: 'School.' },
+};
+
+const COMMENTED: TimelineComment = {
+  id: 'd4',
+  createdAt: '2026-11-02T10:30:00Z',
+  author: { name: 'Pablo Ruiz', role: 'TECHNICIAN' },
+  text: 'The access is through the back street.',
 };
 
 describe('buildTimeline', () => {
@@ -83,6 +91,25 @@ describe('buildTimeline', () => {
     });
   });
 
+  it('places the comments among the changes by instant, with their author and text (#50 T1)', () => {
+    const entries = buildTimeline([REPORTED, VALIDATED], [CLASSIFIED], [COMMENTED]);
+
+    expect(entries.map((entry) => entry.key)).toEqual([
+      'status-a1',
+      'classification-c3',
+      'comment-d4',
+      'status-b2',
+    ]);
+    expect(entries[2]).toEqual({
+      kind: 'comment',
+      key: 'comment-d4',
+      instant: '2026-11-02T10:30:00Z',
+      title: 'Comment',
+      actor: { name: 'Pablo Ruiz', role: 'TECHNICIAN' },
+      text: 'The access is through the back street.',
+    });
+  });
+
   it('lists only the values a classification change replaced', () => {
     const [entry] = buildTimeline(
       [],
@@ -105,11 +132,16 @@ describe('buildTimeline', () => {
     const first = { ...VALIDATED, id: 'p', instant };
     const second = { ...VALIDATED, id: 'q', instant };
     const classified = { ...CLASSIFIED, id: 'r', instant };
+    const commented = { ...COMMENTED, id: 's', createdAt: instant };
 
-    const once = buildTimeline([second, first], [classified]).map((entry) => entry.key);
-    const again = buildTimeline([first, second], [classified]).map((entry) => entry.key);
+    const once = buildTimeline([second, first], [classified], [commented]).map(
+      (entry) => entry.key,
+    );
+    const again = buildTimeline([first, second], [classified], [commented]).map(
+      (entry) => entry.key,
+    );
 
-    expect(once).toEqual(['status-p', 'status-q', 'classification-r']);
+    expect(once).toEqual(['status-p', 'status-q', 'classification-r', 'comment-s']);
     expect(again).toEqual(once);
   });
 

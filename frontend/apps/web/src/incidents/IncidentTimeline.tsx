@@ -5,12 +5,19 @@ import {
   statusColor,
   type ClassificationTimelineEntry,
   type ClassificationValueChange,
+  type CommentTimelineEntry,
   type StatusTimelineEntry,
+  type TimelineEntry,
 } from '@urbanpulse/ui';
+import type { UseQueryResult } from '@tanstack/react-query';
 import type { CSSProperties } from 'react';
 
 import { ROLE_LABELS } from '../layout/role-labels';
-import { useClassificationChanges, useIncidentHistory } from './incident-queries';
+import {
+  useClassificationChanges,
+  useIncidentComments,
+  useIncidentHistory,
+} from './incident-queries';
 import styles from './Incidents.module.css';
 import { LoadFailure } from './LoadFailure';
 import { PRIORITY_LABELS } from './labels';
@@ -19,12 +26,14 @@ type Priority = components['schemas']['Priority'];
 
 /**
  * The timeline of an incident for staff (#169): every status change with its actor, internal ones
- * marked, and the classification changes among them. The status changes show as soon as they
- * load; if the classification changes fail, they stay on screen with a way to try again.
+ * marked, and the classification changes and internal comments (#50) among them. The status
+ * changes show as soon as they load; if the classification changes or the comments fail, the
+ * status changes stay on screen with a way to try again.
  */
 export function IncidentTimeline({ incidentId }: { incidentId: string }) {
   const history = useIncidentHistory(incidentId);
   const classification = useClassificationChanges(incidentId);
+  const comments = useIncidentComments(incidentId);
   return (
     <section className={styles.panel} aria-labelledby="history-title">
       <h2 id="history-title" className={styles.panelTitle}>
@@ -44,32 +53,51 @@ export function IncidentTimeline({ incidentId }: { incidentId: string }) {
       ) : (
         <>
           <ol className={styles.history}>
-            {buildTimeline(history.data, classification.data ?? []).map((entry) =>
-              entry.kind === 'status' ? (
-                <StatusEntry key={entry.key} entry={entry} />
-              ) : (
-                <ClassificationEntry key={entry.key} entry={entry} />
+            {buildTimeline(history.data, classification.data ?? [], comments.data ?? []).map(
+              (entry) => (
+                <Entry key={entry.key} entry={entry} />
               ),
             )}
           </ol>
-          {classification.isPending ? (
-            <p className={styles.muted} role="status">
-              Loading the classification changes…
-            </p>
-          ) : (
-            classification.isError && (
-              <LoadFailure
-                what="The classification changes"
-                error={classification.error}
-                retrying={classification.isFetching}
-                onRetry={() => void classification.refetch()}
-              />
-            )
-          )}
+          <PartState query={classification} what="classification changes" />
+          <PartState query={comments} what="comments" />
         </>
       )}
     </section>
   );
+}
+
+/** A part of the timeline read on its own: while it loads or after it fails, the rest stays. */
+function PartState({ query, what }: { query: UseQueryResult<unknown>; what: string }) {
+  if (query.isPending) {
+    return (
+      <p className={styles.muted} role="status">
+        Loading the {what}…
+      </p>
+    );
+  }
+  if (query.isError) {
+    return (
+      <LoadFailure
+        what={`The ${what}`}
+        error={query.error}
+        retrying={query.isFetching}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  }
+  return null;
+}
+
+function Entry({ entry }: { entry: TimelineEntry }) {
+  switch (entry.kind) {
+    case 'status':
+      return <StatusEntry entry={entry} />;
+    case 'classification':
+      return <ClassificationEntry entry={entry} />;
+    case 'comment':
+      return <CommentEntry entry={entry} />;
+  }
 }
 
 function StatusEntry({ entry }: { entry: StatusTimelineEntry }) {
@@ -85,11 +113,7 @@ function StatusEntry({ entry }: { entry: StatusTimelineEntry }) {
         </span>
         {entry.internal && <span className={styles.internal}>Internal</span>}
       </p>
-      {entry.actor && (
-        <p className={`${styles.reason} ${styles.muted}`}>
-          By <span>{entry.actor.name}</span>, {ROLE_LABELS[entry.actor.role].toLowerCase()}
-        </p>
-      )}
+      {entry.actor && <ByActor actor={entry.actor} />}
       {entry.reason && <p className={styles.reason}>{entry.reason}</p>}
     </li>
   );
@@ -114,6 +138,32 @@ function ClassificationEntry({ entry }: { entry: ClassificationTimelineEntry }) 
         </p>
       ))}
     </li>
+  );
+}
+
+/** An internal comment (#50): it changes nothing, so it has the comment mark, not a status. */
+function CommentEntry({ entry }: { entry: CommentTimelineEntry }) {
+  return (
+    <li className={`${styles.entry} ${styles.commentEntry}`}>
+      <p className={styles.entryHeading}>
+        <span className={styles.event}>{entry.title}</span>
+        <span className={styles.muted}>
+          <Instant value={entry.instant} />
+        </span>
+        <span className={styles.internal}>Internal</span>
+      </p>
+      <ByActor actor={entry.actor} />
+      <p className={styles.reason}>{entry.text}</p>
+    </li>
+  );
+}
+
+/** "By Lucía Martín, municipal operator". */
+function ByActor({ actor }: { actor: CommentTimelineEntry['actor'] }) {
+  return (
+    <p className={`${styles.reason} ${styles.muted}`}>
+      By <span>{actor.name}</span>, {ROLE_LABELS[actor.role].toLowerCase()}
+    </p>
   );
 }
 

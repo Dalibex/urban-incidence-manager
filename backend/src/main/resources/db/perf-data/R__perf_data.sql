@@ -60,6 +60,8 @@ ON CONFLICT (id) DO UPDATE SET
     enabled = EXCLUDED.enabled;
 
 -- Every random value of an incident, drawn once and in order. The steps below only read them.
+-- r_unused is read by nothing since every comment is internal (#50); it is still drawn so the
+-- values after it, and the checksums of docs/datasets.md, stay the same.
 DROP TABLE IF EXISTS perf_draw;
 CREATE TEMPORARY TABLE perf_draw AS
 SELECT n,
@@ -69,7 +71,7 @@ SELECT n,
        random() AS r_cluster, random() AS r_dx1, random() AS r_dx2, random() AS r_dx3,
        random() AS r_dy1, random() AS r_dy2, random() AS r_dy3, random() AS r_accuracy,
        random() AS r_place, random() AS r_number, random() AS r_comment,
-       random() AS r_comment_visible, random() AS r_attachment, random() AS r_file_size,
+       random() AS r_unused, random() AS r_attachment, random() AS r_file_size,
        random() AS r_channel, random() AS r_delivery
 FROM generate_series(1, ${perf_incidents}) AS n;
 
@@ -282,12 +284,12 @@ WHERE s.assigned;
 INSERT INTO comment (id, incident_id, author_id, text, created_at, visible_to_citizen)
 SELECT format('f5000000-0000-4000-8000-%s', lpad(to_hex(i.n), 12, '0'))::uuid,
        i.id,
-       CASE WHEN s.assigned THEN i.technician_id WHEN s.validated THEN i.operator_id ELSE i.reporter_id END,
+       CASE WHEN s.assigned THEN i.technician_id ELSE i.operator_id END,
        CASE WHEN s.assigned THEN 'Checked on site; the crew will come back with the right tools.'
             WHEN s.validated THEN 'Waiting for a department to take it.'
-            ELSE 'It is still there this morning.' END,
+            ELSE 'Asked the district office whether this spot was already reported.' END,
        i.reported_at + i.gap / 2,
-       i.r_comment_visible < 0.5
+       false
 FROM perf_incident i
 JOIN perf_shape s ON s.id = i.id
 WHERE i.r_comment < 0.3;

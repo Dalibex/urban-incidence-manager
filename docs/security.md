@@ -257,6 +257,8 @@ operation; the note says when the answer also depends on the resource. A role no
 | `GET /incidents/{id}/attachments` | | own | ✓ | assigned | ✓ | |
 | `POST /incidents/{id}/attachments` | | own, only while `REPORTED` | ✓ | assigned | ✓ | |
 | `GET /attachments/{id}/content` | | own | ✓ | assigned | ✓ | |
+| `GET /incidents/{id}/comments` | | | ✓ | assigned | ✓ | |
+| `POST /incidents/{id}/comments` | | | ✓ | assigned | ✓ | |
 | `GET /incident-locations` | | | ✓ | assigned | ✓ | |
 | `GET /audit-entries` | | | | | ✓ | |
 | `GET /incident-reports` | | | | | ✓ | ✓ |
