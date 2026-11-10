@@ -208,7 +208,7 @@ ticked. *Clear filters* lists every incident.
   stay on screen with *Try again* for the rest.
 - **Actions:** the actions allowed for the status of the incident. When there are none, as on a
   rejected or closed incident, it says *Only comments are available for this incident.* Planned:
-  #48, #49.
+  #49.
 - **Classification:** choose the category and the priority, write why the incident has that
   priority and press *Save classification*. A priority always needs its reason; you can change
   only the category, only the priority or both. The button stays disabled until you change
@@ -218,6 +218,20 @@ ticked. *Clear filters* lists every incident.
     incident*, check the new values and save again. What you typed is kept.
   - If the server cannot be reached or answers with an error, nothing is saved and what you typed
     is kept, so you can save again.
+- **Validate, request information or reject:** on a reported incident, decide what to do with
+  it.
+  - *Validate the incident* when it is a real incident the city council handles. Save its category
+    and priority in *Classification* first: until then the button is disabled and says so. It goes
+    to *Validated*, so it can be assigned.
+  - When you need more details, write them in *Message to the citizen* and press *Send the
+    request*. The citizen sees your message in the history of their report, and the incident stays
+    reported, so you can ask again or decide later.
+  - When it is not an incident the city council handles, write why in *Reason for the citizen* and
+    press *Reject the incident*. Rejecting is final and the citizen sees your reason, so do not
+    write internal data in it.
+  - If someone else changed the incident since you opened it, nothing is saved: press *Reload the
+    incident* and check it. If the server cannot be reached or answers with an error, nothing is
+    saved either. In both cases what you typed is kept.
 - **Verify and close, or reopen:** on a resolved incident, check the technician's work. Press
   *Close the incident* when it is well done: closing is final, the incident shows when it was
   closed and the citizen sees it as closed. When it is not well done, write why in *Reason for
