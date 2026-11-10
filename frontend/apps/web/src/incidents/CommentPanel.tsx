@@ -6,10 +6,15 @@ import styles from './Incidents.module.css';
 
 type Comment = components['schemas']['CommentResponse'];
 
-/** Longest comment the API accepts, in characters (`Comment.MAX_TEXT_LENGTH`). */
+/**
+ * Longest comment the API accepts, in characters (`Comment.MAX_TEXT_LENGTH`). Counted in code
+ * points before sending, like the API, so an emoji is one character. The textarea has no
+ * `maxLength`: it would count UTF-16 units, and cut a pasted text without saying so.
+ */
 const COMMENT_MAX_LENGTH = 2000;
 
 const MISSING_TEXT = 'Write the comment.';
+const TEXT_TOO_LONG = `The comment can have at most ${COMMENT_MAX_LENGTH} characters.`;
 
 type Outcome =
   | { kind: 'added' }
@@ -42,6 +47,10 @@ export function CommentPanel({ incidentId }: { incidentId: string }) {
     }
     if (text.trim() === '') {
       setOutcome({ kind: 'invalid', fieldErrors: [{ field: 'text', message: MISSING_TEXT }] });
+      return;
+    }
+    if (Array.from(text).length > COMMENT_MAX_LENGTH) {
+      setOutcome({ kind: 'invalid', fieldErrors: [{ field: 'text', message: TEXT_TOO_LONG }] });
       return;
     }
     inFlight.current = true;
@@ -78,7 +87,6 @@ export function CommentPanel({ incidentId }: { incidentId: string }) {
           id={`${titleId}-text-field`}
           value={text}
           rows={3}
-          maxLength={COMMENT_MAX_LENGTH}
           onChange={(event) => setText(event.target.value)}
           aria-required
           aria-invalid={textError ? true : undefined}

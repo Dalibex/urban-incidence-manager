@@ -133,6 +133,35 @@ describe('comment form of the staff detail (#50)', () => {
     expect(sent).toEqual([]);
   });
 
+  // A pasted text is never cut: one over the limit is refused before sending, with the reason.
+  it('refuses a text of more than 2000 characters before sending anything', async () => {
+    const sent: unknown[] = [];
+    const form = await commentForm('TECHNICIAN', INCIDENT, sent);
+    const tooLong = 'a'.repeat(2001);
+
+    await userEvent.click(form.getByLabelText('Comment text'));
+    await userEvent.paste(tooLong);
+    await userEvent.click(form.getByRole('button', { name: 'Add comment' }));
+
+    expect(await form.findByText('The comment can have at most 2000 characters.')).toBeDefined();
+    expect(form.getByLabelText('Comment text')).toHaveProperty('value', tooLong);
+    expect(sent).toEqual([]);
+  });
+
+  it('counts an emoji as one character, as the API does', async () => {
+    const sent: unknown[] = [];
+    const form = await commentForm('TECHNICIAN', INCIDENT, sent);
+    // 2000 characters, 4000 UTF-16 units.
+    const emojis = '🌳'.repeat(2000);
+
+    await userEvent.click(form.getByLabelText('Comment text'));
+    await userEvent.paste(emojis);
+    await userEvent.click(form.getByRole('button', { name: 'Add comment' }));
+
+    expect(await form.findByText('Comment added.')).toBeDefined();
+    expect(sent).toEqual([{ text: emojis }]);
+  });
+
   it('shows the message of a 422 under the text', async () => {
     const message = 'The comment can have at most 2000 characters.';
     const form = await commentForm('TECHNICIAN', INCIDENT, [], () =>
