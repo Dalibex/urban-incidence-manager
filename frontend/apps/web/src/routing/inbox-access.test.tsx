@@ -42,10 +42,11 @@ const OTHER_ROLES = ['TECHNICIAN', 'ANALYST', 'CITIZEN'] as const;
 // Since #187 the technician also opens the detail, of the incidents assigned to them only.
 const ROLES_WITHOUT_DETAIL = ['ANALYST', 'CITIZEN'] as const;
 
-/** The screens of each role: the inbox gained a role in #127, the reports in #42. */
+/** The screens of each role: the inbox gained a role in #127, the reports in #42, the map in #196. */
 const SECTION_ROLES: Record<string, readonly Role[]> = {
   [PATHS.inbox]: ['MUNICIPAL_OPERATOR', 'ADMINISTRATOR'],
   [PATHS.workQueue]: ['TECHNICIAN'],
+  [PATHS.map]: ['MUNICIPAL_OPERATOR', 'ADMINISTRATOR', 'TECHNICIAN'],
   [PATHS.users]: ['ADMINISTRATOR'],
   [PATHS.auditLog]: ['ADMINISTRATOR'],
   [PATHS.reports]: ['ANALYST', 'ADMINISTRATOR'],
@@ -130,9 +131,9 @@ describe('incident inbox access (#127)', () => {
   });
 
   it.each([
-    ['MUNICIPAL_OPERATOR', ['Inbox']],
-    ['ADMINISTRATOR', ['Inbox', 'Users', 'Audit log', 'Reports']],
-    ['TECHNICIAN', ['Work queue']],
+    ['MUNICIPAL_OPERATOR', ['Inbox', 'Map']],
+    ['ADMINISTRATOR', ['Inbox', 'Map', 'Users', 'Audit log', 'Reports']],
+    ['TECHNICIAN', ['Work queue', 'Map']],
     ['ANALYST', ['Reports']],
   ] as const)('links the navbar of a %s to %j', async (role, links) => {
     renderApp(landingPath(role), { role, fetch: incidentsApi() });
