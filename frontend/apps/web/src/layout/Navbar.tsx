@@ -1,6 +1,7 @@
+import type { Role } from '@urbanpulse/domain';
 import { NavLink } from 'react-router';
 
-import { SECTIONS } from '../routing/sections';
+import { SECTIONS, type Section } from '../routing/sections';
 import { useSession } from '../session/SessionContext';
 import styles from './AppLayout.module.css';
 import { ROLE_LABELS } from './role-labels';
@@ -21,7 +22,7 @@ export function Navbar() {
             {sections.map((section) => (
               <li key={section.path}>
                 <NavLink
-                  to={section.link ?? section.path}
+                  to={linkOf(section, user.role)}
                   className={({ isActive }) => (isActive ? styles.activeLink : styles.link)}
                 >
                   {section.label}
@@ -42,4 +43,11 @@ export function Navbar() {
       </div>
     </header>
   );
+}
+
+function linkOf({ link, path }: Section, role: Role): string {
+  if (typeof link === 'function') {
+    return link(role);
+  }
+  return link ?? path;
 }
