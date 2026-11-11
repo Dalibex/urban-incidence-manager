@@ -183,6 +183,10 @@ ships with Node, installs that exact pnpm version:
 corepack enable
 ```
 
+On Windows it writes to `C:\Program Files\nodejs`, so run it once from a terminal opened as
+administrator; otherwise it fails with `EPERM`. Skip it if `pnpm --version` already prints the
+version in `packageManager`.
+
 Then, from `frontend/`:
 
 ```bash
