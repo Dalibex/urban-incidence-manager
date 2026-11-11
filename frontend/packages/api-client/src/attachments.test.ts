@@ -4,6 +4,8 @@ import {
   createApiClient,
   getAttachmentContent,
   listIncidentAttachments,
+  signIn,
+  signOut,
   uploadIncidentAttachment,
   type LocalFile,
   type SessionTokens,
@@ -527,5 +529,131 @@ describe('getAttachmentContent', () => {
     const result = await getAttachmentContent(client, ATTACHMENT.id);
 
     expect(result).toEqual({ ok: false, failure: { kind: 'network' } });
+  });
+});
+
+/**
+ * #260 T6: the photo is only ever sent with the session the upload started with (#259). User A
+ * uploads with `access-1`; A signs out and user B signs in on the same device before the upload
+ * knows its session is no longer valid.
+ */
+describe('#260: an upload never sends the photo with another session', () => {
+  const B_TOKENS = tokens('access-b', 'refresh-b');
+  const B_CREDENTIALS = { email: 'b@example.com', password: 'b-password' };
+  const UNAUTHORIZED = { status: 401, code: 'UNAUTHORIZED' };
+
+  /**
+   * The API: `access-1` is rejected and its refresh gives `access-2`; `access-2` and B's token are
+   * accepted. The check that A's refresh worked (`GET /users/me` with `access-2`) answers when the
+   * test calls `answerCheck`, so A can sign out while the upload waits for it.
+   */
+  function serve(fetch: ReturnType<typeof setUp>['fetch']) {
+    let answerCheck: () => void = () => undefined;
+    const check = new Promise<Response>((resolve) => {
+      answerCheck = () => resolve(json(200, { id: 'a' }));
+    });
+    fetch.mockImplementation(async (request) => {
+      const path = new URL(request.url).pathname;
+      const authorization = request.headers.get('Authorization');
+      if (path.endsWith('/sessions/refresh')) {
+        return json(200, tokens('access-2', 'refresh-2'));
+      }
+      if (path.endsWith('/sessions/current')) {
+        return new Response(null, { status: 204 });
+      }
+      if (path.endsWith('/sessions')) {
+        return json(201, B_TOKENS);
+      }
+      if (authorization === 'Bearer access-2') {
+        return check;
+      }
+      return authorization === 'Bearer access-b' ? json(200, { id: 'b' }) : json(401, UNAUTHORIZED);
+    });
+    const checkSent = () =>
+      vi.waitFor(() =>
+        expect(
+          fetch.mock.calls.some(
+            ([request]) => request.headers.get('Authorization') === 'Bearer access-2',
+          ),
+        ).toBe(true),
+      );
+    return { answerCheck, checkSent };
+  }
+
+  async function signOutAndSignInAsB(
+    client: ReturnType<typeof setUp>['client'],
+    store: TokenStore,
+  ) {
+    await signOut(client, store);
+    expect((await signIn(client, store, B_CREDENTIALS)).ok).toBe(true);
+  }
+
+  function upload(
+    client: ReturnType<typeof setUp>['client'],
+    tokenStore: TokenStore,
+    now: () => Date,
+    xhr: ReturnType<typeof requests>,
+  ) {
+    return uploadIncidentAttachment(client, INCIDENT_ID, PHOTO, {
+      baseUrl: BASE_URL,
+      tokenStore,
+      now,
+      createRequest: xhr.createRequest,
+    });
+  }
+
+  it('T6: does not send the photo again when its 401 arrives after B signed in', async () => {
+    const tokenStore = memoryStore(tokens('access-1', 'refresh-1'));
+    const { client, fetch } = setUp(tokenStore);
+    serve(fetch);
+    const xhr = requests('pending', { status: 201, body: ATTACHMENT });
+    const uploading = upload(client, tokenStore, BEFORE_EXPIRY, xhr);
+    await vi.waitFor(() => expect(xhr.sent).toHaveLength(1));
+
+    await signOutAndSignInAsB(client, tokenStore);
+    xhr.sent[0]?.respond(401, UNAUTHORIZED);
+
+    expect(await uploading).toEqual({
+      ok: false,
+      failure: { kind: 'problem', status: 401, code: 'UNAUTHORIZED' },
+    });
+    expect(xhr.sent.map((request) => request.headers.Authorization)).toEqual(['Bearer access-1']);
+  });
+
+  it("T6: does not send the photo again when B signs in while A's session is refreshed", async () => {
+    const tokenStore = memoryStore(tokens('access-1', 'refresh-1'));
+    const { client, fetch } = setUp(tokenStore);
+    const server = serve(fetch);
+    const xhr = requests({ status: 401, body: UNAUTHORIZED }, { status: 201, body: ATTACHMENT });
+    const uploading = upload(client, tokenStore, BEFORE_EXPIRY, xhr);
+    await server.checkSent();
+
+    await signOutAndSignInAsB(client, tokenStore);
+    server.answerCheck();
+
+    expect(await uploading).toEqual({
+      ok: false,
+      failure: { kind: 'problem', status: 401, code: 'UNAUTHORIZED' },
+    });
+    expect(xhr.sent.map((request) => request.headers.Authorization)).toEqual(['Bearer access-1']);
+  });
+
+  it('does not send the photo at all when B signs in while the expired session is refreshed', async () => {
+    const tokenStore = memoryStore(tokens('access-1', 'refresh-1'));
+    const { client, fetch } = setUp(tokenStore);
+    const server = serve(fetch);
+    const xhr = requests({ status: 201, body: ATTACHMENT });
+    const uploading = upload(client, tokenStore, AFTER_EXPIRY, xhr);
+    await server.checkSent();
+
+    await signOutAndSignInAsB(client, tokenStore);
+    server.answerCheck();
+
+    // Answered like a request without a session, so the app does not retry it either.
+    expect(await uploading).toEqual({
+      ok: false,
+      failure: { kind: 'problem', status: 401, code: undefined },
+    });
+    expect(xhr.sent).toHaveLength(0);
   });
 });
