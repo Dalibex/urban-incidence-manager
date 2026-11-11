@@ -1255,7 +1255,7 @@ export interface components {
             categoryId?: string;
             location: components["schemas"]["ReportedLocation"];
         };
-        /** @description Position of the incident as the device measured it. */
+        /** @description Position of the incident: the device's GPS fix, or a position the citizen chose on a map. */
         ReportedLocation: {
             /**
              * Format: double
@@ -1271,7 +1271,7 @@ export interface components {
             longitude: number;
             /**
              * Format: double
-             * @description Accuracy radius in metres reported by the device. Absent when the device does not report it.
+             * @description Accuracy radius in metres reported by the device. Absent when the device does not report it, or when the position was not measured by the device, such as a point the citizen chose on a map.
              * @example 12.5
              */
             accuracy?: number;
