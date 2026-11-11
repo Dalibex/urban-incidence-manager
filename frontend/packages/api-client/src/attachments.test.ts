@@ -4,10 +4,12 @@ import {
   createApiClient,
   getAttachmentContent,
   listIncidentAttachments,
+  markSession,
   signIn,
   signOut,
   uploadIncidentAttachment,
   type LocalFile,
+  type SessionMark,
   type SessionTokens,
   type TokenStore,
 } from './index';
@@ -593,12 +595,14 @@ describe('#260: an upload never sends the photo with another session', () => {
     tokenStore: TokenStore,
     now: () => Date,
     xhr: ReturnType<typeof requests>,
+    session?: SessionMark,
   ) {
     return uploadIncidentAttachment(client, INCIDENT_ID, PHOTO, {
       baseUrl: BASE_URL,
       tokenStore,
       now,
       createRequest: xhr.createRequest,
+      session,
     });
   }
 
@@ -655,5 +659,41 @@ describe('#260: an upload never sends the photo with another session', () => {
       failure: { kind: 'problem', status: 401, code: undefined },
     });
     expect(xhr.sent).toHaveLength(0);
+  });
+
+  // The mobile app tries an upload again after a network failure, with the mark of the first attempt.
+  it('sends nothing on a retry whose first attempt belonged to a session that has ended', async () => {
+    const tokenStore = memoryStore(tokens('access-1', 'refresh-1'));
+    const { client, fetch } = setUp(tokenStore);
+    serve(fetch);
+    const xhr = requests('network-error', { status: 201, body: ATTACHMENT });
+    const session = markSession(tokenStore);
+    const first = await upload(client, tokenStore, BEFORE_EXPIRY, xhr, session);
+    expect(first).toEqual({ ok: false, failure: { kind: 'network' } });
+
+    await signOutAndSignInAsB(client, tokenStore);
+    const retry = await upload(client, tokenStore, BEFORE_EXPIRY, xhr, session);
+
+    expect(retry).toEqual({
+      ok: false,
+      failure: { kind: 'problem', status: 401, code: undefined },
+    });
+    expect(xhr.sent.map((request) => request.headers.Authorization)).toEqual(['Bearer access-1']);
+  });
+
+  it('sends a retry with the mark of the first attempt while that session lasts', async () => {
+    const tokenStore = memoryStore(tokens('access-1', 'refresh-1'));
+    const { client } = setUp(tokenStore);
+    const xhr = requests('network-error', { status: 201, body: ATTACHMENT });
+    const session = markSession(tokenStore);
+    await upload(client, tokenStore, BEFORE_EXPIRY, xhr, session);
+
+    const retry = await upload(client, tokenStore, BEFORE_EXPIRY, xhr, session);
+
+    expect(retry).toEqual({ ok: true, data: ATTACHMENT });
+    expect(xhr.sent.map((request) => request.headers.Authorization)).toEqual([
+      'Bearer access-1',
+      'Bearer access-1',
+    ]);
   });
 });

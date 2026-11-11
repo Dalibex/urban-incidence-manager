@@ -30,7 +30,7 @@ const PREPARE_FAILED = 'The photo could not be prepared. Try again or choose ano
  */
 export function AddPhotosScreen({ route }: Props) {
   const { incidentId } = route.params;
-  const { uploadAttachment } = useSession();
+  const { uploadAttachment, markSession } = useSession();
   const [selected, setSelected] = useState<LocalFile | null>(null);
   const [uploaded, setUploaded] = useState<readonly UploadedPhoto[]>([]);
   const [progress, setProgress] = useState<number | null>(null);
@@ -72,11 +72,14 @@ export function AddPhotosScreen({ route }: Props) {
     setError(null);
     setFailure(null);
     setProgress(0);
+    // Every attempt belongs to the session of the first: if the citizen signs out during the wait
+    // between attempts, no retry is sent with the session of whoever signs in next (#259).
+    const session = markSession();
     try {
       const result = await withRetries(() => {
         // Each attempt sends the whole file again, so its progress starts from zero.
         setProgress(0);
-        return uploadAttachment(incidentId, photo, setProgress);
+        return uploadAttachment(incidentId, photo, setProgress, session);
       }, RETRY_DELAYS_MS);
       if (result.ok) {
         // A retry of a photo already stored answers with the same attachment: show it once.

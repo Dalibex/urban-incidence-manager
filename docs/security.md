@@ -73,7 +73,8 @@ different one in every environment: whoever knows it can sign a token for any us
   itself fails) leaves a session alive on the server until its refresh token expires (#237). A
   request is only repeated with the session it was sent with: one sent before a sign-out started
   gets its `401`, and is neither refreshed nor repeated, so it never runs as the user who signs in
-  next, nor with the token the sign-out refreshed. The photo upload follows the same rule (#259).
+  next, nor with the token the sign-out refreshed. The photo upload follows the same rule, and so
+  do the automatic retries of an upload on the mobile app (#259).
 - **Clean-up:** a job inside the backend deletes, every day at 03:00 UTC, the refresh tokens that
   expired longer ago than `REFRESH_TOKEN_RETENTION` (`RefreshTokenCleanup`). It deletes by expiry,
   not by revocation: a revoked token is kept while it would still work, because deleting it would
