@@ -26,3 +26,9 @@ export const INCIDENT_ZOOM = 16;
 
 /** The last zoom with clusters; from the next one every incident is its own marker. */
 export const CLUSTER_MAX_ZOOM = 15;
+
+/**
+ * The id of the block of the map and its side column. The full-screen button of the map takes the
+ * whole block, not the map alone, so a summary opened in full screen is still seen (#177).
+ */
+export const MAP_WORKSPACE_ID = 'map-workspace';

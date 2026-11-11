@@ -25,6 +25,14 @@ vi.mock('./IncidentMap', () => ({
   ),
 }));
 
+// The summary beside the map (#177) has its own tests (MapDashboard.acceptance.test.tsx); here its
+// charts are left out, so Plotly is not loaded.
+vi.mock('./StatisticsChart', () => ({ StatisticsChart: () => null }));
+
+/** The counts of the summary beside the map, whatever the filters. */
+const statistics = () =>
+  json(200, { total: 0, byStatus: [], byPriority: [], byCategory: [], byDepartment: [] });
+
 const POTHOLE: IncidentPosition = {
   id: '9b2e4f1a-3c5d-4e6f-8a7b-1c2d3e4f5a6b',
   status: 'REPORTED',
@@ -70,6 +78,7 @@ function mapApi(answers: Answer[], requests: URLSearchParams[] = []) {
     [`GET /incidents/${POTHOLE.id}`]: () => json(200, POTHOLE_DETAIL),
     'GET /categories': () => json(200, []),
     'GET /departments': () => json(200, []),
+    'GET /incident-statistics': statistics,
   });
 }
 
@@ -108,6 +117,8 @@ describe('incident map on the web (#196, test #76)', () => {
     });
     await screen.findByText('1 incident on the map');
 
+    // The filters are folded behind a button (#177).
+    await userEvent.click(screen.getByRole('button', { name: 'Filters' }));
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Priority' }), 'HIGH');
 
     await waitFor(() => expect(requests.at(-1)?.getAll('priority')).toEqual(['HIGH']));
@@ -124,7 +135,7 @@ describe('incident map on the web (#196, test #76)', () => {
     expect(screen.queryByRole('alert')).toBeNull();
     expect(screen.getByRole('region', { name: 'Map stand-in' })).toBeDefined();
 
-    // The button next to the message, besides the one of the filter bar.
+    // The button next to the message, besides the one next to the folded filters.
     await userEvent.click(
       within(message.parentElement!).getByRole('button', { name: 'Clear filters' }),
     );
@@ -207,6 +218,7 @@ describe('incident map on the web (#196, test #76)', () => {
           json(404, { status: 404, code: 'NOT_FOUND', title: 'Not Found' }),
         'GET /categories': () => json(200, []),
         'GET /departments': () => json(200, []),
+        'GET /incident-statistics': statistics,
       }),
     });
 
@@ -253,6 +265,7 @@ describe('incident map on the web (#196, test #76)', () => {
         'GET /incident-locations': positions([]),
         'GET /categories': () => json(200, []),
         'GET /departments': () => json(200, []),
+        'GET /incident-statistics': statistics,
       }),
     });
     await userEvent.click(await screen.findByRole('link', { name: 'Map' }));
