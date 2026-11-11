@@ -20,6 +20,7 @@ export {
 export { listAuditEntries, type AuditEntryListQuery } from './audit';
 export {
   acceptIncident,
+  closeIncident,
   createIncident,
   createIncidentComment,
   getIncident,
@@ -29,6 +30,7 @@ export {
   listIncidentComments,
   listIncidents,
   listIncidentStatusChanges,
+  reopenIncident,
   resolveIncident,
   updateIncident,
   type ClassificationChangeQuery,

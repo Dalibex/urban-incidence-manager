@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   acceptIncident,
+  closeIncident,
   createApiClient,
   createIncident,
   createIncidentComment,
@@ -10,6 +11,7 @@ import {
   listIncidentClassificationChanges,
   listIncidentComments,
   listIncidents,
+  reopenIncident,
   resolveIncident,
   updateIncident,
   type ApiClient,
@@ -286,6 +288,8 @@ describe('updateIncident', () => {
 
 const ACCEPTANCE = { version: 3 };
 const RESOLUTION = { version: 3, reason: 'Replaced the lamp and checked it at night.' };
+const CLOSURE = { version: 4 };
+const REOPENING = { version: 4, reason: 'The lamp went off again the same night.' };
 
 describe.each([
   [
@@ -299,6 +303,18 @@ describe.each([
     'resolution',
     RESOLUTION,
     (client: ApiClient) => resolveIncident(client, INCIDENT_ID, RESOLUTION),
+  ],
+  [
+    'closeIncident',
+    'closure',
+    CLOSURE,
+    (client: ApiClient) => closeIncident(client, INCIDENT_ID, CLOSURE),
+  ],
+  [
+    'reopenIncident',
+    'reopening',
+    REOPENING,
+    (client: ApiClient) => reopenIncident(client, INCIDENT_ID, REOPENING),
   ],
 ] as const)('%s', (_name, resource, body, send) => {
   it(`sends a POST to /${resource} and returns the incident with its new version`, async () => {
