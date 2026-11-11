@@ -1,6 +1,6 @@
 import type { ApiClient } from './index';
 import type { components } from './schema';
-import type { TokenStore } from './session';
+import { finishSignOut, startSignOut, type TokenStore } from './session';
 
 type Problem = components['schemas']['Problem'];
 
@@ -99,9 +99,14 @@ export function getCurrentUser(
 
 /**
  * Revokes the session on the server and always discards the tokens, even when the server cannot
- * be reached: the user asked to sign out, and the device must not keep a usable session.
+ * be reached: the user asked to sign out, and the device must not keep a usable session. A refresh
+ * still in flight when the tokens are discarded does not bring them back (#237); one that answers
+ * before, while `DELETE` waits for it, gives the fresh token that revokes the session. A refresh
+ * that sign-out could not use to revoke the session (it answers later, or the `DELETE` itself
+ * fails) leaves that session alive on the server until its refresh token expires.
  */
 export async function signOut(client: ApiClient, tokenStore: TokenStore): Promise<void> {
+  startSignOut(tokenStore);
   try {
     await client.DELETE('/sessions/current');
   } catch (error) {
@@ -109,6 +114,8 @@ export async function signOut(client: ApiClient, tokenStore: TokenStore): Promis
       throw error;
     }
   } finally {
+    // Before clearing, with no await in between, so no late refresh calls `save` after `clear`.
+    finishSignOut(tokenStore);
     await tokenStore.clear();
   }
 }

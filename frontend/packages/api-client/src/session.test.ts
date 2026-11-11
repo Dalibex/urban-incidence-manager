@@ -16,7 +16,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createApiClient, signOut, type SessionTokens, type TokenStore } from './index';
+import { createApiClient, signIn, signOut, type SessionTokens, type TokenStore } from './index';
 
 const BASE_URL = 'https://api.test/api/v1';
 
@@ -600,5 +600,262 @@ describe('#162: the session recovers after a failed refresh', () => {
     expect(refreshTokensSent(api)).toEqual([OLD_TOKENS.refreshToken, SIGNED_IN.refreshToken]);
     expect(tokens.current()).toEqual(RENEWED);
     expect(onSessionExpired).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * #238: a refresh that is still in flight when the user signs out must not bring the session back
+ * (#237). The refresh starts because a request is rejected with the expired access token; the user
+ * then signs out before the refresh answers.
+ */
+describe('#238: signing out leaves no session behind', () => {
+  let onSessionExpired: ReturnType<typeof vi.fn<() => void>>;
+
+  beforeEach(() => {
+    onSessionExpired = vi.fn();
+  });
+
+  const networkDown: Handler = () => {
+    throw new TypeError('Failed to fetch');
+  };
+
+  /** Revokes only the fresh session; the expired access token gets 401, as on the real API. */
+  const revokeFreshSession: Handler = (request) =>
+    request.authorization === `Bearer ${NEW_TOKENS.accessToken}`
+      ? new Response(null, { status: 204 })
+      : problem(401);
+
+  /** A refresh that answers only when the test says so. */
+  function refreshInFlight() {
+    let answer: (response: Response) => void = () => undefined;
+    const response = new Promise<Response>((resolve) => {
+      answer = resolve;
+    });
+    return { handler: (() => response) satisfies Handler, answer };
+  }
+
+  function clientWith(deleteSession: Handler, extraRoutes: Record<string, Handler> = {}) {
+    const refresh = refreshInFlight();
+    const api = fakeApi({
+      'GET /users/me': onlyFreshToken,
+      'POST /sessions/refresh': refresh.handler,
+      'DELETE /sessions/current': deleteSession,
+      ...extraRoutes,
+    });
+    const tokens = memoryTokenStore(OLD_TOKENS);
+    const client = createApiClient(BASE_URL, {
+      tokenStore: tokens.store,
+      fetch: api.fetch,
+      onSessionExpired,
+    });
+    return { api, tokens, client, refresh };
+  }
+
+  /** A request rejected with the expired access token, whose refresh is now in flight. */
+  // Wrapped in an object: an async function that returned the request itself would wait for it.
+  async function startRefresh(setUp: ReturnType<typeof clientWith>) {
+    const request = setUp.client.GET('/users/me');
+    await vi.waitFor(() => expect(setUp.api.calls('POST', '/sessions/refresh')).toHaveLength(1));
+    return { request };
+  }
+
+  async function expectNoTokenSent(setUp: ReturnType<typeof clientWith>) {
+    const { response } = await setUp.client.GET('/users/me');
+    expect(response.status).toBe(401);
+    expect(setUp.api.calls('GET', '/users/me').at(-1)?.authorization).toBeNull();
+    expect(setUp.api.calls('POST', '/sessions/refresh')).toHaveLength(1);
+  }
+
+  it('T1: a refresh that succeeds while signing out is used to revoke the session', async () => {
+    const setUp = clientWith(revokeFreshSession);
+    const { request } = await startRefresh(setUp);
+
+    // The sign-out is rejected with the expired token too, so it waits for the same refresh.
+    const signingOut = signOut(setUp.client, setUp.tokens.store);
+    await vi.waitFor(() => expect(setUp.api.calls('DELETE', '/sessions/current')).toHaveLength(1));
+    setUp.refresh.answer(json(200, NEW_TOKENS));
+    await signingOut;
+    await request;
+
+    expect(setUp.api.calls('DELETE', '/sessions/current').map((r) => r.authorization)).toEqual([
+      `Bearer ${OLD_TOKENS.accessToken}`,
+      `Bearer ${NEW_TOKENS.accessToken}`,
+    ]);
+    expect(setUp.tokens.current()).toBeNull();
+    await expectNoTokenSent(setUp);
+    expect(onSessionExpired).not.toHaveBeenCalled();
+  });
+
+  it('T2: a normal sign-out revokes the session and empties the store', async () => {
+    const api = fakeApi({ 'DELETE /sessions/current': revokeFreshSession });
+    const tokens = memoryTokenStore(NEW_TOKENS);
+    const client = createApiClient(BASE_URL, { tokenStore: tokens.store, fetch: api.fetch });
+
+    await signOut(client, tokens.store);
+
+    expect(api.calls('DELETE', '/sessions/current')).toHaveLength(1);
+    expect(api.calls('POST', '/sessions/refresh')).toHaveLength(0);
+    expect(tokens.current()).toBeNull();
+  });
+
+  it.each([
+    ['without network', networkDown],
+    ['that the server fails', (() => problem(503)) satisfies Handler],
+  ])(
+    'T3: a refresh that succeeds after a sign-out %s does not save its tokens',
+    async (_, deleteSession) => {
+      const setUp = clientWith(deleteSession);
+      const { request } = await startRefresh(setUp);
+
+      await signOut(setUp.client, setUp.tokens.store);
+      setUp.refresh.answer(json(200, NEW_TOKENS));
+
+      // The request is not repeated with the tokens of a session the user ended.
+      expect((await request).response.status).toBe(401);
+      expect(setUp.api.calls('GET', '/users/me')).toHaveLength(1);
+      expect(setUp.tokens.current()).toBeNull();
+      expect(setUp.tokens.store.save).not.toHaveBeenCalled();
+      await expectNoTokenSent(setUp);
+      expect(onSessionExpired).not.toHaveBeenCalled();
+    },
+  );
+
+  it('T4: a refresh rejected after signing out does not report an expired session', async () => {
+    const setUp = clientWith(networkDown);
+    const { request } = await startRefresh(setUp);
+
+    await signOut(setUp.client, setUp.tokens.store);
+    setUp.refresh.answer(problem(401, 'INVALID_REFRESH_TOKEN'));
+
+    expect((await request).response.status).toBe(401);
+    expect(setUp.tokens.current()).toBeNull();
+    expect(onSessionExpired).not.toHaveBeenCalled();
+  });
+
+  it('T4: a refresh rejected while the sign-out waits for it does not report an expired session', async () => {
+    const setUp = clientWith(revokeFreshSession);
+    const { request } = await startRefresh(setUp);
+
+    const signingOut = signOut(setUp.client, setUp.tokens.store);
+    await vi.waitFor(() => expect(setUp.api.calls('DELETE', '/sessions/current')).toHaveLength(1));
+    setUp.refresh.answer(problem(401, 'INVALID_REFRESH_TOKEN'));
+    await signingOut;
+    await request;
+
+    expect(setUp.tokens.current()).toBeNull();
+    expect(onSessionExpired).not.toHaveBeenCalled();
+  });
+
+  it('sends no refresh when the user signs out while the store is being read for it', async () => {
+    const setUp = clientWith(networkDown);
+    // The first read is the request's own; the second, the refresh's, answers only when told to.
+    let finishRead: (tokens: SessionTokens) => void = () => undefined;
+    const slowRead = new Promise<SessionTokens>((resolve) => {
+      finishRead = resolve;
+    });
+    vi.mocked(setUp.tokens.store.load)
+      .mockImplementationOnce(async () => OLD_TOKENS)
+      .mockImplementationOnce(() => slowRead);
+    const request = setUp.client.GET('/users/me');
+    await vi.waitFor(() => expect(setUp.tokens.store.load).toHaveBeenCalledTimes(2));
+
+    await signOut(setUp.client, setUp.tokens.store);
+    // The read returns what the store held before the sign-out cleared it.
+    finishRead(OLD_TOKENS);
+
+    expect((await request).response.status).toBe(401);
+    expect(setUp.api.calls('POST', '/sessions/refresh')).toHaveLength(0);
+    expect(setUp.tokens.current()).toBeNull();
+    expect(onSessionExpired).not.toHaveBeenCalled();
+  });
+
+  it('T5: a refresh that fails after signing out leaves the store empty', async () => {
+    const setUp = clientWith(networkDown);
+    const { request } = await startRefresh(setUp);
+
+    await signOut(setUp.client, setUp.tokens.store);
+    setUp.refresh.answer(problem(503));
+
+    expect((await request).response.status).toBe(401);
+    expect(setUp.tokens.current()).toBeNull();
+    await expectNoTokenSent(setUp);
+    expect(onSessionExpired).not.toHaveBeenCalled();
+  });
+
+  it('T6: signing out twice in a row throws nothing and leaves the store empty', async () => {
+    const api = fakeApi({ 'DELETE /sessions/current': revokeFreshSession });
+    const tokens = memoryTokenStore(NEW_TOKENS);
+    const client = createApiClient(BASE_URL, { tokenStore: tokens.store, fetch: api.fetch });
+
+    await expect(signOut(client, tokens.store)).resolves.toBeUndefined();
+    await expect(signOut(client, tokens.store)).resolves.toBeUndefined();
+
+    // The second sign-out has no token to send, and a 401 without a token starts no refresh.
+    expect(api.calls('DELETE', '/sessions/current').map((r) => r.authorization)).toEqual([
+      `Bearer ${NEW_TOKENS.accessToken}`,
+      null,
+    ]);
+    expect(api.calls('POST', '/sessions/refresh')).toHaveLength(0);
+    expect(tokens.current()).toBeNull();
+  });
+
+  it('T7: an app that closes before the refresh answers starts with no session', async () => {
+    const setUp = clientWith(networkDown);
+    await startRefresh(setUp);
+
+    await signOut(setUp.client, setUp.tokens.store);
+
+    // The process ends with the refresh unanswered; the next start reads the same device store.
+    const api = fakeApi({ 'GET /users/me': onlyFreshToken });
+    const restarted = createApiClient(BASE_URL, {
+      tokenStore: setUp.tokens.store,
+      fetch: api.fetch,
+      onSessionExpired,
+    });
+    const { response } = await restarted.GET('/users/me');
+
+    expect(setUp.tokens.current()).toBeNull();
+    expect(response.status).toBe(401);
+    expect(api.calls('GET', '/users/me')[0]?.authorization).toBeNull();
+    expect(onSessionExpired).not.toHaveBeenCalled();
+  });
+
+  describe('signing in again before the refresh of the old session answers', () => {
+    const SIGNED_IN: SessionTokens = {
+      ...NEW_TOKENS,
+      accessToken: 'signed-in-access',
+      refreshToken: 'refresh-signed-in',
+    };
+    const credentials = { email: 'citizen@example.com', password: 'correct-password' };
+
+    async function signOutAndInAgain(setUp: ReturnType<typeof clientWith>) {
+      await signOut(setUp.client, setUp.tokens.store);
+      const signedIn = await signIn(setUp.client, setUp.tokens.store, credentials);
+      expect(signedIn.ok).toBe(true);
+    }
+
+    it('keeps the new session when the old refresh succeeds', async () => {
+      const setUp = clientWith(networkDown, { 'POST /sessions': () => json(201, SIGNED_IN) });
+      const { request } = await startRefresh(setUp);
+
+      await signOutAndInAgain(setUp);
+      setUp.refresh.answer(json(200, NEW_TOKENS));
+      await request;
+
+      expect(setUp.tokens.current()).toEqual(SIGNED_IN);
+      expect(onSessionExpired).not.toHaveBeenCalled();
+    });
+
+    it('keeps the new session when the old refresh is rejected', async () => {
+      const setUp = clientWith(networkDown, { 'POST /sessions': () => json(201, SIGNED_IN) });
+      const { request } = await startRefresh(setUp);
+
+      await signOutAndInAgain(setUp);
+      setUp.refresh.answer(problem(401, 'INVALID_REFRESH_TOKEN'));
+      await request;
+
+      expect(setUp.tokens.current()).toEqual(SIGNED_IN);
+      expect(onSessionExpired).not.toHaveBeenCalled();
+    });
   });
 });
