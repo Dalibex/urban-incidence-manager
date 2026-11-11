@@ -9,6 +9,7 @@ import {
   listIncidentAttachments,
   listIncidentClassificationChanges,
   listIncidentComments,
+  listIncidentLocations,
   listIncidents,
   listIncidentStatusChanges,
   rejectIncident,
@@ -37,6 +38,9 @@ import { toListQuery, type IncidentFilters } from './filters/incident-filters';
 /** Rows per page of the inbox; the API allows up to 100 (docs/api.md, "Listings"). */
 export const INBOX_PAGE_SIZE = 20;
 
+/** How often the map reads the positions again, so a new incident appears without a reload. */
+export const MAP_REFRESH_INTERVAL_MS = 15_000;
+
 type Incident = components['schemas']['IncidentResponse'];
 type UpdateIncidentRequest = components['schemas']['UpdateIncidentRequest'];
 type IncidentActionRequest = components['schemas']['IncidentActionRequest'];
@@ -44,6 +48,7 @@ type IncidentReasonRequest = components['schemas']['IncidentReasonRequest'];
 
 const incidentKeys = {
   page: (page: number, filters: IncidentFilters) => ['incidents', 'page', page, filters] as const,
+  locations: (filters: IncidentFilters) => ['incidents', 'locations', filters] as const,
   detail: (incidentId: string) => ['incidents', incidentId] as const,
   history: (incidentId: string) => ['incidents', incidentId, 'status-changes'] as const,
   classificationChanges: (incidentId: string) =>
@@ -66,6 +71,23 @@ export function useIncidentPage(page: number, filters: IncidentFilters) {
     queryFn: () =>
       dataOf(listIncidents(api, { page, size: INBOX_PAGE_SIZE, ...toListQuery(filters) })),
     // The current rows stay on screen while the next page loads, so the table does not jump.
+    placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * The positions of the incidents the user may see that match `filters`, for the map (#196): the
+ * most relevant first, at most the API's cap. They are read again every
+ * {@link MAP_REFRESH_INTERVAL_MS}; a failed refresh keeps the last positions (`data`) next to the
+ * error, and the next interval tries again.
+ */
+export function useIncidentLocations(filters: IncidentFilters) {
+  const { api } = useSession();
+  return useQuery({
+    queryKey: incidentKeys.locations(filters),
+    queryFn: () => dataOf(listIncidentLocations(api, toListQuery(filters))),
+    refetchInterval: MAP_REFRESH_INTERVAL_MS,
+    // The markers stay on the map while other filters load, instead of the map emptying.
     placeholderData: keepPreviousData,
   });
 }
@@ -171,15 +193,15 @@ export function useDepartments() {
 
 /**
  * What every change of an incident does to the cache, so the screens show it without reloading:
- * the detail takes the incident the API answered, with its new `version`, and the inbox pages and
- * the parts of this incident read separately (its history, for example) are read again. Every
- * mutation of the web calls it on success (#47 leaves the pattern for the lifecycle actions).
+ * the detail takes the incident the API answered, with its new `version`, and the inbox pages, the
+ * map and the parts of this incident read separately (its history, for example) are read again.
+ * Every mutation of the web calls it on success (#47 leaves the pattern for the lifecycle actions).
  */
 export function afterIncidentChange(queryClient: QueryClient, incident: Incident): Promise<void> {
   queryClient.setQueryData(incidentKeys.detail(incident.id), incident);
   return queryClient.invalidateQueries({
     predicate: ({ queryKey }) =>
-      (queryKey[0] === 'incidents' && queryKey[1] === 'page') ||
+      (queryKey[0] === 'incidents' && (queryKey[1] === 'page' || queryKey[1] === 'locations')) ||
       (queryKey[0] === 'incidents' && queryKey[1] === incident.id && queryKey.length > 2),
   });
 }

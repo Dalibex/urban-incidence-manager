@@ -5,6 +5,7 @@ import {
   incidentListOf,
   landingPath,
   listReturnPath,
+  mapDefaultPath,
   PATHS,
   routeAccess,
   signInReturnPath,
@@ -37,6 +38,19 @@ describe('landingPath', () => {
     expect(landingPath('ADMINISTRATOR')).toBe(PATHS.users);
     expect(landingPath('ANALYST')).toBe(PATHS.reports);
     expect(landingPath('CITIZEN')).toBe(PATHS.useMobile);
+  });
+});
+
+describe('mapDefaultPath', () => {
+  it('opens the map of a technician on the same pending work as their queue', () => {
+    expect(mapDefaultPath('TECHNICIAN')).toBe(`${PATHS.map}?status=ASSIGNED&status=IN_PROGRESS`);
+  });
+
+  it('opens the map of an operator or an administrator on every status that can still change', () => {
+    const live =
+      'status=REPORTED&status=VALIDATED&status=ASSIGNED&status=IN_PROGRESS&status=RESOLVED&status=REOPENED';
+    expect(mapDefaultPath('MUNICIPAL_OPERATOR')).toBe(`${PATHS.map}?${live}`);
+    expect(mapDefaultPath('ADMINISTRATOR')).toBe(`${PATHS.map}?${live}`);
   });
 });
 
