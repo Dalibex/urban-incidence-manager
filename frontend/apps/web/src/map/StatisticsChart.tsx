@@ -3,7 +3,7 @@ import Plotly, { type Config, type Data, type Layout } from 'plotly.js-basic-dis
 import { useMemo, useState } from 'react';
 import createPlotlyComponent from 'react-plotly.js/factory';
 
-import { chartDescription, chartHeight, type DashboardChart } from './dashboard-data';
+import { chartDescription, chartHeight, formatCount, type DashboardChart } from './dashboard-data';
 import { ChartTable } from './ChartTable';
 
 export interface StatisticsChartProps {
@@ -57,11 +57,13 @@ function toTraces({ bars }: DashboardChart): Data[] {
       orientation: 'h',
       y: bars.map((bar) => bar.label),
       x: bars.map((bar) => bar.count),
-      text: bars.map((bar) => String(bar.count)),
+      // Short when large (12.3K), so the label fits beside its bar; the tooltip has the exact count.
+      text: bars.map((bar) => formatCount(bar.count).short),
       textposition: 'outside',
       cliponaxis: false,
       textfont: { color: colors.text },
-      hovertemplate: '%{y}: %{x}<extra></extra>',
+      // The exact count with thousands separators (12,345), whatever the axis abbreviates.
+      hovertemplate: '%{y}: %{x:,}<extra></extra>',
       // A line of the page's colour leaves a gap between neighbouring bars.
       marker: { color: bars.map((bar) => bar.color), line: { color: colors.background, width: 1 } },
     },

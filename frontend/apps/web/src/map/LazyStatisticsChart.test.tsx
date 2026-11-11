@@ -5,6 +5,7 @@ import { CHART_UNAVAILABLE } from './ChartTable';
 import type { DashboardChart } from './dashboard-data';
 
 const CHART: DashboardChart = {
+  id: 'category',
   title: 'By category',
   bars: [
     { label: 'Pavement', count: 2, color: '#2563EB' },

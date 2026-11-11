@@ -1,5 +1,5 @@
 import incidentStyles from '../incidents/Incidents.module.css';
-import type { DashboardChart } from './dashboard-data';
+import { formatCount, type DashboardChart } from './dashboard-data';
 import styles from './Map.module.css';
 
 /** What a chart says when it cannot load or draw: its figures stay, as a table. */
@@ -16,7 +16,7 @@ export function ChartTable({ chart }: { chart: DashboardChart }) {
           {chart.bars.map((bar) => (
             <tr key={bar.label}>
               <th scope="row">{bar.label}</th>
-              <td>{bar.count}</td>
+              <td>{formatCount(bar.count).full}</td>
             </tr>
           ))}
         </tbody>

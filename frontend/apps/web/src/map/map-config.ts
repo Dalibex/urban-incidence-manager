@@ -28,7 +28,7 @@ export const INCIDENT_ZOOM = 16;
 export const CLUSTER_MAX_ZOOM = 15;
 
 /**
- * The id of the block of the map and its side column. The full-screen button of the map takes the
- * whole block, not the map alone, so a summary opened in full screen is still seen (#177).
+ * The id of the map screen. The full-screen button of the map takes the whole screen, not the map
+ * alone, so the filters and a summary opened in full screen can still be used (#177).
  */
-export const MAP_WORKSPACE_ID = 'map-workspace';
+export const MAP_SCREEN_ID = 'map-screen';

@@ -1,10 +1,16 @@
 /* Incident map. Colors and spacing come from the shared tokens (theme.ts). */
 
-/* The map uses the whole width: it is the screen. */
+/*
+ * The map uses the whole width, and the height left under the navbar (AppLayout fills it): the
+ * page is a column whose map takes what the toolbar, the filters and the messages leave. So the
+ * whole map is seen without scrolling, at any zoom of the browser, and it shrinks when the filters
+ * open instead of pushing itself out of view.
+ */
 .page {
   --side-width: 380px;
-  /* What is above the map: the navbar, the toolbar, the count and the page padding. */
-  --above-map: 11rem;
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
 }
 
 .toolbar {
@@ -59,13 +65,19 @@
 }
 
 /*
- * The map and the side column. On a wide screen they sit side by side and fill the height left
- * under the toolbar, so the map and the summary are seen at once; the column scrolls on its own if
- * it does not fit. Under 900 px the column goes under the map.
+ * The map and the side column. On a wide screen they sit side by side and take the height left in
+ * the page, so the map and the summary are seen at once; the column scrolls on its own if it does
+ * not fit. Under 800 px the column goes under the map.
  */
 .workspace {
   display: grid;
   gap: var(--space-md);
+}
+
+/* Holds the map and its key, which sits on the map. */
+.mapArea {
+  position: relative;
+  min-width: 0;
 }
 
 .mapFrame {
@@ -78,14 +90,35 @@
   background: var(--color-surface);
 }
 
-@media (min-width: 900px) {
+/* The summary and the list of the column; hidden while an incident is open (MapPage). */
+.sideContent {
+  display: grid;
+  align-content: start;
+  gap: var(--space-md);
+}
+
+/* `display: grid` would otherwise win over the browser's own rule for `hidden`. */
+.sideContent[hidden] {
+  display: none;
+}
+
+/*
+ * From 800 px the column sits beside the map: 1,280 px at a browser zoom of 150 % is 853 px, so a
+ * laptop zoomed in keeps the map and the summary side by side.
+ */
+@media (min-width: 800px) {
   .workspace {
+    flex: 1 1 0;
+    grid-template-rows: minmax(0, 1fr);
     grid-template-columns: minmax(0, 1fr) var(--side-width);
-    height: max(480px, calc(100dvh - var(--above-map)));
+    /* Below this the map is too small to use: the page scrolls instead. */
+    min-height: 280px;
   }
 
+  .mapArea,
   .workspace .mapFrame {
     height: 100%;
+    min-height: 0;
   }
 
   .side {
@@ -94,20 +127,45 @@
   }
 }
 
-/* Between 900 and 1100 px the column is narrower, so the map keeps most of the width. */
-@media (min-width: 900px) and (max-width: 1099px) {
+/* Between 800 and 1100 px the column is narrower, so the map keeps most of the width. */
+@media (min-width: 800px) and (max-width: 1099px) {
   .page {
     --side-width: 320px;
   }
 }
 
-/* The full-screen button of the map takes the map and its column (map-config.ts). */
-.workspace:fullscreen {
+/* The full-screen button of the map takes the whole screen, filters included (map-config.ts). */
+.page:fullscreen {
   box-sizing: border-box;
   height: 100dvh;
   padding: var(--space-md);
   overflow-y: auto;
   background: var(--color-background);
+}
+
+/* The key of the map, in its bottom-left corner; the attribution keeps the other one. */
+.mapKey {
+  position: absolute;
+  z-index: 1;
+  bottom: var(--space-sm);
+  left: var(--space-sm);
+  max-width: min(22rem, calc(100% - 2 * var(--space-sm)));
+  max-height: calc(100% - 2 * var(--space-sm));
+  overflow-y: auto;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 6px;
+  background: var(--color-background);
+  box-shadow: 0 1px 4px rgb(15 23 42 / 0.2);
+  font-size: 0.875rem;
+}
+
+.mapKey summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.mapKey[open] {
+  padding-bottom: var(--space-sm);
 }
 
 .mapNotice {
@@ -207,8 +265,14 @@
   font-size: 0.8125rem;
 }
 
+.figures div {
+  min-width: 0;
+}
+
 .figures dd {
   margin: 0;
+  /* A large count is already written short (12.3K); this keeps any other one in its column. */
+  overflow-wrap: anywhere;
   font-size: 1.25rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -234,12 +298,72 @@
 .chart {
   display: grid;
   gap: var(--space-xs);
+  margin-top: var(--space-xs);
+}
+
+/* A part of the dashboard that folds to its title, as the key of the map does. */
+.panelBlock {
+  min-width: 0;
+  padding-top: var(--space-sm);
+  border-top: 1px solid color-mix(in srgb, var(--color-text-muted) 20%, transparent);
+}
+
+.panelBlock summary {
+  cursor: pointer;
+}
+
+/* The heading sits on the same line as the marker of the summary. */
+.panelBlock summary h3 {
+  display: inline;
 }
 
 .chartTitle {
   margin: 0;
   font-size: 0.9375rem;
   font-weight: 600;
+}
+
+/* The latest incidents reported: a title and, under it, its status and how long ago. */
+.latest {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.latestItem {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: var(--space-xs);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.latestItem:hover {
+  border-color: color-mix(in srgb, var(--color-text-muted) 50%, transparent);
+}
+
+.latestTitle {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.latestMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs) var(--space-sm);
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
 }
 
 .chartLoading {
@@ -266,15 +390,6 @@
 
 .chartTable td {
   text-align: right;
-}
-
-.legend {
-  font-size: 0.875rem;
-}
-
-.legend summary {
-  cursor: pointer;
-  font-weight: 600;
 }
 
 .legendTitle {
@@ -330,8 +445,9 @@
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-text-muted) 50%, transparent);
 }
 
+/* Every incident of the map, in the column under the summary: the way to them by keyboard. */
 .list {
-  margin-top: var(--space-lg);
+  padding: 0 var(--space-md);
 }
 
 .list summary {
@@ -362,9 +478,4 @@
 
 .listItem:hover {
   border-color: color-mix(in srgb, var(--color-text-muted) 50%, transparent);
-}
-
-.listItem[aria-current='true'] {
-  border-color: var(--color-primary);
-  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
 }

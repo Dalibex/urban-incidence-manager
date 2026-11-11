@@ -31,7 +31,7 @@ import {
   type PriorityMark,
 } from './incident-features';
 import styles from './Map.module.css';
-import { CLUSTER_MAX_ZOOM, MALAGA_VIEW, MAP_WORKSPACE_ID, mapStyleUrl } from './map-config';
+import { CLUSTER_MAX_ZOOM, MALAGA_VIEW, MAP_SCREEN_ID, mapStyleUrl } from './map-config';
 
 type IncidentPosition = components['schemas']['IncidentPosition'];
 
@@ -238,9 +238,9 @@ export function IncidentMap({ positions, selectedId, onSelect, ref }: IncidentMa
         onLoad={() => setBaseMapFailed(false)}
       >
         <NavigationControl showCompass={false} />
-        {/* The map and its side column on the whole screen, on demand (#177); Escape brings the
-            page back. */}
-        <FullscreenControl containerId={MAP_WORKSPACE_ID} />
+        {/* The map screen, with its filters and side column, on the whole screen, on demand
+            (#177); Escape brings the page back. */}
+        <FullscreenControl containerId={MAP_SCREEN_ID} />
         <Source
           id={SOURCE_ID}
           type="geojson"

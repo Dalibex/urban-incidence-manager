@@ -33,6 +33,10 @@ vi.mock('./StatisticsChart', () => ({ StatisticsChart: () => null }));
 const statistics = () =>
   json(200, { total: 0, byStatus: [], byPriority: [], byCategory: [], byDepartment: [] });
 
+/** The latest incidents of the summary: none. */
+const latest = () =>
+  json(200, { content: [], page: { number: 0, size: 5, totalElements: 0, totalPages: 0 } });
+
 const POTHOLE: IncidentPosition = {
   id: '9b2e4f1a-3c5d-4e6f-8a7b-1c2d3e4f5a6b',
   status: 'REPORTED',
@@ -79,6 +83,7 @@ function mapApi(answers: Answer[], requests: URLSearchParams[] = []) {
     'GET /categories': () => json(200, []),
     'GET /departments': () => json(200, []),
     'GET /incident-statistics': statistics,
+    'GET /incidents': latest,
   });
 }
 
@@ -219,6 +224,7 @@ describe('incident map on the web (#196, test #76)', () => {
         'GET /categories': () => json(200, []),
         'GET /departments': () => json(200, []),
         'GET /incident-statistics': statistics,
+        'GET /incidents': latest,
       }),
     });
 

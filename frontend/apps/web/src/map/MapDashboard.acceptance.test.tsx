@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { components } from '@urbanpulse/api-client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -103,13 +103,45 @@ const counts =
 
 const failure: Answer = () => json(503, { status: 503 });
 
+/** The latest incidents reported, newest first, as `listIncidents` gives them. */
+const LATEST = [
+  {
+    id: POTHOLE.id,
+    title: POTHOLE_DETAIL.title,
+    status: 'REPORTED',
+    priority: 'HIGH',
+    category: { id: 'c1', name: 'Pavement' },
+    reportedAt: '2026-11-11T11:55:00Z',
+    updatedAt: '2026-11-11T11:55:00Z',
+  },
+  {
+    id: '1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d',
+    title: 'Street light off on Alameda',
+    status: 'ASSIGNED',
+    priority: null,
+    category: null,
+    reportedAt: '2026-11-10T09:00:00Z',
+    updatedAt: '2026-11-10T09:00:00Z',
+  },
+];
+
+const latestPage: Answer = () =>
+  json(200, {
+    content: LATEST,
+    page: { number: 0, size: 5, totalElements: LATEST.length, totalPages: 1 },
+  });
+
+interface Requests {
+  locations: URLSearchParams[];
+  statistics: URLSearchParams[];
+  latest: URLSearchParams[];
+}
+
 /** A fake API whose statistics come from `answers`, one per call, the last one repeated. */
 function dashboardApi(
   answers: Answer[],
-  requests: { locations: URLSearchParams[]; statistics: URLSearchParams[] } = {
-    locations: [],
-    statistics: [],
-  },
+  requests: Requests = { locations: [], statistics: [], latest: [] },
+  latest: Answer = latestPage,
 ) {
   let call = 0;
   return fakeApi({
@@ -122,6 +154,10 @@ function dashboardApi(
       const answer = answers[Math.min(call, answers.length - 1)]!;
       call += 1;
       return answer();
+    },
+    'GET /incidents': (request) => {
+      requests.latest.push(new URL(request.url).searchParams);
+      return latest();
     },
     [`GET /incidents/${POTHOLE.id}`]: () => json(200, POTHOLE_DETAIL),
     'GET /categories': () => json(200, [{ id: 'c1', name: 'Pavement', description: null }]),
@@ -136,6 +172,8 @@ function summary() {
 describe('staff dashboard on the map (#177, test #258)', () => {
   afterEach(() => {
     vi.useRealTimers();
+    // What a test folded stays in this browser for the next one otherwise.
+    window.localStorage.clear();
   });
 
   // T5, T3: the figures and the three charts, the groups without a value named.
@@ -159,7 +197,7 @@ describe('staff dashboard on the map (#177, test #258)', () => {
 
   // T6: the dashboard asks with the filters of the map.
   it('asks for the counts with the same filters as the map, also when one changes', async () => {
-    const requests = { locations: [] as URLSearchParams[], statistics: [] as URLSearchParams[] };
+    const requests: Requests = { locations: [], statistics: [], latest: [] };
     renderApp(`${PATHS.map}?status=REPORTED`, {
       role: 'MUNICIPAL_OPERATOR',
       fetch: dashboardApi([counts(STATISTICS)], requests),
@@ -171,6 +209,9 @@ describe('staff dashboard on the map (#177, test #258)', () => {
 
     await waitFor(() => expect(requests.statistics.at(-1)?.getAll('priority')).toEqual(['HIGH']));
     expect(requests.statistics.at(-1)?.toString()).toBe(requests.locations.at(-1)?.toString());
+    // The latest list uses the same filters, on the first page of the newest.
+    await waitFor(() => expect(requests.latest.at(-1)?.getAll('priority')).toEqual(['HIGH']));
+    expect(requests.latest.at(-1)?.get('size')).toBe('5');
   });
 
   // T7: the filters fold, and a line says which ones apply.
@@ -290,5 +331,149 @@ describe('staff dashboard on the map (#177, test #258)', () => {
     // The map is opened without filters, so the new counts say there is nothing at all.
     expect(await within(summary()).findByText('There are no incidents to count.')).toBeDefined();
     expect(within(summary()).queryByRole('alert')).toBeNull();
+  });
+
+  // The latest incidents reported, newest first, each opening its summary like a marker.
+  it('lists the latest incidents, opens one, and gives the focus back to it on close', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, now: new Date('2026-11-11T12:00:00Z') });
+    renderApp(PATHS.map, { role: 'MUNICIPAL_OPERATOR', fetch: dashboardApi([counts(STATISTICS)]) });
+
+    const latest = within(
+      await within(await screen.findByRole('region', { name: 'Summary' })).findByRole('list'),
+    );
+    const items = await latest.findAllByRole('button');
+    expect(items.map((item) => item.textContent)).toEqual([
+      `${POTHOLE_DETAIL.title}Reported5 minutes ago`,
+      'Street light off on AlamedaAssigned27 hours ago',
+    ]);
+
+    items[0]!.focus();
+    await userEvent.keyboard('{Enter}');
+    const panel = await screen.findByRole('complementary', { name: POTHOLE_DETAIL.title });
+    // Longer than the cache keeps unused data (5 minutes): the summary stays mounted while hidden,
+    // so its list and the button that opened the incident are still there.
+    await vi.advanceTimersByTimeAsync(6 * 60_000);
+    await userEvent.click(within(panel).getByRole('button', { name: 'Close' }));
+
+    await waitFor(() => expect(document.activeElement).toBe(items[0]));
+  });
+
+  it('keeps the counts when only the latest list fails, and offers to try it again', async () => {
+    let calls = 0;
+    // The call and the two retries of a 5xx fail; trying again succeeds.
+    const flaky: Answer = () => (calls++ < 3 ? failure() : latestPage());
+    renderApp(PATHS.map, {
+      role: 'MUNICIPAL_OPERATOR',
+      fetch: dashboardApi([counts(STATISTICS)], undefined, flaky),
+    });
+
+    const dashboard = await screen.findByRole('region', { name: 'Summary' });
+    const alert = await within(dashboard).findByRole('alert');
+    expect(alert.textContent).toContain('The latest incidents could not be loaded.');
+    expect(within(dashboard).getAllByTestId('chart')).toHaveLength(3);
+
+    await userEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
+
+    expect(await within(dashboard).findByText(POTHOLE_DETAIL.title)).toBeDefined();
+    expect(within(dashboard).queryByRole('alert')).toBeNull();
+  });
+
+  it('keeps the latest list with a note of its time when a refresh of it fails', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let calls = 0;
+    const thenFailing: Answer = () => (calls++ === 0 ? latestPage() : failure());
+    renderApp(PATHS.map, {
+      role: 'MUNICIPAL_OPERATOR',
+      fetch: dashboardApi([counts(STATISTICS)], undefined, thenFailing),
+    });
+    const dashboard = await screen.findByRole('region', { name: 'Summary' });
+    await within(dashboard).findByText(POTHOLE_DETAIL.title);
+
+    await vi.advanceTimersByTimeAsync(MAP_REFRESH_INTERVAL_MS);
+
+    expect(await within(dashboard).findByText(/Not refreshed: as of/)).toBeDefined();
+    expect(within(dashboard).getByText(POTHOLE_DETAIL.title)).toBeDefined();
+  });
+
+  // Each part folds, and stays folded for the same user when the map is opened again.
+  it('remembers the parts the user folded, for that user only', async () => {
+    const api = () => dashboardApi([counts(STATISTICS)]);
+    const opened = async (userId?: string) => {
+      cleanup();
+      renderApp(PATHS.map, { role: 'MUNICIPAL_OPERATOR', fetch: api(), userId });
+      await within(await screen.findByRole('region', { name: 'Summary' })).findAllByTestId('chart');
+    };
+    await opened();
+
+    await userEvent.click(screen.getByText('By category'));
+    expect(screen.getByText('By category').closest('details')?.open).toBe(false);
+
+    await opened();
+    expect(screen.getByText('By category').closest('details')?.open).toBe(false);
+    expect(screen.getByText('By status').closest('details')?.open).toBe(true);
+
+    // Another user of the same browser has their own.
+    await opened('user-2');
+    expect(screen.getByText('By category').closest('details')?.open).toBe(true);
+  });
+
+  it('still folds when the browser refuses its storage, and simply does not remember', async () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Blocked', 'SecurityError');
+    });
+    try {
+      renderApp(PATHS.map, {
+        role: 'MUNICIPAL_OPERATOR',
+        fetch: dashboardApi([counts(STATISTICS)]),
+      });
+      await within(await screen.findByRole('region', { name: 'Summary' })).findAllByTestId('chart');
+
+      await userEvent.click(screen.getByText('By category'));
+
+      expect(screen.getByText('By category').closest('details')?.open).toBe(false);
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  // The key is on the map, not in the summary, so it stays while an incident is open.
+  it('keeps the key of the map while an incident is open, and remembers it', async () => {
+    const api = () => dashboardApi([counts(STATISTICS)]);
+    renderApp(PATHS.map, { role: 'MUNICIPAL_OPERATOR', fetch: api() });
+    await userEvent.click(await screen.findByRole('button', { name: `Marker ${POTHOLE.id}` }));
+    const panel = await screen.findByRole('complementary', { name: POTHOLE_DETAIL.title });
+
+    const key = () => screen.getByText('Map key').closest('details');
+    expect(key()?.open).toBe(false);
+    await userEvent.click(screen.getByText('Map key'));
+    expect(key()?.open).toBe(true);
+
+    await userEvent.click(within(panel).getByRole('button', { name: 'Close' }));
+    expect(key()?.open).toBe(true);
+
+    cleanup();
+    renderApp(PATHS.map, { role: 'MUNICIPAL_OPERATOR', fetch: api() });
+    await screen.findByRole('region', { name: 'Summary' });
+    expect(key()?.open).toBe(true);
+  });
+
+  // A large count never spills out of its column, and its exact value is still there.
+  it('writes a large count short, with the exact one for a screen reader', async () => {
+    renderApp(PATHS.map, {
+      role: 'MUNICIPAL_OPERATOR',
+      fetch: dashboardApi([counts({ ...STATISTICS, total: 12_345 })]),
+    });
+
+    const total = (
+      await within(await screen.findByRole('region', { name: 'Summary' })).findByText('Incidents')
+    ).nextElementSibling!;
+    expect(
+      within(total as HTMLElement)
+        .getByText('12.3K')
+        .getAttribute('aria-hidden'),
+    ).toBe('true');
+    expect(within(total as HTMLElement).getByText('12,345')).toBeDefined();
+    // The exact number on hover.
+    expect(within(total as HTMLElement).getByTitle('12,345')).toBeDefined();
   });
 });

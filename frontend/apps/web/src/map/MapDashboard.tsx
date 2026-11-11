@@ -1,31 +1,48 @@
-import { INCIDENT_STATUSES } from '@urbanpulse/domain';
-import { formatInstant, STATUS_LABELS, statusColor } from '@urbanpulse/ui';
-import { useMemo, type CSSProperties } from 'react';
+import { formatInstant } from '@urbanpulse/ui';
+import { useMemo, type ReactNode } from 'react';
 
 import { hasFilters, type IncidentFilters } from '../incidents/filters/incident-filters';
-import { useIncidentStatistics } from '../incidents/incident-queries';
+import { useIncidentStatistics, useLatestIncidents } from '../incidents/incident-queries';
 import incidentStyles from '../incidents/Incidents.module.css';
 import { LoadFailure } from '../incidents/LoadFailure';
-import { dashboardCharts, priorityFigures } from './dashboard-data';
-import { HIGH_BORDER, PRIORITY_MARKS, PRIORITY_RANK } from './incident-features';
+import { StatusBadge } from '../incidents/StatusBadge';
+import { dashboardCharts, formatCount, priorityFigures, reportedAgo } from './dashboard-data';
 import { LazyStatisticsChart } from './LazyStatisticsChart';
 import styles from './Map.module.css';
+import type { MapPanel } from './map-preferences';
 
 interface MapDashboardProps {
   filters: IncidentFilters;
+  /** Whether a panel of the dashboard is open, as the user left it. */
+  isOpen: (panel: MapPanel) => boolean;
+  onToggle: (panel: MapPanel, open: boolean) => void;
+  /** Opens the summary of an incident of the latest list, as a marker does. */
+  onSelectIncident: (incidentId: string) => void;
 }
 
 /**
  * The indicators beside the map (#177): how many incidents match the filters of the map, by
- * priority, status, category and department. The API counts them with the same filters and scope
- * as the map, with no cap, and they are read again with the markers. A failed refresh keeps the
- * last counts with a warning; they are never shown as zeros.
+ * priority, status, category and department, and the latest ones reported. The API counts them with
+ * the same filters and scope as the map, with no cap, and they are read again with the markers. A
+ * failed refresh keeps the last counts with a warning; they are never shown as zeros. Each panel
+ * folds, and stays as the user left it.
  */
-export function MapDashboard({ filters }: MapDashboardProps) {
+export function MapDashboard({ filters, isOpen, onToggle, onSelectIncident }: MapDashboardProps) {
   const statistics = useIncidentStatistics(filters);
   const charts = useMemo(
     () => (statistics.data ? dashboardCharts(statistics.data) : []),
     [statistics.data],
+  );
+
+  const panel = (id: MapPanel, title: string, children: ReactNode) => (
+    <DashboardPanel
+      key={id}
+      title={title}
+      open={isOpen(id)}
+      onToggle={(open) => onToggle(id, open)}
+    >
+      {children}
+    </DashboardPanel>
   );
 
   return (
@@ -56,14 +73,10 @@ export function MapDashboard({ filters }: MapDashboardProps) {
           <dl className={styles.figures}>
             <div className={styles.totalFigure}>
               <dt>Incidents</dt>
-              <dd>{statistics.data.total}</dd>
+              <dd>
+                <Count count={statistics.data.total} />
+              </dd>
             </div>
-            {priorityFigures(statistics.data).map((figure) => (
-              <div key={figure.label}>
-                <dt>{figure.label}</dt>
-                <dd>{figure.count}</dd>
-              </div>
-            ))}
           </dl>
 
           {statistics.data.total === 0 ? (
@@ -73,72 +86,139 @@ export function MapDashboard({ filters }: MapDashboardProps) {
                 : 'There are no incidents to count.'}
             </p>
           ) : (
-            charts.map((chart) => (
-              <section key={chart.title} className={styles.chart} aria-label={chart.title}>
-                <h3 className={styles.chartTitle}>{chart.title}</h3>
-                <LazyStatisticsChart chart={chart} />
-              </section>
-            ))
+            <>
+              {panel(
+                'priority',
+                'By priority',
+                <dl className={styles.figures}>
+                  {priorityFigures(statistics.data).map((figure) => (
+                    <div key={figure.label}>
+                      <dt>{figure.label}</dt>
+                      <dd>
+                        <Count count={figure.count} />
+                      </dd>
+                    </div>
+                  ))}
+                </dl>,
+              )}
+              {charts.map((chart) =>
+                panel(chart.id, chart.title, <LazyStatisticsChart chart={chart} />),
+              )}
+            </>
           )}
         </>
       )}
 
-      <MapKey />
+      {panel(
+        'latest',
+        'Latest reported',
+        <LatestIncidents filters={filters} onSelect={onSelectIncident} />,
+      )}
     </section>
   );
 }
 
-/**
- * What the map draws: the color is the status, the size the priority, and a group shows how many
- * incidents it holds and their highest priority. The list and the panel say the same in words.
- * Folded, because the chart by status already names the colors.
- */
-function MapKey() {
+interface DashboardPanelProps {
+  title: string;
+  open: boolean;
+  onToggle: (open: boolean) => void;
+  children: ReactNode;
+}
+
+/** A part of the dashboard that folds to its title. */
+function DashboardPanel({ title, open, onToggle, children }: DashboardPanelProps) {
   return (
-    <details className={styles.legend}>
-      <summary>Map key</summary>
-      <p className={styles.legendTitle}>Color: status</p>
-      <ul className={styles.legendItems}>
-        {INCIDENT_STATUSES.map((status) => (
-          <li key={status}>
-            <span
-              className={styles.swatch}
-              style={{ background: statusColor(status) }}
-              aria-hidden="true"
-            />
-            {STATUS_LABELS[status]}
-          </li>
-        ))}
-      </ul>
-      <p className={styles.legendTitle}>Size: priority</p>
-      <ul className={styles.legendItems}>
-        {PRIORITY_MARKS.map(({ rank, label, radius }) => (
-          <li key={label}>
-            <span
-              className={styles.sizeSwatch}
-              style={
-                {
-                  '--swatch-size': `${radius * 2}px`,
-                  ...(rank === PRIORITY_RANK.HIGH && {
-                    '--swatch-border': `${HIGH_BORDER.width}px solid ${HIGH_BORDER.color}`,
-                  }),
-                } as CSSProperties
-              }
-              aria-hidden="true"
-            />
-            {rank === PRIORITY_RANK.HIGH ? `${label}, with a dark border` : label}
-          </li>
-        ))}
-      </ul>
-      <p className={styles.legendTitle}>Groups</p>
-      <ul className={styles.legendItems}>
-        <li>
-          <span className={styles.groupSwatch} aria-hidden="true">
-            8
-          </span>
-          The number of incidents, with their highest priority written under it
-        </li>
-      </ul>
+    <details
+      className={styles.panelBlock}
+      open={open}
+      onToggle={(event) => onToggle(event.currentTarget.open)}
+    >
+      <summary>
+        <h3 className={styles.chartTitle}>{title}</h3>
+      </summary>
+      <div className={styles.chart}>{children}</div>
     </details>
+  );
+}
+
+/**
+ * A count that never spills out of its column: short when it is large (`12.3K`), with the exact
+ * number in its tooltip and for a screen reader.
+ */
+function Count({ count }: { count: number }) {
+  const { short, full } = formatCount(count);
+  if (short === full) {
+    return <>{full}</>;
+  }
+  return (
+    <span title={full}>
+      <span aria-hidden="true">{short}</span>
+      <span className={incidentStyles.visuallyHidden}>{full}</span>
+    </span>
+  );
+}
+
+interface LatestIncidentsProps {
+  filters: IncidentFilters;
+  onSelect: (incidentId: string) => void;
+}
+
+/**
+ * The latest incidents reported that match the filters of the map, newest first, each opening its
+ * summary like a marker. Its own request, so a failure here leaves the counts in place.
+ */
+function LatestIncidents({ filters, onSelect }: LatestIncidentsProps) {
+  const latest = useLatestIncidents(filters);
+
+  if (latest.isPending) {
+    return <p role="status">Loading the latest incidents…</p>;
+  }
+  if (latest.isError && !latest.data) {
+    return (
+      <LoadFailure
+        what="The latest incidents"
+        error={latest.error}
+        retrying={latest.isFetching}
+        onRetry={() => void latest.refetch()}
+      />
+    );
+  }
+  // "How long ago" is counted from when the list was read, so it changes with every refresh (this
+  // reads `dataUpdatedAt`, which renders the list again each time) and never claims to be newer
+  // than the data.
+  const readAt = new Date(latest.dataUpdatedAt);
+  return (
+    <>
+      {latest.isError && (
+        <p className={styles.warning} role="status">
+          Not refreshed: as of {formatInstant(readAt.toISOString())}.
+        </p>
+      )}
+      {latest.data.content.length === 0 ? (
+        <p className={incidentStyles.muted}>
+          {hasFilters(filters) ? 'None with these filters.' : 'None yet.'}
+        </p>
+      ) : (
+        <ol className={styles.latest}>
+          {latest.data.content.map((incident) => (
+            <li key={incident.id}>
+              <button
+                type="button"
+                className={styles.latestItem}
+                onClick={() => onSelect(incident.id)}
+              >
+                <span className={styles.latestTitle}>{incident.title}</span>
+                <span className={styles.latestMeta}>
+                  <StatusBadge status={incident.status} />
+                  <time dateTime={incident.reportedAt} title={formatInstant(incident.reportedAt)}>
+                    {reportedAgo(incident.reportedAt, readAt)}
+                  </time>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ol>
+      )}
+    </>
   );
 }

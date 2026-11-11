@@ -48,6 +48,7 @@ const incidentKeys = {
   page: (page: number, filters: IncidentFilters) => ['incidents', 'page', page, filters] as const,
   locations: (filters: IncidentFilters) => ['incidents', 'locations', filters] as const,
   statistics: (filters: IncidentFilters) => ['incidents', 'statistics', filters] as const,
+  latest: (filters: IncidentFilters) => ['incidents', 'latest', filters] as const,
   detail: (incidentId: string) => ['incidents', incidentId] as const,
   history: (incidentId: string) => ['incidents', incidentId, 'status-changes'] as const,
   classificationChanges: (incidentId: string) =>
@@ -102,6 +103,24 @@ export function useIncidentStatistics(filters: IncidentFilters) {
   return useQuery({
     queryKey: incidentKeys.statistics(filters),
     queryFn: () => dataOf(getIncidentStatistics(api, toListQuery(filters))),
+    refetchInterval: MAP_REFRESH_INTERVAL_MS,
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** How many of the latest incidents the dashboard of the map lists. */
+export const LATEST_COUNT = 5;
+
+/**
+ * The latest incidents reported that match the filters of the map (#177): the first page of
+ * `listIncidents`, newest first, read again with the map.
+ */
+export function useLatestIncidents(filters: IncidentFilters) {
+  const { api } = useSession();
+  return useQuery({
+    queryKey: incidentKeys.latest(filters),
+    queryFn: () =>
+      dataOf(listIncidents(api, { page: 0, size: LATEST_COUNT, ...toListQuery(filters) })),
     refetchInterval: MAP_REFRESH_INTERVAL_MS,
     placeholderData: keepPreviousData,
   });
