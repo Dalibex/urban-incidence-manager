@@ -1,11 +1,23 @@
 import {
+  acceptIncident,
+  closeIncident,
+  createIncidentComment,
+  getAttachmentContent,
   getIncident,
   listCategories,
   listDepartments,
+  listIncidentAttachments,
+  listIncidentClassificationChanges,
+  listIncidentComments,
   listIncidents,
   listIncidentStatusChanges,
+  reopenIncident,
+  resolveIncident,
   updateIncident,
+  type ApiClient,
+  type ApiResult,
   type components,
+  type FormResult,
 } from '@urbanpulse/api-client';
 import {
   keepPreviousData,
@@ -24,11 +36,17 @@ export const INBOX_PAGE_SIZE = 20;
 
 type Incident = components['schemas']['IncidentResponse'];
 type UpdateIncidentRequest = components['schemas']['UpdateIncidentRequest'];
+type IncidentActionRequest = components['schemas']['IncidentActionRequest'];
+type IncidentReasonRequest = components['schemas']['IncidentReasonRequest'];
 
 const incidentKeys = {
   page: (page: number, filters: IncidentFilters) => ['incidents', 'page', page, filters] as const,
   detail: (incidentId: string) => ['incidents', incidentId] as const,
   history: (incidentId: string) => ['incidents', incidentId, 'status-changes'] as const,
+  classificationChanges: (incidentId: string) =>
+    ['incidents', incidentId, 'classification-changes'] as const,
+  attachments: (incidentId: string) => ['incidents', incidentId, 'attachments'] as const,
+  comments: (incidentId: string) => ['incidents', incidentId, 'comments'] as const,
   categories: ['categories'] as const,
 };
 
@@ -62,6 +80,67 @@ export function useIncidentHistory(incidentId: string) {
   return useQuery({
     queryKey: incidentKeys.history(incidentId),
     queryFn: () => dataOf(listIncidentStatusChanges(api, incidentId)),
+  });
+}
+
+/** The most the API returns in one page (docs/api.md, "Listings"). */
+const MAX_PAGE_SIZE = 100;
+
+interface Page<T> {
+  content: T[];
+  page: { totalPages: number };
+}
+
+/** Every item of a paged listing, read page after page until the last one. */
+async function readAllPages<T>(
+  readPage: (query: { page: number; size: number }) => Promise<ApiResult<Page<T>>>,
+): Promise<T[]> {
+  const items: T[] = [];
+  for (let page = 0; ; page++) {
+    const result = await dataOf(readPage({ page, size: MAX_PAGE_SIZE }));
+    items.push(...result.content);
+    if (page + 1 >= result.page.totalPages) {
+      return items;
+    }
+  }
+}
+
+/** Every classification change of the incident, oldest first, for the timeline of staff (#169). */
+export function useClassificationChanges(incidentId: string) {
+  const { api } = useSession();
+  return useQuery({
+    queryKey: incidentKeys.classificationChanges(incidentId),
+    queryFn: () =>
+      readAllPages((query) => listIncidentClassificationChanges(api, incidentId, query)),
+  });
+}
+
+/** Every internal comment of the incident, oldest first, for the timeline of staff (#50). */
+export function useIncidentComments(incidentId: string) {
+  const { api } = useSession();
+  return useQuery({
+    queryKey: incidentKeys.comments(incidentId),
+    queryFn: () => readAllPages((query) => listIncidentComments(api, incidentId, query)),
+  });
+}
+
+/** The metadata of the photos of an incident. */
+export function useIncidentAttachments(incidentId: string) {
+  const { api } = useSession();
+  return useQuery({
+    queryKey: incidentKeys.attachments(incidentId),
+    queryFn: () => dataOf(listIncidentAttachments(api, incidentId)),
+  });
+}
+
+/** The file of one photo, downloaded with the session's token, never through a public URL. */
+export function useAttachmentContent(attachmentId: string) {
+  const { api } = useSession();
+  return useQuery({
+    queryKey: ['attachments', attachmentId, 'content'],
+    queryFn: () => dataOf(getAttachmentContent(api, attachmentId)),
+    // A stored photo never changes (the API has no way to edit one), so it is not downloaded again.
+    staleTime: Infinity,
   });
 }
 
@@ -103,18 +182,73 @@ export function afterIncidentChange(queryClient: QueryClient, incident: Incident
 }
 
 /**
- * Classifies the incident (#47). The call resolves with the API's answer, a failure included, so
- * the form can show it next to its fields; only an unexpected bug rejects.
+ * A change of the incident sent from a form. The call resolves with the API's answer, a failure
+ * included, so the form can show it next to its fields; only an unexpected bug rejects.
  */
-export function useUpdateIncident(incidentId: string) {
+function useIncidentChange<TBody>(
+  send: (api: ApiClient, body: TBody) => Promise<FormResult<Incident>>,
+) {
   const { api } = useSession();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: UpdateIncidentRequest) => updateIncident(api, incidentId, body),
+    mutationFn: (body: TBody) => send(api, body),
     onSuccess: (result) => {
       if (result.ok) {
-        // Not awaited: the form answers as soon as the API does, while the inbox reloads.
+        // Not awaited: the form answers as soon as the API does, while the lists reload.
         void afterIncidentChange(queryClient, result.data);
+      }
+    },
+  });
+}
+
+/** Classifies the incident (#47). */
+export function useUpdateIncident(incidentId: string) {
+  return useIncidentChange((api, body: UpdateIncidentRequest) =>
+    updateIncident(api, incidentId, body),
+  );
+}
+
+/** The technician accepts the incident assigned to them (#187). */
+export function useAcceptIncident(incidentId: string) {
+  return useIncidentChange((api, body: IncidentActionRequest) =>
+    acceptIncident(api, incidentId, body),
+  );
+}
+
+/** The technician resolves the incident, with the resolution notes (#187). */
+export function useResolveIncident(incidentId: string) {
+  return useIncidentChange((api, body: IncidentReasonRequest) =>
+    resolveIncident(api, incidentId, body),
+  );
+}
+
+/** The operator closes the resolved incident after checking the work (#52). */
+export function useCloseIncident(incidentId: string) {
+  return useIncidentChange((api, body: IncidentActionRequest) =>
+    closeIncident(api, incidentId, body),
+  );
+}
+
+/** The operator reopens the resolved incident, with the reason the API requires (#52). */
+export function useReopenIncident(incidentId: string) {
+  return useIncidentChange((api, body: IncidentReasonRequest) =>
+    reopenIncident(api, incidentId, body),
+  );
+}
+
+/**
+ * Adds an internal comment (#50). Like the changes of the incident, it resolves with the API's
+ * answer, a failure included. A comment does not change the incident, so only the comments of the
+ * timeline are read again.
+ */
+export function useAddComment(incidentId: string) {
+  const { api } = useSession();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (text: string) => createIncidentComment(api, incidentId, { text }),
+    onSuccess: (result) => {
+      if (result.ok) {
+        void queryClient.invalidateQueries({ queryKey: incidentKeys.comments(incidentId) });
       }
     },
   });

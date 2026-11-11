@@ -94,6 +94,41 @@ Follow these steps on a clean clone, with the prerequisites of the
    Scan the QR code with Expo Go. If the phone cannot connect, use `pnpm dev:mobile --tunnel` (see
    *Client Workspace* in the development guide).
 
+### Quick Sign-In
+
+To change role with one click instead of typing the email and the password, turn on the quick
+sign-in (#167). It is off by default and only exists for the demo and for development: the buttons
+call the normal sign-in with the users of the table above, and the API treats them as any other
+sign-in. Both apps read these variables when they start, so set them before `pnpm dev:web` and
+`pnpm dev:mobile`, or restart those that are already running.
+
+1. In step 4, before `pnpm dev:web`, create `frontend/apps/web/.env` from
+   `frontend/apps/web/.env.example` and set the same password as `DEMO_PASSWORD` in
+   `backend/.env`:
+
+   ```properties
+   VITE_QUICK_SIGN_IN=true
+   VITE_DEMO_PASSWORD=choose-a-password
+   ```
+
+2. In step 5, after copying `.env.example` to `frontend/apps/mobile/.env` (the copy turns the flag
+   off), set the same two values with the Expo names in that file:
+
+   ```properties
+   EXPO_PUBLIC_QUICK_SIGN_IN=true
+   EXPO_PUBLIC_DEMO_PASSWORD=choose-a-password
+   ```
+
+The web sign-in then shows one button per staff role (*Operator*, *Technician*, *Administrator*,
+*Analyst*), and the mobile sign-in a button for the demo citizen. With the flag on and no
+password, they show which variable is missing instead of the buttons.
+
+**Never deploy a build made with the flag on.** Vite and Expo copy these variables into the
+JavaScript they build, so anyone who opens that build can read the password. With the flag off, a
+production build (`pnpm build`) leaves the password out. The development servers, though, serve
+the variables of `.env` as they are, so leave the password empty when you do not use the quick
+sign-in. A wrong password, or a database without the demo dataset, gives the normal sign-in error.
+
 ## Walk Through It
 
 | # | Who and where | What to do | What it shows | Needs |

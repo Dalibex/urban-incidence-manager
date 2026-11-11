@@ -51,7 +51,7 @@ export interface paths {
          *
          *     `PASSWORD_CHANGE_REQUIRED` is also only returned when the password is right, so a wrong
          *     password does not reveal that an account has to change it. The client then calls
-         *     `createPasswordChange` and signs in again. Planned: #165.
+         *     `createPasswordChange` and signs in again.
          *
          *     Roles: public.
          */
@@ -130,9 +130,7 @@ export interface paths {
         put?: never;
         /**
          * Change the password with the current one
-         * @description Planned: #165.
-         *
-         *     Replaces the password, clears the obligation to change it, revokes every refresh token of
+         * @description Replaces the password, clears the obligation to change it, revokes every refresh token of
          *     the user and records a `CHANGE_PASSWORD` audit entry without any password, in one
          *     transaction. It is public because an account that must change its password has no tokens
          *     yet, so the current password is the credential. It works for every account, whether it is
@@ -260,10 +258,8 @@ export interface paths {
         };
         /**
          * List the active technicians
-         * @description Planned: #190.
-         *
-         *     Enabled technicians, ordered by name, for the assignment form. It is a short list of staff,
-         *     so it is not paginated. It returns only what the form needs, without emails.
+         * @description Enabled technicians, ordered by name and then by id, for the assignment form. It is a short
+         *     list of staff, so it is not paginated. It returns only what the form needs, without emails.
          *
          *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`.
          */
@@ -285,9 +281,7 @@ export interface paths {
         };
         /**
          * List the audit trail
-         * @description Planned: #41.
-         *
-         *     Paginated entries of the audit trail (RF18): who did what, when and on which record. The
+         * @description Paginated entries of the audit trail (RF18): who did what, when and on which record. The
          *     trail is append-only, so this collection has no operation to create, change or delete an
          *     entry; entries are written by the operations they record (docs/security.md).
          *
@@ -295,7 +289,9 @@ export interface paths {
          *     was written: a user renamed later shows their current name.
          *
          *     Sortable property: `instant`. Default `instant,desc` (newest first); `id` is always added as
-         *     the last criterion so the order is stable between pages.
+         *     the last criterion so the order is stable between pages. Filters that match nothing,
+         *     including an `actorId` of a user who never acted, return `200` with an empty page. An
+         *     unknown parameter, or one without a value, returns `400`.
          *
          *     Roles: `ADMINISTRATOR`.
          */
@@ -607,9 +603,7 @@ export interface paths {
         put?: never;
         /**
          * Close a resolved incident
-         * @description Planned: #52.
-         *
-         *     `RESOLVED` to `CLOSED`, which is final, and sets `closedAt`. The citizen sees the status.
+         * @description `RESOLVED` to `CLOSED`, which is final, and sets `closedAt`. The citizen sees the status.
          *
          *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`.
          */
@@ -631,9 +625,7 @@ export interface paths {
         put?: never;
         /**
          * Reopen a resolved incident
-         * @description Planned: #52.
-         *
-         *     `RESOLVED` to `REOPENED`, after which it can be assigned again. `reason` is required. The
+         * @description `RESOLVED` to `REOPENED`, after which it can be assigned again. `reason` is required. The
          *     citizen sees the status, not the reason.
          *
          *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`.
@@ -654,13 +646,12 @@ export interface paths {
         };
         /**
          * List the internal comments of an incident
-         * @description Planned: #50.
-         *
-         *     Paginated comments. In the MVP every comment is internal, so citizens never get one, in this
+         * @description Paginated comments. In the MVP every comment is internal, so citizens never get one, in this
          *     or any other response.
          *
          *     Sortable property: `createdAt`. Default `createdAt,asc` (oldest first, as the history); `id`
-         *     is always added as the last criterion so the order is stable between pages.
+         *     is always added as the last criterion so the order is stable between pages. An unknown
+         *     parameter, or one without a value, returns `400`.
          *
          *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`, `TECHNICIAN` (actively assigned; any other
          *     technician gets `404`). `CITIZEN` and `ANALYST` get `403`.
@@ -669,9 +660,7 @@ export interface paths {
         put?: never;
         /**
          * Add an internal comment to an incident
-         * @description Planned: #50.
-         *
-         *     The author is the user of the access token. There is no `Location` header because a comment
+         * @description The author is the user of the access token. There is no `Location` header because a comment
          *     has no read operation of its own: it appears in `listIncidentComments`.
          *
          *     Roles: the same as `listIncidentComments`, with the same `404` rule.
@@ -782,16 +771,16 @@ export interface paths {
         };
         /**
          * List the positions of incidents for the map
-         * @description Planned: #195.
+         * @description A lightweight list for the map, with the same filters and the same scope as `listIncidents`
+         *     and an optional bounding box (#195). It is not paginated, because the map needs one answer
+         *     for the whole view: the server returns at most 1,000 items, puts the most relevant first
+         *     (priority from `HIGH` to none, then newest) and sets `truncated` when it left some out. An
+         *     empty result is `200`. An unknown parameter, or one without a value, returns `400`, like
+         *     `listIncidents`.
          *
-         *     A lightweight list for the map, with the same filters and the same scope as `listIncidents`
-         *     and an optional bounding box. It is not paginated, because the map needs one answer for the
-         *     whole view: the server caps the number of items, puts the most relevant first (priority, then
-         *     newest) and sets `truncated` when it left some out. An empty result is `200`.
-         *
-         *     The bounding box takes all four parameters or none. It uses named limits instead of a list of
-         *     four numbers, so its order cannot be mistaken. A minimum over its maximum, a value out of
-         *     range or only some of the four returns `400`. A box across the antimeridian is not supported:
+         *     The bounding box takes all four parameters or none, and its edges are included. It uses named
+         *     limits instead of a list of four numbers, so its order cannot be mistaken. A minimum over its
+         *     maximum, a value out of range or only some of the four returns `400`. A box across the antimeridian is not supported:
          *     the service covers Málaga.
          *
          *     These data are live and are not cached.
@@ -817,19 +806,23 @@ export interface paths {
         };
         /**
          * Get an operational report of incidents
-         * @description Planned: #42.
-         *
-         *     Incidents reported in the period, counted with their current status and grouped by
+         * @description Incidents reported in the period, counted with their current status and grouped by
          *     `groupBy`. `Accept: application/json` returns it for the screen and `Accept: text/csv` as a
-         *     file with the same rows. Errors stay `application/problem+json` in both cases.
+         *     file with the same rows; without `Accept`, or with `*\/*`, it is JSON. Errors stay
+         *     `application/problem+json` in both cases.
          *
-         *     `from` and `to` are required (`400` if one is missing). `from` must be earlier than `to` and
-         *     the period may not exceed 366 days, or the request returns `422`. A period without incidents
-         *     returns `200` with no rows, and a CSV with only its header.
+         *     `from`, `to` and `groupBy` are required, once each: one that is missing, repeated or empty,
+         *     a date-time without its UTC offset or outside the years 1 to 9999, or an unknown parameter
+         *     is a `400`. A role that may not read reports gets `403` before any of these checks.
+         *     `from` must be earlier than `to` and the period may not exceed 366 days, or the request
+         *     returns `422` with the error on the field `to`. A period without incidents returns `200`
+         *     with no rows, and a CSV with only its header.
          *
          *     It holds no personal data. In the CSV, a group that is not available says `Not available`,
-         *     decimals use a dot, the encoding is UTF-8 with a BOM, and a text cell starting with `=`, `+`,
-         *     `-`, `@`, a tab or a carriage return is escaped with a leading `'`.
+         *     a missing percentile is an empty cell, decimals use a dot, lines end in CRLF, the encoding is
+         *     UTF-8 with a BOM, and a text cell starting with `=`, `+`, `-`, `@`, a tab or a carriage
+         *     return is escaped with a leading `'`. Status and priority groups use the values of the API
+         *     (`IN_PROGRESS`), not the labels of a screen.
          *
          *     Roles: `ANALYST`, `ADMINISTRATOR`.
          */
@@ -1641,7 +1634,7 @@ export interface components {
              */
             longitude: number;
         };
-        /** @description The positions for the map, with no more than the server's cap. */
+        /** @description The positions for the map, at most 1,000. */
         IncidentLocationListResponse: {
             content: components["schemas"]["IncidentPosition"][];
             /**
@@ -1685,13 +1678,13 @@ export interface components {
             rejected: number;
             /**
              * Format: double
-             * @description Median hours from reported to closed, of the closed incidents. `null` when none is closed, never `0`.
+             * @description Median hours from reported to closed, of the closed incidents, rounded to two decimals (continuous percentile, as `PERCENTILE.INC` of a spreadsheet). `null` when none is closed, never `0`.
              * @example 18.5
              */
             resolutionHoursP50: number | null;
             /**
              * Format: double
-             * @description 95th percentile of the same hours. `null` when none is closed, never `0`.
+             * @description 95th percentile of the same hours, computed and rounded the same way. `null` when none is closed, never `0`.
              * @example 40.25
              */
             resolutionHoursP95: number | null;
@@ -2027,7 +2020,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description The credentials are right but no session can start: the account is disabled, code `ACCOUNT_DISABLED`, or its password must change first, code `PASSWORD_CHANGE_REQUIRED` (planned: #165). */
+            /** @description The credentials are right but no session can start: the account is disabled, code `ACCOUNT_DISABLED`, or its password must change first, code `PASSWORD_CHANGE_REQUIRED`. */
             403: {
                 headers: {
                     [name: string]: unknown;

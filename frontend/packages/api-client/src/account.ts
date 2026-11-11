@@ -65,6 +65,17 @@ export function signUp(
   return callApi(() => client.POST('/registrations', { body: registration }));
 }
 
+/**
+ * Replaces the password with the current one as the credential. It does not sign in: the contract
+ * asks for `signIn` with the new password afterwards.
+ */
+export function changePassword(
+  client: ApiClient,
+  change: components['schemas']['CreatePasswordChangeRequest'],
+): Promise<ApiResult<void>> {
+  return callApi(() => client.POST('/password-changes', { body: change }));
+}
+
 export function getCurrentUser(
   client: ApiClient,
 ): Promise<ApiResult<components['schemas']['UserResponse']>> {

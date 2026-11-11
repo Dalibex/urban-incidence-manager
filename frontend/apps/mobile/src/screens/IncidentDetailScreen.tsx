@@ -2,12 +2,14 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useQueryClient } from '@tanstack/react-query';
 import type { components } from '@urbanpulse/api-client';
 import {
+  buildTimeline,
+  CITY_COUNCIL,
   colors,
   fontSizes,
   formatInstant,
-  historyEventLabel,
   NOT_AVAILABLE,
   spacing,
+  type StatusTimelineEntry,
 } from '@urbanpulse/ui';
 import { useState, type ReactNode } from 'react';
 import {
@@ -19,8 +21,10 @@ import {
   View,
 } from 'react-native';
 
+import { Button } from '../components/Button';
 import { FormMessage } from '../components/FormMessage';
 import { LoadFailure } from '../components/LoadFailure';
+import { LoadingSkeleton, SkeletonBlock } from '../components/Skeleton';
 import { StatusBadge } from '../components/StatusBadge';
 import { incidentKeys, useIncident, useIncidentHistory } from '../incidents/incident-queries';
 import type { MyReportsStackParamList } from '../navigation/MyReportsStack';
@@ -32,8 +36,17 @@ type Props = NativeStackScreenProps<MyReportsStackParamList, 'ReportDetail'>;
 type Incident = components['schemas']['IncidentResponse'];
 type StatusChange = components['schemas']['StatusChangeResponse'];
 
+/** The sections of the report, also drawn by its skeleton. */
+const SECTIONS = { details: 'Details', location: 'Location' } as const;
+
+/**
+ * The fields every report has in each section, drawn while it loads: never a count to read.
+ * Details: category, reported on and updated on. Location: the five of {@link IncidentData}.
+ */
+const SKELETON_FIELDS: Record<keyof typeof SECTIONS, number> = { details: 3, location: 5 };
+
 /** One of the citizen's reports: its data, where it is and what has happened to it (RF06). */
-export function IncidentDetailScreen({ route }: Props) {
+export function IncidentDetailScreen({ navigation, route }: Props) {
   const { incidentId } = route.params;
   const incident = useIncident(incidentId);
   const history = useIncidentHistory(incidentId);
@@ -52,8 +65,10 @@ export function IncidentDetailScreen({ route }: Props) {
 
   if (incident.isPending) {
     return (
-      <View style={[screenStyles.screen, screenStyles.centered]}>
-        <ActivityIndicator accessibilityLabel="Loading the report" size="large" />
+      <View style={[screenStyles.flex, styles.skeletonScreen]}>
+        <LoadingSkeleton what="the report">
+          <IncidentDataSkeleton />
+        </LoadingSkeleton>
       </View>
     );
   }
@@ -89,6 +104,14 @@ export function IncidentDetailScreen({ route }: Props) {
         <FormMessage message="The report could not be refreshed. This is the last version loaded." />
       )}
       <IncidentData incident={incident.data} />
+      {/* The API lets the reporter add photos only while the report waits for review (#44). */}
+      {incident.data.status === 'REPORTED' && (
+        <Button
+          label="Add photos"
+          variant="secondary"
+          onPress={() => navigation.navigate('AddPhotos', { incidentId })}
+        />
+      )}
       <Section title="History">
         {history.isPending ? (
           <ActivityIndicator accessibilityLabel="Loading the history" />
@@ -100,7 +123,7 @@ export function IncidentDetailScreen({ route }: Props) {
             onRetry={() => void history.refetch()}
           />
         ) : (
-          <Timeline entries={history.data} />
+          <Timeline changes={history.data} />
         )}
       </Section>
     </ScrollView>
@@ -118,7 +141,7 @@ function IncidentData({ incident }: { incident: Incident }) {
         <StatusBadge status={incident.status} />
       </View>
       <Text style={screenStyles.body}>{incident.description}</Text>
-      <Section title="Details">
+      <Section title={SECTIONS.details}>
         <Field label="Category" value={incident.category?.name ?? 'Not set yet'} />
         <Field label="Reported on" value={formatInstant(incident.reportedAt)} />
         <Field label="Updated on" value={formatInstant(incident.updatedAt)} />
@@ -126,7 +149,7 @@ function IncidentData({ incident }: { incident: Incident }) {
           <Field label="Closed on" value={formatInstant(incident.closedAt)} />
         )}
       </Section>
-      <Section title="Location">
+      <Section title={SECTIONS.location}>
         <Field label="Address" value={location.address ?? NOT_AVAILABLE} />
         <Field label="Neighbourhood" value={location.neighborhood ?? NOT_AVAILABLE} />
         <Field label="District" value={location.district ?? NOT_AVAILABLE} />
@@ -145,22 +168,61 @@ function IncidentData({ incident }: { incident: Incident }) {
   );
 }
 
-/** The visible history, oldest first, as the API returns it. */
-function Timeline({ entries }: { entries: StatusChange[] }) {
+/**
+ * The title, the status, the description and the two sections of {@link IncidentData}, each field
+ * as its label above its value, so the sections do not grow when the report arrives.
+ */
+function IncidentDataSkeleton() {
   return (
-    <View style={styles.timeline} testID="history-timeline">
-      {entries.map((entry) => (
-        <View key={entry.id} style={styles.entry}>
-          <View style={styles.entryMark} />
-          <View style={styles.entryBody}>
-            <Text style={styles.entryTitle}>
-              {historyEventLabel(entry.previousStatus, entry.newStatus)}
-            </Text>
-            <Text style={screenStyles.note}>{formatInstant(entry.instant)}</Text>
-            {entry.reason !== null && <EntryReason entry={entry} reason={entry.reason} />}
-          </View>
+    <View style={styles.skeleton}>
+      <View style={styles.heading}>
+        <SkeletonBlock width="80%" height={fontSizes.title} />
+        <SkeletonBlock width="30%" />
+      </View>
+      <View style={styles.section}>
+        <SkeletonBlock />
+        <SkeletonBlock width="90%" />
+        <SkeletonBlock width="60%" />
+      </View>
+      {(['details', 'location'] as const).map((section) => (
+        <View key={section} style={styles.section}>
+          <Text style={styles.sectionTitle}>{SECTIONS[section]}</Text>
+          {Array.from({ length: SKELETON_FIELDS[section] }, (_, field) => (
+            <View key={field} style={styles.field}>
+              <SkeletonBlock width="35%" />
+              <SkeletonBlock width="60%" />
+            </View>
+          ))}
         </View>
       ))}
+    </View>
+  );
+}
+
+/**
+ * The visible history, oldest first (#169). The API never tells a citizen who made a change, so
+ * the city council stands for staff; the report is the citizen's own. Classification changes are
+ * staff-only and never requested here.
+ */
+function Timeline({ changes }: { changes: StatusChange[] }) {
+  return (
+    <View style={styles.timeline} testID="history-timeline" accessibilityRole="list">
+      {buildTimeline(changes).map(
+        (entry) =>
+          entry.kind === 'status' && (
+            <View key={entry.key} style={styles.entry}>
+              <View style={styles.entryMark} />
+              <View style={styles.entryBody}>
+                <Text style={styles.entryTitle}>{entry.title}</Text>
+                <Text style={screenStyles.note}>
+                  {formatInstant(entry.instant)} ·{' '}
+                  {entry.previousStatus === null ? 'You' : CITY_COUNCIL}
+                </Text>
+                {entry.reason !== null && <EntryReason entry={entry} reason={entry.reason} />}
+              </View>
+            </View>
+          ),
+      )}
     </View>
   );
 }
@@ -169,8 +231,8 @@ function Timeline({ entries }: { entries: StatusChange[] }) {
  * An information request (ADR-0020: `REPORTED` to `REPORTED`) is a question from the city council
  * to the citizen; any other reason the citizen receives explains the change, such as a rejection.
  */
-function EntryReason({ entry, reason }: { entry: StatusChange; reason: string }) {
-  const informationRequest = entry.previousStatus === 'REPORTED' && entry.newStatus === 'REPORTED';
+function EntryReason({ entry, reason }: { entry: StatusTimelineEntry; reason: string }) {
+  const informationRequest = entry.previousStatus === 'REPORTED' && entry.status === 'REPORTED';
   return (
     <View style={informationRequest ? styles.message : undefined}>
       <Text style={styles.reasonLabel}>
@@ -207,6 +269,13 @@ const MARK_SIZE = 10;
 const styles = StyleSheet.create({
   content: {
     padding: spacing.md,
+    gap: spacing.md,
+  },
+  skeletonScreen: {
+    paddingVertical: spacing.md,
+  },
+  skeleton: {
+    paddingHorizontal: spacing.md,
     gap: spacing.md,
   },
   heading: {
