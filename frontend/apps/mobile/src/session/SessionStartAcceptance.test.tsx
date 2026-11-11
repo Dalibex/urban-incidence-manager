@@ -1,5 +1,6 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { act, screen, userEvent, waitFor } from '@testing-library/react-native';
+import { FetchError } from 'expo/build/winter/fetch/FetchErrors';
 import * as SecureStore from 'expo-secure-store';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -203,9 +204,7 @@ describe('session check at start-up, acceptance of #164', () => {
     items.set(TOKENS_KEY, JSON.stringify(SAVED));
     api({
       'GET /users/me': () => {
-        throw Object.assign(new Error('The Internet connection appears to be offline.'), {
-          name: 'FetchError',
-        });
+        throw new FetchError('The Internet connection appears to be offline.');
       },
     });
 

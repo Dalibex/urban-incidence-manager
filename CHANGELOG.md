@@ -41,6 +41,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 - The session recovers at the next request after a session refresh fails for any reason other than a rejected session, such as the network or a server error, instead of staying unusable until the app restarts (#161).
 - The mobile app keeps the saved session when it starts without network, or when the server fails or does not answer in 10 seconds: it shows the reason and *Try again* instead of the sign-in screen, where signing in again opened a second session and left the first one alive. Only an ended session, or one the phone can no longer read, leads to the sign-in screen (#163).
+- The mobile app recognizes a request that cannot reach the server, without network or after a timeout: the lists retry it on their own and then say *UrbanPulse cannot be reached. Check your connection and try again.*, signing in and reporting an incident say the same instead of *Something went wrong*, and signing out without network no longer fails after discarding the session (#244).
 
 ## [0.1.0] - 2026-11-03
 
