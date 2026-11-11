@@ -6,3 +6,6 @@ packages/api-client/src/schema.d.ts
 **/dist/
 **/coverage/
 **/.expo/
+# Native projects that the development build generates (expo prebuild); Git ignores them too.
+apps/mobile/android/
+apps/mobile/ios/
