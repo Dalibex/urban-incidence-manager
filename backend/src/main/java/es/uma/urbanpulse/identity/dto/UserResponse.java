@@ -5,9 +5,14 @@ import es.uma.urbanpulse.identity.entity.User;
 import java.util.UUID;
 
 /** Public profile of a user. It never carries the password hash. */
-public record UserResponse(UUID id, String name, String email, Role role) {
+public record UserResponse(UUID id, String name, String email, Role role, boolean enabled) {
 
     public static UserResponse from(User user) {
-        return new UserResponse(user.getId(), user.getName(), user.getEmail(), user.getRole());
+        return new UserResponse(
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                user.getRole(),
+                Boolean.TRUE.equals(user.getEnabled()));
     }
 }

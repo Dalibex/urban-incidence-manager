@@ -161,7 +161,7 @@ export function createIncidentComment(
   );
 }
 
-async function callForm<T>(
+export async function callForm<T>(
   call: () => Promise<{ data?: T; error?: unknown; response: Response }>,
   what: string,
 ): Promise<FormResult<T>> {
