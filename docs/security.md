@@ -70,7 +70,10 @@ different one in every environment: whoever knows it can sign a token for any us
   if it answers later, its tokens are dropped. In neither case is a rejection reported as an
   expired session, and a refresh is not sent if sign-out cleared the store while it was being read.
   A refresh that sign-out could not use to revoke the session (it answers later, or the `DELETE`
-  itself fails) leaves a session alive on the server until its refresh token expires (#237).
+  itself fails) leaves a session alive on the server until its refresh token expires (#237). A
+  request is only repeated with the session it was sent with: one sent before a sign-out started
+  gets its `401`, and is neither refreshed nor repeated, so it never runs as the user who signs in
+  next, nor with the token the sign-out refreshed. The photo upload follows the same rule (#259).
 - **Clean-up:** a job inside the backend deletes, every day at 03:00 UTC, the refresh tokens that
   expired longer ago than `REFRESH_TOKEN_RETENTION` (`RefreshTokenCleanup`). It deletes by expiry,
   not by revocation: a revoked token is kept while it would still work, because deleting it would
