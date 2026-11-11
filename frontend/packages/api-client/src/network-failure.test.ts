@@ -116,7 +116,9 @@ describe('network failures (#236)', () => {
     expect(store.current()).toBeNull();
   });
 
-  // T7: Expo's own errors for a body it cannot send are bugs of the caller, not the network.
+  // T7: an error without the prefix, such as Expo's `Unsupported FormData implementation`, is a bug.
+  // Expo's `TypeError('Unsupported BodyInit type')` would still count as the network, as in the
+  // browser; no call of api-client sends such a body.
   describe('an error that is not a network failure', () => {
     const bug = new Error('Unsupported FormData implementation');
 

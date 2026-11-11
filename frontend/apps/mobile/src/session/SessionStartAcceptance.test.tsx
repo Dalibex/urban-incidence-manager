@@ -1,5 +1,6 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { act, screen, userEvent, waitFor } from '@testing-library/react-native';
+import { FetchError } from 'expo/build/winter/fetch/FetchErrors';
 import * as SecureStore from 'expo-secure-store';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -198,13 +199,12 @@ describe('session check at start-up, acceptance of #164', () => {
     expect(server.count('POST /sessions')).toBe(0);
   });
 
-  // T2: Expo's `fetch` rejects with a FetchError, not a TypeError (#244). As in
-  // `expo/build/winter/fetch/FetchErrors.js`, it is a plain `Error` named `Error`.
+  // T2: Expo's `fetch` rejects with a FetchError, not a TypeError (#244).
   it('offers to try again when Expo reports the missing network with an error of its own', async () => {
     items.set(TOKENS_KEY, JSON.stringify(SAVED));
     api({
       'GET /users/me': () => {
-        throw new Error('fetch failed: The Internet connection appears to be offline.');
+        throw new FetchError('The Internet connection appears to be offline.');
       },
     });
 

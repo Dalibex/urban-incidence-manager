@@ -1,5 +1,7 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { fireEvent, screen } from '@testing-library/react-native';
+// Expo's own class, not a copy: an Expo upgrade that changes its message fails these tests.
+import { FetchError } from 'expo/build/winter/fetch/FetchErrors';
 import * as SecureStore from 'expo-secure-store';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -56,17 +58,6 @@ const CITIZEN = {
 
 const NETWORK_MESSAGE = 'UrbanPulse cannot be reached. Check your connection and try again.';
 
-/**
- * The error Expo's global `fetch` rejects with when the request does not reach the API, copied from
- * `expo/build/winter/fetch/FetchErrors.js` (Expo 58): `expo/fetch` does not export it. It extends
- * `Error`, not `TypeError`, and keeps the name `Error`.
- */
-class ExpoFetchError extends Error {
-  constructor(message: string) {
-    super(`fetch failed: ${message}`);
-  }
-}
-
 type Answer = (request: Request) => Response | Promise<Response>;
 
 function json(status: number, body: unknown): Response {
@@ -79,7 +70,7 @@ function json(status: number, body: unknown): Response {
 }
 
 const NO_NETWORK: Answer = () => {
-  throw new ExpoFetchError('The Internet connection appears to be offline.');
+  throw new FetchError('The Internet connection appears to be offline.');
 };
 
 const REPORTS: Answer = () =>
