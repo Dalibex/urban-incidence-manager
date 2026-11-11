@@ -65,7 +65,7 @@ What the sign-in messages mean:
 | *This account is disabled.* | Ask an administrator (staff) or the city council (citizens) to enable it |
 | *UrbanPulse cannot be reached. Check your connection and try again.* | The device has no connection, or the server is down |
 | *Your session has expired. Sign in again.* | The session ended; sign in again, nothing you saved is lost |
-| *Your session could not be checked. Try again in a moment.* | The phone app started, but the server failed to check the saved session; you are still signed in, press *Try again* |
+| *Your session could not be checked. Try again in a moment.* | The phone app started, but the saved session could not be checked: the server answered with an error, or the connection dropped while the session was being renewed. You are still signed in; press *Try again* |
 
 **First sign-in of a staff account:** an account an administrator creates must choose its own
 password before it can sign in, so the one the administrator typed stops working. After the email
@@ -82,7 +82,8 @@ and the next sign-in asks again. Changing the password also ends your sessions o
 - **Mobile app:** on that phone until you sign out from *Profile*; the session is kept in the
   phone's secure storage. If the app starts without a connection, or the server fails or takes
   more than 10 seconds to answer, it keeps the session and offers *Try again* instead of asking you
-  to sign in. It asks you to sign in only when the session has ended.
+  to sign in. It asks you to sign in only when the session has ended or the phone can no longer
+  read it.
 
 *Sign out* (in the top bar of the website, in *Profile* on the phone) ends the session on that
 device only; your other devices stay signed in.
