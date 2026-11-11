@@ -136,7 +136,7 @@ paths:
 
         `PASSWORD_CHANGE_REQUIRED` is also only returned when the password is right, so a wrong
         password does not reveal that an account has to change it. The client then calls
-        `createPasswordChange` and signs in again. Planned: #165.
+        `createPasswordChange` and signs in again.
 
         Roles: public.
       security: []
@@ -172,8 +172,7 @@ paths:
         "403":
           description: >-
             The credentials are right but no session can start: the account is disabled, code
-            `ACCOUNT_DISABLED`, or its password must change first, code `PASSWORD_CHANGE_REQUIRED`
-            (planned: #165).
+            `ACCOUNT_DISABLED`, or its password must change first, code `PASSWORD_CHANGE_REQUIRED`.
           content:
             application/problem+json:
               schema:
@@ -288,8 +287,6 @@ paths:
       operationId: createPasswordChange
       summary: Change the password with the current one
       description: |
-        Planned: #165.
-
         Replaces the password, clears the obligation to change it, revokes every refresh token of
         the user and records a `CHANGE_PASSWORD` audit entry without any password, in one
         transaction. It is public because an account that must change its password has no tokens
@@ -599,8 +596,6 @@ paths:
       operationId: listAuditEntries
       summary: List the audit trail
       description: |
-        Planned: #41.
-
         Paginated entries of the audit trail (RF18): who did what, when and on which record. The
         trail is append-only, so this collection has no operation to create, change or delete an
         entry; entries are written by the operations they record (docs/security.md).
@@ -609,7 +604,9 @@ paths:
         was written: a user renamed later shows their current name.
 
         Sortable property: `instant`. Default `instant,desc` (newest first); `id` is always added as
-        the last criterion so the order is stable between pages.
+        the last criterion so the order is stable between pages. Filters that match nothing,
+        including an `actorId` of a user who never acted, return `200` with an empty page. An
+        unknown parameter, or one without a value, returns `400`.
 
         Roles: `ADMINISTRATOR`.
       parameters:
@@ -1254,13 +1251,12 @@ paths:
       operationId: listIncidentComments
       summary: List the internal comments of an incident
       description: |
-        Planned: #50.
-
         Paginated comments. In the MVP every comment is internal, so citizens never get one, in this
         or any other response.
 
         Sortable property: `createdAt`. Default `createdAt,asc` (oldest first, as the history); `id`
-        is always added as the last criterion so the order is stable between pages.
+        is always added as the last criterion so the order is stable between pages. An unknown
+        parameter, or one without a value, returns `400`.
 
         Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`, `TECHNICIAN` (actively assigned; any other
         technician gets `404`). `CITIZEN` and `ANALYST` get `403`.
@@ -1292,8 +1288,6 @@ paths:
       operationId: createIncidentComment
       summary: Add an internal comment to an incident
       description: |
-        Planned: #50.
-
         The author is the user of the access token. There is no `Location` header because a comment
         has no read operation of its own: it appears in `listIncidentComments`.
 

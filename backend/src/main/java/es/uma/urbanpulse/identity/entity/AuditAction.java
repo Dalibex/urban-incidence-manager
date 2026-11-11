@@ -16,6 +16,9 @@ public enum AuditAction {
     DISABLE_USER,
     ENABLE_USER,
 
+    // Password change (#165).
+    CHANGE_PASSWORD,
+
     // Incident classification (#47).
     CLASSIFY_INCIDENT
 }

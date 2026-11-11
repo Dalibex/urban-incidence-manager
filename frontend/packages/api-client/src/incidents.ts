@@ -105,6 +105,23 @@ export function closeIncident(
   );
 }
 
+/** Query of `listIncidentComments`: `page` starts at 0, `size` is at most 100. */
+export type CommentQuery = NonNullable<operations['listIncidentComments']['parameters']['query']>;
+
+/**
+ * A page of the internal comments of an incident, oldest first (#50). Only staff who may see the
+ * incident read them; a citizen gets `403`.
+ */
+export function listIncidentComments(
+  client: ApiClient,
+  incidentId: string,
+  query: CommentQuery = {},
+): Promise<ApiResult<Schemas['CommentPageResponse']>> {
+  return callApi(() =>
+    client.GET('/incidents/{incidentId}/comments', { params: { path: { incidentId }, query } }),
+  );
+}
+
 /**
  * An operator or administrator reopens a resolved incident: `RESOLVED` to `REOPENED`, after which
  * it can be assigned again (ADR-0020). `reason` is required and only staff see it. It answers as
@@ -122,6 +139,25 @@ export function reopenIncident(
         body,
       }),
     'the incident',
+  );
+}
+
+/**
+ * Adds an internal comment to an incident (#50). Citizens never see it. Staff who may not see the
+ * incident, such as a technician it is no longer assigned to, get `404`.
+ */
+export function createIncidentComment(
+  client: ApiClient,
+  incidentId: string,
+  body: Schemas['CreateCommentRequest'],
+): Promise<FormResult<Schemas['CommentResponse']>> {
+  return callForm(
+    () =>
+      client.POST('/incidents/{incidentId}/comments', {
+        params: { path: { incidentId } },
+        body,
+      }),
+    'the created comment',
   );
 }
 
@@ -183,6 +219,27 @@ export function getIncident(
   incidentId: string,
 ): Promise<ApiResult<Schemas['IncidentResponse']>> {
   return callApi(() => client.GET('/incidents/{incidentId}', { params: { path: { incidentId } } }));
+}
+
+/** Query of `listIncidentClassificationChanges`: `page` starts at 0, `size` is at most 100. */
+export type ClassificationChangeQuery = NonNullable<
+  operations['listIncidentClassificationChanges']['parameters']['query']
+>;
+
+/**
+ * A page of the classification changes of an incident, oldest first (#47). Only staff may read
+ * them; a citizen gets `403`.
+ */
+export function listIncidentClassificationChanges(
+  client: ApiClient,
+  incidentId: string,
+  query: ClassificationChangeQuery = {},
+): Promise<ApiResult<Schemas['ClassificationChangePageResponse']>> {
+  return callApi(() =>
+    client.GET('/incidents/{incidentId}/classification-changes', {
+      params: { path: { incidentId }, query },
+    }),
+  );
 }
 
 /** The status history of an incident, oldest first. */

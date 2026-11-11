@@ -20,6 +20,7 @@ import {
 import { Button, MIN_TOUCH_SIZE } from '../components/Button';
 import { FormMessage } from '../components/FormMessage';
 import { LoadFailure } from '../components/LoadFailure';
+import { LoadingSkeleton, SkeletonBlock } from '../components/Skeleton';
 import { StatusBadge } from '../components/StatusBadge';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import { incidentKeys, useMyReports, type ReportGroup } from '../incidents/incident-queries';
@@ -33,6 +34,9 @@ type Props = CompositeScreenProps<
 >;
 
 type IncidentSummary = components['schemas']['IncidentSummaryResponse'];
+
+/** Rows drawn while the first page loads: enough to fill the screen, never a count to read. */
+const SKELETON_ROWS = 5;
 
 const GROUPS: readonly { group: ReportGroup; label: string; empty: string }[] = [
   { group: 'open', label: 'Open', empty: 'You have no open reports.' },
@@ -92,9 +96,9 @@ export function MyReportsScreen({ navigation }: Props) {
         })}
       </View>
       {reports.isPending ? (
-        <View style={[screenStyles.screen, screenStyles.centered]}>
-          <ActivityIndicator accessibilityLabel="Loading your reports" size="large" />
-        </View>
+        <LoadingSkeleton what="your reports">
+          <ReportRowsSkeleton />
+        </LoadingSkeleton>
       ) : reports.isError && incidents.length === 0 ? (
         <View style={screenStyles.screen}>
           <LoadFailure
@@ -180,6 +184,24 @@ function ReportRow({ incident, onPress }: { incident: IncidentSummary; onPress: 
       )}
     </Pressable>
   );
+}
+
+/** The rows of the list, with blocks in place of the title, the status and the date. */
+function ReportRowsSkeleton() {
+  return Array.from({ length: SKELETON_ROWS }, (_, row) => (
+    <View key={row}>
+      {row > 0 && <Separator />}
+      <View style={styles.row}>
+        <View style={styles.rowContent}>
+          <SkeletonBlock width="70%" />
+          <View style={styles.rowMeta}>
+            <SkeletonBlock width="30%" />
+            <SkeletonBlock width="35%" />
+          </View>
+        </View>
+      </View>
+    </View>
+  ));
 }
 
 interface ListFooterProps {

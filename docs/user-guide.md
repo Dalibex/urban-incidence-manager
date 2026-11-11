@@ -66,6 +66,13 @@ What the sign-in messages mean:
 | *UrbanPulse cannot be reached. Check your connection and try again.* | The device has no connection, or the server is down |
 | *Your session has expired. Sign in again.* | The session ended; sign in again, nothing you saved is lost |
 
+**First sign-in of a staff account:** an account an administrator creates must choose its own
+password before it can sign in, so the one the administrator typed stops working. After the email
+and that password, the website shows *Choose your password*: type the new password twice (at least
+8 characters, different from the one you were given) and select *Change the password*. You go back
+to the sign-in form; sign in with the new password. *Back to sign in* leaves the password as it was,
+and the next sign-in asks again. Changing the password also ends your sessions on other devices, within about 15 minutes.
+
 **How long you stay signed in:**
 
 - **Website:** while the tab is open. The session is kept in memory only, so **reloading the page,
@@ -144,8 +151,10 @@ Scroll down to load more. Tap a report to see:
   when it was last updated and, once closed, when it was closed.
 - **Location:** address, neighbourhood, district, coordinates and accuracy; *Not available* when
   a value is not known.
-- **History:** each change of status with its date. A rejection shows its **reason**. When the
-  city needs more details, the entry shows a *Message from the city council*.
+- **History:** a timeline of each change of status, oldest first, with its date and time. Your
+  report shows as yours (*You*) and every other change as the *City council*'s. A rejection shows
+  its **reason**. When the city needs more details, the entry shows a *Message from the city
+  council*.
 
 You only see what the city shares with you: internal notes of the staff, priorities and who made
 each change are not shown to citizens.
@@ -191,11 +200,15 @@ ticked. *Clear filters* lists every incident.
 - **Location:** address, neighbourhood, district, coordinates and the accuracy the phone reported
   (for example *within 12.5 m*). A value that is not known says *Not available*: it is never left
   empty or guessed.
-- **History:** every change of status, oldest first, with who made it and the reason. Entries the
-  citizen does not see are marked *Internal*.
+- **History:** a timeline of every change of status, oldest first, with its date and time, who made
+  it, their role and the reason. Entries the citizen does not see are marked *Internal*. The changes
+  of category and priority appear among them as *Classification changed*, with who made them and
+  each new value next to the one it replaced. The comments appear as *Comment*, with who wrote them,
+  their role and the text. Both are always internal. If they cannot be loaded, the status changes
+  stay on screen with *Try again* for the rest.
 - **Actions:** the actions allowed for the status of the incident. When there are none, as on a
-  rejected or closed incident, it says *No actions are available for this incident.* Planned: #48,
-  #49, #50.
+  rejected or closed incident, it says *Only comments are available for this incident.* Planned:
+  #48, #49.
 - **Classification:** choose the category and the priority, write why the incident has that
   priority and press *Save classification*. A priority always needs its reason; you can change
   only the category, only the priority or both. The button stays disabled until you change
@@ -205,16 +218,8 @@ ticked. *Clear filters* lists every incident.
     incident*, check the new values and save again. What you typed is kept.
   - If the server cannot be reached or answers with an error, nothing is saved and what you typed
     is kept, so you can save again.
-- **Verify and close, or reopen:** on a resolved incident, check the technician's work. Press
-  *Close the incident* when it is well done: closing is final, the incident shows when it was
-  closed and the citizen sees it as closed. When it is not well done, write why in *Reason for
-  reopening* and press *Reopen the incident*: it goes back to *Reopened*, so it can be assigned
-  again, and the citizen sees the status but not your reason. The page says *Incident closed.* or
-  *Incident reopened: it can be assigned again.* only once the server has kept it.
-  - If someone else changed the incident since you opened it, or already closed or reopened it,
-    nothing is saved: press *Reload the incident* and check its status. Your reason is kept.
-  - If the server cannot be reached or answers with an error, nothing is saved and your reason is
-    kept, so you can send it again.
+  rejected or closed incident, it says *Only comments are available for this incident.* Planned:
+  #48, #49.
 
 *Back to the inbox* returns to the list as you left it. An incident that does not exist shows
 *Incident not found*.
@@ -259,7 +264,10 @@ The report, its photos, the location and the history, as the operator sees them 
 - **Resolve**, on an incident *In progress*: write the *Resolution notes* (what was done, up to
   2,000 characters) and press *Mark as resolved*. The notes are required. The citizen sees that it
   is resolved, not your notes.
-- On any other status it says *No actions are available for this incident.*
+- **Comment**, in any status: a note for the operators, such as a complication you found, as in
+  the [operator's detail](#incident-detail). The citizen never sees it.
+- On any other status there is no other action: it says *Only comments are available for this
+  incident.*
 
 The page says *Incident accepted: it is now in progress.* or *Incident resolved.* only once the
 server has kept the change. If it was not kept, nothing changed and your notes are still there:
@@ -269,18 +277,24 @@ server has kept the change. If it was not kept, nothing changed and your notes a
 - It is no longer assigned to you: *Reload the incident* shows *Incident not found*.
 - The server cannot be reached or answers with an error: try again.
 
-An incident that is not assigned to you, opened from a link, shows *Incident not found*. Planned:
-comments (#50).
+An incident that is not assigned to you, opened from a link, shows *Incident not found*.
 
 ## 🛡️ Administrator (Web)
 
-The menu shows *Users*, where you land, *Inbox* and *Reports*.
+The menu shows *Users*, where you land, *Inbox*, *Audit log* and *Reports*.
 
 - **Inbox and incident detail:** an administrator can do everything an operator can
   ([ADR-0020](adr/0020-incident-lifecycle-transitions.md)), so see
   [Municipal Operator](#-municipal-operator-web).
 - **Users:** planned: #40.
-- **Audit log:** planned: #41.
+- **Audit log:** who did what and when, newest first, 20 entries per page. Each row shows the
+  actor, the action, the record it was about and the values the change replaced and set
+  (`role: TECHNICIAN → MUNICIPAL_OPERATOR`). Names and incident titles are the current ones; a
+  record that no longer exists says so. An incident links to its detail.
+  - Filter by one or several actions and by days (both included, in Málaga time). Click an
+    actor's name to see only their entries; the chip in the filter bar removes that filter.
+  - The filters and the page stay in the address, so reloading or going back keeps them.
+  - The log is read-only: nobody can change or delete an entry.
 - **Reports:** the same screen as the analyst's, see [Analyst](#-analyst-web).
 
 ## 📊 Analyst (Web)

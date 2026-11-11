@@ -76,6 +76,10 @@ function api(
     'GET /departments': () => json(200, []),
     [`GET /incidents/${ASSIGNED.id}`]: () => json(200, server.incident),
     [`GET /incidents/${ASSIGNED.id}/status-changes`]: () => json(200, []),
+    [`GET /incidents/${ASSIGNED.id}/classification-changes`]: () =>
+      json(200, { content: [], page: { number: 0, size: 100, totalElements: 0, totalPages: 0 } }),
+    [`GET /incidents/${ASSIGNED.id}/comments`]: () =>
+      json(200, { content: [], page: { number: 0, size: 100, totalElements: 0, totalPages: 0 } }),
     [`GET /incidents/${ASSIGNED.id}/attachments`]: () => json(200, []),
     [`GET /incidents/${OTHER_INCIDENT_ID}`]: () =>
       json(404, { status: 404, code: 'NOT_FOUND', title: 'Not Found' }),
@@ -170,7 +174,7 @@ describe("technician's incident detail (#187)", () => {
     await userEvent.click(panel.getByRole('button', { name: 'Mark as resolved' }));
 
     expect(await screen.findByText('Incident resolved.')).toBeDefined();
-    expect(await screen.findByText('No actions are available for this incident.')).toBeDefined();
+    expect(await screen.findByText('Only comments are available for this incident.')).toBeDefined();
     expect(server.resolved).toEqual([{ version: IN_PROGRESS.version, reason: NOTES }]);
     // No form follows: the focus goes to the message instead of the page.
     await waitFor(() => expect(document.activeElement?.textContent).toBe('Incident resolved.'));

@@ -3,17 +3,22 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { useSession } from '../session/SessionContext';
 import { ClassificationPanel } from './ClassificationPanel';
-import { ClosePanel, ReopenPanel } from './OperatorActions';
+import { CommentPanel } from './CommentPanel';
 import styles from './Incidents.module.css';
+import { ClosePanel, ReopenPanel } from './OperatorActions';
 import type { ActionCallbacks, ActionDone } from './ActionForm';
 import { AcceptPanel, ResolvePanel } from './TechnicianActions';
 
 type Incident = components['schemas']['IncidentResponse'];
 
+/** Shared with the skeleton of the detail, so the panel keeps its title while the incident loads. */
+export const ACTIONS_TITLE = 'Actions';
+
 /**
  * Where staff act on the incident. Each feature adds the panels of its statuses to the branch of
- * that status below: the operator's (#48, #49, #50, #52) and the technician's (#187). The detail
- * page itself does not change. Each panel receives the incident, to send its `version` back.
+ * that status below: the operator's (#48, #49, #52) and the technician's (#187). The detail page
+ * itself does not change. Each panel receives the incident, to send its `version` back. A comment
+ * (#50) is allowed in every status, so its panel follows the others.
  */
 export function IncidentActions({ incident }: { incident: Incident }) {
   const isTechnician = useSession().user?.role === 'TECHNICIAN';
@@ -22,7 +27,7 @@ export function IncidentActions({ incident }: { incident: Incident }) {
   const [done, setDone] = useState<ActionDone | null>(null);
   // The action whose focus was already moved, so a later change of status does not move it again.
   const focusMovedFor = useRef<ActionDone | null>(null);
-  const section = useRef<HTMLElement>(null);
+  const statusPanels = useRef<HTMLDivElement>(null);
   const message = useRef<HTMLParagraphElement>(null);
   const callbacks: ActionCallbacks = { onSending: () => setDone(null), onDone: setDone };
   const panels = isTechnician
@@ -37,25 +42,25 @@ export function IncidentActions({ incident }: { incident: Incident }) {
     focusMovedFor.current = done;
     // The form that had the focus is gone: continue on the next one, or on the message if there is
     // none, instead of leaving the focus on the page.
-    const next = section.current?.querySelector<HTMLElement>(
+    // The comment form is not the next step of an action, so the focus does not jump to it.
+    const next = statusPanels.current?.querySelector<HTMLElement>(
       'form textarea, form input, form select, form button',
     );
     (next ?? message.current)?.focus();
   }, [done, incident.status]);
 
   return (
-    <section
-      ref={section}
-      className={`${styles.panel} ${styles.actions}`}
-      aria-labelledby="actions-title"
-    >
+    <section className={`${styles.panel} ${styles.actions}`} aria-labelledby="actions-title">
       <h2 id="actions-title" className={styles.panelTitle}>
-        Actions
+        {ACTIONS_TITLE}
       </h2>
       <p ref={message} role="status" tabIndex={-1} className={styles.formMessage}>
         {done?.message}
       </p>
-      {panels ?? <p className={styles.lead}>No actions are available for this incident.</p>}
+      <div ref={statusPanels} className={styles.statusPanels}>
+        {panels ?? <p className={styles.lead}>Only comments are available for this incident.</p>}
+      </div>
+      <CommentPanel incidentId={incident.id} />
     </section>
   );
 }

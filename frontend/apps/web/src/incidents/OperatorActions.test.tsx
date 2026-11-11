@@ -128,7 +128,7 @@ describe('close or reopen a resolved incident (#52)', () => {
     await userEvent.click((await actions()).getByRole('button', { name: 'Close the incident' }));
 
     expect(await screen.findByText('Incident closed.')).toBeDefined();
-    expect(await screen.findByText('No actions are available for this incident.')).toBeDefined();
+    expect(await screen.findByText('Only comments are available for this incident.')).toBeDefined();
     expect(server.closed).toEqual([{ version: RESOLVED.version }]);
     expect(server.reopened).toEqual([]);
     // No form follows: the focus goes to the message instead of the page.
