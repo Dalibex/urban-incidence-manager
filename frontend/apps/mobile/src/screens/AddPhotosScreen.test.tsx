@@ -15,7 +15,7 @@ const mockUploadAttachment = jest.fn<
   [string, LocalFile, (fraction: number) => void, SessionMark | undefined]
 >();
 // The screen only passes the mark on; what it means is tested in api-client.
-const SESSION = { signOutsStarted: 0 } as unknown as SessionMark;
+const SESSION = { sessionEnds: 0 } as unknown as SessionMark;
 const mockMarkSession = jest.fn<SessionMark, []>();
 
 jest.mock('../attachments/photo-picker', () => ({ pickPhoto: jest.fn() }));

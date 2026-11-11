@@ -72,7 +72,7 @@ export function AddPhotosScreen({ route }: Props) {
     setError(null);
     setFailure(null);
     setProgress(0);
-    // Every attempt belongs to the session of the first: if the citizen signs out during the wait
+    // Every attempt belongs to the session of the first: if that session ends during the wait
     // between attempts, no retry is sent with the session of whoever signs in next (#259).
     const session = markSession();
     try {

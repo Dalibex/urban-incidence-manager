@@ -31,6 +31,10 @@ export interface SessionOptions {
 const signOuts = new WeakMap<TokenStore, number>();
 // Sign-outs that have started and not cleared the store yet; a count, because both can overlap.
 const signOutsInProgress = new WeakMap<TokenStore, number>();
+// Times the session of a store ended for the requests marked before (#259): a sign-out starts, for
+// those sent before it; it finishes, for those sent while it waited for the server; or a rejected
+// refresh ends the session. It only grows, so a mark compares it and nothing else.
+const sessionEnds = new WeakMap<TokenStore, number>();
 
 function signOutCount(tokenStore: TokenStore): number {
   return signOuts.get(tokenStore) ?? 0;
@@ -40,12 +44,21 @@ function isSigningOut(tokenStore: TokenStore): boolean {
   return (signOutsInProgress.get(tokenStore) ?? 0) > 0;
 }
 
+function sessionEndCount(tokenStore: TokenStore): number {
+  return sessionEnds.get(tokenStore) ?? 0;
+}
+
+function endSessionOfMarks(tokenStore: TokenStore): void {
+  sessionEnds.set(tokenStore, sessionEndCount(tokenStore) + 1);
+}
+
 /**
  * Called by `signOut` before it revokes the session. A refresh may still save its tokens, so that
  * the revocation can use them, but a rejected one is not reported as an expired session.
  */
 export function startSignOut(tokenStore: TokenStore): void {
   signOutsInProgress.set(tokenStore, (signOutsInProgress.get(tokenStore) ?? 0) + 1);
+  endSessionOfMarks(tokenStore);
 }
 
 /**
@@ -55,33 +68,30 @@ export function startSignOut(tokenStore: TokenStore): void {
 export function finishSignOut(tokenStore: TokenStore): void {
   signOutsInProgress.set(tokenStore, (signOutsInProgress.get(tokenStore) ?? 1) - 1);
   signOuts.set(tokenStore, signOutCount(tokenStore) + 1);
-}
-
-/** Sign-outs started on this store, finished or not: it grows when one starts, never when it ends. */
-function signOutsStarted(tokenStore: TokenStore): number {
-  return signOutCount(tokenStore) + (signOutsInProgress.get(tokenStore) ?? 0);
+  endSessionOfMarks(tokenStore);
 }
 
 /** The session a store holds at one moment, from {@link markSession}. */
 export interface SessionMark {
   readonly tokenStore: TokenStore;
-  readonly signOutsStarted: number;
+  readonly sessionEnds: number;
 }
 
 /**
  * Marks the session the store holds now. A request is marked before it reads the tokens, and is
- * only repeated with the session of its mark: once a sign-out has started, it is not repeated with
+ * only repeated with the session of its mark: once that session has ended, it is not repeated with
  * whatever the store holds by then, another user's session or the refreshed tokens of the session
- * that ended (#259). The `DELETE` of `signOut` is marked after `startSignOut`, so it is still
- * repeated with a fresh token to revoke the session.
+ * that ended (#259). A request sent while a sign-out waits for the server belongs to the session
+ * being signed out, so its session ends when the sign-out finishes. The `DELETE` of `signOut` has
+ * finished by then, so it is still repeated with a fresh token to revoke the session.
  */
 export function markSession(tokenStore: TokenStore): SessionMark {
-  return { tokenStore, signOutsStarted: signOutsStarted(tokenStore) };
+  return { tokenStore, sessionEnds: sessionEndCount(tokenStore) };
 }
 
-/** Whether a sign-out has started since the mark was taken. */
+/** Whether the session of the mark has ended: by a sign-out, or by a rejected refresh. */
 export function hasSessionEnded(mark: SessionMark): boolean {
-  return signOutsStarted(mark.tokenStore) !== mark.signOutsStarted;
+  return sessionEndCount(mark.tokenStore) !== mark.sessionEnds;
 }
 
 const REFRESH_PATH = '/sessions/refresh';
@@ -116,6 +126,8 @@ export function createSessionFetch(baseUrl: string, options: SessionOptions) {
       // The user signed out first: the store is no longer this session's, and nothing expired.
       return null;
     }
+    // Before clearing: no request of this session is repeated with the tokens of the next sign-in.
+    endSessionOfMarks(tokenStore);
     await tokenStore.clear();
     // Signing out ends the session anyway: the user asked for it, so it did not expire.
     if (!isSigningOut(tokenStore)) {

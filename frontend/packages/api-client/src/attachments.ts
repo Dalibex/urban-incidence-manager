@@ -65,8 +65,9 @@ const SESSION_ENDED: ApiResult<Attachment> = {
  * attachment. The client owns the refresh (session.ts): an access token that has already expired is
  * refreshed with a small request before sending the photo, so the photo is not sent twice; if the
  * API still answers `401` (a clock that runs late), the session is refreshed and the upload is
- * repeated once. The photo is only ever sent with the session of `options.session`: after a
- * sign-out, it is not sent with whatever the store holds by then (#259).
+ * repeated once. The photo is only ever sent with the session of `options.session`: once that
+ * session has ended, by a sign-out or a rejected refresh, it is not sent with whatever the store
+ * holds by then (#259).
  */
 export async function uploadIncidentAttachment(
   client: ApiClient,
@@ -84,12 +85,14 @@ export async function uploadIncidentAttachment(
   }
   if (tokens && hasExpired(tokens, now())) {
     const failure = await refreshThroughClient(client);
+    // Nothing was sent: the caller sees why the refresh failed. A retry after a network failure
+    // sends nothing either if the session has ended meanwhile.
+    if (failure) {
+      return { ok: false, failure };
+    }
     tokens = await options.tokenStore.load();
     if (hasSessionEnded(session)) {
       return SESSION_ENDED;
-    }
-    if (failure) {
-      return { ok: false, failure };
     }
   }
   let reply = await send(url, file, tokens, options);
