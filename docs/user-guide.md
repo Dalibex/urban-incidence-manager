@@ -181,7 +181,8 @@ The menu and the sign-in open it on the reports waiting for a review: the status
 ticked. *Clear filters* lists every incident.
 
 - **Filters:** status, category, priority, department and the days it was reported (*Reported
-  from* and *to*, both included, in Málaga time). They combine with each other, and each change
+  from* and *to*, both included, in Málaga time, or in one click with *Reported in*: *Today*,
+  *Last 7 days* or *Last 30 days*). They combine with each other, and each change
   applies at once and goes back to the first page. The department is the one the incident is
   assigned to now. Several statuses can be ticked at once: the list shows the incidents in any of
   them, and with none ticked it shows every status. The district filter is planned (#59).
@@ -248,25 +249,34 @@ Dates are shown in Málaga time.
 
 The incidents on the base map of Málaga, with the same filters as the inbox, and beside it a
 summary of how many they are. The menu opens it on every status that can still change: everything
-except *Rejected* and *Closed*.
+except *Rejected* and *Closed*. The screen fills the window, so the whole map is seen without
+scrolling on a window at least 800 pixels wide and about 560 tall, also with the browser zoomed
+(a 1,280-pixel laptop screen at 150 % is 853). With the filters open, the map shrinks to make room;
+below about 280 pixels of map the page scrolls instead.
 
 - **Filters:** they are folded, so the map keeps the room. *Filters* opens and closes them, and
   says how many apply, for example *Filters (1)*. While folded, a line next to it names them, with
   *Clear filters*. The filters stay in the address, so a reload or a shared link keeps them.
-- **Summary:** at the side of the map (under it on a screen narrower than 900 pixels), the same
-  incidents as the map,
-  counted: how many there are, how many of each priority, and charts by status, category and
-  department. It counts all of them, also when the map shows only the 1,000 most relevant. The
-  status bars have the colours of the markers. *Not classified*, *Not assigned* and *No priority*
-  count the incidents without a category, an active assignment or a priority. It is read again
-  with the map. If it cannot be loaded, it says so with *Try again*; if a refresh fails, the counts
-  you saw stay with a warning, never as zeros. A chart that cannot be shown gives its figures as a
-  table.
+  *Reported in* sets the days in one click: *Today*, *Last 7 days* or *Last 30 days*, ending today
+  in Málaga; pressing the chosen one again removes the days. The inbox and the work queue have it
+  too.
+- **Summary:** at the side of the map (under it on a screen narrower than 800 pixels), the same
+  incidents as the map, counted. How many there are, and then parts that each fold to their title:
+  how many of each priority; charts by status, category and department; and *Latest reported*, the
+  five newest incidents with their status and how long ago they were reported, as of the last
+  refresh, each opening its summary like a marker. If a refresh of that list fails, it keeps the
+  incidents you saw and says from when. The parts you fold stay folded the next time, in this browser and for
+  your user. It counts all of them, also when the map shows only the 1,000 most relevant. A count
+  from 10,000 is written short (*12.3K*), with the exact number on hover. The status bars have the
+  colours of the markers. *Not classified*, *Not assigned* and *No priority* count the incidents
+  without a category, an active assignment or a priority. It is read again with the map. If it
+  cannot be loaded, it says so with *Try again*; if a refresh fails, the counts you saw stay with a
+  warning, never as zeros. A chart that cannot be shown gives its figures as a table.
 - **Markers:** each incident is a dot. Its colour is its status, the same as in the lists, and its
   size is its priority: the higher, the bigger, and a *High* one also has a dark border. *Map key*,
-  at the bottom of the summary, explains both.
-- **Full screen:** the button under the zoom buttons shows the map and its summary on the whole
-  screen; *Escape* or the same button brings the page back.
+  in the bottom-left corner of the map, explains both; it opens and folds, and stays as you left it.
+- **Full screen:** the button under the zoom buttons shows the whole screen of the map, with its
+  filters and summary, on the whole screen; *Escape* or the same button brings the page back.
 - **Groups:** when you zoom out, nearby incidents join into a dark circle with their number, and the
   highest priority among them is written under it (*High*, *Medium* or *Low*; nothing when none has
   a priority). Click it to zoom in until it splits.
@@ -277,7 +287,7 @@ except *Rejected* and *Closed*.
   its marker.
 - **Live:** the map reads the incidents again every 15 seconds, so a new report appears without
   reloading the page.
-- **List:** *List of the incidents on the map*, under the map, has every incident on the map,
+- **List:** *List of the incidents on the map*, under the summary, has every incident on the map,
   the most relevant first. With the keyboard, *Tab* to it, *Enter* to open it and *Enter* on an
   incident to open its summary and centre the map on it.
 - The map shows at most 1,000 incidents, the most relevant first. If more match, it says so: narrow
@@ -306,7 +316,8 @@ incidents assigned to you, opened on *Assigned* and *In progress* like the queue
 
 The incidents assigned to you now, newest first, a page at a time, with the same columns as the
 operator's inbox. It opens on the work still to do: the statuses *Assigned* and *In progress* are
-ticked. Tick other statuses, or *Clear filters*, to see the incidents you resolved.
+ticked. Tick other statuses, or *Clear filters*, to see the incidents you resolved. The filters are
+those of the inbox, *Reported in* included.
 
 - **Filters:** the same as in the [inbox](#inbox), and they work the same way: they combine, they
   are part of the address and the page goes back to the first one. They only search your own

@@ -104,8 +104,9 @@ for its code (#57).
   seconds. A click opens a summary with
   *Manage*, and a list under the map opens the same summary from the keyboard. The menu opens it on
   every status that can still change. Beside it, a dashboard (#177) counts the same incidents: the
-  total, by priority, and charts by status, category and department. The filters fold behind a
-  button.
+  total, by priority, charts by status, category and department, and the latest reported; each
+  part folds and is remembered. The filters fold behind a button, with quick ranges of days. A
+  customizable dashboard is planned in #265.
 - **Incident detail** (#46): report data, photos (#44), history and internal comments (#50) in one
   timeline. The actions depend on the status (ADR-0020):
 

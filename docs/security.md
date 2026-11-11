@@ -231,6 +231,14 @@ That change needs an update of [ADR-0004](adr/0004-authentication-strategy.md) a
 (or `SameSite=Strict` plus a check of the `Origin` header) for those endpoints, in the same pull
 request.
 
+## Browser storage
+
+The web app keeps the tokens in memory only (`SessionContext`), never in `localStorage` or
+`sessionStorage`, where any script of the page could read them. The only thing it writes there is
+which parts of the map screen each user folded or opened (`urbanpulse.map-preferences.<user id>`,
+#177): no personal data, nothing the API reads, and it stays after sign-out because it is only a
+layout. If the browser refuses its storage, the screen works with the defaults.
+
 ## Permission matrix
 
 Paths are relative to `/api/v1`. **Public** means no token. A role in the cell can call the
