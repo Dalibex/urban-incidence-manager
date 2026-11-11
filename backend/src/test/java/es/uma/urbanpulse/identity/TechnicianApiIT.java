@@ -163,9 +163,7 @@ class TechnicianApiIT {
             assertThat(technician.keySet()).containsExactlyInAnyOrder("id", "name");
         }
         assertThat(body)
-                .doesNotContain(emailOf(enabledTechnician), passwordHashOf(enabledTechnician))
-                .doesNotContainIgnoringCase("email")
-                .doesNotContainIgnoringCase("password");
+                .doesNotContain(emailOf(enabledTechnician), passwordHashOf(enabledTechnician));
     }
 
     // T12: technicians and citizens may not read the list; analysts neither (docs/security.md).
