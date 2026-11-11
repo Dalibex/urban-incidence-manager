@@ -105,7 +105,8 @@ If the email already has an account, the app says so: sign in instead.
 
 1. Open the *New* tab. The first time, the phone asks whether UrbanPulse may use your location:
    allow it. Without it you cannot report; the screen shows *Location is needed* and an
-   *Open settings* button to allow it later.
+   *Open settings* button to allow it later. Above the form, a map of Málaga shows the area. If it
+   cannot load, a notice says so and you can still report; *Try again* loads it again.
 2. Check the accuracy under the form (for example *Accuracy: 12 m*). Outdoors it is usually a few
    metres; indoors it can be much worse. Tap *Refresh* to read the position again before sending.
 3. Write a **title** (a short summary) and a **description** (what happens and where). Both are
@@ -140,7 +141,7 @@ or goes over the limit of the report is refused with its reason.
 The report is accepted even when the address, neighbourhood or district cannot be worked out at
 that moment: they show as *Not available* until they are known.
 
-- Planned: choose or correct the position on a map (#60).
+- Planned: choose or correct the position on the map (#198).
 
 ### Follow your reports
 

@@ -3,6 +3,7 @@ import { createIncident, listCategories, type CreateIncidentResult } from '@urba
 import { act, fireEvent, screen, userEvent, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 
+import { MAP_LOAD_FAILED } from '../components/BaseMap';
 import { useIncidentLocation, type UseIncidentLocationResult } from '../hooks/useIncidentLocation';
 import { categoryKeys, incidentKeys } from '../incidents/incident-queries';
 import type { MainTabsParamList } from '../navigation/MainTabs';
@@ -328,6 +329,25 @@ describe('NewIncidentScreen', () => {
       expect(mockedCreateIncident.mock.lastCall?.[1].location).toEqual({
         latitude: 36.7213,
         longitude: -4.4214,
+      });
+    });
+  });
+
+  describe('base map', () => {
+    it('still sends the report with the GPS position when the map cannot load', async () => {
+      mockedCreateIncident.mockResolvedValue(CREATED);
+      await renderScreen();
+      await act(() => screen.getByTestId('maplibre-map').props.onDidFailLoadingMap());
+      expect(screen.getByText(MAP_LOAD_FAILED)).toBeOnTheScreen();
+      await fillIn('Street light off', 'Off for three days.');
+
+      await fireEvent.press(screen.getByRole('button', { name: 'Submit' }));
+
+      await waitFor(() => expect(mockedCreateIncident).toHaveBeenCalledTimes(1));
+      expect(mockedCreateIncident.mock.lastCall?.[1].location).toEqual({
+        latitude: 36.7213,
+        longitude: -4.4214,
+        accuracy: 12.5,
       });
     });
   });
