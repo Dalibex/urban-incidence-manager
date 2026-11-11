@@ -322,8 +322,9 @@ native dependency or changing `app.json`, build again with `pnpm --filter @urban
   from a Phone* in the [deployment guide](deployment.md)).
 - The mobile app keeps the session in `expo-secure-store` (Keychain on iOS, Keystore on Android),
   so it survives a restart.
-- The report form shows the base map centred on Málaga. Moving a pin to correct the position is
-  planned: #198.
+- The report form places the incident with a pin fixed in the centre of the base map: it starts on
+  the GPS position or, without it, on Málaga, and the citizen moves the map under the pin. On an
+  emulator, set the position in its extended controls (*Location*) to try the GPS path.
 
 ### Before pushing
 

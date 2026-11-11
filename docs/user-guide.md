@@ -103,18 +103,26 @@ If the email already has an account, the app says so: sign in instead.
 
 ### Report an incident
 
-1. Open the *New* tab. The first time, the phone asks whether UrbanPulse may use your location:
-   allow it. Without it you cannot report; the screen shows *Location is needed* and an
-   *Open settings* button to allow it later. Above the form, a map of Málaga shows the area. If it
-   cannot load, a notice says so and you can still report; *Try again* loads it again.
-2. Check the accuracy under the form (for example *Accuracy: 12 m*). Outdoors it is usually a few
-   metres; indoors it can be much worse. Tap *Refresh* to read the position again before sending.
+1. Open the *New* tab. The first time, the phone asks whether UrbanPulse may use your location.
+   If you allow it, the map above the form opens on your position; if you refuse it, or the phone
+   cannot find your position within 15 seconds, it opens on the centre of Málaga and says why. You
+   can report either way. *Open settings* lets you allow the location later: when you come back to
+   the app, it reads your position.
+2. Move the map until the pin in its centre points to the incident. The map stays inside the area
+   of Málaga it covers. Under the map, *Your GPS position* shows the accuracy the phone reported
+   (for example *Accuracy: 12 m*; outdoors it is usually a few metres, indoors much worse). Once
+   you move the map it says *Position chosen on the map*, and no accuracy is sent with the report.
+   *Use my position* reads your position again and puts the pin back on it.
 3. Write a **title** (a short summary) and a **description** (what happens and where). Both are
    required.
 4. Choose a **category** if one fits. It is optional: staff classify the report if you leave it
    empty. If the categories cannot be loaded, you can still report without one.
 5. Tap *Submit*. The app confirms that the incident was reported and offers *Add photos* or
    *My reports*.
+
+If the map cannot load, a notice replaces it and *Try again* loads it again. Meanwhile the report
+uses your GPS position; without it, *Submit* stays disabled until the map or your position is back,
+and what you wrote is kept.
 
 The report is saved as soon as you submit it. Photos are optional, and a photo that cannot be
 uploaded never loses the report.
@@ -140,8 +148,6 @@ or goes over the limit of the report is refused with its reason.
 
 The report is accepted even when the address, neighbourhood or district cannot be worked out at
 that moment: they show as *Not available* until they are known.
-
-- Planned: choose or correct the position on the map (#198).
 
 ### Follow your reports
 
