@@ -42,6 +42,7 @@ The committed Sprint 2 operations were agreed ahead in #204. Each one says `Plan
 | `incidents` | The staff filters of `listIncidents` | #182 |
 | `incidents` | `createIncidentValidation`, `createIncidentRejection`, `createIncidentInformationRequest` | #188 |
 | `incidents` | `createIncidentAssignment`, `listDepartments`, and `assignment` in `IncidentResponse` | #184 |
+| `incidents` | `createIncidentClosure`, `createIncidentReopening` | #52 |
 | `incidents` | `listIncidentComments`, `createIncidentComment` | #50 |
 | `incidents` | `listIncidentAttachments`, `createIncidentAttachment`, `getAttachmentContent` | #192 |
 | `incidents` | `listIncidentLocations` | #195 |
