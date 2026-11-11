@@ -1,7 +1,12 @@
 import type { ApiClient } from './index';
 import { callApi, isProblem, type ApiFailure, type ApiResult } from './account';
 import type { components } from './schema';
-import { withoutTrailingSlashes, type SessionTokens, type TokenStore } from './session';
+import {
+  signOutsStarted,
+  withoutTrailingSlashes,
+  type SessionTokens,
+  type TokenStore,
+} from './session';
 
 type Attachment = components['schemas']['AttachmentResponse'];
 
@@ -37,6 +42,13 @@ const STALL_TIMEOUT_MS = 60_000;
 
 type Reply = { kind: 'network' } | { kind: 'response'; status: number; body: unknown };
 
+// An upload whose session ended before the photo was sent answers as the API answers a request
+// without a session: a `401`, which no caller retries, unlike a network failure.
+const SESSION_ENDED: ApiResult<Attachment> = {
+  ok: false,
+  failure: { kind: 'problem', status: 401, code: undefined },
+};
+
 /**
  * Uploads one photo to an incident (`createIncidentAttachment`). It uses `XMLHttpRequest` instead
  * of the client's `fetch` because only XHR reports upload progress in React Native.
@@ -45,7 +57,8 @@ type Reply = { kind: 'network' } | { kind: 'response'; status: number; body: unk
  * attachment. The client owns the refresh (session.ts): an access token that has already expired is
  * refreshed with a small request before sending the photo, so the photo is not sent twice; if the
  * API still answers `401` (a clock that runs late), the session is refreshed and the upload is
- * repeated once.
+ * repeated once. The photo is only ever sent with the session the upload started with: if the user
+ * signs out during a refresh, it is not sent with whatever the store holds by then (#259).
  */
 export async function uploadIncidentAttachment(
   client: ApiClient,
@@ -55,20 +68,29 @@ export async function uploadIncidentAttachment(
 ): Promise<ApiResult<Attachment>> {
   const url = `${withoutTrailingSlashes(options.baseUrl)}/incidents/${encodeURIComponent(incidentId)}/attachments`;
   const now = options.now ?? (() => new Date());
+  const signOutsAtStart = signOutsStarted(options.tokenStore);
+  const sessionEnded = () => signOutsStarted(options.tokenStore) !== signOutsAtStart;
   let tokens = await options.tokenStore.load();
   if (tokens && hasExpired(tokens, now())) {
     const failure = await refreshThroughClient(client);
+    tokens = await options.tokenStore.load();
+    if (sessionEnded()) {
+      return SESSION_ENDED;
+    }
     if (failure) {
       return { ok: false, failure };
     }
-    tokens = await options.tokenStore.load();
   }
   let reply = await send(url, file, tokens, options);
-  if (reply.kind === 'response' && reply.status === 401 && tokens) {
-    if ((await refreshThroughClient(client))?.kind === 'network') {
+  if (reply.kind === 'response' && reply.status === 401 && tokens && !sessionEnded()) {
+    const failure = await refreshThroughClient(client);
+    const fresh = await options.tokenStore.load();
+    if (sessionEnded()) {
+      return toResult(reply);
+    }
+    if (failure?.kind === 'network') {
       return { ok: false, failure: { kind: 'network' } };
     }
-    const fresh = await options.tokenStore.load();
     if (fresh && fresh.accessToken !== tokens.accessToken) {
       // The whole photo is sent again, so the bar starts again instead of staying at 100%.
       options.onProgress?.(0);
