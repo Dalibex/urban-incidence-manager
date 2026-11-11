@@ -29,14 +29,17 @@ and this project follows [Semantic Versioning](https://semver.org/).
 - Password change with the current password (`POST /password-changes`), rate limited together with sign-in and audited without the password. A staff account that must change its password gets `403 PASSWORD_CHANGE_REQUIRED` and no session from sign-in, and the web asks it for a new password before it signs in. Changing it ends every session of the account, within about 15 minutes for the access tokens already issued. The dev dataset adds `dev.newstaff@example.com` to try it (#165).
 - Internal comments on an incident, on the API and the web: operators, administrators and the technician of the active assignment write and list them, oldest first and paginated. Citizens never see them, and any other technician gets `404`. A comment has at most 2,000 characters. On the web, the incident detail of staff has a *Comment* form in every status, and its timeline shows the comments among the changes, with who wrote them and their role; a comment that could not be saved keeps its text to send again (#50).
 - The web inbox, work queue and incident detail, and *My reports* and the report detail of the mobile app, show the shape of what is loading instead of a loading line or a spinner. A quick answer shows nothing in between, the shape does not move when the device asks for less motion, and after 10 seconds the screen says that the server is slow (#174).
+- User management for administrators, on the API and in the *Users* screen of the web app: list the accounts with filters by name, email and role (`GET /users`), read one (`GET /users/{userId}`), create a staff account with its role and an initial password that must be changed at the first sign-in (`POST /users`), and rename it, change its role, or disable and enable it again (`PATCH /users/{userId}`). Disabling ends its sessions at the next refresh. Administrators cannot change their own role or disable themselves, and a role cannot change from or to `CITIZEN`. Every change is recorded in the audit trail, a name change without the name (#191).
 
 ### Changed
 
+- The user profile of the API (`UserResponse`, also in `GET /users/me`) includes `enabled`, whether the account can sign in (#191).
 - The incident list of the API answers `400` to an unknown query parameter or one without a value, instead of ignoring it (#182).
 
 ### Fixed
 
 - The session recovers at the next request after a session refresh fails for any reason other than a rejected session, such as the network or a server error, instead of staying unusable until the app restarts (#161).
+- The mobile app keeps the saved session when it starts without network, or when the server fails or does not answer in 10 seconds: it shows the reason and *Try again* instead of the sign-in screen, where signing in again opened a second session and left the first one alive. Only an ended session, or one the phone can no longer read, leads to the sign-in screen (#163).
 
 ## [0.1.0] - 2026-11-03
 

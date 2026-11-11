@@ -182,9 +182,7 @@ export interface paths {
         };
         /**
          * List the users
-         * @description Planned: #191.
-         *
-         *     Paginated users of every role, enabled or not.
+         * @description Paginated users of every role, enabled or not.
          *
          *     Sortable properties: `name`, `email`. Default `name,asc`; `id` is always added as the last
          *     criterion so the order is stable between pages.
@@ -195,9 +193,7 @@ export interface paths {
         put?: never;
         /**
          * Create a staff account
-         * @description Planned: #191.
-         *
-         *     Creates an enabled staff account with the initial password the administrator typed. The
+         * @description Creates an enabled staff account with the initial password the administrator typed. The
          *     user must change it at the first sign-in (#165). Citizens sign up by themselves, so the
          *     role `CITIZEN` returns `422`. It records a `CREATE_USER` audit entry.
          *
@@ -219,9 +215,7 @@ export interface paths {
         };
         /**
          * Get a user
-         * @description Planned: #191.
-         *
-         *     Roles: `ADMINISTRATOR`.
+         * @description Roles: `ADMINISTRATOR`.
          */
         get: operations["getUser"];
         put?: never;
@@ -231,9 +225,7 @@ export interface paths {
         head?: never;
         /**
          * Change the name or role of a user, or disable or enable the account
-         * @description Planned: #191.
-         *
-         *     Only the properties present in the body change. There is no `DELETE`: users are referenced
+         * @description Only the properties present in the body change. There is no `DELETE`: users are referenced
          *     by incidents, history and the audit trail, so an account is disabled instead.
          *
          *     A role change or a disabled account takes effect at the next refresh. Disabling revokes the
@@ -241,8 +233,11 @@ export interface paths {
          *     entry (`UPDATE_USER`, `CHANGE_ROLE`, `DISABLE_USER`, `ENABLE_USER`); a name change records
          *     which field changed, never its value.
          *
-         *     Administrators cannot change their own role or disable themselves: it returns `422`. Of two
-         *     changes at once, both apply one after the other.
+         *     Administrators cannot change their own role or disable themselves: it returns `422`. Citizen
+         *     and staff accounts are created in different ways (citizens sign up, staff accounts must change
+         *     the initial password), so a role change from or to `CITIZEN` returns `422` too. A body that
+         *     changes nothing answers `200` and records no entry. Of two changes at once, both apply one
+         *     after the other.
          *
          *     Roles: `ADMINISTRATOR`.
          */
@@ -1044,8 +1039,11 @@ export interface components {
              */
             email: string;
             role: components["schemas"]["Role"];
-            /** @description Whether the account can sign in. Planned: #191. It is optional only until then, because the backend does not send it yet; that pull request makes it required. */
-            enabled?: boolean;
+            /**
+             * @description Whether the account can sign in.
+             * @example true
+             */
+            enabled: boolean;
         };
         /** @description One page of users. */
         UserPageResponse: {
@@ -1081,6 +1079,7 @@ export interface components {
              * @example Pedro Gómez
              */
             name?: string;
+            /** @description A staff role, for a staff account. From or to `CITIZEN` returns `422`. */
             role?: components["schemas"]["Role"];
             /**
              * @description `false` disables the account and `true` enables it again.
