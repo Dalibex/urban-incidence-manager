@@ -1,15 +1,22 @@
 import {
   acceptIncident,
+  closeIncident,
+  createIncidentComment,
   getAttachmentContent,
   getIncident,
   listCategories,
   listDepartments,
   listIncidentAttachments,
+  listIncidentClassificationChanges,
+  listIncidentComments,
+  listIncidentLocations,
   listIncidents,
   listIncidentStatusChanges,
+  reopenIncident,
   resolveIncident,
   updateIncident,
   type ApiClient,
+  type ApiResult,
   type components,
   type FormResult,
 } from '@urbanpulse/api-client';
@@ -28,6 +35,9 @@ import { toListQuery, type IncidentFilters } from './filters/incident-filters';
 /** Rows per page of the inbox; the API allows up to 100 (docs/api.md, "Listings"). */
 export const INBOX_PAGE_SIZE = 20;
 
+/** How often the map reads the positions again, so a new incident appears without a reload. */
+export const MAP_REFRESH_INTERVAL_MS = 15_000;
+
 type Incident = components['schemas']['IncidentResponse'];
 type UpdateIncidentRequest = components['schemas']['UpdateIncidentRequest'];
 type IncidentActionRequest = components['schemas']['IncidentActionRequest'];
@@ -35,9 +45,13 @@ type IncidentReasonRequest = components['schemas']['IncidentReasonRequest'];
 
 const incidentKeys = {
   page: (page: number, filters: IncidentFilters) => ['incidents', 'page', page, filters] as const,
+  locations: (filters: IncidentFilters) => ['incidents', 'locations', filters] as const,
   detail: (incidentId: string) => ['incidents', incidentId] as const,
   history: (incidentId: string) => ['incidents', incidentId, 'status-changes'] as const,
+  classificationChanges: (incidentId: string) =>
+    ['incidents', incidentId, 'classification-changes'] as const,
   attachments: (incidentId: string) => ['incidents', incidentId, 'attachments'] as const,
+  comments: (incidentId: string) => ['incidents', incidentId, 'comments'] as const,
   categories: ['categories'] as const,
 };
 
@@ -58,6 +72,23 @@ export function useIncidentPage(page: number, filters: IncidentFilters) {
   });
 }
 
+/**
+ * The positions of the incidents the user may see that match `filters`, for the map (#196): the
+ * most relevant first, at most the API's cap. They are read again every
+ * {@link MAP_REFRESH_INTERVAL_MS}; a failed refresh keeps the last positions (`data`) next to the
+ * error, and the next interval tries again.
+ */
+export function useIncidentLocations(filters: IncidentFilters) {
+  const { api } = useSession();
+  return useQuery({
+    queryKey: incidentKeys.locations(filters),
+    queryFn: () => dataOf(listIncidentLocations(api, toListQuery(filters))),
+    refetchInterval: MAP_REFRESH_INTERVAL_MS,
+    // The markers stay on the map while other filters load, instead of the map emptying.
+    placeholderData: keepPreviousData,
+  });
+}
+
 export function useIncident(incidentId: string) {
   const { api } = useSession();
   return useQuery({
@@ -71,6 +102,47 @@ export function useIncidentHistory(incidentId: string) {
   return useQuery({
     queryKey: incidentKeys.history(incidentId),
     queryFn: () => dataOf(listIncidentStatusChanges(api, incidentId)),
+  });
+}
+
+/** The most the API returns in one page (docs/api.md, "Listings"). */
+const MAX_PAGE_SIZE = 100;
+
+interface Page<T> {
+  content: T[];
+  page: { totalPages: number };
+}
+
+/** Every item of a paged listing, read page after page until the last one. */
+async function readAllPages<T>(
+  readPage: (query: { page: number; size: number }) => Promise<ApiResult<Page<T>>>,
+): Promise<T[]> {
+  const items: T[] = [];
+  for (let page = 0; ; page++) {
+    const result = await dataOf(readPage({ page, size: MAX_PAGE_SIZE }));
+    items.push(...result.content);
+    if (page + 1 >= result.page.totalPages) {
+      return items;
+    }
+  }
+}
+
+/** Every classification change of the incident, oldest first, for the timeline of staff (#169). */
+export function useClassificationChanges(incidentId: string) {
+  const { api } = useSession();
+  return useQuery({
+    queryKey: incidentKeys.classificationChanges(incidentId),
+    queryFn: () =>
+      readAllPages((query) => listIncidentClassificationChanges(api, incidentId, query)),
+  });
+}
+
+/** Every internal comment of the incident, oldest first, for the timeline of staff (#50). */
+export function useIncidentComments(incidentId: string) {
+  const { api } = useSession();
+  return useQuery({
+    queryKey: incidentKeys.comments(incidentId),
+    queryFn: () => readAllPages((query) => listIncidentComments(api, incidentId, query)),
   });
 }
 
@@ -118,15 +190,15 @@ export function useDepartments() {
 
 /**
  * What every change of an incident does to the cache, so the screens show it without reloading:
- * the detail takes the incident the API answered, with its new `version`, and the inbox pages and
- * the parts of this incident read separately (its history, for example) are read again. Every
- * mutation of the web calls it on success (#47 leaves the pattern for the lifecycle actions).
+ * the detail takes the incident the API answered, with its new `version`, and the inbox pages, the
+ * map and the parts of this incident read separately (its history, for example) are read again.
+ * Every mutation of the web calls it on success (#47 leaves the pattern for the lifecycle actions).
  */
 export function afterIncidentChange(queryClient: QueryClient, incident: Incident): Promise<void> {
   queryClient.setQueryData(incidentKeys.detail(incident.id), incident);
   return queryClient.invalidateQueries({
     predicate: ({ queryKey }) =>
-      (queryKey[0] === 'incidents' && queryKey[1] === 'page') ||
+      (queryKey[0] === 'incidents' && (queryKey[1] === 'page' || queryKey[1] === 'locations')) ||
       (queryKey[0] === 'incidents' && queryKey[1] === incident.id && queryKey.length > 2),
   });
 }
@@ -170,6 +242,38 @@ export function useResolveIncident(incidentId: string) {
   return useIncidentChange((api, body: IncidentReasonRequest) =>
     resolveIncident(api, incidentId, body),
   );
+}
+
+/** The operator closes the resolved incident after checking the work (#52). */
+export function useCloseIncident(incidentId: string) {
+  return useIncidentChange((api, body: IncidentActionRequest) =>
+    closeIncident(api, incidentId, body),
+  );
+}
+
+/** The operator reopens the resolved incident, with the reason the API requires (#52). */
+export function useReopenIncident(incidentId: string) {
+  return useIncidentChange((api, body: IncidentReasonRequest) =>
+    reopenIncident(api, incidentId, body),
+  );
+}
+
+/**
+ * Adds an internal comment (#50). Like the changes of the incident, it resolves with the API's
+ * answer, a failure included. A comment does not change the incident, so only the comments of the
+ * timeline are read again.
+ */
+export function useAddComment(incidentId: string) {
+  const { api } = useSession();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (text: string) => createIncidentComment(api, incidentId, { text }),
+    onSuccess: (result) => {
+      if (result.ok) {
+        void queryClient.invalidateQueries({ queryKey: incidentKeys.comments(incidentId) });
+      }
+    },
+  });
 }
 
 /** Reads the incident again, for example after a `409` that says it changed meanwhile. */

@@ -331,6 +331,8 @@ development server (`pnpm dev:web`) serves them at `http://localhost:5173/tiles/
 - `malaga.pmtiles`: the vector tiles, zoom 0 to 14, in the OpenMapTiles schema.
 - `style.json`: the map style (OSM Bright), with its sprites and `fonts/`. A map loads it from
   `http://localhost:5173/tiles/style.json`; it references no external host and needs no key.
+  The web map loads it from the same origin by default (`/tiles/style.json`); set
+  `VITE_MAP_STYLE_URL` in `frontend/apps/web/.env` only to load it from elsewhere.
 
 How it behaves, with either file:
 
@@ -388,8 +390,7 @@ How it behaves:
   promoted.
 - Run it once at a time: two runs at the same moment with different emails could create two
   administrators.
-- If the administrator cannot sign in (a wrong password, and there is no password change yet),
-  disable the account in the database (`UPDATE users SET enabled = false WHERE email = '...'`) and
+- If the administrator forgot the password (there is no recovery by email), disable the account in the database (`UPDATE users SET enabled = false WHERE email = '...'`) and
   run the process again with another email: the old email now belongs to another account.
 - The password never appears in the output or in the logs.
 - `--spring.profiles.include` adds `bootstrap-admin` to `SPRING_PROFILES_ACTIVE`, so a database that

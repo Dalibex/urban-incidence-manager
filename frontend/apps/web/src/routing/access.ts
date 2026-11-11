@@ -3,6 +3,7 @@ import type { Role } from '@urbanpulse/domain';
 import {
   filtersSearch,
   INBOX_DEFAULT_FILTERS,
+  MAP_DEFAULT_FILTERS,
   WORK_QUEUE_DEFAULT_FILTERS,
 } from '../incidents/filters/incident-filters';
 
@@ -12,7 +13,9 @@ export const PATHS = {
   inbox: '/inbox',
   incident: '/incidents/:incidentId',
   workQueue: '/work-queue',
+  map: '/map',
   users: '/users',
+  auditLog: '/audit-log',
   reports: '/reports',
   useMobile: '/use-mobile',
 } as const;
@@ -34,6 +37,15 @@ export const INBOX_DEFAULT_PATH = PATHS.inbox + filtersSearch(INBOX_DEFAULT_FILT
 
 /** Where the menu and the sign-in open the work queue: on the work still to do (#187, #217). */
 export const WORK_QUEUE_DEFAULT_PATH = PATHS.workQueue + filtersSearch(WORK_QUEUE_DEFAULT_FILTERS);
+
+/**
+ * Where the menu opens the map (#196): an operator on the live incidents, a technician on the same
+ * pending work as their queue.
+ */
+export function mapDefaultPath(role: Role): string {
+  const filters = role === 'TECHNICIAN' ? WORK_QUEUE_DEFAULT_FILTERS : MAP_DEFAULT_FILTERS;
+  return PATHS.map + filtersSearch(filters);
+}
 
 /** The list of incidents a role works from: the inbox, or the technician's work queue. */
 export type IncidentList = 'inbox' | 'workQueue';

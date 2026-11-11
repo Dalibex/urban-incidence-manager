@@ -39,13 +39,13 @@ or *No* (after the MVP). Whether an issue is finished is in GitHub, not here.
 
 | ID | Requirement | In the MVP | Issues |
 | --- | --- | --- | --- |
-| RF01 | **Identity and access.** Users sign up or sign in; staff authenticate. | Yes. A second factor for staff is planned with low priority. | #35, #39, #126; #57 (second factor, ADR-0021) |
+| RF01 | **Identity and access.** Users sign up or sign in; staff authenticate. | Yes. A second factor for staff is planned with low priority. | #35, #39, #126, #165; #57 (second factor, ADR-0021) |
 | RF02 | **Roles and permissions.** Different permissions for citizens, operators, technicians, administrators and analysts. | Yes | #35, #39, #100, #40; [permission matrix](security.md#permission-matrix) |
 | RF03 | **Report an incident** with a title, description, position and optional category. | Yes | #43 |
 | RF04 | **Location.** The incident keeps coordinates, normalized address and accuracy. | Partly. Coordinates and accuracy; correcting the position on a map is a stretch goal. The normalized address has no issue. | #43; #60 (stretch) |
-| RF06 | **Consultation and tracking.** A user sees the detail, status, dates and visible history of their incidents. | Yes | #45 (citizen), #46 (staff), #100 |
+| RF06 | **Consultation and tracking.** A user sees the detail, status, dates and visible history of their incidents. | Yes | #45 (citizen), #46 (staff), #100, #169 (timeline) |
 | RF09 | **Validation.** An operator validates, requests more information or rejects a report with a reason. | Yes | #48 |
-| RF11 | **Assignment** of a validated incident to a department, team or technician. | Yes | #49 (#184, #185) |
+| RF11 | **Assignment** of a validated incident to a department, team or technician. | Yes | #49 (#184, #185), #190 |
 | RF12 | **Lifecycle.** Status changes follow the allowed transitions and are audited. | Yes | ADR-0020; #37, #99, #101, #102, #49, #51, #52 |
 | RF18 | **Audit** of administrative actions, assisted decisions and relevant changes. | Partly. Administrative actions and classification; assisted decisions come with RF20. | #36, #40, #41, #47 |
 | RF26 | **Controlled degradation.** An external source being down does not prevent creating an incident. | Yes. Creating an incident calls no external source; it has to stay that way when RF21–RF25 arrive. | #43 |
@@ -56,7 +56,7 @@ or *No* (after the MVP). Whether an issue is finished is in GitHub, not here.
 | --- | --- | --- | --- |
 | RF05 | **Evidence.** Photos or other files, with type and size validation. | Yes | #44 (ADR-0013; #192 API, #193 mobile, #194 web) |
 | RF07 | **Search.** Staff filter by status, category, date, priority, district and department. | Yes. The district filter needs RF21. | #58 (#182 API, #183 web) |
-| RF08 | **Map** of incidents and relevant urban layers. | Partly. Incidents on the web map; urban layers need urban data, which the MVP does not load. | #53, #195; #60 (stretch, mobile) |
+| RF08 | **Map** of incidents and relevant urban layers. | Partly. Incidents on the web map, clustered by zoom and refreshed on their own; urban layers need urban data, which the MVP does not load. | #53 (#195 API, #196 web); #60 (stretch, mobile) |
 | RF10 | **Priority**, manual or assisted, keeping its justification. | Partly. Manual priority with a required justification; assisted priority comes with RF20. | #47 |
 | RF13 | **Collaboration.** Operators and technicians add comments, evidence and resolution data. | Yes. Every comment is internal in the MVP. | #50, #51, #44 |
 | RF14 | **Notifications** of relevant changes through configurable channels. | No. The delivery providers are only proposed (ADR-0019). | — |
@@ -95,11 +95,15 @@ for its code (#57).
 
 ### Web: municipal operator
 
-- **Menu:** *Inbox*, and *Map* when #53 is done.
+- **Menu:** *Inbox* and *Map*.
 - **Inbox** (#46): incidents newest first, with the filters of #58 (status, category, date,
   priority, department, and district when #59 is done). The menu opens it filtered by `REPORTED`
   (#183).
-- **Map** (#53): markers by status with the same filters; a click opens a summary with *Manage*.
+- **Map** (#196): markers coloured by status and sized by priority, with the same filters as the
+  inbox, clustered by zoom, each cluster labelled with its highest priority; refreshed every 15
+  seconds. A click opens a summary with
+  *Manage*, and a list under the map opens the same summary from the keyboard. The menu opens it on
+  every status that can still change.
 - **Incident detail** (#46): report data, photos (#44), history and internal comments (#50) in one
   timeline. The actions depend on the status (ADR-0020):
 
@@ -110,13 +114,16 @@ for its code (#57).
   | `ASSIGNED` | *Reassign* | #49 |
   | `RESOLVED` | *Verify and close*, *Reopen* (reason required) | #52 |
   | Any but `REJECTED` and `CLOSED` | *Classify* (category and priority with a justification) | #47 |
+  | Any | *Comment* (internal, for the staff of the incident) | #50 |
 
 - **Not in the MVP:** urban context, nearby urban assets and duplicate warnings in the detail
   (RF16, RF22–RF24).
 
 ### Web: technician
 
-- **Menu:** *Work queue*.
+- **Menu:** *Work queue* and *Map*.
+- **Map** (#196): the operator's map with the incidents assigned to them; the menu opens it on
+  `ASSIGNED` and `IN_PROGRESS`, like the queue.
 - **Work queue** (#51): the incidents assigned to them, with the filters and columns of the inbox
   (date reported, title, category, status and priority). It opens on `ASSIGNED` and `IN_PROGRESS`
   (#187).
@@ -174,7 +181,7 @@ changed.
 | Operator inbox | Prioritizes `REPORTED`, with filters by date, category, status, priority, district and department. | Opens filtered by `REPORTED`, and clearing the filters shows every incident; the district filter needs #59 (stretch). | #46, #58, #183 |
 | Notification channels | Push, email and SMS switches in the citizen's profile (RF14, Medium). | Not in the MVP: the delivery providers are only proposed. RF14 stays Medium. | ADR-0019 (proposed) |
 | Operator detail | Urban context (traffic, weather), urban assets and duplicate warnings. | Not in the MVP (RF16, RF22–RF24, Low). | ADR-0018 (proposed) |
-| Menus | Administrator: *Users*, *Logs*, *Sources*. Operator: *Incident list*, *Incident map*. Technician: *My work queue*. Citizen: *New*, *My reports*, *Profile*. The analyst had none. | Administrator: *Users*, *Audit log*, plus the operator's screens. Operator: *Inbox*, *Map*. Technician: *Work queue*. Analyst: *Reports*. Citizen: unchanged. | `frontend/apps/web/src/routing/sections.tsx`, #41, #42, #53, #127 |
+| Menus | Administrator: *Users*, *Logs*, *Sources*. Operator: *Incident list*, *Incident map*. Technician: *My work queue*. Citizen: *New*, *My reports*, *Profile*. The analyst had none. | Administrator: *Users*, *Audit log*, plus the operator's screens. Operator: *Inbox*, *Map*. Technician: *Work queue*, *Map*. Analyst: *Reports*. Citizen: unchanged. | `frontend/apps/web/src/routing/sections.tsx`, #41, #42, #53, #127, #196 |
 | Priority of RF18 (audit) | Low | High. `AGENTS.md` makes auditing status changes and administrative actions a domain rule, and Sprint 1 built the audit trail for it. | #36 |
 | Priority of RF19 (reports) | Low | Medium. It is the analyst's only screen in the MVP. | #42 |
 

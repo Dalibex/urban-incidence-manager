@@ -1,5 +1,11 @@
-import { getIncident, listIncidentStatusChanges, type components } from '@urbanpulse/api-client';
-import { fireEvent, screen, within } from '@testing-library/react-native';
+import {
+  getIncident,
+  listIncidentClassificationChanges,
+  listIncidentStatusChanges,
+  type components,
+} from '@urbanpulse/api-client';
+import { act, fireEvent, screen, within } from '@testing-library/react-native';
+import { SKELETON_DELAY_MS } from '@urbanpulse/ui';
 import type { ComponentProps } from 'react';
 
 import { failed, ok, renderWithQueries } from '../test-utils';
@@ -7,6 +13,7 @@ import { IncidentDetailScreen } from './IncidentDetailScreen';
 
 jest.mock('@urbanpulse/api-client', () => ({
   getIncident: jest.fn(),
+  listIncidentClassificationChanges: jest.fn(),
   listIncidentStatusChanges: jest.fn(),
 }));
 jest.mock('../session/SessionContext', () => ({ useSession: () => ({ api: {} }) }));
@@ -96,6 +103,48 @@ describe('IncidentDetailScreen', () => {
     expect(within(timeline).getByText('It is the same as another report.')).toBeOnTheScreen();
   });
 
+  it("shows the city council instead of a person, and the report as the citizen's (#170 T2)", async () => {
+    mockedListStatusChanges.mockResolvedValue(
+      ok([
+        change('1', null, 'REPORTED'),
+        // The API sends a citizen no actor; even if one came, no staff name is shown.
+        {
+          ...change('2', 'REPORTED', 'VALIDATED'),
+          actor: { id: 'o', name: 'Lucía Martín', role: 'MUNICIPAL_OPERATOR' },
+        },
+      ]),
+    );
+    await renderScreen();
+
+    const timeline = await screen.findByTestId('history-timeline');
+    expect(within(timeline).getByText(/· You$/)).toBeOnTheScreen();
+    expect(within(timeline).getByText(/· City council$/)).toBeOnTheScreen();
+    expect(within(timeline).queryByText(/Lucía Martín/)).toBeNull();
+  });
+
+  it('keeps one order for entries of the same instant (#170 T11)', async () => {
+    mockedListStatusChanges.mockResolvedValue(
+      ok([change('9', 'REPORTED', 'VALIDATED'), change('1', 'REPORTED', 'REPORTED', 'Which?')]),
+    );
+    await renderScreen();
+
+    const timeline = await screen.findByTestId('history-timeline');
+    expect(
+      within(timeline)
+        .getAllByText(/^(Validated|Information requested)$/)
+        .map((entry) => entry.props.children),
+    ).toEqual(['Information requested', 'Validated']);
+  });
+
+  it('never asks for the classification changes, which are for staff (#170 T14)', async () => {
+    mockedListStatusChanges.mockResolvedValue(ok([change('1', null, 'REPORTED')]));
+    await renderScreen();
+
+    await screen.findByTestId('history-timeline');
+    expect(jest.mocked(listIncidentClassificationChanges)).not.toHaveBeenCalled();
+    expect(screen.queryByText('Classification changed')).toBeNull();
+  });
+
   it('shows "Not available" for the place data that is not known (#68 T5)', async () => {
     mockedGetIncident.mockResolvedValue(
       ok({
@@ -117,6 +166,35 @@ describe('IncidentDetailScreen', () => {
     expect(await screen.findByText(/This report was not found/)).toBeOnTheScreen();
     expect(screen.queryByText('Street light off')).not.toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeOnTheScreen();
+  });
+
+  // #174
+  it('draws the shape of the report while it loads', async () => {
+    jest.useFakeTimers();
+    try {
+      mockedGetIncident.mockReturnValue(new Promise(() => undefined));
+      await renderScreen();
+
+      expect(screen.getByRole('progressbar', { name: 'Loading the report' })).toBeOnTheScreen();
+      await act(async () => {
+        jest.advanceTimersByTime(SKELETON_DELAY_MS);
+      });
+      expect(within(screen.getByTestId('skeleton')).getByText('Location')).toBeOnTheScreen();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  // #174
+  it('keeps the report when only its history fails, and offers to load it again', async () => {
+    mockedListStatusChanges.mockResolvedValue(
+      failed({ kind: 'problem', status: 500, code: undefined }),
+    );
+    await renderScreen();
+
+    expect(await screen.findByText(/The history could not be loaded/)).toBeOnTheScreen();
+    expect(screen.getByText('Street light off')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeOnTheScreen();
   });
 
   it('offers to try again when the report cannot be loaded (#68 T1)', async () => {

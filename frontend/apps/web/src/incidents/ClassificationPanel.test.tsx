@@ -94,6 +94,10 @@ function api(
       return json(200, server.incident);
     },
     [`GET /incidents/${INCIDENT.id}/status-changes`]: () => json(200, []),
+    [`GET /incidents/${INCIDENT.id}/classification-changes`]: () =>
+      json(200, { content: [], page: { number: 0, size: 100, totalElements: 0, totalPages: 0 } }),
+    [`GET /incidents/${INCIDENT.id}/comments`]: () =>
+      json(200, { content: [], page: { number: 0, size: 100, totalElements: 0, totalPages: 0 } }),
     [`GET /incidents/${INCIDENT.id}/attachments`]: () => json(200, []),
     'GET /categories': () => json(200, CATEGORIES),
     [`PATCH /incidents/${INCIDENT.id}`]: async (request) => {
@@ -326,7 +330,9 @@ describe('classification panel', () => {
       const server = newServer({ ...CLASSIFIED, status });
       renderApp(incidentPath(INCIDENT.id), { role: 'MUNICIPAL_OPERATOR', fetch: api(server) });
 
-      expect(await screen.findByText('No actions are available for this incident.')).toBeDefined();
+      expect(
+        await screen.findByText('Only comments are available for this incident.'),
+      ).toBeDefined();
       expect(screen.queryByRole('form', { name: 'Classification' })).toBeNull();
       document.body.innerHTML = '';
     }

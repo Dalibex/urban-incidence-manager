@@ -14,32 +14,37 @@
 -- of incident 6.
 --
 -- Every user's password is "urbanpulse-dev", hashed with the application's PasswordEncoder.
+-- dev.newstaff must change it at its first sign-in, like an account an administrator creates
+-- (#165); the others sign in directly.
 -- Coordinates are WGS 84, longitude first (ST_MakePoint(longitude, latitude)).
 
 TRUNCATE incident, location, status_change, assignment, comment, attachment, urban_context,
     external_observation, incident_asset, notification CASCADE;
 
-INSERT INTO users (id, name, email, password_hash, role, enabled) VALUES
+INSERT INTO users (id, name, email, password_hash, role, enabled, password_change_required) VALUES
     ('d0000000-0000-4000-8000-000000000001', 'Carmen Ruiz', 'dev.citizen@example.com',
-     '{bcrypt}$2a$10$wYwdfaZhrN/Wu0rQWhFwYeJpwRhrLBLykizo9mJWLx6btJqIBUxMW', 'CITIZEN', true),
+     '{bcrypt}$2a$10$wYwdfaZhrN/Wu0rQWhFwYeJpwRhrLBLykizo9mJWLx6btJqIBUxMW', 'CITIZEN', true, false),
     ('d0000000-0000-4000-8000-000000000002', 'Javier Moreno', 'dev.citizen2@example.com',
-     '{bcrypt}$2a$10$wYwdfaZhrN/Wu0rQWhFwYeJpwRhrLBLykizo9mJWLx6btJqIBUxMW', 'CITIZEN', true),
+     '{bcrypt}$2a$10$wYwdfaZhrN/Wu0rQWhFwYeJpwRhrLBLykizo9mJWLx6btJqIBUxMW', 'CITIZEN', true, false),
     ('d0000000-0000-4000-8000-000000000003', 'Lucía Torres', 'dev.operator@example.com',
-     '{bcrypt}$2a$10$wYwdfaZhrN/Wu0rQWhFwYeJpwRhrLBLykizo9mJWLx6btJqIBUxMW', 'MUNICIPAL_OPERATOR', true),
+     '{bcrypt}$2a$10$wYwdfaZhrN/Wu0rQWhFwYeJpwRhrLBLykizo9mJWLx6btJqIBUxMW', 'MUNICIPAL_OPERATOR', true, false),
     ('d0000000-0000-4000-8000-000000000004', 'Antonio Gómez', 'dev.technician@example.com',
-     '{bcrypt}$2a$10$wYwdfaZhrN/Wu0rQWhFwYeJpwRhrLBLykizo9mJWLx6btJqIBUxMW', 'TECHNICIAN', true),
+     '{bcrypt}$2a$10$wYwdfaZhrN/Wu0rQWhFwYeJpwRhrLBLykizo9mJWLx6btJqIBUxMW', 'TECHNICIAN', true, false),
     ('d0000000-0000-4000-8000-000000000005', 'Pablo Navarro', 'dev.technician2@example.com',
-     '{bcrypt}$2a$10$wYwdfaZhrN/Wu0rQWhFwYeJpwRhrLBLykizo9mJWLx6btJqIBUxMW', 'TECHNICIAN', true),
+     '{bcrypt}$2a$10$wYwdfaZhrN/Wu0rQWhFwYeJpwRhrLBLykizo9mJWLx6btJqIBUxMW', 'TECHNICIAN', true, false),
     ('d0000000-0000-4000-8000-000000000006', 'Elena Castro', 'dev.admin@example.com',
-     '{bcrypt}$2a$10$wYwdfaZhrN/Wu0rQWhFwYeJpwRhrLBLykizo9mJWLx6btJqIBUxMW', 'ADMINISTRATOR', true),
+     '{bcrypt}$2a$10$wYwdfaZhrN/Wu0rQWhFwYeJpwRhrLBLykizo9mJWLx6btJqIBUxMW', 'ADMINISTRATOR', true, false),
     ('d0000000-0000-4000-8000-000000000007', 'Marta Vidal', 'dev.analyst@example.com',
-     '{bcrypt}$2a$10$wYwdfaZhrN/Wu0rQWhFwYeJpwRhrLBLykizo9mJWLx6btJqIBUxMW', 'ANALYST', true)
+     '{bcrypt}$2a$10$wYwdfaZhrN/Wu0rQWhFwYeJpwRhrLBLykizo9mJWLx6btJqIBUxMW', 'ANALYST', true, false),
+    ('d0000000-0000-4000-8000-000000000008', 'Rosa Medina', 'dev.newstaff@example.com',
+     '{bcrypt}$2a$10$wYwdfaZhrN/Wu0rQWhFwYeJpwRhrLBLykizo9mJWLx6btJqIBUxMW', 'MUNICIPAL_OPERATOR', true, true)
 ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
     email = EXCLUDED.email,
     password_hash = EXCLUDED.password_hash,
     role = EXCLUDED.role,
-    enabled = EXCLUDED.enabled;
+    enabled = EXCLUDED.enabled,
+    password_change_required = EXCLUDED.password_change_required;
 
 INSERT INTO urban_asset (id, external_id, type, source, geometry, metadata) VALUES
     ('d9000000-0000-4000-8000-000000000001', 'MLG-FOUNTAIN-0412', 'FOUNTAIN', 'malaga-open-data',
@@ -251,18 +256,18 @@ INSERT INTO assignment (id, incident_id, department_id, technician_id, team, ass
      '0d339d5b-7a6f-4004-a51a-943eb7d79ee3', 'd0000000-0000-4000-8000-000000000004', NULL, '2026-09-25T10:10:00Z', true);
 
 INSERT INTO comment (id, incident_id, author_id, text, created_at, visible_to_citizen) VALUES
-    ('d5000000-0000-4000-8000-000000002001', 'd1000000-0000-4000-8000-000000000002', 'd0000000-0000-4000-8000-000000000002',
-     'It is the second bench on the left of the main fountain. I have attached a photo.', '2026-10-20T09:10:00Z', true),
+    ('d5000000-0000-4000-8000-000000002001', 'd1000000-0000-4000-8000-000000000002', 'd0000000-0000-4000-8000-000000000003',
+     'The photo shows the second bench on the left of the main fountain.', '2026-10-20T09:10:00Z', false),
     ('d5000000-0000-4000-8000-000000007001', 'd1000000-0000-4000-8000-000000000007', 'd0000000-0000-4000-8000-000000000004',
      'The branch is too heavy for one person: we need the crane truck tomorrow morning.', '2026-10-11T08:20:00Z', false),
     ('d5000000-0000-4000-8000-000000008001', 'd1000000-0000-4000-8000-000000000008', 'd0000000-0000-4000-8000-000000000003',
-     'The swing has been repaired. We will close the incident after a final check.', '2026-10-09T14:00:00Z', true);
+     'The swing has been repaired. We will close the incident after a final check.', '2026-10-09T14:00:00Z', false);
 
 -- Metadata only (ADR-0013): no real file exists behind the server-generated storage_key, and
 -- content_hash is the SHA-256 of the file name, not of any content.
 INSERT INTO attachment (id, incident_id, comment_id, uploader_id, file_name, file_type, file_size,
                         storage_key, content_hash, uploaded_at) VALUES
-    ('d6000000-0000-4000-8000-000000002001', 'd1000000-0000-4000-8000-000000000002', 'd5000000-0000-4000-8000-000000002001',
+    ('d6000000-0000-4000-8000-000000002001', 'd1000000-0000-4000-8000-000000000002', NULL,
      'd0000000-0000-4000-8000-000000000002', 'bench.jpg', 'image/jpeg', 482133,
      '6f1c2b0e-3d4a-4c5b-9e8f-1a2b3c4d5e6f',
      '01c6738912c82aa26209927da67e7c8371494b8539e3f34a0492ebc2707e1f5d', '2026-10-20T09:10:00Z'),
