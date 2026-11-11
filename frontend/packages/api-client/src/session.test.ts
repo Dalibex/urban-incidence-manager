@@ -876,6 +876,11 @@ describe('#260: a request rejected after a sign-out never runs with another sess
   const networkDown: Handler = () => {
     throw new TypeError('Failed to fetch');
   };
+  // How Expo's fetch rejects when the server does not answer in time (network-failure.test.ts).
+  const timedOut: Handler = () => {
+    throw new Error('fetch failed: The request timed out.');
+  };
+  const serverError: Handler = () => problem(503);
   const revoked: Handler = () => new Response(null, { status: 204 });
 
   /** An answer that the API sends only when the test says so. */
@@ -940,6 +945,8 @@ describe('#260: a request rejected after a sign-out never runs with another sess
     ['after the server revoked the session', revoked],
     // T3
     ['without network', networkDown],
+    ['after the sign-out timed out', timedOut],
+    ['after the server failed to revoke the session', serverError],
   ])(
     'T1, T3: is not repeated with the session of a user who signed in %s',
     async (_, deleteSession) => {
@@ -957,6 +964,49 @@ describe('#260: a request rejected after a sign-out never runs with another sess
       expect(context.onSessionExpired).not.toHaveBeenCalled();
     },
   );
+
+  // A's screens stay usable while the sign-out waits for the server, so A can still send a request.
+  it("T1: a request sent while the sign-out is in flight is not repeated with B's session", async () => {
+    const deleteAnswer = heldAnswer();
+    const context = setUp({ 'DELETE /sessions/current': () => deleteAnswer.response });
+    const signingOut = signOut(context.client, context.tokens.store);
+    await vi.waitFor(() =>
+      expect(context.api.calls('DELETE', '/sessions/current')).toHaveLength(1),
+    );
+    const { request } = await sendARequest(context);
+
+    deleteAnswer.answer(new Response(null, { status: 204 }));
+    await signingOut;
+    await signInAsB(context);
+    context.aRequest.answer(problem(401));
+
+    expect((await request).response.status).toBe(401);
+    expect(aRequestTokens(context)).toEqual([`Bearer ${OLD_TOKENS.accessToken}`]);
+    expect(context.tokens.current()).toEqual(B_TOKENS);
+  });
+
+  // The session can also end without a sign-out: a disabled account, a password change, or a
+  // refresh token used twice (#191, #165, #125).
+  it("is not repeated with B's session when A's session ended because its refresh was rejected", async () => {
+    const context = setUp({
+      'POST /sessions/refresh': () => problem(401, 'INVALID_REFRESH_TOKEN'),
+    });
+    const { request } = await sendARequest(context);
+
+    // Another request of A gets 401, its refresh is rejected, and the app asks to sign in again.
+    expect((await context.client.GET('/users/me')).response.status).toBe(401);
+    expect(context.onSessionExpired).toHaveBeenCalledTimes(1);
+    await signInAsB(context);
+    context.aRequest.answer(problem(401));
+
+    expect((await request).response.status).toBe(401);
+    expect(aRequestTokens(context)).toEqual([
+      `Bearer ${OLD_TOKENS.accessToken}`,
+      `Bearer ${OLD_TOKENS.accessToken}`,
+    ]);
+    expect(context.api.calls('POST', '/sessions/refresh')).toHaveLength(1);
+    expect(context.tokens.current()).toEqual(B_TOKENS);
+  });
 
   it('T2: is repeated once with the token another request of the same session refreshed', async () => {
     const context = setUp({ 'POST /sessions/refresh': rotatingRefresh() });
@@ -1049,6 +1099,30 @@ describe('#260: a request rejected after a sign-out never runs with another sess
     expect((await request).response.status).toBe(401);
     expect(aRequestTokens(context)).toEqual([`Bearer ${OLD_TOKENS.accessToken}`]);
     // The sign-out shares that refresh, and revokes the session with it.
+    expect(context.api.calls('DELETE', '/sessions/current').map((r) => r.authorization)).toEqual([
+      `Bearer ${OLD_TOKENS.accessToken}`,
+      `Bearer ${NEW_TOKENS.accessToken}`,
+    ]);
+    expect(context.tokens.current()).toBeNull();
+  });
+
+  it('T4: a request sent while the sign-out refreshes is not repeated with the refreshed token', async () => {
+    const refresh = heldAnswer();
+    const context = setUp({
+      'DELETE /sessions/current': revokeWithFreshToken,
+      'POST /sessions/refresh': () => refresh.response,
+    });
+    const signingOut = signOut(context.client, context.tokens.store);
+    await vi.waitFor(() => expect(context.api.calls('POST', '/sessions/refresh')).toHaveLength(1));
+    const { request } = await sendARequest(context);
+
+    refresh.answer(json(200, NEW_TOKENS));
+    await signingOut;
+    context.aRequest.answer(problem(401));
+
+    expect((await request).response.status).toBe(401);
+    expect(aRequestTokens(context)).toEqual([`Bearer ${OLD_TOKENS.accessToken}`]);
+    // The sign-out's own `DELETE` is still repeated with the fresh token, which revokes the session.
     expect(context.api.calls('DELETE', '/sessions/current').map((r) => r.authorization)).toEqual([
       `Bearer ${OLD_TOKENS.accessToken}`,
       `Bearer ${NEW_TOKENS.accessToken}`,

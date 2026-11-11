@@ -661,6 +661,38 @@ describe('#260: an upload never sends the photo with another session', () => {
     expect(xhr.sent).toHaveLength(0);
   });
 
+  // The session can also end without a sign-out: a disabled account, a password change, or a
+  // refresh token used twice (#191, #165, #125).
+  it("T6: does not send the photo again with B's session when A's session ended because its refresh was rejected", async () => {
+    const tokenStore = memoryStore(tokens('access-1', 'refresh-1'));
+    const { client, fetch } = setUp(tokenStore);
+    fetch.mockImplementation(async (request) => {
+      const path = new URL(request.url).pathname;
+      if (path.endsWith('/sessions/refresh')) {
+        return json(401, { status: 401, code: 'INVALID_REFRESH_TOKEN' });
+      }
+      if (path.endsWith('/sessions')) {
+        return json(201, B_TOKENS);
+      }
+      const authorization = request.headers.get('Authorization');
+      return authorization === 'Bearer access-b' ? json(200, { id: 'b' }) : json(401, UNAUTHORIZED);
+    });
+    const xhr = requests('pending', { status: 201, body: ATTACHMENT });
+    const uploading = upload(client, tokenStore, BEFORE_EXPIRY, xhr);
+    await vi.waitFor(() => expect(xhr.sent).toHaveLength(1));
+
+    // Another request of A gets 401 and its refresh is rejected: the store is emptied.
+    expect((await client.GET('/users/me')).response.status).toBe(401);
+    expect((await signIn(client, tokenStore, B_CREDENTIALS)).ok).toBe(true);
+    xhr.sent[0]?.respond(401, UNAUTHORIZED);
+
+    expect(await uploading).toEqual({
+      ok: false,
+      failure: { kind: 'problem', status: 401, code: 'UNAUTHORIZED' },
+    });
+    expect(xhr.sent.map((request) => request.headers.Authorization)).toEqual(['Bearer access-1']);
+  });
+
   // The mobile app tries an upload again after a network failure, with the mark of the first attempt.
   it('sends nothing on a retry whose first attempt belonged to a session that has ended', async () => {
     const tokenStore = memoryStore(tokens('access-1', 'refresh-1'));
