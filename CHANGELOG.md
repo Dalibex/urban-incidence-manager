@@ -9,6 +9,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The web incident detail offers *Assign* on a validated or reopened incident: an operator or administrator chooses the department and, optionally, a technician and a team. An assigned incident offers *Reassign*, starting from the active assignment. The technicians come from `GET /technicians` (#185).
 - Operators and administrators check the work on a resolved incident: they close it (`POST /incidents/{incidentId}/closure`, `RESOLVED` to `CLOSED`, which is final and sets `closedAt`) or reopen it with a reason only staff see (`POST /incidents/{incidentId}/reopening`, `RESOLVED` to `REOPENED`), after which it can be assigned again. The web incident detail offers *Verify and close* and *Reopen* on a resolved incident. The citizen sees the new status, not the reason (#52).
 - List of the active technicians on the API (`GET /technicians`), with only their id and name, for operators and administrators: the technicians an incident can be assigned to (#190).
 - The history of an incident is a timeline on the web and the mobile app. Staff see who made each change and their role, and the category and priority changes among the status changes, with the values they replaced. Citizens see their report as theirs and every other change as the city council's, never a staff name (#169).
