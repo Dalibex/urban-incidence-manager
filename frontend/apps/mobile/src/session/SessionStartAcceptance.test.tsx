@@ -198,14 +198,13 @@ describe('session check at start-up, acceptance of #164', () => {
     expect(server.count('POST /sessions')).toBe(0);
   });
 
-  // T2: Expo's `fetch` rejects with a FetchError, not a TypeError (#244).
+  // T2: Expo's `fetch` rejects with a FetchError, not a TypeError (#244). As in
+  // `expo/build/winter/fetch/FetchErrors.js`, it is a plain `Error` named `Error`.
   it('offers to try again when Expo reports the missing network with an error of its own', async () => {
     items.set(TOKENS_KEY, JSON.stringify(SAVED));
     api({
       'GET /users/me': () => {
-        throw Object.assign(new Error('The Internet connection appears to be offline.'), {
-          name: 'FetchError',
-        });
+        throw new Error('fetch failed: The Internet connection appears to be offline.');
       },
     });
 

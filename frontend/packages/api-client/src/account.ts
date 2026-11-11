@@ -25,8 +25,7 @@ export async function callApi<T>(call: () => Promise<FetchResult<T>>): Promise<A
   try {
     result = await call();
   } catch (error) {
-    // `fetch` rejects with a TypeError when the API cannot be reached; anything else is a bug.
-    if (error instanceof TypeError) {
+    if (isNetworkFailure(error)) {
       return { ok: false, failure: { kind: 'network' } };
     }
     throw error;
@@ -37,6 +36,22 @@ export async function callApi<T>(call: () => Promise<FetchResult<T>>): Promise<A
   }
   const code = isProblem(result.error) ? result.error.code : undefined;
   return { ok: false, failure: { kind: 'problem', status: result.response.status, code } };
+}
+
+/** Expo's `FetchError` (`expo/build/winter/fetch/FetchErrors.js`) starts every message with it. */
+const EXPO_FETCH_FAILED = 'fetch failed: ';
+
+/**
+ * Whether `fetch` rejected because the request did not reach the API; anything else is a bug.
+ * The browser and Node reject with a `TypeError`. Expo replaces the global `fetch` on the phone and
+ * rejects with its own `FetchError`, which extends `Error` and keeps the name `Error`; `expo/fetch`
+ * does not export the class, so only its message tells it apart (#244).
+ */
+export function isNetworkFailure(error: unknown): boolean {
+  return (
+    error instanceof TypeError ||
+    (error instanceof Error && error.message.startsWith(EXPO_FETCH_FAILED))
+  );
 }
 
 export function isProblem(value: unknown): value is Problem {
@@ -90,7 +105,7 @@ export async function signOut(client: ApiClient, tokenStore: TokenStore): Promis
   try {
     await client.DELETE('/sessions/current');
   } catch (error) {
-    if (!(error instanceof TypeError)) {
+    if (!isNetworkFailure(error)) {
       throw error;
     }
   } finally {
