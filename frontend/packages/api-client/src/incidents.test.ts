@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   acceptIncident,
+  closeIncident,
   createApiClient,
   createIncident,
   createIncidentComment,
@@ -9,7 +10,9 @@ import {
   listDepartments,
   listIncidentClassificationChanges,
   listIncidentComments,
+  listIncidentLocations,
   listIncidents,
+  reopenIncident,
   resolveIncident,
   updateIncident,
   type ApiClient,
@@ -228,6 +231,21 @@ describe('incident calls', () => {
     expect(result).toEqual({ ok: true, data: page });
   });
 
+  it('asks for the positions of the map with the same filters as the list', async () => {
+    const { fetch, client } = clientAnswering(200, { content: [], truncated: false });
+
+    const result = await listIncidentLocations(client, {
+      status: ['REPORTED', 'ASSIGNED'],
+      priority: ['HIGH'],
+    });
+
+    const url = new URL(fetch.mock.calls[0]![0].url);
+    expect(url.pathname).toBe('/api/v1/incident-locations');
+    expect(url.searchParams.getAll('status')).toEqual(['REPORTED', 'ASSIGNED']);
+    expect(url.searchParams.getAll('priority')).toEqual(['HIGH']);
+    expect(result).toEqual({ ok: true, data: { content: [], truncated: false } });
+  });
+
   it('reports a missing incident as a 404 problem', async () => {
     const { fetch, client } = clientAnswering(404, { status: 404 });
 
@@ -286,6 +304,8 @@ describe('updateIncident', () => {
 
 const ACCEPTANCE = { version: 3 };
 const RESOLUTION = { version: 3, reason: 'Replaced the lamp and checked it at night.' };
+const CLOSURE = { version: 4 };
+const REOPENING = { version: 4, reason: 'The lamp went off again the same night.' };
 
 describe.each([
   [
@@ -299,6 +319,18 @@ describe.each([
     'resolution',
     RESOLUTION,
     (client: ApiClient) => resolveIncident(client, INCIDENT_ID, RESOLUTION),
+  ],
+  [
+    'closeIncident',
+    'closure',
+    CLOSURE,
+    (client: ApiClient) => closeIncident(client, INCIDENT_ID, CLOSURE),
+  ],
+  [
+    'reopenIncident',
+    'reopening',
+    REOPENING,
+    (client: ApiClient) => reopenIncident(client, INCIDENT_ID, REOPENING),
   ],
 ] as const)('%s', (_name, resource, body, send) => {
   it(`sends a POST to /${resource} and returns the incident with its new version`, async () => {

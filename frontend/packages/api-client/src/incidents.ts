@@ -85,6 +85,26 @@ export function resolveIncident(
   );
 }
 
+/**
+ * An operator or administrator closes a resolved incident: `RESOLVED` to `CLOSED`, which is final
+ * and sets `closedAt` (ADR-0020). A stale `version` answers `409` with `CONCURRENT_MODIFICATION`
+ * and a status that does not allow it `409` with `INVALID_TRANSITION`.
+ */
+export function closeIncident(
+  client: ApiClient,
+  incidentId: string,
+  body: Schemas['IncidentActionRequest'],
+): Promise<FormResult<IncidentResponse>> {
+  return callForm(
+    () =>
+      client.POST('/incidents/{incidentId}/closure', {
+        params: { path: { incidentId } },
+        body,
+      }),
+    'the incident',
+  );
+}
+
 /** Query of `listIncidentComments`: `page` starts at 0, `size` is at most 100. */
 export type CommentQuery = NonNullable<operations['listIncidentComments']['parameters']['query']>;
 
@@ -99,6 +119,26 @@ export function listIncidentComments(
 ): Promise<ApiResult<Schemas['CommentPageResponse']>> {
   return callApi(() =>
     client.GET('/incidents/{incidentId}/comments', { params: { path: { incidentId }, query } }),
+  );
+}
+
+/**
+ * An operator or administrator reopens a resolved incident: `RESOLVED` to `REOPENED`, after which
+ * it can be assigned again (ADR-0020). `reason` is required and only staff see it. It answers as
+ * {@link closeIncident} does, and `422` when the reason is missing.
+ */
+export function reopenIncident(
+  client: ApiClient,
+  incidentId: string,
+  body: Schemas['IncidentReasonRequest'],
+): Promise<FormResult<IncidentResponse>> {
+  return callForm(
+    () =>
+      client.POST('/incidents/{incidentId}/reopening', {
+        params: { path: { incidentId } },
+        body,
+      }),
+    'the incident',
   );
 }
 
@@ -171,6 +211,22 @@ export function listIncidents(
   query: IncidentListQuery = {},
 ): Promise<ApiResult<Schemas['IncidentPageResponse']>> {
   return callApi(() => client.GET('/incidents', { params: { query } }));
+}
+
+/** Query of `listIncidentLocations`: the filters of `listIncidents` and an optional bounding box. */
+export type IncidentLocationQuery = NonNullable<
+  operations['listIncidentLocations']['parameters']['query']
+>;
+
+/**
+ * The positions of the incidents the caller may see, for the map: at most 1,000, the most relevant
+ * first, with `truncated` set when some were left out. Not paginated and not cached by the API.
+ */
+export function listIncidentLocations(
+  client: ApiClient,
+  query: IncidentLocationQuery = {},
+): Promise<ApiResult<Schemas['IncidentLocationListResponse']>> {
+  return callApi(() => client.GET('/incident-locations', { params: { query } }));
 }
 
 /** The full incident. Someone else's incident answers `404`, the same as one that does not exist. */

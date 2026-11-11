@@ -169,7 +169,7 @@ Your name and email, and *Sign out*.
 
 ## 🗂️ Municipal Operator (Web)
 
-The menu at the top shows *Inbox*. Planned: *Map* (#53).
+The menu at the top shows *Inbox* and *Map*.
 
 ### Inbox
 
@@ -212,7 +212,7 @@ ticked. *Clear filters* lists every incident.
   stay on screen with *Try again* for the rest.
 - **Actions:** the actions allowed for the status of the incident. When there are none, as on a
   rejected or closed incident, it says *Only comments are available for this incident.* Planned:
-  #48, #49, #52.
+  #48, #49.
 - **Classification:** choose the category and the priority, write why the incident has that
   priority and press *Save classification*. A priority always needs its reason; you can change
   only the category, only the priority or both. The button stays disabled until you change
@@ -222,6 +222,16 @@ ticked. *Clear filters* lists every incident.
     incident*, check the new values and save again. What you typed is kept.
   - If the server cannot be reached or answers with an error, nothing is saved and what you typed
     is kept, so you can save again.
+- **Verify and close, or reopen:** on a resolved incident, check the technician's work. Press
+  *Close the incident* when it is well done: closing is final, the incident shows when it was
+  closed and the citizen sees it as closed. When it is not well done, write why in *Reason for
+  reopening* and press *Reopen the incident*: it goes back to *Reopened*, so it can be assigned
+  again, and the citizen sees the status but not your reason. The page says *Incident closed.* or
+  *Incident reopened: it can be assigned again.* only once the server has kept it.
+  - If someone else changed the incident since you opened it, or already closed or reopened it,
+    nothing is saved: press *Reload the incident* and check its status. Your reason is kept.
+  - If the server cannot be reached or answers with an error, nothing is saved and your reason is
+    kept, so you can send it again.
 - **Comment:** a note for the other staff of the incident, such as instructions for the
   technician, in any status. Write it in *Comment text* (up to 2,000 characters) and press *Add
   comment*. The citizen never sees comments. The page says *Comment added.* only once the server has
@@ -232,6 +242,33 @@ ticked. *Clear filters* lists every incident.
 *Incident not found*.
 
 Dates are shown in Málaga time.
+
+### Map
+
+The incidents on the base map of Málaga, with the same filters as the inbox. The menu opens it on
+every status that can still change: everything except *Rejected* and *Closed*.
+
+- **Markers:** each incident is a dot. Its colour is its status, the same as in the lists, and its
+  size is its priority: the higher, the bigger, and a *High* one also has a dark border. The legend
+  under the map explains both.
+- **Groups:** when you zoom out, nearby incidents join into a dark circle with their number, and the
+  highest priority among them is written under it (*High*, *Medium* or *Low*; nothing when none has
+  a priority). Click it to zoom in until it splits.
+- **Summary:** click a marker to open its summary at the side: title, status, priority, category,
+  when it was reported and the description. *Manage* opens its detail, and *Close* or *Escape*
+  closes the summary. If the incident left your view since the last refresh (it was closed, or is
+  no longer assigned to you), the summary says *Incident not found*, and the next refresh removes
+  its marker.
+- **Live:** the map reads the incidents again every 15 seconds, so a new report appears without
+  reloading the page.
+- **List:** *List of the incidents on the map*, under the legend, has every incident on the map,
+  the most relevant first. With the keyboard, *Tab* to it, *Enter* to open it and *Enter* on an
+  incident to open its summary and centre the map on it.
+- The map shows at most 1,000 incidents, the most relevant first. If more match, it says so: narrow
+  the filters to see the rest.
+- When no incident matches, the page says so and offers *Clear filters*; the map stays.
+- If a refresh fails, the markers you saw stay with a warning, and the map tries again on its own.
+  If the base map cannot be loaded, the page says so; the filters and the list keep working.
 
 ### When something fails
 
@@ -246,7 +283,8 @@ could not be loaded.* with its own *Try again*, and the other photos still show.
 
 ## 🔧 Technician (Web)
 
-The menu shows *Work queue*, where you land.
+The menu shows *Work queue*, where you land, and *Map*: the operator's [map](#map) with only the
+incidents assigned to you, opened on *Assigned* and *In progress* like the queue.
 
 ### Work queue
 
@@ -288,7 +326,7 @@ An incident that is not assigned to you, opened from a link, shows *Incident not
 
 ## 🛡️ Administrator (Web)
 
-The menu shows *Users*, where you land, *Inbox*, *Audit log* and *Reports*.
+The menu shows *Users*, where you land, *Inbox*, *Map*, *Audit log* and *Reports*.
 
 - **Inbox and incident detail:** an administrator can do everything an operator can
   ([ADR-0020](adr/0020-incident-lifecycle-transitions.md)), so see
