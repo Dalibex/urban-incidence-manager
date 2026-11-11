@@ -46,7 +46,7 @@ describe('routes', () => {
 
     const nav = await screen.findByRole('navigation', { name: 'Main' });
     const links = nav.querySelectorAll('a');
-    expect([...links].map((link) => link.textContent)).toEqual(['Inbox']);
+    expect([...links].map((link) => link.textContent)).toEqual(['Inbox', 'Map']);
   });
 
   it('shows the active user and signs them out on the API', async () => {

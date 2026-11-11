@@ -11,6 +11,7 @@ import {
   listDepartments,
   listIncidentClassificationChanges,
   listIncidentComments,
+  listIncidentLocations,
   listIncidents,
   listTechnicians,
   reopenIncident,
@@ -245,6 +246,21 @@ describe('incident calls', () => {
     expect(url.searchParams.get('page')).toBe('0');
     expect(url.searchParams.get('size')).toBe('100');
     expect(result).toEqual({ ok: true, data: page });
+  });
+
+  it('asks for the positions of the map with the same filters as the list', async () => {
+    const { fetch, client } = clientAnswering(200, { content: [], truncated: false });
+
+    const result = await listIncidentLocations(client, {
+      status: ['REPORTED', 'ASSIGNED'],
+      priority: ['HIGH'],
+    });
+
+    const url = new URL(fetch.mock.calls[0]![0].url);
+    expect(url.pathname).toBe('/api/v1/incident-locations');
+    expect(url.searchParams.getAll('status')).toEqual(['REPORTED', 'ASSIGNED']);
+    expect(url.searchParams.getAll('priority')).toEqual(['HIGH']);
+    expect(result).toEqual({ ok: true, data: { content: [], truncated: false } });
   });
 
   it('reports a missing incident as a 404 problem', async () => {

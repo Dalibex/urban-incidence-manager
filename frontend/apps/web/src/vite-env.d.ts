@@ -7,6 +7,8 @@ interface ImportMetaEnv {
   readonly VITE_QUICK_SIGN_IN?: string;
   /** Password of the demo users, read only when `VITE_QUICK_SIGN_IN` is `true`. */
   readonly VITE_DEMO_PASSWORD?: string;
+  /** Style of the base map (ADR-0016). Defaults to `/tiles/style.json`, on the web's own origin. */
+  readonly VITE_MAP_STYLE_URL?: string;
 }
 
 interface ImportMeta {
