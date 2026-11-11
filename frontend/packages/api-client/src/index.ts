@@ -18,8 +18,10 @@ export {
   type ApiResult,
 } from './account';
 export { listAuditEntries, type AuditEntryListQuery } from './audit';
+export { createUser, listUsers, updateUser, type UserListQuery } from './users';
 export {
   acceptIncident,
+  closeIncident,
   createIncident,
   createIncidentComment,
   getIncident,
@@ -27,8 +29,10 @@ export {
   listDepartments,
   listIncidentClassificationChanges,
   listIncidentComments,
+  listIncidentLocations,
   listIncidents,
   listIncidentStatusChanges,
+  reopenIncident,
   resolveIncident,
   updateIncident,
   type ClassificationChangeQuery,
@@ -37,6 +41,7 @@ export {
   type FieldError,
   type FormResult,
   type IncidentListQuery,
+  type IncidentLocationQuery,
 } from './incidents';
 export {
   getAttachmentContent,

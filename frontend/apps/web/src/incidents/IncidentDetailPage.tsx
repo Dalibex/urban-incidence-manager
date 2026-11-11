@@ -3,7 +3,6 @@ import { formatInstant, NOT_AVAILABLE } from '@urbanpulse/ui';
 import { Fragment, type ReactNode } from 'react';
 import { Link, useLocation, useParams } from 'react-router';
 
-import { ApiCallError } from '../query-client';
 import { incidentListOf, listReturnPath, type IncidentList } from '../routing/access';
 import { useSession } from '../session/SessionContext';
 import { useIncident } from './incident-queries';
@@ -11,6 +10,7 @@ import { ACTIONS_TITLE, IncidentActions } from './IncidentActions';
 import { IncidentTimeline } from './IncidentTimeline';
 import styles from './Incidents.module.css';
 import { LoadFailure } from './LoadFailure';
+import { isNotFound } from './not-found';
 import { PRIORITY_LABELS } from './labels';
 import { PhotoGallery } from './PhotoGallery';
 import { LoadingSkeleton, SkeletonLine, SkeletonText } from './Skeleton';
@@ -240,13 +240,4 @@ function Known({ value }: { value: string | null }) {
 
 function Instant({ value }: { value: string }) {
   return <time dateTime={value}>{formatInstant(value)}</time>;
-}
-
-/** A `404`, or a `400` for an address whose id is not a valid UUID: no incident has it either. */
-function isNotFound(error: unknown): boolean {
-  return (
-    error instanceof ApiCallError &&
-    error.failure.kind === 'problem' &&
-    (error.failure.status === 404 || error.failure.status === 400)
-  );
 }

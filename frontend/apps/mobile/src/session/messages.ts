@@ -85,3 +85,11 @@ export function uploadPhotoMessage(failure: ApiFailure): string {
       return 'The photo could not be uploaded. Your report is saved without it.';
   }
 }
+
+/** The saved session could not be checked at start-up; the session is kept. */
+export function sessionCheckMessage(failure: ApiFailure): string {
+  if (failure.kind === 'network') {
+    return NETWORK;
+  }
+  return 'Your session could not be checked. Try again in a moment.';
+}

@@ -40,7 +40,7 @@ The API checks every permission again, so this is a convenience, not the protect
 | Who | How |
 | --- | --- |
 | Citizen | *Create an account* on the sign-in screen of the mobile app (see [Sign up](#sign-up)) |
-| Staff | An administrator creates the account with its role (Planned: #40) |
+| Staff | An administrator creates the account with its role in *Users* (see [Administrator](#-administrator-web)) and gives you the initial password; you choose your own at the first sign-in |
 | First administrator of a new deployment | Created once by the people who run the server ([deployment guide](deployment.md#-create-the-first-administrator)) |
 | Trying the apps | The sample accounts of the [demo script](demo.md#the-story) (one per role) or of *Development Dataset* in the [development guide](development.md). A local build can show one button per demo account on the sign-in screen ([Quick Sign-In](demo.md#quick-sign-in)) |
 
@@ -65,6 +65,7 @@ What the sign-in messages mean:
 | *This account is disabled.* | Ask an administrator (staff) or the city council (citizens) to enable it |
 | *UrbanPulse cannot be reached. Check your connection and try again.* | The device has no connection, or the server is down |
 | *Your session has expired. Sign in again.* | The session ended; sign in again, nothing you saved is lost |
+| *Your session could not be checked. Try again in a moment.* | The phone app started, but the saved session could not be checked: the server answered with an error, or the connection dropped while the session was being renewed. You are still signed in; press *Try again* |
 
 **First sign-in of a staff account:** an account an administrator creates must choose its own
 password before it can sign in, so the one the administrator typed stops working. After the email
@@ -79,7 +80,10 @@ and the next sign-in asks again. Changing the password also ends your sessions o
   opening a link in a new tab or closing the browser signs you out**. This is on purpose: no other
   script on the page can read a session that is not stored ([security guide](security.md)).
 - **Mobile app:** on that phone until you sign out from *Profile*; the session is kept in the
-  phone's secure storage.
+  phone's secure storage. If the app starts without a connection, or the server fails or takes
+  more than 10 seconds to answer, it keeps the session and offers *Try again* instead of asking you
+  to sign in. It asks you to sign in only when the session has ended or the phone can no longer
+  read it.
 
 *Sign out* (in the top bar of the website, in *Profile* on the phone) ends the session on that
 device only; your other devices stay signed in.
@@ -166,7 +170,7 @@ Your name and email, and *Sign out*.
 
 ## 🗂️ Municipal Operator (Web)
 
-The menu at the top shows *Inbox*. Planned: *Map* (#53).
+The menu at the top shows *Inbox* and *Map*.
 
 ### Inbox
 
@@ -209,7 +213,7 @@ ticked. *Clear filters* lists every incident.
   stay on screen with *Try again* for the rest.
 - **Actions:** the actions allowed for the status of the incident. When there are none, as on a
   rejected or closed incident, it says *Only comments are available for this incident.* Planned:
-  #48, #49, #52.
+  #48, #49.
 - **Classification:** choose the category and the priority, write why the incident has that
   priority and press *Save classification*. A priority always needs its reason; you can change
   only the category, only the priority or both. The button stays disabled until you change
@@ -219,6 +223,16 @@ ticked. *Clear filters* lists every incident.
     incident*, check the new values and save again. What you typed is kept.
   - If the server cannot be reached or answers with an error, nothing is saved and what you typed
     is kept, so you can save again.
+- **Verify and close, or reopen:** on a resolved incident, check the technician's work. Press
+  *Close the incident* when it is well done: closing is final, the incident shows when it was
+  closed and the citizen sees it as closed. When it is not well done, write why in *Reason for
+  reopening* and press *Reopen the incident*: it goes back to *Reopened*, so it can be assigned
+  again, and the citizen sees the status but not your reason. The page says *Incident closed.* or
+  *Incident reopened: it can be assigned again.* only once the server has kept it.
+  - If someone else changed the incident since you opened it, or already closed or reopened it,
+    nothing is saved: press *Reload the incident* and check its status. Your reason is kept.
+  - If the server cannot be reached or answers with an error, nothing is saved and your reason is
+    kept, so you can send it again.
 - **Comment:** a note for the other staff of the incident, such as instructions for the
   technician, in any status. Write it in *Comment text* (up to 2,000 characters) and press *Add
   comment*. The citizen never sees comments. The page says *Comment added.* only once the server has
@@ -229,6 +243,33 @@ ticked. *Clear filters* lists every incident.
 *Incident not found*.
 
 Dates are shown in Málaga time.
+
+### Map
+
+The incidents on the base map of Málaga, with the same filters as the inbox. The menu opens it on
+every status that can still change: everything except *Rejected* and *Closed*.
+
+- **Markers:** each incident is a dot. Its colour is its status, the same as in the lists, and its
+  size is its priority: the higher, the bigger, and a *High* one also has a dark border. The legend
+  under the map explains both.
+- **Groups:** when you zoom out, nearby incidents join into a dark circle with their number, and the
+  highest priority among them is written under it (*High*, *Medium* or *Low*; nothing when none has
+  a priority). Click it to zoom in until it splits.
+- **Summary:** click a marker to open its summary at the side: title, status, priority, category,
+  when it was reported and the description. *Manage* opens its detail, and *Close* or *Escape*
+  closes the summary. If the incident left your view since the last refresh (it was closed, or is
+  no longer assigned to you), the summary says *Incident not found*, and the next refresh removes
+  its marker.
+- **Live:** the map reads the incidents again every 15 seconds, so a new report appears without
+  reloading the page.
+- **List:** *List of the incidents on the map*, under the legend, has every incident on the map,
+  the most relevant first. With the keyboard, *Tab* to it, *Enter* to open it and *Enter* on an
+  incident to open its summary and centre the map on it.
+- The map shows at most 1,000 incidents, the most relevant first. If more match, it says so: narrow
+  the filters to see the rest.
+- When no incident matches, the page says so and offers *Clear filters*; the map stays.
+- If a refresh fails, the markers you saw stay with a warning, and the map tries again on its own.
+  If the base map cannot be loaded, the page says so; the filters and the list keep working.
 
 ### When something fails
 
@@ -243,7 +284,8 @@ could not be loaded.* with its own *Try again*, and the other photos still show.
 
 ## 🔧 Technician (Web)
 
-The menu shows *Work queue*, where you land.
+The menu shows *Work queue*, where you land, and *Map*: the operator's [map](#map) with only the
+incidents assigned to you, opened on *Assigned* and *In progress* like the queue.
 
 ### Work queue
 
@@ -285,12 +327,31 @@ An incident that is not assigned to you, opened from a link, shows *Incident not
 
 ## 🛡️ Administrator (Web)
 
-The menu shows *Users*, where you land, *Inbox*, *Audit log* and *Reports*.
+The menu shows *Users*, where you land, *Inbox*, *Map*, *Audit log* and *Reports*.
 
 - **Inbox and incident detail:** an administrator can do everything an operator can
   ([ADR-0020](adr/0020-incident-lifecycle-transitions.md)), so see
   [Municipal Operator](#-municipal-operator-web).
-- **Users:** planned: #40.
+- **Users:** every account, staff and citizens, sorted by name, 20 per page, with its role and
+  whether it is *Active* or *Deactivated*. Your own row says *(you)*.
+  - Filter with *Name contains*, *Email contains* (the text anywhere in it, capitals or not) and
+    one or several *Roles*. The filters and the page stay in the address.
+  - **New staff account:** name, email, initial password (at least 8 characters) and role
+    (operator, technician, analyst or administrator; citizens create their own account in the
+    mobile app). Give the person the password in a safe way: at their first sign-in they must
+    choose their own, so the one you typed stops working. An email that already has an account
+    is refused under *Email*.
+  - **Edit** opens the account under its row: change the name or the role and select *Save changes*.
+    Only what you changed is sent, so a change another administrator made to a different field at
+    the same time is kept; if you both change the same field, the last save wins. A role change
+    reaches the person at the latest about 15 minutes later, when their session refreshes.
+  - *Deactivate account* asks you to confirm. The person cannot sign in any more, and their open
+    sessions end within about 15 minutes. Accounts are never deleted: incidents and the audit log
+    keep referring to them. *Reactivate account* lets them sign in again.
+  - You cannot change your own role or deactivate yourself, and a citizen account keeps its role.
+  - Every change appears in the *Audit log*; a name change records that the name changed, not the
+    name.
+  - If the server cannot be reached, the form says so with *Try again* and keeps what you typed.
 - **Audit log:** who did what and when, newest first, 20 entries per page. Each row shows the
   actor, the action, the record it was about and the values the change replaced and set
   (`role: TECHNICIAN → MUNICIPAL_OPERATOR`). Names and incident titles are the current ones; a
