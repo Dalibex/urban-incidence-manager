@@ -1,17 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Linking } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState, Linking } from 'react-native';
 import * as Location from 'expo-location';
 
-export interface IncidentLocation {
-  latitude: number;
-  longitude: number;
-  accuracy: number | null;
-}
+import type { GpsFix } from '../location/report-location';
 
 export interface UseIncidentLocationResult {
-  latitude: number | null;
-  longitude: number | null;
-  accuracy: number | null;
+  /** The last GPS fix; a new object for every successful read, even at the same place. */
+  gpsFix: GpsFix | null;
   isLoading: boolean;
   error: string | null;
   permissionDenied: boolean;
@@ -21,66 +16,90 @@ export interface UseIncidentLocationResult {
 
 /** What one read of the device location produced, without touching any React state. */
 type LocationOutcome =
-  | { kind: 'denied' }
-  | { kind: 'position'; location: IncidentLocation }
-  | { kind: 'failure'; message: string };
+  { kind: 'denied' } | { kind: 'position'; fix: GpsFix } | { kind: 'failure'; message: string };
 
-const PERMISSION_ERROR = 'Location permission is required to report an incident.';
+/** Long enough for a first fix outdoors; past it the citizen places the pin by hand. */
+export const GPS_TIMEOUT_MS = 15_000;
 
-/**Requests the foreground permission and returns the read outcome; it never sets React state. */
+export const PERMISSION_ERROR = 'Location is off. Move the map to put the pin on the incident.';
+export const GPS_TIMEOUT_ERROR =
+  'Your position could not be found in time. Move the map to put the pin on the incident.';
+export const GPS_FAILED_ERROR =
+  'Your position could not be read. Move the map to put the pin on the incident.';
+
+class GpsTimeoutError extends Error {}
+
+/** `getCurrentPositionAsync` has no timeout of its own and can wait for a fix forever. */
+async function currentPositionWithin(timeoutMs: number): Promise<Location.LocationObject> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new GpsTimeoutError()), timeoutMs);
+  });
+  try {
+    return await Promise.race([
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+      timeout,
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Requests the foreground permission and returns the read outcome; it never sets React state. */
 async function readLocation(): Promise<LocationOutcome> {
   try {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== Location.PermissionStatus.GRANTED) {
       return { kind: 'denied' };
     }
-    const position = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
-    });
+    const position = await currentPositionWithin(GPS_TIMEOUT_MS);
     return {
       kind: 'position',
-      location: {
+      fix: {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
         accuracy: position.coords.accuracy ?? null,
       },
     };
   } catch (error) {
+    if (!(error instanceof GpsTimeoutError)) {
+      // The citizen sees a plain message; the cause stays in the log.
+      console.warn('Could not read the location', error);
+    }
     return {
       kind: 'failure',
-      message: error instanceof Error ? error.message : 'Could not read the location.',
+      message: error instanceof GpsTimeoutError ? GPS_TIMEOUT_ERROR : GPS_FAILED_ERROR,
     };
   }
 }
 
 /**
- * Requests foreground location permission and reads the current WGS 84 position.
- * Permission denial is a first-class state (graceful degradation, RF26): the caller can
- * offer a button that opens the OS settings.
+ * Requests foreground location permission and reads the current WGS 84 position. A denied
+ * permission, a failure or a timeout are states, not dead ends (RF26, AGENTS.md section 7): the
+ * citizen places the pin by hand. When the citizen comes back to the app after allowing the
+ * location in the settings, it is read again.
  */
 export function useIncidentLocation(): UseIncidentLocationResult {
-  const [latitude, setLatitude] = useState<number | null>(null);
-  const [longitude, setLongitude] = useState<number | null>(null);
-  const [accuracy, setAccuracy] = useState<number | null>(null);
+  const [gpsFix, setGpsFix] = useState<GpsFix | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [permissionDenied, setPermissionDenied] = useState<boolean>(false);
+  const permissionDeniedRef = useRef(false);
 
   /** Applies an outcome to the state; it must be used inside a callback, not in an effect body. */
   const applyOutcome = useCallback((outcome: LocationOutcome) => {
+    permissionDeniedRef.current = outcome.kind === 'denied';
     if (outcome.kind === 'denied') {
       setPermissionDenied(true);
       setError(PERMISSION_ERROR);
       return;
     }
+    setPermissionDenied(false);
     if (outcome.kind === 'failure') {
       setError(outcome.message);
       return;
     }
-    setPermissionDenied(false);
-    setLatitude(outcome.location.latitude);
-    setLongitude(outcome.location.longitude);
-    setAccuracy(outcome.location.accuracy);
+    setGpsFix(outcome.fix);
     setError(null);
   }, []);
 
@@ -100,14 +119,30 @@ export function useIncidentLocation(): UseIncidentLocationResult {
     setIsLoading(false);
   }, [applyOutcome]);
 
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active' || !permissionDeniedRef.current) {
+        return;
+      }
+      // Only checks: asking again here would show the system dialog every time the app opens.
+      Location.getForegroundPermissionsAsync()
+        .then(({ status }) => {
+          if (status === Location.PermissionStatus.GRANTED) {
+            void refreshLocation();
+          }
+        })
+        // The pin still works; the citizen can also tap "Use my position".
+        .catch((cause: unknown) => console.warn('Could not check the location permission', cause));
+    });
+    return () => subscription.remove();
+  }, [refreshLocation]);
+
   const openSettings = useCallback(async () => {
     await Linking.openSettings();
   }, []);
 
   return {
-    latitude,
-    longitude,
-    accuracy,
+    gpsFix,
     isLoading,
     error,
     permissionDenied,

@@ -4,11 +4,12 @@ import { act, fireEvent, screen, userEvent, waitFor } from '@testing-library/rea
 import { Alert } from 'react-native';
 
 import { MAP_LOAD_FAILED } from '../components/BaseMap';
+import { PLACED_BY_HAND } from '../components/LocationIndicator';
 import { useIncidentLocation, type UseIncidentLocationResult } from '../hooks/useIncidentLocation';
 import { categoryKeys, incidentKeys } from '../incidents/incident-queries';
 import type { MainTabsParamList } from '../navigation/MainTabs';
 import { failed, ok, renderWithQueries } from '../test-utils';
-import { NewIncidentScreen } from './NewIncidentScreen';
+import { MAP_HINT_WITH_GPS, MAP_HINT_WITHOUT_GPS, NewIncidentScreen } from './NewIncidentScreen';
 
 jest.mock('@urbanpulse/api-client', () => ({
   createIncident: jest.fn(),
@@ -35,9 +36,7 @@ const WASTE = {
 };
 
 const LOCATED: UseIncidentLocationResult = {
-  latitude: 36.7213,
-  longitude: -4.4214,
-  accuracy: 12.5,
+  gpsFix: { latitude: 36.7213, longitude: -4.4214, accuracy: 12.5 },
   isLoading: false,
   error: null,
   permissionDenied: false,
@@ -85,6 +84,29 @@ async function renderScreen() {
     />,
   );
   return { navigation, queryClient };
+}
+
+// The hook is mocked, so its messages are not exported here.
+const PERMISSION_ERROR = 'Location is off. Move the map to put the pin on the incident.';
+
+const NO_GPS: UseIncidentLocationResult = {
+  ...LOCATED,
+  gpsFix: null,
+  permissionDenied: true,
+  error: PERMISSION_ERROR,
+};
+
+function map() {
+  return screen.getByTestId('maplibre-map');
+}
+
+/** The citizen moves the map, so the pin in its centre points somewhere else. */
+async function moveMapTo(longitude: number, latitude: number) {
+  await act(() =>
+    map().props.onRegionDidChange({
+      nativeEvent: { center: [longitude, latitude], userInteraction: true },
+    }),
+  );
 }
 
 async function fillIn(title: string, description: string) {
@@ -159,37 +181,75 @@ describe('NewIncidentScreen', () => {
 
   describe('location', () => {
     it('cannot be sent while the location is not known yet', async () => {
-      mockedLocation.mockReturnValue({
-        ...LOCATED,
-        latitude: null,
-        longitude: null,
-        accuracy: null,
-        isLoading: true,
-      });
+      mockedLocation.mockReturnValue({ ...LOCATED, gpsFix: null, isLoading: true });
       await renderScreen();
+      await act(() => map().props.onDidFinishLoadingMap());
       await fillIn('Street light off', 'Off for three days.');
 
       expect(screen.getByText('Getting your location…')).toBeOnTheScreen();
       expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled();
     });
 
-    it('asks for the permission and cannot be sent when it is denied', async () => {
-      mockedLocation.mockReturnValue({
-        ...LOCATED,
-        latitude: null,
-        longitude: null,
-        accuracy: null,
-        permissionDenied: true,
-        error: 'Location permission is required to report an incident.',
-      });
+    it('lets a citizen who rejects the location report on the pin, without accuracy', async () => {
+      mockedLocation.mockReturnValue(NO_GPS);
+      mockedCreateIncident.mockResolvedValue(CREATED);
       await renderScreen();
+      await act(() => map().props.onDidFinishLoadingMap());
+      await fillIn('Street light off', 'Off for three days.');
+
+      expect(screen.getByText(PERMISSION_ERROR)).toBeOnTheScreen();
+      expect(screen.getByRole('button', { name: 'Open settings' })).toBeOnTheScreen();
+      expect(screen.getByText(PLACED_BY_HAND)).toBeOnTheScreen();
+      await fireEvent.press(screen.getByRole('button', { name: 'Submit' }));
+
+      await waitFor(() => expect(mockedCreateIncident).toHaveBeenCalledTimes(1));
+      expect(mockedCreateIncident.mock.lastCall?.[1].location).toEqual({
+        latitude: 36.72,
+        longitude: -4.42,
+      });
+    });
+
+    it('sends the corrected position, without the GPS accuracy, once the pin moves', async () => {
+      mockedCreateIncident.mockResolvedValue(CREATED);
+      await renderScreen();
+      await act(() => map().props.onDidFinishLoadingMap());
+      expect(screen.getByText('Your GPS position. Accuracy: 13 m.')).toBeOnTheScreen();
+
+      await moveMapTo(-4.4102, 36.7301);
       await fillIn('Street light off', 'Off for three days.');
       await fireEvent.press(screen.getByRole('button', { name: 'Submit' }));
 
-      expect(screen.getByText('Location is needed')).toBeOnTheScreen();
-      expect(screen.getByRole('button', { name: 'Open settings' })).toBeOnTheScreen();
+      expect(screen.getByText(PLACED_BY_HAND)).toBeOnTheScreen();
+      await waitFor(() => expect(mockedCreateIncident).toHaveBeenCalledTimes(1));
+      expect(mockedCreateIncident.mock.lastCall?.[1].location).toEqual({
+        latitude: 36.7301,
+        longitude: -4.4102,
+      });
+    });
+
+    it('offers to go back to the GPS position', async () => {
+      await renderScreen();
+
+      await fireEvent.press(screen.getByRole('button', { name: 'Use my position' }));
+
+      expect(LOCATED.refreshLocation).toHaveBeenCalled();
+    });
+
+    it('cannot be sent without the map and without a GPS fix, and offers a retry', async () => {
+      mockedLocation.mockReturnValue(NO_GPS);
+      await renderScreen();
+      await fillIn('Street light off', 'Off for three days.');
+
+      await act(() => map().props.onDidFailLoadingMap());
+
+      expect(screen.getByText(`${MAP_LOAD_FAILED} ${MAP_HINT_WITHOUT_GPS}`)).toBeOnTheScreen();
       expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled();
-      expect(mockedCreateIncident).not.toHaveBeenCalled();
+      expect(screen.getByLabelText('Description').props.value).toBe('Off for three days.');
+
+      await fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
+      await act(() => map().props.onDidFinishLoadingMap());
+
+      expect(screen.getByRole('button', { name: 'Submit' })).toBeEnabled();
     });
   });
 
@@ -255,6 +315,32 @@ describe('NewIncidentScreen', () => {
       expect(Alert.alert).not.toHaveBeenCalled();
     });
 
+    it('keeps the moved pin after a failed submission, so a retry sends the same place', async () => {
+      mockedCreateIncident.mockResolvedValue({
+        ok: false,
+        failure: { kind: 'network' },
+        fieldErrors: [],
+      });
+      await renderScreen();
+      await act(() => map().props.onDidFinishLoadingMap());
+      await moveMapTo(-4.4102, 36.7301);
+      await fillIn('Street light off', 'Off for three days.');
+      await fireEvent.press(screen.getByRole('button', { name: 'Submit' }));
+      await screen.findByText(/UrbanPulse cannot be reached/);
+
+      mockedCreateIncident.mockResolvedValue(CREATED);
+      await fireEvent.press(screen.getByRole('button', { name: 'Submit' }));
+
+      await waitFor(() => expect(mockedCreateIncident).toHaveBeenCalledTimes(2));
+      expect(mockedCreateIncident.mock.calls[1]?.[1]).toEqual(
+        mockedCreateIncident.mock.calls[0]?.[1],
+      );
+      expect(mockedCreateIncident.mock.calls[1]?.[1].location).toEqual({
+        latitude: 36.7301,
+        longitude: -4.4102,
+      });
+    });
+
     it('cannot be sent twice while a submission is in flight', async () => {
       const reply = deferred<CreateIncidentResult>();
       mockedCreateIncident.mockReturnValue(reply.promise);
@@ -318,7 +404,10 @@ describe('NewIncidentScreen', () => {
     });
 
     it('leaves out the accuracy when the device does not report it', async () => {
-      mockedLocation.mockReturnValue({ ...LOCATED, accuracy: null });
+      mockedLocation.mockReturnValue({
+        ...LOCATED,
+        gpsFix: { latitude: 36.7213, longitude: -4.4214, accuracy: null },
+      });
       mockedCreateIncident.mockResolvedValue(CREATED);
       await renderScreen();
       await fillIn('Street light off', 'Off for three days.');
@@ -338,7 +427,7 @@ describe('NewIncidentScreen', () => {
       mockedCreateIncident.mockResolvedValue(CREATED);
       await renderScreen();
       await act(() => screen.getByTestId('maplibre-map').props.onDidFailLoadingMap());
-      expect(screen.getByText(MAP_LOAD_FAILED)).toBeOnTheScreen();
+      expect(screen.getByText(`${MAP_LOAD_FAILED} ${MAP_HINT_WITH_GPS}`)).toBeOnTheScreen();
       await fillIn('Street light off', 'Off for three days.');
 
       await fireEvent.press(screen.getByRole('button', { name: 'Submit' }));
