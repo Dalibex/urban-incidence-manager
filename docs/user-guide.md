@@ -218,8 +218,21 @@ ticked. *Clear filters* lists every incident.
     incident*, check the new values and save again. What you typed is kept.
   - If the server cannot be reached or answers with an error, nothing is saved and what you typed
     is kept, so you can save again.
-  rejected or closed incident, it says *Only comments are available for this incident.* Planned:
-  #48, #49.
+- **Verify and close, or reopen:** on a resolved incident, check the technician's work. Press
+  *Close the incident* when it is well done: closing is final, the incident shows when it was
+  closed and the citizen sees it as closed. When it is not well done, write why in *Reason for
+  reopening* and press *Reopen the incident*: it goes back to *Reopened*, so it can be assigned
+  again, and the citizen sees the status but not your reason. The page says *Incident closed.* or
+  *Incident reopened: it can be assigned again.* only once the server has kept it.
+  - If someone else changed the incident since you opened it, or already closed or reopened it,
+    nothing is saved: press *Reload the incident* and check its status. Your reason is kept.
+  - If the server cannot be reached or answers with an error, nothing is saved and your reason is
+    kept, so you can send it again.
+- **Comment:** a note for the other staff of the incident, such as instructions for the
+  technician, in any status. Write it in *Comment text* (up to 2,000 characters) and press *Add
+  comment*. The citizen never sees comments. The page says *Comment added.* only once the server has
+  kept it, and then empties the text; if it was not kept, the text stays so you can send it again.
+  The comment then shows in the *History*, without reloading the page.
 
 *Back to the inbox* returns to the list as you left it. An incident that does not exist shows
 *Incident not found*.
