@@ -16,8 +16,11 @@
     "@urbanpulse/api-client": "workspace:*",
     "@urbanpulse/domain": "workspace:*",
     "@urbanpulse/ui": "workspace:*",
+    "maplibre-gl": "^6.17.0",
+    "pmtiles": "^4.5.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "react-map-gl": "^8.1.3",
     "react-router": "^8.5.1"
   },
   "devDependencies": {

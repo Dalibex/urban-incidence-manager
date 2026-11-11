@@ -184,6 +184,8 @@ development server (`pnpm dev:web`) serves them at `http://localhost:5173/tiles/
 - `malaga.pmtiles`: the vector tiles, zoom 0 to 14, in the OpenMapTiles schema.
 - `style.json`: the map style (OSM Bright), with its sprites and `fonts/`. A map loads it from
   `http://localhost:5173/tiles/style.json`; it references no external host and needs no key.
+  The web map loads it from the same origin by default (`/tiles/style.json`); set
+  `VITE_MAP_STYLE_URL` in `frontend/apps/web/.env` only to load it from elsewhere.
 
 How it behaves:
 

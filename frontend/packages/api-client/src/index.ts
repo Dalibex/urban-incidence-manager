@@ -28,6 +28,7 @@ export {
   listDepartments,
   listIncidentClassificationChanges,
   listIncidentComments,
+  listIncidentLocations,
   listIncidents,
   listIncidentStatusChanges,
   reopenIncident,
@@ -39,6 +40,7 @@ export {
   type FieldError,
   type FormResult,
   type IncidentListQuery,
+  type IncidentLocationQuery,
 } from './incidents';
 export {
   getAttachmentContent,
