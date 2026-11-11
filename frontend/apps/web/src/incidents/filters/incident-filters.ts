@@ -176,6 +176,31 @@ export function isDay(value: string): value is string {
 
 /** The day after `day`, both `YYYY-MM-DD`. */
 export function nextDay(day: string): string {
+  return addDays(day, 1);
+}
+
+/** `day` moved by `days` (negative goes back), both `YYYY-MM-DD`. */
+export function addDays(day: string, days: number): string {
   const [year, month, date] = day.split('-').map(Number);
-  return new Date(Date.UTC(year!, month! - 1, date! + 1)).toISOString().slice(0, 10);
+  return new Date(Date.UTC(year!, month! - 1, date! + days)).toISOString().slice(0, 10);
+}
+
+/** A quick choice of the days reported: the last `days` days, today included (#177). */
+export interface RangeShortcut {
+  label: string;
+  days: number;
+}
+
+export const RANGE_SHORTCUTS: readonly RangeShortcut[] = [
+  { label: 'Today', days: 1 },
+  { label: 'Last 7 days', days: 7 },
+  { label: 'Last 30 days', days: 30 },
+];
+
+/** The days of a shortcut, ending on `today` (a day in Málaga, `YYYY-MM-DD`). */
+export function shortcutRange(
+  shortcut: RangeShortcut,
+  today: string,
+): Pick<IncidentFilters, 'reportedFrom' | 'reportedTo'> {
+  return { reportedFrom: addDays(today, 1 - shortcut.days), reportedTo: today };
 }

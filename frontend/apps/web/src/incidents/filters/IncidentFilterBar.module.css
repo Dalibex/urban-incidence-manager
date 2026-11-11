@@ -87,3 +87,36 @@
   min-height: 2.5rem;
   justify-self: start;
 }
+
+/*
+ * The quick ranges of days take a whole row, as the statuses do: spanning two columns would add a
+ * second column to a one-column bar on a narrow screen and push the bar out of its box.
+ */
+.shortcuts {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.shortcuts legend {
+  margin-bottom: var(--space-xs);
+  padding: 0;
+}
+
+.shortcut {
+  min-height: 2.5rem;
+  padding: 0 var(--space-sm);
+  border: 1px solid color-mix(in srgb, var(--color-text-muted) 50%, transparent);
+  border-radius: 6px;
+  background: var(--color-background);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.shortcut[aria-pressed='true'] {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-background));
+}
