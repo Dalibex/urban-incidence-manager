@@ -1,5 +1,6 @@
 import {
   acceptIncident,
+  assignIncident,
   closeIncident,
   createIncidentComment,
   getAttachmentContent,
@@ -11,6 +12,7 @@ import {
   listIncidentComments,
   listIncidents,
   listIncidentStatusChanges,
+  listTechnicians,
   reopenIncident,
   resolveIncident,
   updateIncident,
@@ -38,6 +40,7 @@ type Incident = components['schemas']['IncidentResponse'];
 type UpdateIncidentRequest = components['schemas']['UpdateIncidentRequest'];
 type IncidentActionRequest = components['schemas']['IncidentActionRequest'];
 type IncidentReasonRequest = components['schemas']['IncidentReasonRequest'];
+type CreateAssignmentRequest = components['schemas']['CreateAssignmentRequest'];
 
 const incidentKeys = {
   page: (page: number, filters: IncidentFilters) => ['incidents', 'page', page, filters] as const,
@@ -157,12 +160,21 @@ export function useCategories() {
   });
 }
 
-/** The active departments, ordered by name: the options of the department filter. */
+/** The active departments, ordered by name: the options of the department filter and the assignment. */
 export function useDepartments() {
   const { api } = useSession();
   return useQuery({
     queryKey: ['departments'],
     queryFn: () => dataOf(listDepartments(api)),
+  });
+}
+
+/** The active technicians, ordered by name: the options of the assignment form (#185). */
+export function useTechnicians() {
+  const { api } = useSession();
+  return useQuery({
+    queryKey: ['technicians'],
+    queryFn: () => dataOf(listTechnicians(api)),
   });
 }
 
@@ -219,6 +231,13 @@ export function useAcceptIncident(incidentId: string) {
 export function useResolveIncident(incidentId: string) {
   return useIncidentChange((api, body: IncidentReasonRequest) =>
     resolveIncident(api, incidentId, body),
+  );
+}
+
+/** The operator assigns the incident, or reassigns an assigned one (#185). */
+export function useAssignIncident(incidentId: string) {
+  return useIncidentChange((api, body: CreateAssignmentRequest) =>
+    assignIncident(api, incidentId, body),
   );
 }
 
