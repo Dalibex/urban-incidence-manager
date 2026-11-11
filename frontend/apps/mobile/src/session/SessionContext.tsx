@@ -1,6 +1,7 @@
 import {
   createApiClient,
   getCurrentUser,
+  markSession as markStoreSession,
   signIn as signInOnApi,
   signOut as signOutOnApi,
   signUp as signUpOnApi,
@@ -10,6 +11,7 @@ import {
   type ApiResult,
   type components,
   type LocalFile,
+  type SessionMark,
   type SessionTokens,
 } from '@urbanpulse/api-client';
 import { useQueryClient } from '@tanstack/react-query';
@@ -63,12 +65,18 @@ interface SessionValue {
   expired: boolean;
   /** Typed client of the current session; it sends the access token and refreshes on its own. */
   api: ApiClient;
-  /** Uploads a photo to an incident with the session's token, reporting the fraction sent. */
+  /**
+   * Uploads a photo to an incident with the session's token, reporting the fraction sent. Every
+   * attempt of one upload passes the `session` of the first, so none is sent after a sign-out.
+   */
   uploadAttachment: (
     incidentId: string,
     photo: LocalFile,
     onProgress: (fraction: number) => void,
+    session?: SessionMark,
   ) => Promise<ApiResult<components['schemas']['AttachmentResponse']>>;
+  /** Marks the session the phone holds now, for {@link SessionValue.uploadAttachment} (#259). */
+  markSession: () => SessionMark;
   signIn: (credentials: Credentials) => Promise<ApiResult<void>>;
   signUp: (registration: Registration) => Promise<ApiResult<void>>;
   signOut: () => Promise<void>;
@@ -210,12 +218,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       user,
       expired,
       api,
-      uploadAttachment: (incidentId, photo, onProgress) =>
+      uploadAttachment: (incidentId, photo, onProgress, session) =>
         uploadIncidentAttachment(api, incidentId, photo, {
           baseUrl: API_BASE_URL,
           tokenStore: secureTokenStore,
           onProgress,
+          session,
         }),
+      markSession: () => markStoreSession(secureTokenStore),
       signIn: async (credentials) => {
         const session = await signInOnApi(api, secureTokenStore, credentials);
         if (!session.ok) {
