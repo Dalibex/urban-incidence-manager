@@ -241,6 +241,7 @@ operation; the note says when the answer also depends on the resource. A role no
 | `GET /users/me` | | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `GET /categories` | | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `GET /departments` | | | ✓ | ✓ | ✓ | |
+| `GET /technicians` | | | ✓ | | ✓ | |
 | `GET /incidents` | | own | ✓ | assigned | ✓ | |
 | `POST /incidents` | | ✓ | | | | |
 | `GET /incidents/{id}` | | own | ✓ | assigned | ✓ | |
@@ -250,6 +251,8 @@ operation; the note says when the answer also depends on the resource. A role no
 | `POST /incidents/{id}/assignments` | | | ✓ | | ✓ | |
 | `POST /incidents/{id}/acceptance` | | | | assigned | | |
 | `POST /incidents/{id}/resolution` | | | | assigned | | |
+| `POST /incidents/{id}/closure` | | | ✓ | | ✓ | |
+| `POST /incidents/{id}/reopening` | | | ✓ | | ✓ | |
 | `GET /incidents/{id}/attachments` | | own | ✓ | assigned | ✓ | |
 | `POST /incidents/{id}/attachments` | | own, only while `REPORTED` | ✓ | assigned | ✓ | |
 | `GET /attachments/{id}/content` | | own | ✓ | assigned | ✓ | |
