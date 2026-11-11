@@ -6,6 +6,7 @@ export {
   startOfDay,
   STATUS_LABELS,
 } from './incident-labels';
+export { SKELETON_DELAY_MS, SLOW_LOADING_MS, type LoadingStage } from './loading';
 export { statusColor } from './status-color';
 export {
   buildTimeline,
