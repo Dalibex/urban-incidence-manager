@@ -21,6 +21,7 @@ export { listAuditEntries, type AuditEntryListQuery } from './audit';
 export { createUser, listUsers, updateUser, type UserListQuery } from './users';
 export {
   acceptIncident,
+  closeIncident,
   createIncident,
   createIncidentComment,
   getIncident,
@@ -30,6 +31,7 @@ export {
   listIncidentComments,
   listIncidents,
   listIncidentStatusChanges,
+  reopenIncident,
   resolveIncident,
   updateIncident,
   type ClassificationChangeQuery,

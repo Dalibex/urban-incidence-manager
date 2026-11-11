@@ -604,9 +604,7 @@ export interface paths {
         put?: never;
         /**
          * Close a resolved incident
-         * @description Planned: #52.
-         *
-         *     `RESOLVED` to `CLOSED`, which is final, and sets `closedAt`. The citizen sees the status.
+         * @description `RESOLVED` to `CLOSED`, which is final, and sets `closedAt`. The citizen sees the status.
          *
          *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`.
          */
@@ -628,9 +626,7 @@ export interface paths {
         put?: never;
         /**
          * Reopen a resolved incident
-         * @description Planned: #52.
-         *
-         *     `RESOLVED` to `REOPENED`, after which it can be assigned again. `reason` is required. The
+         * @description `RESOLVED` to `REOPENED`, after which it can be assigned again. `reason` is required. The
          *     citizen sees the status, not the reason.
          *
          *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`.

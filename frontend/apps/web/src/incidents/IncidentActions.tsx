@@ -5,12 +5,9 @@ import { useSession } from '../session/SessionContext';
 import { ClassificationPanel } from './ClassificationPanel';
 import { CommentPanel } from './CommentPanel';
 import styles from './Incidents.module.css';
-import {
-  AcceptPanel,
-  ResolvePanel,
-  type ActionCallbacks,
-  type ActionDone,
-} from './TechnicianActions';
+import { ClosePanel, ReopenPanel } from './OperatorActions';
+import type { ActionCallbacks, ActionDone } from './ActionForm';
+import { AcceptPanel, ResolvePanel } from './TechnicianActions';
 
 type Incident = components['schemas']['IncidentResponse'];
 
@@ -32,9 +29,10 @@ export function IncidentActions({ incident }: { incident: Incident }) {
   const focusMovedFor = useRef<ActionDone | null>(null);
   const statusPanels = useRef<HTMLDivElement>(null);
   const message = useRef<HTMLParagraphElement>(null);
+  const callbacks: ActionCallbacks = { onSending: () => setDone(null), onDone: setDone };
   const panels = isTechnician
-    ? technicianPanels(incident, { onSending: () => setDone(null), onDone: setDone })
-    : operatorPanels(incident);
+    ? technicianPanels(incident, callbacks)
+    : operatorPanels(incident, callbacks);
 
   // The answer and the incident with its new status arrive in either order: act when both did.
   useEffect(() => {
@@ -67,7 +65,7 @@ export function IncidentActions({ incident }: { incident: Incident }) {
   );
 }
 
-function operatorPanels(incident: Incident): ReactNode {
+function operatorPanels(incident: Incident, callbacks: ActionCallbacks): ReactNode {
   // Classification is allowed in every status but REJECTED and CLOSED (ADR-0020).
   const classification = <ClassificationPanel incident={incident} />;
   switch (incident.status) {
@@ -80,7 +78,14 @@ function operatorPanels(incident: Incident): ReactNode {
     case 'IN_PROGRESS':
       return classification;
     case 'RESOLVED':
-      return classification;
+      // The operator checks the technician's work: close it, or reopen it with a reason (#52).
+      return (
+        <>
+          {classification}
+          <ClosePanel incident={incident} {...callbacks} />
+          <ReopenPanel incident={incident} {...callbacks} />
+        </>
+      );
     case 'REOPENED':
       return classification;
     case 'REJECTED':
