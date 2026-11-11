@@ -798,6 +798,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/incident-statistics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Count the incidents of the map by status, priority, category and department
+         * @description The indicators of the staff dashboard (#177), shown beside the map: how many incidents
+         *     match, and how they split by status, priority, category and department. It takes the same
+         *     filters and the same scope as `listIncidentLocations`, without the bounding box, so it
+         *     counts the incidents the map draws. Unlike the map it has no cap: it counts every one.
+         *     An unknown parameter, or one without a value, returns `400`, like `listIncidents`.
+         *
+         *     Every group of a dimension adds up to `total`: they are read from one snapshot, so an
+         *     incident that changes meanwhile is counted once. A status or priority that the filters
+         *     allow is listed even with `0`, a real zero; one that the filters leave out is not listed,
+         *     because its count is not known. A category or department is only listed when it has
+         *     incidents. An incident without priority, category or active assignment is the group
+         *     `null`, which goes last.
+         *
+         *     These data are live and are not cached.
+         *
+         *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR` (every incident), `TECHNICIAN` (active
+         *     assignments). `CITIZEN` and `ANALYST` get `403`.
+         */
+        get: operations["getIncidentStatistics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/incident-reports": {
         parameters: {
             query?: never;
@@ -1647,6 +1683,76 @@ export interface components {
              * @example false
              */
             truncated: boolean;
+        };
+        /** @description The counts of the staff dashboard. Each list adds up to `total`. It is not paginated: the groups are few by nature. */
+        IncidentStatisticsResponse: {
+            /**
+             * Format: int64
+             * @description Every incident that matches, with no cap.
+             * @example 42
+             */
+            total: number;
+            /** @description Each status the filters allow, every one without a status filter, in the order of `IncidentStatus`; `0` when none has it. */
+            byStatus: components["schemas"]["StatusCount"][];
+            /** @description `HIGH`, `MEDIUM`, `LOW` and then `null` (no priority), only the ones the filters allow; `0` when none has it. With a priority filter, `null` is not listed. */
+            byPriority: components["schemas"]["PriorityCount"][];
+            /** @description Each category with incidents, the largest first and then by name; `null` (not classified) last. */
+            byCategory: components["schemas"]["CategoryCount"][];
+            /** @description Each department of an active assignment, the largest first and then by name; `null` (no active assignment) last. */
+            byDepartment: components["schemas"]["DepartmentCount"][];
+        };
+        StatusCount: {
+            status: components["schemas"]["IncidentStatus"];
+            /**
+             * Format: int64
+             * @example 12
+             */
+            count: number;
+        };
+        PriorityCount: {
+            /** @description `null` for the incidents without priority. */
+            priority: components["schemas"]["Priority"] | null;
+            /**
+             * Format: int64
+             * @example 7
+             */
+            count: number;
+        };
+        CategoryCount: {
+            /**
+             * Format: uuid
+             * @description `null` for the incidents without category.
+             * @example a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d
+             */
+            categoryId: string | null;
+            /**
+             * @description `null` together with `categoryId`.
+             * @example Street lighting
+             */
+            name: string | null;
+            /**
+             * Format: int64
+             * @example 9
+             */
+            count: number;
+        };
+        DepartmentCount: {
+            /**
+             * Format: uuid
+             * @description `null` for the incidents without an active assignment.
+             * @example 5b2e9c1a-3d4f-4e6a-8b7c-9d0e1f2a3b4c
+             */
+            departmentId: string | null;
+            /**
+             * @description `null` together with `departmentId`.
+             * @example Public works
+             */
+            name: string | null;
+            /**
+             * Format: int64
+             * @example 5
+             */
+            count: number;
         };
         /**
          * @description How a report groups the incidents. `department` uses the active assignment.
@@ -3102,6 +3208,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IncidentLocationListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    getIncidentStatistics: {
+        parameters: {
+            query?: {
+                /** @description Only incidents in one of these statuses. Repeat it for several values (`?status=REPORTED&status=VALIDATED`). Absent means every status. */
+                status?: components["parameters"]["StatusFilter"];
+                /** @description Only incidents in one of these categories. Repeat it for several values. */
+                categoryId?: components["parameters"]["CategoryIdFilter"];
+                /** @description Only incidents with one of these priorities. Repeat it for several values. */
+                priority?: components["parameters"]["PriorityFilter"];
+                /** @description Only incidents reported at or after this instant (included). An RFC 3339 date-time with its offset (`Z` for UTC; `+` encoded as `%2B` in the URL); without an offset it returns `400`. It must be earlier than `reportedTo`, or the request returns `400`. */
+                reportedFrom?: components["parameters"]["ReportedFromFilter"];
+                /** @description Only incidents reported before this instant (excluded). The same format as `reportedFrom`. */
+                reportedTo?: components["parameters"]["ReportedToFilter"];
+                /** @description Only incidents whose active assignment is in one of these departments. Repeat it for several values. A previous assignment does not count. */
+                departmentId?: components["parameters"]["DepartmentIdFilter"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The counts. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentStatisticsResponse"];
                 };
             };
             400: components["responses"]["BadRequest"];

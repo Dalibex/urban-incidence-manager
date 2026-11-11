@@ -25,6 +25,7 @@ export {
   createIncident,
   createIncidentComment,
   getIncident,
+  getIncidentStatistics,
   listCategories,
   listDepartments,
   listIncidentClassificationChanges,
@@ -42,6 +43,7 @@ export {
   type FormResult,
   type IncidentListQuery,
   type IncidentLocationQuery,
+  type IncidentStatisticsQuery,
 } from './incidents';
 export {
   getAttachmentContent,
