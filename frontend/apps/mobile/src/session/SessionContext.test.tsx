@@ -92,16 +92,12 @@ describe('SessionProvider', () => {
     expect(secureTokenStore.clear).not.toHaveBeenCalled();
   });
 
-  // Expo's `fetch` rejects with a `FetchError`, which extends `Error`, and `callApi` rethrows it
-  // (#244). Without network that must keep the session, not discard it as unreadable.
+  // Anything the client throws, such as a bug, says nothing about the session: it must be kept,
+  // not discarded as unreadable.
   it('keeps the session when the check throws an error the client does not recognize', async () => {
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
     jest.mocked(secureTokenStore.load).mockResolvedValueOnce(SAVED);
-    jest
-      .mocked(getCurrentUser)
-      .mockRejectedValueOnce(
-        new Error('fetch failed: The Internet connection appears to be offline.'),
-      );
+    jest.mocked(getCurrentUser).mockRejectedValueOnce(new Error('Unexpected'));
 
     const { session } = await renderSession();
 

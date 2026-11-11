@@ -117,8 +117,8 @@ async function checkSavedSession(api: ApiClient): Promise<CheckOutcome> {
     // Refreshes on its own if the access token expired while the app was closed.
     me = await getCurrentUser(api);
   } catch (error) {
-    // Only an unreadable store discards a session. `callApi` rethrows the network errors of Expo's
-    // `fetch` as unknown ones (#244), and the session may still be valid: keep it.
+    // Only an unreadable store discards a session. Anything else thrown here, such as a bug, says
+    // nothing about the session, which may still be valid: keep it.
     console.warn('The saved session could not be checked', error);
     return { kind: 'unverified', failure: { kind: 'network' } };
   }
