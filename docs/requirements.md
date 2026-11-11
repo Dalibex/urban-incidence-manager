@@ -67,7 +67,7 @@ or *No* (after the MVP). Whether an issue is finished is in GitHub, not here.
 
 | ID | Requirement | In the MVP | Issues |
 | --- | --- | --- | --- |
-| RF15 | **Statistics** by category, territory, status and resolution time. | Partly. The report of #42 gives totals and resolution times per group; there is no dashboard. | #42 |
+| RF15 | **Statistics** by category, territory, status and resolution time. | Partly. The report of #42 gives totals and resolution times per group; the dashboard beside the web map counts the incidents of the map by status, priority, category and department. Territory needs RF21. | #42, #177 |
 | RF16 | **Duplicates.** Suggest similar incidents by proximity, time and meaning. | No | — |
 | RF17 | **Zonal analysis.** Incidents and aggregated context for an area and period. | No | — |
 | RF20 | **Intelligent assistance.** Classify, prioritize, summarize and recommend with a stated confidence. | No | — |
@@ -103,7 +103,9 @@ for its code (#57).
   inbox, clustered by zoom, each cluster labelled with its highest priority; refreshed every 15
   seconds. A click opens a summary with
   *Manage*, and a list under the map opens the same summary from the keyboard. The menu opens it on
-  every status that can still change.
+  every status that can still change. Beside it, a dashboard (#177) counts the same incidents: the
+  total, by priority, and charts by status, category and department. The filters fold behind a
+  button.
 - **Incident detail** (#46): report data, photos (#44), history and internal comments (#50) in one
   timeline. The actions depend on the status (ADR-0020):
 
@@ -122,8 +124,8 @@ for its code (#57).
 ### Web: technician
 
 - **Menu:** *Work queue* and *Map*.
-- **Map** (#196): the operator's map with the incidents assigned to them; the menu opens it on
-  `ASSIGNED` and `IN_PROGRESS`, like the queue.
+- **Map** (#196): the operator's map with the incidents assigned to them, and its dashboard
+  (#177) with their counts; the menu opens it on `ASSIGNED` and `IN_PROGRESS`, like the queue.
 - **Work queue** (#51): the incidents assigned to them, with the filters and columns of the inbox
   (date reported, title, category, status and priority). It opens on `ASSIGNED` and `IN_PROGRESS`
   (#187).

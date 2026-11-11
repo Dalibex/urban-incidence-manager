@@ -246,23 +246,38 @@ Dates are shown in Málaga time.
 
 ### Map
 
-The incidents on the base map of Málaga, with the same filters as the inbox. The menu opens it on
-every status that can still change: everything except *Rejected* and *Closed*.
+The incidents on the base map of Málaga, with the same filters as the inbox, and beside it a
+summary of how many they are. The menu opens it on every status that can still change: everything
+except *Rejected* and *Closed*.
 
+- **Filters:** they are folded, so the map keeps the room. *Filters* opens and closes them, and
+  says how many apply, for example *Filters (1)*. While folded, a line next to it names them, with
+  *Clear filters*. The filters stay in the address, so a reload or a shared link keeps them.
+- **Summary:** at the side of the map (under it on a screen narrower than 900 pixels), the same
+  incidents as the map,
+  counted: how many there are, how many of each priority, and charts by status, category and
+  department. It counts all of them, also when the map shows only the 1,000 most relevant. The
+  status bars have the colours of the markers. *Not classified*, *Not assigned* and *No priority*
+  count the incidents without a category, an active assignment or a priority. It is read again
+  with the map. If it cannot be loaded, it says so with *Try again*; if a refresh fails, the counts
+  you saw stay with a warning, never as zeros. A chart that cannot be shown gives its figures as a
+  table.
 - **Markers:** each incident is a dot. Its colour is its status, the same as in the lists, and its
-  size is its priority: the higher, the bigger, and a *High* one also has a dark border. The legend
-  under the map explains both.
+  size is its priority: the higher, the bigger, and a *High* one also has a dark border. *Map key*,
+  at the bottom of the summary, explains both.
+- **Full screen:** the button under the zoom buttons shows the map and its summary on the whole
+  screen; *Escape* or the same button brings the page back.
 - **Groups:** when you zoom out, nearby incidents join into a dark circle with their number, and the
   highest priority among them is written under it (*High*, *Medium* or *Low*; nothing when none has
   a priority). Click it to zoom in until it splits.
-- **Summary:** click a marker to open its summary at the side: title, status, priority, category,
-  when it was reported and the description. *Manage* opens its detail, and *Close* or *Escape*
-  closes the summary. If the incident left your view since the last refresh (it was closed, or is
+- **An incident:** click a marker to open its summary at the side, in the place of the counts:
+  title, status, priority, category, when it was reported and the description. *Manage* opens its
+  detail, and *Close* or *Escape* brings the counts back. If the incident left your view since the last refresh (it was closed, or is
   no longer assigned to you), the summary says *Incident not found*, and the next refresh removes
   its marker.
 - **Live:** the map reads the incidents again every 15 seconds, so a new report appears without
   reloading the page.
-- **List:** *List of the incidents on the map*, under the legend, has every incident on the map,
+- **List:** *List of the incidents on the map*, under the map, has every incident on the map,
   the most relevant first. With the keyboard, *Tab* to it, *Enter* to open it and *Enter* on an
   incident to open its summary and centre the map on it.
 - The map shows at most 1,000 incidents, the most relevant first. If more match, it says so: narrow
