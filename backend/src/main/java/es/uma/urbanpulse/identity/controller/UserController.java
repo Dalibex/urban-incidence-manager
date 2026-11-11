@@ -39,6 +39,11 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
  * Validation would run before {@code @PreAuthorize} and answer {@code 400} or {@code 422} to a role
  * that should get {@code 403}, as in {@code OperationalReportController}. The service validates the
  * bodies.
+ *
+ * <p>What Spring cannot read at all still answers {@code 400} before the role check, to any role: a
+ * {@code userId} that is not a UUID, a body that is not JSON, or a {@code role} in the body that is
+ * not a {@link Role}. They reveal nothing about the users, and the rest of the API behaves the
+ * same.
  */
 @RestController
 @RequestMapping("/api/v1/users")

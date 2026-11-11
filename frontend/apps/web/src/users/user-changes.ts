@@ -15,7 +15,17 @@ export const STAFF_ROLES: readonly Role[] = [
 /** Longest values the API accepts (`CreateUserRequest`), so its raw size message never shows. */
 export const NAME_MAX_LENGTH = 100;
 export const EMAIL_MAX_LENGTH = 254;
-export const PASSWORD_MAX_LENGTH = 72;
+
+/**
+ * Longest password the API accepts, in bytes of UTF-8: bcrypt reads 72 bytes, and a letter such as
+ * "ñ" takes two. It is not a `maxLength` of the input, which counts characters and would cut a
+ * pasted password without saying so.
+ */
+const PASSWORD_MAX_BYTES = 72;
+
+export function passwordTooLong(password: string): boolean {
+  return new TextEncoder().encode(password).length > PASSWORD_MAX_BYTES;
+}
 
 /**
  * The body to send, with only what the administrator changed compared with the row as loaded;

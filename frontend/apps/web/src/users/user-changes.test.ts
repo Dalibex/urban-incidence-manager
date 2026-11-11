@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { changesOf, STAFF_ROLES } from './user-changes';
+import { changesOf, passwordTooLong, STAFF_ROLES } from './user-changes';
 
 const USER = {
   id: '7c2e4b1a-9d3f-4e8a-b6c5-1f0a2d3e4b5c',
@@ -33,5 +33,15 @@ describe('changes of a user', () => {
 
   it('offers no citizen role', () => {
     expect(STAFF_ROLES).not.toContain('CITIZEN');
+  });
+});
+
+describe('passwordTooLong', () => {
+  it('counts bytes of UTF-8, as bcrypt does, not characters', () => {
+    expect(passwordTooLong('a'.repeat(72))).toBe(false);
+    expect(passwordTooLong('a'.repeat(73))).toBe(true);
+    // 40 characters, but "ñ" takes two bytes: 80 bytes.
+    expect(passwordTooLong('ñ'.repeat(40))).toBe(true);
+    expect(passwordTooLong('ñ'.repeat(36))).toBe(false);
   });
 });

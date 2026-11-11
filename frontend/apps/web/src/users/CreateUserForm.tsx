@@ -5,12 +5,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import styles from '../incidents/Incidents.module.css';
 import { ROLE_LABELS } from '../layout/role-labels';
 import { FormField } from './FormField';
-import {
-  EMAIL_MAX_LENGTH,
-  NAME_MAX_LENGTH,
-  PASSWORD_MAX_LENGTH,
-  STAFF_ROLES,
-} from './user-changes';
+import { EMAIL_MAX_LENGTH, NAME_MAX_LENGTH, passwordTooLong, STAFF_ROLES } from './user-changes';
 import { canRetry, fieldErrorOf, OutcomeMessage, outcomeOf, type Outcome } from './user-outcome';
 import { useCreateUser } from './user-queries';
 import userStyles from './Users.module.css';
@@ -145,7 +140,6 @@ export function CreateUserForm({ onClose }: CreateUserFormProps) {
               {...control}
               type="password"
               value={password}
-              maxLength={PASSWORD_MAX_LENGTH}
               readOnly={submitting}
               autoComplete="new-password"
               onChange={(event) => setPassword(event.target.value)}
@@ -203,6 +197,8 @@ function mistakesIn(name: string, email: string, password: string, role: Role | 
       field: 'password',
       message: `The password needs at least ${PASSWORD_MIN_LENGTH} characters.`,
     });
+  } else if (passwordTooLong(password)) {
+    mistakes.push({ field: 'password', message: 'The password is too long. Use a shorter one.' });
   }
   if (role === '') {
     mistakes.push({ field: 'role', message: 'Choose a role.' });
