@@ -263,6 +263,39 @@ class IncidentTest {
     }
 
     @Test
+    void aReasonOfNoBreakSpacesIsBlankLikeInTheContract() {
+        // The \\S of the contract (ECMA-262) treats these as white space; String.isBlank does not.
+        for (String blank : List.of("\u00A0", "\u00A0 \u202F", "\uFEFF", "\u3000\u2028")) {
+            var incident = fixture.reported();
+            for (var transition :
+                    List.of(IncidentTransition.REJECTION, IncidentTransition.VALIDATION)) {
+                assertThatThrownBy(
+                                () ->
+                                        incident.changeStatus(
+                                                transition,
+                                                fixture.operator,
+                                                TransitionDetails.withReason(blank),
+                                                LATER))
+                        .isInstanceOfSatisfying(
+                                InvalidIncidentDataException.class,
+                                ex ->
+                                        assertThat(ex.fieldErrors())
+                                                .extracting(FieldError::field)
+                                                .containsExactly("reason"));
+            }
+            assertThat(incident.getStatus()).isEqualTo(IncidentStatus.REPORTED);
+            assertThat(incident.getStatusChanges()).hasSize(1);
+        }
+        var rejected = fixture.reported();
+        rejected.changeStatus(
+                IncidentTransition.REJECTION,
+                fixture.operator,
+                TransitionDetails.withReason("\u00A0Duplicate\u00A0"),
+                LATER);
+        assertThat(rejected.getStatus()).isEqualTo(IncidentStatus.REJECTED);
+    }
+
+    @Test
     void aReasonHasAtMostTheLengthOfTheContract() {
         var tooLong = "a".repeat(Incident.MAX_REASON_LENGTH + 1);
 
