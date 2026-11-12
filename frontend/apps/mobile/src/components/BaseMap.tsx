@@ -48,7 +48,7 @@ export interface BaseMapProps {
  * Self-hosted OpenStreetMap base map (ADR-0016) with a pin fixed in its centre: the citizen moves
  * the map under the pin. The style comes from `EXPO_PUBLIC_MAP_STYLE_URL` and loads the tiles
  * through `pmtiles://`. A map that is missing or fails to load never blocks the form around it: it
- * shows a notice and offers to try again.
+ * shows a notice and, when it failed to load, offers to try again.
  */
 export function BaseMap({ gpsFix, onPinChange, unavailableHint }: BaseMapProps) {
   // Expo inlines EXPO_PUBLIC_* variables at build time, only when written out in full like this.
