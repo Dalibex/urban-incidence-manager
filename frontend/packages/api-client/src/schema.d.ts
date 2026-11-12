@@ -451,9 +451,7 @@ export interface paths {
         put?: never;
         /**
          * Validate a reported incident
-         * @description Planned: #188.
-         *
-         *     `REPORTED` to `VALIDATED`. The category and the priority must already be set with
+         * @description `REPORTED` to `VALIDATED`. The category and the priority must already be set with
          *     `updateIncident`, or the request returns `422`. The citizen sees the status.
          *
          *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`.
@@ -476,9 +474,7 @@ export interface paths {
         put?: never;
         /**
          * Reject a reported incident
-         * @description Planned: #188.
-         *
-         *     `REPORTED` to `REJECTED`, which is final. `reason` is required, and the citizen sees the
+         * @description `REPORTED` to `REJECTED`, which is final. `reason` is required, and the citizen sees the
          *     status and the reason, so it must not hold internal data.
          *
          *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`.
@@ -501,9 +497,7 @@ export interface paths {
         put?: never;
         /**
          * Ask the citizen for more information
-         * @description Planned: #188.
-         *
-         *     The incident stays `REPORTED` and the request is one more entry of its history. `reason` is
+         * @description The incident stays `REPORTED` and the request is one more entry of its history. `reason` is
          *     the message to the citizen and is required; the citizen sees it. The citizen's reply is out
          *     of the MVP.
          *
