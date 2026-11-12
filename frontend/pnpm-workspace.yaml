@@ -13,3 +13,10 @@ peerDependencyRules:
 # asked to; it uses the prebuilt binary of each platform, so its script is not needed.
 allowBuilds:
   '@parcel/watcher': false
+
+# Dependabot alerts #15 (glob) and #17 (minimatch) are fixed only in a major version that Jest,
+# ESLint and the Expo tooling do not ask for yet. Only the vulnerable ranges are moved up; remove
+# each override once those packages require the fixed version (docs/security.md).
+overrides:
+  'glob@>=9.0.0 <14.0.2': ^14.0.2
+  'minimatch@>=7.0.0 <11.0.1': ^11.0.1

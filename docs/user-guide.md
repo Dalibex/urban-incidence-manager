@@ -40,7 +40,7 @@ The API checks every permission again, so this is a convenience, not the protect
 | Who | How |
 | --- | --- |
 | Citizen | *Create an account* on the sign-in screen of the mobile app (see [Sign up](#sign-up)) |
-| Staff | An administrator creates the account with its role (Planned: #40) |
+| Staff | An administrator creates the account with its role in *Users* (see [Administrator](#-administrator-web)) and gives you the initial password; you choose your own at the first sign-in |
 | First administrator of a new deployment | Created once by the people who run the server ([deployment guide](deployment.md#-create-the-first-administrator)) |
 | Trying the apps | The sample accounts of the [demo script](demo.md#the-story) (one per role) or of *Development Dataset* in the [development guide](development.md). A local build can show one button per demo account on the sign-in screen ([Quick Sign-In](demo.md#quick-sign-in)) |
 
@@ -65,6 +65,7 @@ What the sign-in messages mean:
 | *This account is disabled.* | Ask an administrator (staff) or the city council (citizens) to enable it |
 | *UrbanPulse cannot be reached. Check your connection and try again.* | The device has no connection, or the server is down |
 | *Your session has expired. Sign in again.* | The session ended; sign in again, nothing you saved is lost |
+| *Your session could not be checked. Try again in a moment.* | The phone app started, but the saved session could not be checked: the server answered with an error, or the connection dropped while the session was being renewed. You are still signed in; press *Try again* |
 
 **First sign-in of a staff account:** an account an administrator creates must choose its own
 password before it can sign in, so the one the administrator typed stops working. After the email
@@ -79,7 +80,10 @@ and the next sign-in asks again. Changing the password also ends your sessions o
   opening a link in a new tab or closing the browser signs you out**. This is on purpose: no other
   script on the page can read a session that is not stored ([security guide](security.md)).
 - **Mobile app:** on that phone until you sign out from *Profile*; the session is kept in the
-  phone's secure storage.
+  phone's secure storage. If the app starts without a connection, or the server fails or takes
+  more than 10 seconds to answer, it keeps the session and offers *Try again* instead of asking you
+  to sign in. It asks you to sign in only when the session has ended or the phone can no longer
+  read it.
 
 *Sign out* (in the top bar of the website, in *Profile* on the phone) ends the session on that
 device only; your other devices stay signed in.
@@ -101,7 +105,8 @@ If the email already has an account, the app says so: sign in instead.
 
 1. Open the *New* tab. The first time, the phone asks whether UrbanPulse may use your location:
    allow it. Without it you cannot report; the screen shows *Location is needed* and an
-   *Open settings* button to allow it later.
+   *Open settings* button to allow it later. Above the form, a map of Málaga shows the area. If it
+   cannot load, a notice says so and you can still report; *Try again* loads it again.
 2. Check the accuracy under the form (for example *Accuracy: 12 m*). Outdoors it is usually a few
    metres; indoors it can be much worse. Tap *Refresh* to read the position again before sending.
 3. Write a **title** (a short summary) and a **description** (what happens and where). Both are
@@ -136,7 +141,7 @@ or goes over the limit of the report is refused with its reason.
 The report is accepted even when the address, neighbourhood or district cannot be worked out at
 that moment: they show as *Not available* until they are known.
 
-- Planned: choose or correct the position on a map (#60).
+- Planned: choose or correct the position on the map (#198).
 
 ### Follow your reports
 
@@ -327,7 +332,26 @@ The menu shows *Users*, where you land, *Inbox*, *Map*, *Audit log* and *Reports
 - **Inbox and incident detail:** an administrator can do everything an operator can
   ([ADR-0020](adr/0020-incident-lifecycle-transitions.md)), so see
   [Municipal Operator](#-municipal-operator-web).
-- **Users:** planned: #40.
+- **Users:** every account, staff and citizens, sorted by name, 20 per page, with its role and
+  whether it is *Active* or *Deactivated*. Your own row says *(you)*.
+  - Filter with *Name contains*, *Email contains* (the text anywhere in it, capitals or not) and
+    one or several *Roles*. The filters and the page stay in the address.
+  - **New staff account:** name, email, initial password (at least 8 characters) and role
+    (operator, technician, analyst or administrator; citizens create their own account in the
+    mobile app). Give the person the password in a safe way: at their first sign-in they must
+    choose their own, so the one you typed stops working. An email that already has an account
+    is refused under *Email*.
+  - **Edit** opens the account under its row: change the name or the role and select *Save changes*.
+    Only what you changed is sent, so a change another administrator made to a different field at
+    the same time is kept; if you both change the same field, the last save wins. A role change
+    reaches the person at the latest about 15 minutes later, when their session refreshes.
+  - *Deactivate account* asks you to confirm. The person cannot sign in any more, and their open
+    sessions end within about 15 minutes. Accounts are never deleted: incidents and the audit log
+    keep referring to them. *Reactivate account* lets them sign in again.
+  - You cannot change your own role or deactivate yourself, and a citizen account keeps its role.
+  - Every change appears in the *Audit log*; a name change records that the name changed, not the
+    name.
+  - If the server cannot be reached, the form says so with *Try again* and keeps what you typed.
 - **Audit log:** who did what and when, newest first, 20 entries per page. Each row shows the
   actor, the action, the record it was about and the values the change replaced and set
   (`role: TECHNICIAN → MUNICIPAL_OPERATOR`). Names and incident titles are the current ones; a
