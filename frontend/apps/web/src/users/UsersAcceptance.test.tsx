@@ -1,6 +1,6 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { PATHS } from '../routing/access';
 import { fakeApi, json, renderApp, userWith } from '../test-utils';
@@ -241,6 +241,35 @@ describe('users screen, acceptance of #63', () => {
     const address = new URLSearchParams(router.state.location.search);
     expect(address.get('name')).toBe('Díaz');
     expect(address.get('email')).toBe('example');
+  });
+
+  // #270: both pauses end before the screen renders again, as on a loaded machine. Fake timers make
+  // it happen every time: both pauses end in the same `act`.
+  it('applies the name and the email when both pauses end together', async () => {
+    const { fetch, queries } = usersApi();
+    const router = renderApp(PATHS.users, { role: 'ADMINISTRATOR', fetch });
+    const name = await screen.findByLabelText<HTMLInputElement>('Name contains');
+
+    vi.useFakeTimers();
+    try {
+      fireEvent.change(name, { target: { value: 'Díaz' } });
+      fireEvent.change(screen.getByLabelText('Email contains'), { target: { value: 'example' } });
+      // Longer than the pause of 300 ms of each text.
+      act(() => {
+        vi.advanceTimersByTime(400);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+
+    const address = new URLSearchParams(router.state.location.search);
+    expect(address.get('name')).toBe('Díaz');
+    expect(address.get('email')).toBe('example');
+    expect(name.value).toBe('Díaz');
+    await waitFor(() => {
+      expect(queries.at(-1)!.get('name')).toBe('Díaz');
+      expect(queries.at(-1)!.get('email')).toBe('example');
+    });
   });
 
   // T9: a deactivated account is reactivated, and only `enabled` is sent.
