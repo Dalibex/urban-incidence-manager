@@ -434,6 +434,27 @@ jobs:
           docker logs smoke-web
           exit 1
 
+      # A module script with another type is refused by the browser. The worker of the map is a
+      # .mjs, which the mime.types of nginx does not know (#144, T1).
+      - name: Web smoke test — the scripts go out as JavaScript
+        run: |
+          scripts=$(docker exec smoke-web sh -c 'cd /usr/share/nginx/html && ls assets/*.js assets/*.mjs')
+          if ! echo "$scripts" | grep -q '\.mjs$'; then
+            echo "::error title=Web image::The build has no .mjs file, so the worker of the map is missing or this check is out of date."
+            exit 1
+          fi
+          for file in $scripts; do
+            type=$(curl -fsS -o /dev/null -w '%{content_type}' "http://localhost:$WEB_SMOKE_PORT/$file")
+            case "$type" in
+              application/javascript*|text/javascript*) ;;
+              *)
+                echo "::error file=frontend/nginx.conf,title=Web image::/$file goes out as '$type', and the browser does not run a module of that type. Add its extension to the types block of nginx.conf."
+                exit 1
+                ;;
+            esac
+          done
+          echo "The $(echo "$scripts" | wc -l) scripts of the build go out as JavaScript." | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: Web smoke test — the process does not run as root
         run: |
           uid=$(docker exec smoke-web id -u)
