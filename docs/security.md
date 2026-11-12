@@ -65,7 +65,19 @@ different one in every environment: whoever knows it can sign a token for any us
   possible on purpose: when a refresh fails without an answer, or with any error other than `401`,
   it keeps the tokens, because the session may still be valid, and sends the same refresh token at
   the next `401`. Otherwise it never sends a token twice: it shares one refresh among concurrent
-  requests and discards the tokens on sign-out.
+  requests and discards the tokens on sign-out. A refresh still in flight at sign-out does not
+  bring them back: if it answers while sign-out waits for it, its fresh token revokes the session;
+  if it answers later, its tokens are dropped. In neither case is a rejection reported as an
+  expired session, and a refresh is not sent if sign-out cleared the store while it was being read.
+  A refresh that sign-out could not use to revoke the session (it answers later, or the `DELETE`
+  itself fails) leaves a session alive on the server until its refresh token expires (#237). A
+  request is only repeated with the session it was sent with. Once that session has ended, because
+  the user signed out or because its refresh was rejected, a request of that session that gets
+  `401` is neither refreshed nor repeated, so it never runs as the user who signs in next, nor with
+  the token the sign-out refreshed. A request sent while the sign-out waits for the server belongs
+  to the session being signed out; only the sign-out's own `DELETE` is still repeated with a fresh
+  token, to revoke the session. The photo upload follows the same rule, and so do the automatic
+  retries of an upload on the mobile app (#259).
 - **Clean-up:** a job inside the backend deletes, every day at 03:00 UTC, the refresh tokens that
   expired longer ago than `REFRESH_TOKEN_RETENTION` (`RefreshTokenCleanup`). It deletes by expiry,
   not by revocation: a revoked token is kept while it would still work, because deleting it would
@@ -252,6 +264,9 @@ operation; the note says when the answer also depends on the resource. A role no
 | `PATCH /incidents/{id}` | | | ✓ | | ✓ | |
 | `GET /incidents/{id}/classification-changes` | | | ✓ | assigned | ✓ | |
 | `GET /incidents/{id}/status-changes` | | own, citizen view | ✓ | assigned | ✓ | |
+| `POST /incidents/{id}/validation` | | | ✓ | | ✓ | |
+| `POST /incidents/{id}/rejection` | | | ✓ | | ✓ | |
+| `POST /incidents/{id}/information-requests` | | | ✓ | | ✓ | |
 | `POST /incidents/{id}/assignments` | | | ✓ | | ✓ | |
 | `POST /incidents/{id}/acceptance` | | | | assigned | | |
 | `POST /incidents/{id}/resolution` | | | | assigned | | |

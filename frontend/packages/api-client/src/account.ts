@@ -1,6 +1,6 @@
 import type { ApiClient } from './index';
 import type { components } from './schema';
-import type { TokenStore } from './session';
+import { finishSignOut, startSignOut, type TokenStore } from './session';
 
 type Problem = components['schemas']['Problem'];
 
@@ -25,8 +25,7 @@ export async function callApi<T>(call: () => Promise<FetchResult<T>>): Promise<A
   try {
     result = await call();
   } catch (error) {
-    // `fetch` rejects with a TypeError when the API cannot be reached; anything else is a bug.
-    if (error instanceof TypeError) {
+    if (isNetworkFailure(error)) {
       return { ok: false, failure: { kind: 'network' } };
     }
     throw error;
@@ -37,6 +36,22 @@ export async function callApi<T>(call: () => Promise<FetchResult<T>>): Promise<A
   }
   const code = isProblem(result.error) ? result.error.code : undefined;
   return { ok: false, failure: { kind: 'problem', status: result.response.status, code } };
+}
+
+/** Expo's `FetchError` (`expo/build/winter/fetch/FetchErrors.js`) starts every message with it. */
+const EXPO_FETCH_FAILED = 'fetch failed: ';
+
+/**
+ * Whether `fetch` rejected because the request did not reach the API; anything else is a bug.
+ * The browser and Node reject with a `TypeError`. Expo replaces the global `fetch` on the phone and
+ * rejects with its own `FetchError`, which extends `Error` and keeps the name `Error`; `expo/fetch`
+ * does not export the class, so only its message tells it apart (#244).
+ */
+export function isNetworkFailure(error: unknown): boolean {
+  return (
+    error instanceof TypeError ||
+    (error instanceof Error && error.message.startsWith(EXPO_FETCH_FAILED))
+  );
 }
 
 export function isProblem(value: unknown): value is Problem {
@@ -84,16 +99,23 @@ export function getCurrentUser(
 
 /**
  * Revokes the session on the server and always discards the tokens, even when the server cannot
- * be reached: the user asked to sign out, and the device must not keep a usable session.
+ * be reached: the user asked to sign out, and the device must not keep a usable session. A refresh
+ * still in flight when the tokens are discarded does not bring them back (#237); one that answers
+ * before, while `DELETE` waits for it, gives the fresh token that revokes the session. A refresh
+ * that sign-out could not use to revoke the session (it answers later, or the `DELETE` itself
+ * fails) leaves that session alive on the server until its refresh token expires.
  */
 export async function signOut(client: ApiClient, tokenStore: TokenStore): Promise<void> {
+  startSignOut(tokenStore);
   try {
     await client.DELETE('/sessions/current');
   } catch (error) {
-    if (!(error instanceof TypeError)) {
+    if (!isNetworkFailure(error)) {
       throw error;
     }
   } finally {
+    // Before clearing, with no await in between, so no late refresh calls `save` after `clear`.
+    finishSignOut(tokenStore);
     await tokenStore.clear();
   }
 }

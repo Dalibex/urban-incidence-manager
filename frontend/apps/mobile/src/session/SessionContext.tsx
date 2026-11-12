@@ -1,6 +1,7 @@
 import {
   createApiClient,
   getCurrentUser,
+  markSession as markStoreSession,
   signIn as signInOnApi,
   signOut as signOutOnApi,
   signUp as signUpOnApi,
@@ -10,6 +11,7 @@ import {
   type ApiResult,
   type components,
   type LocalFile,
+  type SessionMark,
   type SessionTokens,
 } from '@urbanpulse/api-client';
 import { useQueryClient } from '@tanstack/react-query';
@@ -63,12 +65,18 @@ interface SessionValue {
   expired: boolean;
   /** Typed client of the current session; it sends the access token and refreshes on its own. */
   api: ApiClient;
-  /** Uploads a photo to an incident with the session's token, reporting the fraction sent. */
+  /**
+   * Uploads a photo to an incident with the session's token, reporting the fraction sent. Every
+   * attempt of one upload passes the `session` of the first, so none is sent after a sign-out.
+   */
   uploadAttachment: (
     incidentId: string,
     photo: LocalFile,
     onProgress: (fraction: number) => void,
+    session?: SessionMark,
   ) => Promise<ApiResult<components['schemas']['AttachmentResponse']>>;
+  /** Marks the session the phone holds now, for {@link SessionValue.uploadAttachment} (#259). */
+  markSession: () => SessionMark;
   signIn: (credentials: Credentials) => Promise<ApiResult<void>>;
   signUp: (registration: Registration) => Promise<ApiResult<void>>;
   signOut: () => Promise<void>;
@@ -117,8 +125,8 @@ async function checkSavedSession(api: ApiClient): Promise<CheckOutcome> {
     // Refreshes on its own if the access token expired while the app was closed.
     me = await getCurrentUser(api);
   } catch (error) {
-    // Only an unreadable store discards a session. `callApi` rethrows the network errors of Expo's
-    // `fetch` as unknown ones (#244), and the session may still be valid: keep it.
+    // Only an unreadable store discards a session. Anything else thrown here, such as a bug, says
+    // nothing about the session, which may still be valid: keep it.
     console.warn('The saved session could not be checked', error);
     return { kind: 'unverified', failure: { kind: 'network' } };
   }
@@ -210,12 +218,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       user,
       expired,
       api,
-      uploadAttachment: (incidentId, photo, onProgress) =>
+      uploadAttachment: (incidentId, photo, onProgress, session) =>
         uploadIncidentAttachment(api, incidentId, photo, {
           baseUrl: API_BASE_URL,
           tokenStore: secureTokenStore,
           onProgress,
+          session,
         }),
+      markSession: () => markStoreSession(secureTokenStore),
       signIn: async (credentials) => {
         const session = await signInOnApi(api, secureTokenStore, credentials);
         if (!session.ok) {

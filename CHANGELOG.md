@@ -9,6 +9,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Operators and administrators act on a reported incident on the API: they validate it once its category and priority are set (`POST /incidents/{incidentId}/validation`, `REPORTED` to `VALIDATED`, with an optional note only staff see), reject it with a reason the citizen sees (`POST /incidents/{incidentId}/rejection`, final), or ask the citizen for more information (`POST /incidents/{incidentId}/information-requests`), which keeps it `REPORTED` and adds the message to the history the citizen sees. The citizen never sees who acted (#188).
 - Operators and administrators check the work on a resolved incident: they close it (`POST /incidents/{incidentId}/closure`, `RESOLVED` to `CLOSED`, which is final and sets `closedAt`) or reopen it with a reason only staff see (`POST /incidents/{incidentId}/reopening`, `RESOLVED` to `REOPENED`), after which it can be assigned again. The web incident detail offers *Verify and close* and *Reopen* on a resolved incident. The citizen sees the new status, not the reason (#52).
 - List of the active technicians on the API (`GET /technicians`), with only their id and name, for operators and administrators: the technicians an incident can be assigned to (#190).
 - The history of an incident is a timeline on the web and the mobile app. Staff see who made each change and their role, and the category and priority changes among the status changes, with the values they replaced. Citizens see their report as theirs and every other change as the city council's, never a staff name (#169).
@@ -42,6 +43,9 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 - The session recovers at the next request after a session refresh fails for any reason other than a rejected session, such as the network or a server error, instead of staying unusable until the app restarts (#161).
 - The mobile app keeps the saved session when it starts without network, or when the server fails or does not answer in 10 seconds: it shows the reason and *Try again* instead of the sign-in screen, where signing in again opened a second session and left the first one alive. Only an ended session, or one the phone can no longer read, leads to the sign-in screen (#163).
+- The mobile app recognizes a request that cannot reach the server, without network or after a timeout: the lists retry it on their own and then say *UrbanPulse cannot be reached. Check your connection and try again.*, signing in and reporting an incident say the same instead of *Something went wrong*, and signing out without network no longer fails after discarding the session (#244).
+- Signing out while a session refresh is still in flight, for example on a slow network, leaves no session on the device: the mobile app no longer opens signed in at its next start, and does not say that the session expired after a sign-out (#237).
+- A request whose answer arrives after its user signed out is no longer repeated with the session of whoever signs in next on the same device, nor with the session that ended: an action never runs as another user (#259).
 
 ## [0.1.0] - 2026-11-03
 
