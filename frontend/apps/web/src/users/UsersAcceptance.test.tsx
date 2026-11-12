@@ -272,6 +272,28 @@ describe('users screen, acceptance of #63', () => {
     });
   });
 
+  // #270: a role applies at once, and a text pause still pending then applies on top of it.
+  it('keeps a role chosen while the pause of the name is pending', async () => {
+    const { fetch } = usersApi();
+    const router = renderApp(PATHS.users, { role: 'ADMINISTRATOR', fetch });
+    const name = await screen.findByLabelText('Name contains');
+
+    vi.useFakeTimers();
+    try {
+      fireEvent.change(name, { target: { value: 'Díaz' } });
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Analyst' }));
+      act(() => {
+        vi.advanceTimersByTime(400);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+
+    const address = new URLSearchParams(router.state.location.search);
+    expect(address.get('name')).toBe('Díaz');
+    expect(address.getAll('role')).toEqual(['ANALYST']);
+  });
+
   // T9: a deactivated account is reactivated, and only `enabled` is sent.
   it('reactivates a deactivated account', async () => {
     const bodies: unknown[] = [];
