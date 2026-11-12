@@ -295,8 +295,15 @@ export function useAddComment(incidentId: string) {
   });
 }
 
-/** Reads the incident again, for example after a `409` that says it changed meanwhile. */
+/**
+ * Reads the incident again, for example after a `409` that says it changed meanwhile. It resolves
+ * with the incident as the cache then holds it: the one just read, or the earlier one if it could
+ * not be read.
+ */
 export function useReloadIncident(incidentId: string) {
   const queryClient = useQueryClient();
-  return () => queryClient.invalidateQueries({ queryKey: incidentKeys.detail(incidentId) });
+  return async (): Promise<Incident | undefined> => {
+    await queryClient.invalidateQueries({ queryKey: incidentKeys.detail(incidentId) });
+    return queryClient.getQueryData<Incident>(incidentKeys.detail(incidentId));
+  };
 }

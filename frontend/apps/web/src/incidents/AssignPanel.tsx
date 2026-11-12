@@ -1,7 +1,13 @@
 import type { components } from '@urbanpulse/api-client';
 import { useId, useRef, useState, type FormEvent } from 'react';
 
-import { outcomeOf, OutcomeMessage, type Outcome, type PanelProps } from './ActionForm';
+import {
+  keepChanged,
+  outcomeOf,
+  OutcomeMessage,
+  type Outcome,
+  type PanelProps,
+} from './ActionForm';
 import {
   useAssignIncident,
   useDepartments,
@@ -10,6 +16,8 @@ import {
 } from './incident-queries';
 import styles from './Incidents.module.css';
 
+type Incident = components['schemas']['IncidentResponse'];
+type Assignment = components['schemas']['AssignmentResponse'];
 type CreateAssignmentRequest = components['schemas']['CreateAssignmentRequest'];
 
 /** Longest team the API accepts, in characters (`CreateAssignmentRequest`), counted in code points. */
@@ -23,9 +31,14 @@ const NOT_FOUND = 'This incident is no longer available. Reload it to check.';
  * and a team, or reassigns an `ASSIGNED` one (#185, ADR-0020). A reassignment starts from the
  * active assignment and is sent only when something changed.
  *
- * Like the other actions, it sends the `version` of the incident it shows, keeps what the operator
- * chose whatever the answer, says "assigned" only once the API answered, and a second click while
- * sending sends nothing.
+ * The page reads the incident again while the form is open, for example when the operator comes
+ * back to the tab, and the choices must never undo a reassignment made meanwhile by someone else.
+ * So when the assignment changed, the form sends the `version` its choices were read with: the
+ * API answers `409`, and after *Reload the incident* the fields the operator did not change show
+ * the assignment as it is now, while their own choices stay. A change that leaves the assignment
+ * as it was, such as a new classification, cannot be undone by them, so the latest `version` goes.
+ * After any other failure the choices stay. It says "assigned" only once the API answered, and a
+ * second click while sending sends nothing.
  */
 export function AssignPanel({ incident, onSending, onDone }: PanelProps) {
   const titleId = useId();
@@ -34,23 +47,48 @@ export function AssignPanel({ incident, onSending, onDone }: PanelProps) {
   const assign = useAssignIncident(incident.id);
   const reload = useReloadIncident(incident.id);
   const inFlight = useRef(false);
-  const current = incident.assignment ?? null;
-  const reassigning = incident.status === 'ASSIGNED';
+  // The incident the choices start from.
+  const [loaded, setLoaded] = useState(incident);
+  const current = loaded.assignment ?? null;
+  const reassigning = loaded.status === 'ASSIGNED';
+  const start = choicesOf(current);
+  const version = sameChoices(choicesOf(incident.assignment ?? null), start)
+    ? incident.version
+    : loaded.version;
 
-  const [departmentId, setDepartmentId] = useState(current?.department.id ?? '');
-  const [technicianId, setTechnicianId] = useState(current?.technician?.id ?? '');
-  const [team, setTeam] = useState(current?.team ?? '');
+  const [departmentId, setDepartmentId] = useState(start.departmentId);
+  const [technicianId, setTechnicianId] = useState(start.technicianId);
+  const [team, setTeam] = useState(start.team);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
 
   const unchanged =
-    current !== null &&
-    departmentId === current.department.id &&
-    technicianId === (current.technician?.id ?? '') &&
-    team.trim() === (current.team ?? '');
+    current !== null && sameChoices({ departmentId, technicianId, team: team.trim() }, start);
   const fieldError = (field: string) =>
     outcome?.kind === 'invalid'
       ? outcome.fieldErrors.find((error) => error.field === field)?.message
       : undefined;
+
+  /** Starts the form again from the incident the API answered with after a save. */
+  function startFrom(source: Incident) {
+    const choices = choicesOf(source.assignment ?? null);
+    setLoaded(source);
+    setDepartmentId(choices.departmentId);
+    setTechnicianId(choices.technicianId);
+    setTeam(choices.team);
+  }
+
+  async function reloadIncident() {
+    const read = await reload();
+    // When it could not be read, it is the same incident: the choices stay for another try.
+    if (!read || read.version === loaded.version) {
+      return;
+    }
+    const now = choicesOf(read.assignment ?? null);
+    setLoaded(read);
+    setDepartmentId((value) => keepChanged(value, start.departmentId, now.departmentId));
+    setTechnicianId((value) => keepChanged(value, start.technicianId, now.technicianId));
+    setTeam((value) => keepChanged(value, start.team, now.team));
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -62,7 +100,7 @@ export function AssignPanel({ incident, onSending, onDone }: PanelProps) {
       setOutcome({ kind: 'invalid', fieldErrors: missing });
       return;
     }
-    const body: CreateAssignmentRequest = { version: incident.version ?? 0, departmentId };
+    const body: CreateAssignmentRequest = { version: version ?? 0, departmentId };
     if (technicianId !== '') {
       body.technicianId = technicianId;
     }
@@ -75,9 +113,10 @@ export function AssignPanel({ incident, onSending, onDone }: PanelProps) {
     try {
       const result = await assign.mutateAsync(body);
       if (result.ok) {
+        startFrom(result.data);
         onDone({
           message: reassigning ? 'Incident reassigned.' : 'Incident assigned.',
-          from: incident.status,
+          from: loaded.status,
         });
       } else {
         setOutcome(outcomeOf(result));
@@ -177,7 +216,11 @@ export function AssignPanel({ incident, onSending, onDone }: PanelProps) {
         />
         <FieldMessage id={`${titleId}-team`} message={fieldError('team')} />
       </div>
-      <OutcomeMessage outcome={outcome} notFound={NOT_FOUND} onReload={() => void reload()} />
+      <OutcomeMessage
+        outcome={outcome}
+        notFound={NOT_FOUND}
+        onReload={() => void reloadIncident()}
+      />
       <p>
         <button
           type="submit"
@@ -192,6 +235,27 @@ export function AssignPanel({ incident, onSending, onDone }: PanelProps) {
         </button>
       </p>
     </form>
+  );
+}
+
+interface Choices {
+  departmentId: string;
+  technicianId: string;
+  team: string;
+}
+
+/** The choices that show an assignment, or the empty ones when there is none. */
+function choicesOf(assignment: Assignment | null): Choices {
+  return {
+    departmentId: assignment?.department.id ?? '',
+    technicianId: assignment?.technician?.id ?? '',
+    team: assignment?.team ?? '',
+  };
+}
+
+function sameChoices(a: Choices, b: Choices): boolean {
+  return (
+    a.departmentId === b.departmentId && a.technicianId === b.technicianId && a.team === b.team
   );
 }
 

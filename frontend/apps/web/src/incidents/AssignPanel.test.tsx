@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import type { components } from '@urbanpulse/api-client';
 import { describe, expect, it } from 'vitest';
 
+import { createQueryClient } from '../query-client';
 import { incidentPath } from '../routing/access';
 import { fakeApi, json, renderApp } from '../test-utils';
 
@@ -81,10 +82,28 @@ function api(server: Server, answers: Answers = {}) {
       server.detailReads++;
       return json(200, server.incident);
     },
+    [`PATCH /incidents/${VALIDATED.id}`]: async (request) => {
+      const body = (await request.json()) as {
+        version: number;
+        priority: 'LOW';
+        priorityReason: string;
+      };
+      if (body.version !== server.incident.version) {
+        return CONFLICT();
+      }
+      server.incident = {
+        ...server.incident,
+        priority: body.priority,
+        priorityReason: body.priorityReason,
+        version: (server.incident.version ?? 0) + 1,
+      };
+      return json(200, server.incident);
+    },
     [`GET /incidents/${VALIDATED.id}/status-changes`]: () => json(200, []),
     [`GET /incidents/${VALIDATED.id}/attachments`]: () => json(200, []),
     [`POST /incidents/${VALIDATED.id}/assignments`]: async (request) => {
       const body = (await request.json()) as {
+        version: number;
         departmentId: string;
         technicianId?: string;
         team?: string;
@@ -92,6 +111,10 @@ function api(server: Server, answers: Answers = {}) {
       server.sent.push(body);
       if (answers.assignment) {
         return answers.assignment();
+      }
+      // Like the API: a version that is not the current one is a change made meanwhile.
+      if (body.version !== server.incident.version) {
+        return CONFLICT();
       }
       server.incident = assigned(
         {
@@ -324,6 +347,78 @@ describe('assign an incident from its detail (#185)', () => {
     await userEvent.click(form.getByRole('button', { name: 'Reload the incident' }));
     await waitFor(() => expect(server.detailReads).toBeGreaterThan(reads));
     expect(server.sent).toHaveLength(1);
+  });
+
+  // The classification changes the version but not the assignment, so it is no conflict.
+  it('assigns right after the operator saved the classification on the same page', async () => {
+    const server = newServer();
+    renderApp(incidentPath(VALIDATED.id), { role: 'MUNICIPAL_OPERATOR', fetch: api(server) });
+    const classification = within(await screen.findByRole('form', { name: 'Classification' }));
+    await userEvent.selectOptions(classification.getByLabelText('Priority'), 'LOW');
+    const reason = classification.getByLabelText('Why this priority');
+    await userEvent.clear(reason);
+    await userEvent.type(reason, 'A side street.');
+    await userEvent.click(classification.getByRole('button', { name: 'Save classification' }));
+    expect(await classification.findByText('Classification saved.')).toBeDefined();
+
+    const form = await assignForm();
+    await choose(form, 'Department', 'Parks and gardens');
+    await userEvent.click(form.getByRole('button', { name: 'Assign the incident' }));
+
+    expect(await screen.findByText('Incident assigned.')).toBeDefined();
+    // The version the classification answered with, one more than the one the page opened with.
+    expect(server.sent).toEqual([{ version: 3, departmentId: PARKS.id }]);
+  });
+
+  it('does not undo a reassignment made meanwhile, and shows it after reloading', async () => {
+    const server = newServer(assigned({}, 3));
+    const queryClient = createQueryClient({ retryDelay: 0 });
+    renderApp(incidentPath(VALIDATED.id), {
+      role: 'MUNICIPAL_OPERATOR',
+      fetch: api(server),
+      queryClient,
+    });
+    const form = await assignForm('Reassign');
+    await form.findByRole('option', { name: 'Lucía Martín' });
+
+    // Another operator reassigns it, and the page reads the incident again, as it does when the
+    // operator comes back to the tab. The form still shows what it read first.
+    server.incident = assigned({ department: PARKS, technician: LUCIA }, 4);
+    const reads = server.detailReads;
+    await queryClient.invalidateQueries();
+    await waitFor(() => expect(server.detailReads).toBeGreaterThan(reads));
+    expect(form.getByLabelText<HTMLSelectElement>('Department').value).toBe(LIGHTING.id);
+
+    await userEvent.type(form.getByLabelText('Team (optional)'), 'Night shift');
+    await userEvent.click(form.getByRole('button', { name: 'Reassign the incident' }));
+
+    expect(
+      await form.findByText(
+        'The incident changed since you opened it. Reload it and check it before trying again.',
+      ),
+    ).toBeDefined();
+    expect(server.sent).toEqual([
+      { version: 3, departmentId: LIGHTING.id, technicianId: SERGIO.id, team: 'Night shift' },
+    ]);
+    expect(server.incident.assignment?.department).toEqual(PARKS);
+
+    // What the operator did not change shows the other reassignment; their team stays.
+    await userEvent.click(form.getByRole('button', { name: 'Reload the incident' }));
+    await waitFor(() =>
+      expect(form.getByLabelText<HTMLSelectElement>('Department').value).toBe(PARKS.id),
+    );
+    expect(form.getByLabelText<HTMLSelectElement>('Technician').value).toBe(LUCIA.id);
+    expect(form.getByLabelText<HTMLInputElement>('Team (optional)').value).toBe('Night shift');
+
+    await userEvent.click(form.getByRole('button', { name: 'Reassign the incident' }));
+
+    expect(await screen.findByText('Incident reassigned.')).toBeDefined();
+    expect(server.sent[1]).toEqual({
+      version: 4,
+      departmentId: PARKS.id,
+      technicianId: LUCIA.id,
+      team: 'Night shift',
+    });
   });
 
   // T16: no network, then a 5xx; the choices stay and the operator can send them again.

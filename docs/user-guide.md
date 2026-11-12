@@ -219,8 +219,10 @@ ticked. *Clear filters* lists every incident.
   only the category, only the priority or both. The button stays disabled until you change
   something, and the page says *Classification saved.* only once the server has kept it; the inbox
   shows the new values when you go back to it.
-  - If someone else changed the incident since you opened it, nothing is saved: press *Reload the
-    incident*, check the new values and save again. What you typed is kept.
+  - If someone else changed the classification since you opened it, nothing is saved, so their
+    change is never undone without you seeing it: press *Reload the incident*. The fields you did
+    not change show the classification as it is now and what you typed is kept: check them and
+    save again.
   - If the server cannot be reached or answers with an error, nothing is saved and what you typed
     is kept, so you can save again.
 - **Assign or reassign:** on a validated or reopened incident, choose the *Department* that takes
@@ -230,8 +232,9 @@ ticked. *Clear filters* lists every incident.
   until you change something, and the previous assignment is kept in the history. The page says
   *Incident assigned.* or *Incident reassigned.* only once the server has kept it, and the
   incident then shows in the work queue of its technician.
-  - If someone else changed the incident since you opened it, nothing is saved: press *Reload the
-    incident* and check it. Your choices are kept.
+  - If someone else changed the assignment since you opened it, nothing is saved, so their change
+    is never undone without you seeing it: press *Reload the incident*. The fields you did not
+    change show the assignment as it is now and your choices are kept: check them and assign again.
   - If the server cannot be reached or answers with an error, nothing is saved and your choices
     are kept, so you can send them again. If the technicians cannot be loaded, you can still
     assign the department only.

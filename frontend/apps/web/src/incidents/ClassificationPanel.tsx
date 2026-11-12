@@ -1,6 +1,7 @@
 import type { components, FieldError, FormResult } from '@urbanpulse/api-client';
 import { useId, useRef, useState, type FormEvent } from 'react';
 
+import { keepChanged } from './ActionForm';
 import { useCategories, useReloadIncident, useUpdateIncident } from './incident-queries';
 import styles from './Incidents.module.css';
 import { PRIORITY_LABELS } from './labels';
@@ -31,9 +32,14 @@ type Outcome =
  * Sets or corrects the category and the priority of the incident, with the justification of the
  * priority (#47, RF10). The validation panel of #48 reuses it before validating.
  *
- * The form keeps what the operator typed whatever the answer: after a `409` they reload the
- * incident and decide again, after a network failure or a `5xx` they save again. It says "saved"
- * only once the API answered, and a second click while saving sends nothing.
+ * The page reads the incident again while the form is open, for example when the operator comes
+ * back to the tab, and the values must never undo a classification changed meanwhile by someone
+ * else. So when the classification changed, the form sends the `version` its values were read
+ * with: the API answers `409`, and after *Reload the incident* the fields the operator did not
+ * change show the incident as it is now, while what they typed stays. A change that leaves the
+ * classification as it was, such as an assignment, cannot be undone by them, so the latest
+ * `version` goes. After a network failure or a `5xx` they save again. It says "saved" only once
+ * the API answered, and a second click while saving sends nothing.
  */
 export function ClassificationPanel({ incident }: { incident: Incident }) {
   const titleId = useId();
@@ -41,13 +47,17 @@ export function ClassificationPanel({ incident }: { incident: Incident }) {
   const update = useUpdateIncident(incident.id);
   const reload = useReloadIncident(incident.id);
   const saving = useRef(false);
+  // The incident the values start from.
+  const [loaded, setLoaded] = useState(incident);
+  const start = valuesOf(loaded);
+  const version = sameValues(valuesOf(incident), start) ? incident.version : loaded.version;
 
-  const [categoryId, setCategoryId] = useState(incident.category?.id ?? '');
-  const [priority, setPriority] = useState<Priority | ''>(incident.priority ?? '');
-  const [reason, setReason] = useState(incident.priorityReason ?? '');
+  const [categoryId, setCategoryId] = useState(start.categoryId);
+  const [priority, setPriority] = useState(start.priority);
+  const [reason, setReason] = useState(start.reason);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
 
-  const body = changesOf(incident, categoryId, priority, reason);
+  const body = changesOf(start, version ?? 0, { categoryId, priority, reason });
   const fieldError = (field: string) =>
     outcome?.kind === 'invalid'
       ? outcome.fieldErrors.find((error) => error.field === field)?.message
@@ -68,7 +78,11 @@ export function ClassificationPanel({ incident }: { incident: Incident }) {
     saving.current = true;
     setOutcome(null);
     try {
-      setOutcome(outcomeOf(await update.mutateAsync(body)));
+      const result = await update.mutateAsync(body);
+      if (result.ok) {
+        startFrom(result.data);
+      }
+      setOutcome(outcomeOf(result));
     } catch {
       setOutcome({ kind: 'failed' });
     } finally {
@@ -76,10 +90,33 @@ export function ClassificationPanel({ incident }: { incident: Incident }) {
     }
   }
 
+  /** Starts the form again from the incident the API answered with after a save. */
+  function startFrom(source: Incident) {
+    const values = valuesOf(source);
+    setLoaded(source);
+    setCategoryId(values.categoryId);
+    setPriority(values.priority);
+    setReason(values.reason);
+  }
+
+  async function reloadIncident() {
+    const read = await reload();
+    // When it could not be read, it is the same incident: what was typed stays for another try.
+    if (!read || read.version === loaded.version) {
+      return;
+    }
+    const now = valuesOf(read);
+    setLoaded(read);
+    setCategoryId((value) => keepChanged(value, start.categoryId, now.categoryId));
+    setPriority((value) => keepChanged(value, start.priority, now.priority));
+    setReason((value) => keepChanged(value, start.reason, now.reason));
+  }
+
   // The current category stays a choice even if it is no longer active.
+  const current = loaded.category;
   const options = [...(categories.data ?? [])];
-  if (incident.category && !options.some((category) => category.id === incident.category?.id)) {
-    options.unshift({ ...incident.category, description: null });
+  if (current && !options.some((category) => category.id === current.id)) {
+    options.unshift({ ...current, description: null });
   }
 
   return (
@@ -101,7 +138,7 @@ export function ClassificationPanel({ incident }: { incident: Incident }) {
           aria-invalid={fieldError('categoryId') ? true : undefined}
           aria-describedby={fieldError('categoryId') ? `${titleId}-category` : undefined}
         >
-          {incident.category === null && <option value="">Not classified</option>}
+          {loaded.category === null && <option value="">Not classified</option>}
           {options.map((category) => (
             <option key={category.id} value={category.id}>
               {category.name}
@@ -122,7 +159,7 @@ export function ClassificationPanel({ incident }: { incident: Incident }) {
           aria-invalid={fieldError('priority') ? true : undefined}
           aria-describedby={fieldError('priority') ? `${titleId}-priority` : undefined}
         >
-          {incident.priority === null && <option value="">Not set</option>}
+          {loaded.priority === null && <option value="">Not set</option>}
           {PRIORITIES.map((value) => (
             <option key={value} value={value}>
               {PRIORITY_LABELS[value]}
@@ -143,7 +180,7 @@ export function ClassificationPanel({ incident }: { incident: Incident }) {
         />
         <FieldMessage id={`${titleId}-reason`} message={fieldError('priorityReason')} />
       </div>
-      <OutcomeMessage outcome={outcome} onReload={() => void reload()} />
+      <OutcomeMessage outcome={outcome} onReload={() => void reloadIncident()} />
       <p>
         <button
           type="submit"
@@ -157,24 +194,37 @@ export function ClassificationPanel({ incident }: { incident: Incident }) {
   );
 }
 
+interface Values {
+  categoryId: string;
+  priority: Priority | '';
+  reason: string;
+}
+
+/** The values that show the classification of an incident, or the empty ones when it has none. */
+function valuesOf(incident: Incident): Values {
+  return {
+    categoryId: incident.category?.id ?? '',
+    priority: incident.priority ?? '',
+    reason: incident.priorityReason ?? '',
+  };
+}
+
+function sameValues(a: Values, b: Values): boolean {
+  return a.categoryId === b.categoryId && a.priority === b.priority && a.reason === b.reason;
+}
+
 /**
- * The body to send, with only what the operator changed; `null` when nothing changed. A priority
- * always travels with its justification, as the API requires.
+ * The body to send, with only what the operator changed from the values the form started from,
+ * and the `version`; `null` when nothing changed. A priority always travels with its
+ * justification, as the API requires.
  */
-function changesOf(
-  incident: Incident,
-  categoryId: string,
-  priority: Priority | '',
-  reason: string,
-): UpdateIncidentRequest | null {
-  const body: UpdateIncidentRequest = { version: incident.version ?? 0 };
-  if (categoryId !== '' && categoryId !== incident.category?.id) {
+function changesOf(before: Values, version: number, values: Values): UpdateIncidentRequest | null {
+  const { categoryId, priority, reason } = values;
+  const body: UpdateIncidentRequest = { version };
+  if (categoryId !== '' && categoryId !== before.categoryId) {
     body.categoryId = categoryId;
   }
-  if (
-    priority !== '' &&
-    (priority !== incident.priority || reason !== (incident.priorityReason ?? ''))
-  ) {
+  if (priority !== '' && (priority !== before.priority || reason !== before.reason)) {
     body.priority = priority;
     body.priorityReason = reason;
   }

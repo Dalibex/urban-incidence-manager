@@ -23,6 +23,15 @@ export interface ActionCallbacks {
   onDone: (done: ActionDone) => void;
 }
 
+/**
+ * A field of a form whose incident was read again after a `409`: what the operator changed from
+ * the incident the form started from stays, and a field they left as it was shows the incident as
+ * it is now, so the next save never sends back a value someone else changed meanwhile.
+ */
+export function keepChanged<T>(value: T, before: T, now: T): T {
+  return value === before ? now : value;
+}
+
 /** What every lifecycle panel receives: the incident, to send its `version` back. */
 export interface PanelProps extends ActionCallbacks {
   incident: Incident;
