@@ -140,6 +140,14 @@ export function BaseMap({ gpsFix, onPinChange, unavailableHint }: BaseMapProps) 
         onDidFinishLoadingMap={handleLoaded}
         onDidFailLoadingMap={handleFailed}
         onRegionDidChange={handleRegionChanged}
+        // The map sits inside the form's ScrollView, which on Android takes a vertical drag for
+        // itself. The native map holding the JS responder, with a grant that returns `true`, makes
+        // React Native ask its parents not to intercept the touch, so the drag reaches the map.
+        // It goes on the map, not on a wrapping View: a View that holds the responder takes the
+        // touches of its children, and the map would stop moving.
+        onStartShouldSetResponder={() => true}
+        onResponderGrant={() => true}
+        onResponderTerminationRequest={() => false}
       >
         <Camera
           ref={cameraRef}

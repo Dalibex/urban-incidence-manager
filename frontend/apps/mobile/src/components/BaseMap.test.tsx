@@ -122,6 +122,15 @@ describe('BaseMap', () => {
     });
   });
 
+  it('keeps a drag on the map from scrolling the form around it', async () => {
+    await renderMap();
+
+    // A grant that returns `true` is how React Native blocks the native ScrollView on Android.
+    expect(map().props.onStartShouldSetResponder()).toBe(true);
+    expect(map().props.onResponderGrant()).toBe(true);
+    expect(map().props.onResponderTerminationRequest()).toBe(false);
+  });
+
   it('keeps the pin on the fix when the map moves on its own', async () => {
     await renderMap(FIX);
     await act(() => map().props.onDidFinishLoadingMap());
