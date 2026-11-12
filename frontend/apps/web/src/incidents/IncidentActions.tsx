@@ -24,8 +24,8 @@ export const ACTIONS_TITLE = 'Actions';
  */
 export function IncidentActions({ incident }: { incident: Incident }) {
   const isTechnician = useSession().user?.role === 'TECHNICIAN';
-  // An action changes the status, so its form gives way to the next one: the message stays here,
-  // until the next action is sent.
+  // Most actions change the status, so their form gives way to the next one: the message stays
+  // here, until the next action is sent.
   const [done, setDone] = useState<ActionDone | null>(null);
   // The action whose focus was already moved, so a later change of status does not move it again.
   const focusMovedFor = useRef<ActionDone | null>(null);

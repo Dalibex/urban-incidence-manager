@@ -64,9 +64,10 @@ interface ActionFormProps extends ActionCallbacks {
 
 /**
  * One lifecycle action, of the technician or of the operator. It sends the `version` of the
- * incident it shows, keeps the notes whatever the answer, and ignores a second click while sending. On success the incident
- * changes status, so this form gives way to the next one and the parent announces `done` and moves
- * the focus.
+ * incident it shows and ignores a second click while sending. The notes stay after a failure and
+ * are emptied after a success. Most successes change the status, so this form gives way to the next
+ * one and the parent announces `done` and moves the focus; an information request keeps the
+ * status, so its empty form stays for the next one.
  */
 export function ActionForm({
   incident,

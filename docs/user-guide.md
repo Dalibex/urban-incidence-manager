@@ -212,7 +212,7 @@ ticked. *Clear filters* lists every incident.
   their role and the text. Both are always internal. If they cannot be loaded, the status changes
   stay on screen with *Try again* for the rest.
 - **Actions:** the actions allowed for the status of the incident. When there are none, as on a
-  rejected or closed incident, it says *Only comments are available for this incident.* Planned:
+  rejected or closed incident, it says *Only comments are available for this incident.*
 - **Classification:** choose the category and the priority, write why the incident has that
   priority and press *Save classification*. A priority always needs its reason; you can change
   only the category, only the priority or both. The button stays disabled until you change
