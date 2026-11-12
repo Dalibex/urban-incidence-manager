@@ -343,6 +343,7 @@
   font-weight: 600;
 }
 
+.field input,
 .field select,
 .field textarea {
   padding: var(--space-xs) var(--space-sm);

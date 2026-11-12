@@ -2,6 +2,7 @@ import type { components } from '@urbanpulse/api-client';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { useSession } from '../session/SessionContext';
+import { AssignPanel } from './AssignPanel';
 import { ClassificationPanel } from './ClassificationPanel';
 import { CommentPanel } from './CommentPanel';
 import styles from './Incidents.module.css';
@@ -72,9 +73,15 @@ function operatorPanels(incident: Incident, callbacks: ActionCallbacks): ReactNo
     case 'REPORTED':
       return classification;
     case 'VALIDATED':
-      return classification;
     case 'ASSIGNED':
-      return classification;
+    case 'REOPENED':
+      // Assigned to a department and, optionally, a technician; an assigned one is reassigned (#185).
+      return (
+        <>
+          {classification}
+          <AssignPanel incident={incident} {...callbacks} />
+        </>
+      );
     case 'IN_PROGRESS':
       return classification;
     case 'RESOLVED':
@@ -86,8 +93,6 @@ function operatorPanels(incident: Incident, callbacks: ActionCallbacks): ReactNo
           <ReopenPanel incident={incident} {...callbacks} />
         </>
       );
-    case 'REOPENED':
-      return classification;
     case 'REJECTED':
       return null;
     case 'CLOSED':

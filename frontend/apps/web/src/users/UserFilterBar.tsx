@@ -24,7 +24,18 @@ interface UserFilterBarProps {
  */
 export function UserFilterBar({ filters, onChange, firstFilterRef }: UserFilterBarProps) {
   const roles = filters.role ?? [];
-  const set = (changed: UserFilters) => onChange(withoutEmpty({ ...filters, ...changed }));
+  // The filters last sent, which the next change builds on. Two changes before the next render,
+  // such as both text pauses ending together, would otherwise each start from the filters of this
+  // render, and the second would undo the first (#270). Each render takes the address again.
+  const sent = useRef(filters);
+  useEffect(() => {
+    sent.current = filters;
+  });
+  const send = (next: UserFilters) => {
+    sent.current = next;
+    onChange(next);
+  };
+  const set = (changed: UserFilters) => send(withoutEmpty({ ...sent.current, ...changed }));
 
   return (
     <form
@@ -73,7 +84,7 @@ export function UserFilterBar({ filters, onChange, firstFilterRef }: UserFilterB
         type="button"
         className={`${incidentStyles.button} ${barStyles.clear}`}
         onClick={() => {
-          onChange({});
+          send({});
           // The button becomes disabled, which sends the focus to the page; the first filter keeps
           // a keyboard user in the bar.
           firstFilterRef.current?.focus();

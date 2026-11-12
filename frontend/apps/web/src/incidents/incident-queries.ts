@@ -1,5 +1,6 @@
 import {
   acceptIncident,
+  assignIncident,
   closeIncident,
   createIncidentComment,
   getAttachmentContent,
@@ -12,6 +13,7 @@ import {
   listIncidentLocations,
   listIncidents,
   listIncidentStatusChanges,
+  listTechnicians,
   reopenIncident,
   resolveIncident,
   updateIncident,
@@ -42,6 +44,7 @@ type Incident = components['schemas']['IncidentResponse'];
 type UpdateIncidentRequest = components['schemas']['UpdateIncidentRequest'];
 type IncidentActionRequest = components['schemas']['IncidentActionRequest'];
 type IncidentReasonRequest = components['schemas']['IncidentReasonRequest'];
+type CreateAssignmentRequest = components['schemas']['CreateAssignmentRequest'];
 
 const incidentKeys = {
   page: (page: number, filters: IncidentFilters) => ['incidents', 'page', page, filters] as const,
@@ -179,12 +182,21 @@ export function useCategories() {
   });
 }
 
-/** The active departments, ordered by name: the options of the department filter. */
+/** The active departments, ordered by name: the options of the department filter and the assignment. */
 export function useDepartments() {
   const { api } = useSession();
   return useQuery({
     queryKey: ['departments'],
     queryFn: () => dataOf(listDepartments(api)),
+  });
+}
+
+/** The active technicians, ordered by name: the options of the assignment form (#185). */
+export function useTechnicians() {
+  const { api } = useSession();
+  return useQuery({
+    queryKey: ['technicians'],
+    queryFn: () => dataOf(listTechnicians(api)),
   });
 }
 
@@ -244,6 +256,13 @@ export function useResolveIncident(incidentId: string) {
   );
 }
 
+/** The operator assigns the incident, or reassigns an assigned one (#185). */
+export function useAssignIncident(incidentId: string) {
+  return useIncidentChange((api, body: CreateAssignmentRequest) =>
+    assignIncident(api, incidentId, body),
+  );
+}
+
 /** The operator closes the resolved incident after checking the work (#52). */
 export function useCloseIncident(incidentId: string) {
   return useIncidentChange((api, body: IncidentActionRequest) =>
@@ -276,8 +295,15 @@ export function useAddComment(incidentId: string) {
   });
 }
 
-/** Reads the incident again, for example after a `409` that says it changed meanwhile. */
+/**
+ * Reads the incident again, for example after a `409` that says it changed meanwhile. It resolves
+ * with the incident as the cache then holds it: the one just read, or the earlier one if it could
+ * not be read.
+ */
 export function useReloadIncident(incidentId: string) {
   const queryClient = useQueryClient();
-  return () => queryClient.invalidateQueries({ queryKey: incidentKeys.detail(incidentId) });
+  return async (): Promise<Incident | undefined> => {
+    await queryClient.invalidateQueries({ queryKey: incidentKeys.detail(incidentId) });
+    return queryClient.getQueryData<Incident>(incidentKeys.detail(incidentId));
+  };
 }

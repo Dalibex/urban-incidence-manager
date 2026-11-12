@@ -86,6 +86,26 @@ export function resolveIncident(
 }
 
 /**
+ * An operator or administrator assigns a `VALIDATED` or `REOPENED` incident to an active department
+ * and, optionally, an active technician and a team, or reassigns an `ASSIGNED` one (ADR-0020). It
+ * answers as {@link closeIncident} does, and `422` for a department or technician that is not active.
+ */
+export function assignIncident(
+  client: ApiClient,
+  incidentId: string,
+  body: Schemas['CreateAssignmentRequest'],
+): Promise<FormResult<IncidentResponse>> {
+  return callForm(
+    () =>
+      client.POST('/incidents/{incidentId}/assignments', {
+        params: { path: { incidentId } },
+        body,
+      }),
+    'the incident',
+  );
+}
+
+/**
  * An operator or administrator closes a resolved incident: `RESOLVED` to `CLOSED`, which is final
  * and sets `closedAt` (ADR-0020). A stale `version` answers `409` with `CONCURRENT_MODIFICATION`
  * and a status that does not allow it `409` with `INVALID_TRANSITION`.
@@ -199,6 +219,13 @@ export function listDepartments(
   client: ApiClient,
 ): Promise<ApiResult<Schemas['DepartmentResponse'][]>> {
   return callApi(() => client.GET('/departments'));
+}
+
+/** The active technicians, ordered by name and then by id, for the assignment form. */
+export function listTechnicians(
+  client: ApiClient,
+): Promise<ApiResult<Schemas['TechnicianSummary'][]>> {
+  return callApi(() => client.GET('/technicians'));
 }
 
 /** Query of `listIncidents`: `page` starts at 0; omitted values take the contract's defaults. */
