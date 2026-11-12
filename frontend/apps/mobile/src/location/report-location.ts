@@ -12,12 +12,18 @@ export interface GpsFix extends Coordinates {
 }
 
 /**
- * Where the pin in the centre of the map points. `onGpsFix` stays true only while the map is
+ * Why the pin is where it is: on the last GPS fix, where the citizen moved it, or on the start
+ * point the map opens on without a fix, which nobody chose.
+ */
+export type PinSource = 'gpsFix' | 'citizen' | 'startPoint';
+
+/**
+ * Where the pin in the centre of the map points. Its `source` stays `gpsFix` only while the map is
  * centred on the last GPS fix: once the citizen moves the map, the position is theirs, not the
  * device's.
  */
 export interface MapPin extends Coordinates {
-  onGpsFix: boolean;
+  source: PinSource;
 }
 
 /** The order MapLibre uses for a point: longitude first, as in GeoJSON. */
@@ -46,16 +52,18 @@ export function fromLngLat([longitude, latitude]: readonly [number, number]): Co
 }
 
 /**
- * The location sent with a report. With the map on screen it is the pin; the accuracy goes only
- * while the pin is on the GPS fix, because a radius measured by the device says nothing about a
- * position the citizen chose. Without the map it is the GPS fix. With neither there is nothing to
- * send, and the result is `null`.
+ * The location sent with a report. With the map on screen it is the pin, once it is on the GPS fix
+ * or the citizen moved it: the start point the map opens on without a fix is nobody's position, and
+ * sending it would send someone to the wrong place (AGENTS.md section 3, unknown data is not
+ * presented as known). The accuracy goes only while the pin is on the GPS fix, because a radius
+ * measured by the device says nothing about a position the citizen chose. Without the map it is the
+ * GPS fix. With nothing known there is nothing to send, and the result is `null`.
  */
 export function locationToReport(gps: GpsFix | null, pin: MapPin | null): ReportedLocation | null {
-  if (pin !== null && !(pin.onGpsFix && gps !== null)) {
+  if (pin?.source === 'citizen') {
     return { latitude: pin.latitude, longitude: pin.longitude };
   }
-  if (gps === null) {
+  if (pin?.source === 'startPoint' || gps === null) {
     return null;
   }
   return {

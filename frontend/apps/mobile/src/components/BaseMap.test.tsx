@@ -93,7 +93,7 @@ describe('BaseMap', () => {
     expect(onPinChange).toHaveBeenLastCalledWith({
       latitude: 36.72,
       longitude: -4.42,
-      onGpsFix: false,
+      source: 'startPoint',
     });
   });
 
@@ -105,7 +105,7 @@ describe('BaseMap', () => {
     expect(onPinChange).toHaveBeenLastCalledWith({
       latitude: 36.7213,
       longitude: -4.4214,
-      onGpsFix: true,
+      source: 'gpsFix',
     });
   });
 
@@ -118,8 +118,43 @@ describe('BaseMap', () => {
     expect(onPinChange).toHaveBeenLastCalledWith({
       latitude: 36.7301,
       longitude: -4.4102,
-      onGpsFix: false,
+      source: 'citizen',
     });
+  });
+
+  it('gives the pin to the citizen once they move the map from the start point', async () => {
+    await renderMap();
+    await act(() => map().props.onDidFinishLoadingMap());
+
+    await regionChanged([-4.4102, 36.7301], true);
+
+    expect(onPinChange).toHaveBeenLastCalledWith({
+      latitude: 36.7301,
+      longitude: -4.4102,
+      source: 'citizen',
+    });
+  });
+
+  it('keeps the pin on the start point when the map moves on its own', async () => {
+    await renderMap();
+    await act(() => map().props.onDidFinishLoadingMap());
+
+    await regionChanged([-4.4201, 36.7202], false);
+
+    expect(onPinChange).toHaveBeenLastCalledWith(expect.objectContaining({ source: 'startPoint' }));
+  });
+
+  it('does not go back to a fix that is gone when the map loads again', async () => {
+    const { rerender } = await renderMap(FIX);
+    await rerender(<BaseMap gpsFix={null} onPinChange={onPinChange} unavailableHint={HINT} />);
+    await act(() => map().props.onDidFailLoadingMap());
+    await fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
+    cameraMethods.jumpTo.mockReset();
+
+    await act(() => map().props.onDidFinishLoadingMap());
+
+    expect(cameraMethods.jumpTo).not.toHaveBeenCalled();
+    expect(onPinChange).toHaveBeenLastCalledWith(expect.objectContaining({ source: 'startPoint' }));
   });
 
   it('keeps a drag on the map from scrolling the form around it', async () => {
@@ -137,7 +172,7 @@ describe('BaseMap', () => {
 
     await regionChanged([-4.42140001, 36.72130001], false);
 
-    expect(onPinChange).toHaveBeenLastCalledWith(expect.objectContaining({ onGpsFix: true }));
+    expect(onPinChange).toHaveBeenLastCalledWith(expect.objectContaining({ source: 'gpsFix' }));
   });
 
   it('centres the map and the pin on a new GPS fix', async () => {
@@ -153,7 +188,7 @@ describe('BaseMap', () => {
     expect(onPinChange).toHaveBeenLastCalledWith({
       latitude: 36.7213,
       longitude: -4.4214,
-      onGpsFix: true,
+      source: 'gpsFix',
     });
   });
 
@@ -167,7 +202,7 @@ describe('BaseMap', () => {
     );
 
     expect(cameraMethods.easeTo).toHaveBeenCalledTimes(1);
-    expect(onPinChange).toHaveBeenLastCalledWith(expect.objectContaining({ onGpsFix: true }));
+    expect(onPinChange).toHaveBeenLastCalledWith(expect.objectContaining({ source: 'gpsFix' }));
   });
 
   it('takes the pin away and explains what is left when the tiles cannot be reached', async () => {

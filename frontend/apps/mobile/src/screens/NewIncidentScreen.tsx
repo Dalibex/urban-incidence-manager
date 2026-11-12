@@ -39,11 +39,13 @@ const FIELD_BANNER = 'Check the highlighted fields.';
 export const MAP_HINT_WITH_GPS = 'The incident will use your GPS position.';
 export const MAP_HINT_WITHOUT_GPS =
   'Without the map, the incident needs your GPS position: try again or allow the location.';
+export const MAP_HINT_GPS_FAILED =
+  'Without the map, the incident needs your GPS position: try again or tap "Use my position".';
 
 /**
  * Main screen for reporting an incident (RF03, RF04). The position is the pin in the centre of the
  * map, which starts on the GPS fix or, without one, on Málaga: a citizen who rejects the location
- * can still report. The reporter is the session's user: the API takes it from the access token,
+ * can still report once they move the map to the incident. The reporter is the session's user: the API takes it from the access token,
  * never from the body.
  */
 export function NewIncidentScreen({ navigation }: Props) {
@@ -63,8 +65,9 @@ export function NewIncidentScreen({ navigation }: Props) {
   const categories = useCategories();
 
   const reportedLocation = locationToReport(location.gpsFix, pin);
-  const fromGps = location.gpsFix !== null && (pin === null || pin.onGpsFix);
-  // Waiting for the first fix keeps a quick tap from sending the default pin on Málaga.
+  const fromGps = location.gpsFix !== null && (pin === null || pin.source === 'gpsFix');
+  // The first fix recentres the map: waiting for it keeps a report from leaving with a pin that is
+  // about to move.
   const canSubmit = !location.isLoading && !isSubmitting && reportedLocation !== null;
 
   async function submit() {
@@ -165,7 +168,7 @@ export function NewIncidentScreen({ navigation }: Props) {
         <BaseMap
           gpsFix={location.gpsFix}
           onPinChange={setPin}
-          unavailableHint={location.gpsFix !== null ? MAP_HINT_WITH_GPS : MAP_HINT_WITHOUT_GPS}
+          unavailableHint={mapHint(location.gpsFix !== null, location.permissionDenied)}
         />
 
         <LocationIndicator
@@ -282,6 +285,15 @@ export function NewIncidentScreen({ navigation }: Props) {
       </ScrollView>
     </KeyboardAvoidingView>
   );
+}
+
+/** What the form can still do when the map is not on screen. */
+function mapHint(hasGpsFix: boolean, permissionDenied: boolean): string {
+  if (hasGpsFix) {
+    return MAP_HINT_WITH_GPS;
+  }
+  // With the location allowed, the GPS failed or took too long: asking to allow it would mislead.
+  return permissionDenied ? MAP_HINT_WITHOUT_GPS : MAP_HINT_GPS_FAILED;
 }
 
 const styles = StyleSheet.create({

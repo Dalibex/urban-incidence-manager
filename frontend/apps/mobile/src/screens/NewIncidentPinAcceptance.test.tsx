@@ -215,7 +215,7 @@ describe('#181 position pin of the report form', () => {
     await waitFor(() => expect(Alert.alert).toHaveBeenCalledTimes(1));
   });
 
-  it('T3: with the location rejected, the map opens on Málaga with a pin and the citizen can report', async () => {
+  it('T3: with the location rejected, the map opens on Málaga and the citizen reports once the pin is placed', async () => {
     requestPermission.mockResolvedValue(DENIED);
     await openForm();
     await mapLoads();
@@ -228,16 +228,20 @@ describe('#181 position pin of the report form', () => {
       expect.objectContaining({ center: [MALAGA.longitude, MALAGA.latitude] }),
     );
     expect(screen.getByRole('button', { name: 'Open settings' })).toBeOnTheScreen();
-
     await fillIn();
+    // Málaga is where the map opens, not where the incident is: it cannot be sent as it is.
+    expect(screen.queryByText('Position chosen on the map.')).not.toBeOnTheScreen();
+    expect(submitButton()).toBeDisabled();
+
+    await moveMapTo(MOVED);
     await submit();
 
     await waitFor(() => expect(sentReports).toHaveLength(1));
-    expect(sentReports[0]).toMatchObject({ location: MALAGA });
+    expect(sentReports[0]).toMatchObject({ location: MOVED });
     expect(currentPosition).not.toHaveBeenCalled();
   });
 
-  it('T6: when the GPS takes too long, the form stops loading, says why and lets the citizen report', async () => {
+  it('T6: when the GPS takes too long, the form stops loading, says why and lets the citizen place the pin', async () => {
     jest.useFakeTimers();
     currentPosition.mockReturnValue(new Promise(() => undefined));
     await openForm();
@@ -253,6 +257,11 @@ describe('#181 position pin of the report form', () => {
         'Your position could not be found in time. Move the map to put the pin on the incident.',
       ),
     ).toBeOnTheScreen();
+    expect(screen.queryByText('Position chosen on the map.')).not.toBeOnTheScreen();
+    expect(submitButton()).toBeDisabled();
+
+    await moveMapTo(MOVED);
+
     expect(screen.getByText('Position chosen on the map.')).toBeOnTheScreen();
     expect(submitButton()).toBeEnabled();
   });
@@ -268,12 +277,14 @@ describe('#181 position pin of the report form', () => {
       ),
     ).toBeOnTheScreen();
     expect(screen.queryByText(/Location services are disabled/)).not.toBeOnTheScreen();
-
     await fillIn();
+    expect(submitButton()).toBeDisabled();
+
+    await moveMapTo(MOVED);
     await submit();
 
     await waitFor(() => expect(sentReports).toHaveLength(1));
-    expect(sentReports[0]).toMatchObject({ location: MALAGA });
+    expect(sentReports[0]).toMatchObject({ location: MOVED });
   });
 
   describe('T7: accuracy', () => {
@@ -308,11 +319,12 @@ describe('#181 position pin of the report form', () => {
       await mapLoads();
       await screen.findByText(/Location is off/);
 
+      await moveMapTo(MOVED);
       await fillIn();
       await submit();
 
       await waitFor(() => expect(sentReports).toHaveLength(1));
-      expect(sentReports[0]).toEqual(expect.objectContaining({ location: MALAGA }));
+      expect(sentReports[0]).toEqual(expect.objectContaining({ location: MOVED }));
     });
 
     it('goes back to the GPS position and its accuracy with "Use my position"', async () => {
@@ -361,6 +373,7 @@ describe('#181 position pin of the report form', () => {
 
       await fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
       await mapLoads();
+      await moveMapTo(MOVED);
 
       expect(submitButton()).toBeEnabled();
       expect(screen.getByLabelText('Description').props.value).toBe(

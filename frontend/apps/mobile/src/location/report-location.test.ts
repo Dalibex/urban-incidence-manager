@@ -20,27 +20,33 @@ describe('marker conversion', () => {
 
 describe('locationToReport', () => {
   it('sends the GPS fix with its accuracy while the pin is on it', () => {
-    const pin = { latitude: 36.72130001, longitude: -4.42140001, onGpsFix: true };
+    const pin = { latitude: 36.72130001, longitude: -4.42140001, source: 'gpsFix' } as const;
 
     expect(locationToReport(GPS, pin)).toEqual(GPS);
   });
 
   it('sends the moved pin without any accuracy', () => {
-    const pin = { latitude: 36.7301, longitude: -4.4102, onGpsFix: false };
+    const pin = { latitude: 36.7301, longitude: -4.4102, source: 'citizen' } as const;
 
     expect(locationToReport(GPS, pin)).toEqual({ latitude: 36.7301, longitude: -4.4102 });
   });
 
-  it('sends the pin without any accuracy when there is no GPS fix', () => {
-    const pin = { latitude: 36.72, longitude: -4.42, onGpsFix: false };
+  it('sends the pin the citizen placed without a GPS fix, without any accuracy', () => {
+    const pin = { latitude: 36.7187, longitude: -4.4246, source: 'citizen' } as const;
 
-    expect(locationToReport(null, pin)).toEqual({ latitude: 36.72, longitude: -4.42 });
+    expect(locationToReport(null, pin)).toEqual({ latitude: 36.7187, longitude: -4.4246 });
   });
 
-  it('never sends an accuracy of zero for a pin with no GPS behind it', () => {
-    const pin = { latitude: 36.72, longitude: -4.42, onGpsFix: true };
+  it('has nothing to send while the pin is still on the start point nobody chose', () => {
+    const pin = { latitude: 36.72, longitude: -4.42, source: 'startPoint' } as const;
 
-    expect(locationToReport(null, pin)).not.toHaveProperty('accuracy');
+    expect(locationToReport(null, pin)).toBeNull();
+  });
+
+  it('never sends a pin on a GPS fix that is gone, nor an accuracy for it', () => {
+    const pin = { latitude: 36.7213, longitude: -4.4214, source: 'gpsFix' } as const;
+
+    expect(locationToReport(null, pin)).toBeNull();
   });
 
   it('sends the GPS fix when the map is not on screen', () => {

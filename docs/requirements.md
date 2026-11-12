@@ -42,7 +42,7 @@ or *No* (after the MVP). Whether an issue is finished is in GitHub, not here.
 | RF01 | **Identity and access.** Users sign up or sign in; staff authenticate. | Yes. A second factor for staff is planned with low priority. | #35, #39, #126, #165; #57 (second factor, ADR-0021) |
 | RF02 | **Roles and permissions.** Different permissions for citizens, operators, technicians, administrators and analysts. | Yes | #35, #39, #100, #40; [permission matrix](security.md#permission-matrix) |
 | RF03 | **Report an incident** with a title, description, position and optional category. | Yes | #43 |
-| RF04 | **Location.** The incident keeps coordinates, normalized address and accuracy. | Partly. Coordinates, and the accuracy while the position is the phone's GPS fix; the citizen corrects the position with a pin on the mobile map, and reports without GPS by placing it. The normalized address has no issue. | #43; #60 (#197, #198) |
+| RF04 | **Location.** The incident keeps coordinates, normalized address and accuracy. | Partly. Coordinates, and the accuracy while the position is the phone's GPS fix; the citizen corrects the position with a pin on the mobile map, and reports without GPS once they move it: the map's starting point on Málaga is never sent. The normalized address has no issue. | #43; #60 (#197, #198) |
 | RF06 | **Consultation and tracking.** A user sees the detail, status, dates and visible history of their incidents. | Yes | #45 (citizen), #46 (staff), #100, #169 (timeline) |
 | RF09 | **Validation.** An operator validates, requests more information or rejects a report with a reason. | Yes | #48 (#188, #189) |
 | RF11 | **Assignment** of a validated incident to a department, team or technician. | Yes | #49 (#184, #185), #190 |

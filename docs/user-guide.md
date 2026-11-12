@@ -105,9 +105,11 @@ If the email already has an account, the app says so: sign in instead.
 
 1. Open the *New* tab. The first time, the phone asks whether UrbanPulse may use your location.
    If you allow it, the map above the form opens on your position; if you refuse it, or the phone
-   cannot find your position within 15 seconds, it opens on the centre of Málaga and says why. You
-   can report either way. *Open settings* lets you allow the location later: when you come back to
-   the app, it reads your position.
+   cannot read your position or find it within 15 seconds, it opens on the centre of Málaga and
+   says why. You can report either way, but without your position you have to move the map to the
+   incident first: the centre of Málaga is only where the map starts, and *Submit* stays disabled
+   until you move it. *Open settings* lets you allow the location later: when you come back to the
+   app, it reads your position.
 2. Move the map until the pin in its centre points to the incident. The map stays inside the area
    of Málaga it covers. Under the map, *Your GPS position* shows the accuracy the phone reported
    (for example *Accuracy: 12 m*; outdoors it is usually a few metres, indoors much worse). Once

@@ -9,7 +9,12 @@ import { useIncidentLocation, type UseIncidentLocationResult } from '../hooks/us
 import { categoryKeys, incidentKeys } from '../incidents/incident-queries';
 import type { MainTabsParamList } from '../navigation/MainTabs';
 import { failed, ok, renderWithQueries } from '../test-utils';
-import { MAP_HINT_WITH_GPS, MAP_HINT_WITHOUT_GPS, NewIncidentScreen } from './NewIncidentScreen';
+import {
+  MAP_HINT_GPS_FAILED,
+  MAP_HINT_WITH_GPS,
+  MAP_HINT_WITHOUT_GPS,
+  NewIncidentScreen,
+} from './NewIncidentScreen';
 
 jest.mock('@urbanpulse/api-client', () => ({
   createIncident: jest.fn(),
@@ -190,7 +195,7 @@ describe('NewIncidentScreen', () => {
       expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled();
     });
 
-    it('lets a citizen who rejects the location report on the pin, without accuracy', async () => {
+    it('lets a citizen who rejects the location report once they place the pin, without accuracy', async () => {
       mockedLocation.mockReturnValue(NO_GPS);
       mockedCreateIncident.mockResolvedValue(CREATED);
       await renderScreen();
@@ -199,13 +204,18 @@ describe('NewIncidentScreen', () => {
 
       expect(screen.getByText(PERMISSION_ERROR)).toBeOnTheScreen();
       expect(screen.getByRole('button', { name: 'Open settings' })).toBeOnTheScreen();
+      // The map opens on Málaga, which nobody chose: it is not a position to send.
+      expect(screen.queryByText(PLACED_BY_HAND)).not.toBeOnTheScreen();
+      expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled();
+
+      await moveMapTo(-4.4246, 36.7187);
+
       expect(screen.getByText(PLACED_BY_HAND)).toBeOnTheScreen();
       await fireEvent.press(screen.getByRole('button', { name: 'Submit' }));
-
       await waitFor(() => expect(mockedCreateIncident).toHaveBeenCalledTimes(1));
       expect(mockedCreateIncident.mock.lastCall?.[1].location).toEqual({
-        latitude: 36.72,
-        longitude: -4.42,
+        latitude: 36.7187,
+        longitude: -4.4246,
       });
     });
 
@@ -248,8 +258,24 @@ describe('NewIncidentScreen', () => {
 
       await fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
       await act(() => map().props.onDidFinishLoadingMap());
+      expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled();
+      await moveMapTo(-4.4246, 36.7187);
 
       expect(screen.getByRole('button', { name: 'Submit' })).toBeEnabled();
+    });
+
+    it('does not ask to allow the location when it is allowed and the GPS failed', async () => {
+      mockedLocation.mockReturnValue({
+        ...LOCATED,
+        gpsFix: null,
+        error: 'Your position could not be read. Move the map to put the pin on the incident.',
+      });
+      await renderScreen();
+
+      await act(() => map().props.onDidFailLoadingMap());
+
+      expect(screen.getByText(`${MAP_LOAD_FAILED} ${MAP_HINT_GPS_FAILED}`)).toBeOnTheScreen();
+      expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled();
     });
   });
 

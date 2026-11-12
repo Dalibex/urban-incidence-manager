@@ -5,7 +5,10 @@ import * as Location from 'expo-location';
 import type { GpsFix } from '../location/report-location';
 
 export interface UseIncidentLocationResult {
-  /** The last GPS fix; a new object for every successful read, even at the same place. */
+  /**
+   * The last GPS fix; a new object for every successful read, even at the same place, and `null`
+   * once a read fails or the permission is denied.
+   */
   gpsFix: GpsFix | null;
   isLoading: boolean;
   error: string | null;
@@ -89,6 +92,11 @@ export function useIncidentLocation(): UseIncidentLocationResult {
   /** Applies an outcome to the state; it must be used inside a callback, not in an effect body. */
   const applyOutcome = useCallback((outcome: LocationOutcome) => {
     permissionDeniedRef.current = outcome.kind === 'denied';
+    if (outcome.kind !== 'position') {
+      // A read that failed says the last fix may no longer be where the phone is: keeping it would
+      // show it, and send it with its accuracy, next to the error.
+      setGpsFix(null);
+    }
     if (outcome.kind === 'denied') {
       setPermissionDenied(true);
       setError(PERMISSION_ERROR);

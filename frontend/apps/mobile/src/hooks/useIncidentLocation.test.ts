@@ -127,6 +127,17 @@ describe('useIncidentLocation', () => {
     expect(result.current.gpsFix).not.toBe(first);
   });
 
+  it('forgets the last fix when a later read fails', async () => {
+    const { result } = await renderHook(() => useIncidentLocation());
+    await waitFor(() => expect(result.current.gpsFix).not.toBeNull());
+    currentPosition.mockRejectedValue(new Error('Location services are disabled'));
+
+    await act(() => result.current.refreshLocation());
+
+    expect(result.current.gpsFix).toBeNull();
+    expect(result.current.error).toBe(GPS_FAILED_ERROR);
+  });
+
   it('reads the position on returning from the settings with the location allowed', async () => {
     requestPermission.mockResolvedValue(DENIED);
     const { result } = await renderHook(() => useIncidentLocation());

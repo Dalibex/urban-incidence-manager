@@ -15,6 +15,7 @@ import {
   toLngLat,
   type GpsFix,
   type MapPin,
+  type PinSource,
 } from '../location/report-location';
 import { Button } from './Button';
 
@@ -58,11 +59,16 @@ export function BaseMap({ gpsFix, onPinChange, unavailableHint }: BaseMapProps) 
   const [attempt, setAttempt] = useState(0);
   const cameraRef = useRef<CameraRef>(null);
   const loadedRef = useRef(false);
-  const pinOnGpsFixRef = useRef(false);
+  const pinSourceRef = useRef<PinSource>('startPoint');
   const latestFixRef = useRef(gpsFix);
 
   useEffect(() => {
-    if (gpsFix === null || gpsFix === latestFixRef.current) {
+    // A failed read leaves no fix: a map loaded again must not jump back to the old one.
+    if (gpsFix === null) {
+      latestFixRef.current = null;
+      return;
+    }
+    if (gpsFix === latestFixRef.current) {
       return;
     }
     latestFixRef.current = gpsFix;
@@ -72,8 +78,8 @@ export function BaseMap({ gpsFix, onPinChange, unavailableHint }: BaseMapProps) 
       duration: RECENTER_DURATION_MS,
     });
     if (loadedRef.current) {
-      pinOnGpsFixRef.current = true;
-      onPinChange({ latitude: gpsFix.latitude, longitude: gpsFix.longitude, onGpsFix: true });
+      pinSourceRef.current = 'gpsFix';
+      onPinChange({ latitude: gpsFix.latitude, longitude: gpsFix.longitude, source: 'gpsFix' });
     }
   }, [gpsFix, onPinChange]);
 
@@ -81,25 +87,26 @@ export function BaseMap({ gpsFix, onPinChange, unavailableHint }: BaseMapProps) 
     loadedRef.current = true;
     const fix = latestFixRef.current;
     if (fix === null) {
-      pinOnGpsFixRef.current = false;
-      onPinChange({ ...MALAGA_CENTER, onGpsFix: false });
+      pinSourceRef.current = 'startPoint';
+      onPinChange({ ...MALAGA_CENTER, source: 'startPoint' });
       return;
     }
     // A fix that arrived while the style was loading may have missed the camera.
     cameraRef.current?.jumpTo({ center: toLngLat(fix), zoom: STREET_ZOOM });
-    pinOnGpsFixRef.current = true;
-    onPinChange({ latitude: fix.latitude, longitude: fix.longitude, onGpsFix: true });
+    pinSourceRef.current = 'gpsFix';
+    onPinChange({ latitude: fix.latitude, longitude: fix.longitude, source: 'gpsFix' });
   }
 
   function handleRegionChanged({ nativeEvent }: NativeSyntheticEvent<ViewStateChangeEvent>) {
     if (!loadedRef.current) {
       return;
     }
-    // The map also moves on its own when it is centred on a new fix; that keeps the fix.
+    // The map also moves on its own, when it is centred on a new fix or kept inside its bounds;
+    // that keeps the source. Only a move by the citizen makes the position theirs.
     if (nativeEvent.userInteraction) {
-      pinOnGpsFixRef.current = false;
+      pinSourceRef.current = 'citizen';
     }
-    onPinChange({ ...fromLngLat(nativeEvent.center), onGpsFix: pinOnGpsFixRef.current });
+    onPinChange({ ...fromLngLat(nativeEvent.center), source: pinSourceRef.current });
   }
 
   function handleFailed() {

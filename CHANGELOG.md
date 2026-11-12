@@ -36,7 +36,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- The report form of the mobile app places the incident with a pin in the centre of the map, which the citizen moves to correct the position. It starts on the GPS position or, when the location is refused, the GPS fails or no position arrives within 15 seconds, on Málaga, so a citizen without location can still report; coming back from the settings with the location allowed reads it. The accuracy is sent only while the pin is on the GPS position, and the map cannot leave the area of the base map (#198).
+- The report form of the mobile app places the incident with a pin in the centre of the map, which the citizen moves to correct the position. It starts on the GPS position or, when the location is refused, the GPS fails or no position arrives within 15 seconds, on Málaga, so a citizen without location can still report once they move the pin to the incident: the starting point on Málaga is never sent as it is. Coming back from the settings with the location allowed reads it. The accuracy is sent only while the pin is on the GPS position, and the map cannot leave the area of the base map (#198).
 - The user profile of the API (`UserResponse`, also in `GET /users/me`) includes `enabled`, whether the account can sign in (#191).
 - The incident list of the API answers `400` to an unknown query parameter or one without a value, instead of ignoring it (#182).
 
