@@ -213,14 +213,15 @@ ticked. *Clear filters* lists every incident.
   stay on screen with *Try again* for the rest.
 - **Actions:** the actions allowed for the status of the incident. When there are none, as on a
   rejected or closed incident, it says *Only comments are available for this incident.* Planned:
-  #49.
 - **Classification:** choose the category and the priority, write why the incident has that
   priority and press *Save classification*. A priority always needs its reason; you can change
   only the category, only the priority or both. The button stays disabled until you change
   something, and the page says *Classification saved.* only once the server has kept it; the inbox
   shows the new values when you go back to it.
-  - If someone else changed the incident since you opened it, nothing is saved: press *Reload the
-    incident*, check the new values and save again. What you typed is kept.
+  - If someone else changed the classification since you opened it, nothing is saved, so their
+    change is never undone without you seeing it: press *Reload the incident*. The fields you did
+    not change show the classification as it is now and what you typed is kept: check them and
+    save again.
   - If the server cannot be reached or answers with an error, nothing is saved and what you typed
     is kept, so you can save again.
 - **Validate, request information or reject:** on a reported incident, decide what to do with
@@ -237,6 +238,19 @@ ticked. *Clear filters* lists every incident.
   - If someone else changed the incident since you opened it, nothing is saved: press *Reload the
     incident* and check it. If the server cannot be reached or answers with an error, nothing is
     saved either. In both cases what you typed is kept.
+- **Assign or reassign:** on a validated or reopened incident, choose the *Department* that takes
+  care of it and, if you want, a *Technician* and a *Team*, and press *Assign the incident*. Without
+  a technician, it stays with the department and is in nobody's work queue. On an assigned
+  incident the form is *Reassign*: it starts from the active assignment, the button stays disabled
+  until you change something, and the previous assignment is kept in the history. The page says
+  *Incident assigned.* or *Incident reassigned.* only once the server has kept it, and the
+  incident then shows in the work queue of its technician.
+  - If someone else changed the assignment since you opened it, nothing is saved, so their change
+    is never undone without you seeing it: press *Reload the incident*. The fields you did not
+    change show the assignment as it is now and your choices are kept: check them and assign again.
+  - If the server cannot be reached or answers with an error, nothing is saved and your choices
+    are kept, so you can send them again. If the technicians cannot be loaded, you can still
+    assign the department only.
 - **Verify and close, or reopen:** on a resolved incident, check the technician's work. Press
   *Close the incident* when it is well done: closing is final, the incident shows when it was
   closed and the citizen sees it as closed. When it is not well done, write why in *Reason for

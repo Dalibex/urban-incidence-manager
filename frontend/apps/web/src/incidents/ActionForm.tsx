@@ -23,12 +23,22 @@ export interface ActionCallbacks {
   onDone: (done: ActionDone) => void;
 }
 
+/**
+ * A field of a form whose incident was read again after a `409`: what the operator changed from
+ * the incident the form started from stays, and a field they left as it was shows the incident as
+ * it is now, so the next save never sends back a value someone else changed meanwhile.
+ */
+export function keepChanged<T>(value: T, before: T, now: T): T {
+  return value === before ? now : value;
+}
+
 /** What every lifecycle panel receives: the incident, to send its `version` back. */
 export interface PanelProps extends ActionCallbacks {
   incident: Incident;
 }
 
-type Outcome =
+/** What the API answered to a lifecycle action, as the form shows it. */
+export type Outcome =
   | { kind: 'changed' }
   | { kind: 'notAllowed' }
   | { kind: 'notFound' }
@@ -157,7 +167,8 @@ export function ActionForm({
   );
 }
 
-function outcomeOf(result: Extract<FormResult<Incident>, { ok: false }>): Outcome {
+/** The outcome of an answer the API did not accept. */
+export function outcomeOf(result: Extract<FormResult<Incident>, { ok: false }>): Outcome {
   const { failure } = result;
   if (failure.kind === 'network') {
     return { kind: 'unreachable' };
@@ -183,13 +194,17 @@ const RELOAD_MESSAGES = {
   notAllowed: 'This incident no longer allows this action. Reload it to see its status.',
 } as const;
 
-interface OutcomeMessageProps {
+export interface OutcomeMessageProps {
   outcome: Outcome | null;
   notFound: string;
   onReload: () => void;
 }
 
-function OutcomeMessage({ outcome, notFound, onReload }: OutcomeMessageProps) {
+/**
+ * The answer of an action next to its button: a reload after a `409` or a `404`, and an error with
+ * the form kept for a retry otherwise. The assignment form shows it too.
+ */
+export function OutcomeMessage({ outcome, notFound, onReload }: OutcomeMessageProps) {
   if (outcome === null) {
     // Kept in the page while empty, so screen readers announce the message when it appears.
     return <p role="status" className={styles.formMessage} />;

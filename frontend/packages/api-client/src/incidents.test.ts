@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   acceptIncident,
+  assignIncident,
   closeIncident,
   createApiClient,
   createIncident,
@@ -12,6 +13,7 @@ import {
   listIncidentComments,
   listIncidentLocations,
   listIncidents,
+  listTechnicians,
   rejectIncident,
   reopenIncident,
   requestIncidentInformation,
@@ -186,6 +188,21 @@ describe('listDepartments', () => {
   });
 });
 
+describe('listTechnicians', () => {
+  it('returns the active technicians', async () => {
+    const technicians: components['schemas']['TechnicianSummary'][] = [
+      { id: '7c2e4b1a-9d3f-4e8a-b6c5-1f0a2d3e4b5c', name: 'Sergio Molina' },
+    ];
+    const fetch = vi.fn(async (request: Request) => {
+      expect(new URL(request.url).pathname).toBe('/api/v1/technicians');
+      return json(200, technicians);
+    });
+    const client = createApiClient(BASE_URL, { tokenStore: memoryStore(TOKENS), fetch });
+
+    expect(await listTechnicians(client)).toEqual({ ok: true, data: technicians });
+  });
+});
+
 const INCIDENT_ID = '3f1c2a9e-7b4d-4c1a-9e2f-5d6b7a8c9d0e';
 
 function clientAnswering(status: number, body: unknown) {
@@ -312,6 +329,12 @@ const REJECTION = { version: 0, reason: 'This streetlight belongs to a private e
 const INFORMATION_REQUEST = { version: 0, reason: 'Which street is it on?' };
 const CLOSURE = { version: 4 };
 const REOPENING = { version: 4, reason: 'The lamp went off again the same night.' };
+const ASSIGNMENT = {
+  version: 2,
+  departmentId: 'b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e',
+  technicianId: '7c2e4b1a-9d3f-4e8a-b6c5-1f0a2d3e4b5c',
+  team: 'Night shift',
+};
 
 describe.each([
   [
@@ -331,6 +354,12 @@ describe.each([
     'information-requests',
     INFORMATION_REQUEST,
     (client: ApiClient) => requestIncidentInformation(client, INCIDENT_ID, INFORMATION_REQUEST),
+  ],
+  [
+    'assignIncident',
+    'assignments',
+    ASSIGNMENT,
+    (client: ApiClient) => assignIncident(client, INCIDENT_ID, ASSIGNMENT),
   ],
   [
     'acceptIncident',
