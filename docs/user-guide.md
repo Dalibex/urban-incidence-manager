@@ -212,8 +212,7 @@ ticked. *Clear filters* lists every incident.
   their role and the text. Both are always internal. If they cannot be loaded, the status changes
   stay on screen with *Try again* for the rest.
 - **Actions:** the actions allowed for the status of the incident. When there are none, as on a
-  rejected or closed incident, it says *Only comments are available for this incident.* Planned:
-  #48.
+  rejected or closed incident, it says *Only comments are available for this incident.*
 - **Classification:** choose the category and the priority, write why the incident has that
   priority and press *Save classification*. A priority always needs its reason; you can change
   only the category, only the priority or both. The button stays disabled until you change
@@ -225,6 +224,20 @@ ticked. *Clear filters* lists every incident.
     save again.
   - If the server cannot be reached or answers with an error, nothing is saved and what you typed
     is kept, so you can save again.
+- **Validate, request information or reject:** on a reported incident, decide what to do with
+  it.
+  - *Validate the incident* when it is a real incident the city council handles. Save its category
+    and priority in *Classification* first: until then the button is disabled and says so. It goes
+    to *Validated*, so it can be assigned.
+  - When you need more details, write them in *Message to the citizen* and press *Send the
+    request*. The citizen sees your message in the history of their report, and the incident stays
+    reported, so you can ask again or decide later.
+  - When it is not an incident the city council handles, write why in *Reason for the citizen* and
+    press *Reject the incident*. Rejecting is final and the citizen sees your reason, so do not
+    write internal data in it.
+  - If someone else changed the incident since you opened it, nothing is saved: press *Reload the
+    incident* and check it. If the server cannot be reached or answers with an error, nothing is
+    saved either. In both cases what you typed is kept.
 - **Assign or reassign:** on a validated or reopened incident, choose the *Department* that takes
   care of it and, if you want, a *Technician* and a *Team*, and press *Assign the incident*. Without
   a technician, it stays with the department and is in nobody's work queue. On an assigned
