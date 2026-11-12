@@ -17,6 +17,7 @@ import {
 
 import { colors, fontSizes, spacing } from '@urbanpulse/ui';
 
+import { BaseMap } from '../components/BaseMap';
 import { Button, MIN_TOUCH_SIZE } from '../components/Button';
 import { FormMessage } from '../components/FormMessage';
 import { LocationIndicator } from '../components/LocationIndicator';
@@ -157,6 +158,8 @@ export function NewIncidentScreen({ navigation }: Props) {
     >
       <ScrollView contentContainerStyle={screenStyles.form} keyboardShouldPersistTaps="handled">
         <Text style={screenStyles.title}>Report an incident</Text>
+
+        <BaseMap />
 
         <LocationIndicator
           accuracy={location.accuracy}

@@ -1,5 +1,5 @@
 import type { ApiClient } from './index';
-import { callApi, isProblem, type ApiFailure, type ApiResult } from './account';
+import { callApi, isNetworkFailure, isProblem, type ApiFailure, type ApiResult } from './account';
 import type { components, operations } from './schema';
 
 type Category = components['schemas']['CategoryResponse'];
@@ -181,7 +181,7 @@ export function createIncidentComment(
   );
 }
 
-async function callForm<T>(
+export async function callForm<T>(
   call: () => Promise<{ data?: T; error?: unknown; response: Response }>,
   what: string,
 ): Promise<FormResult<T>> {
@@ -189,8 +189,7 @@ async function callForm<T>(
   try {
     result = await call();
   } catch (error) {
-    // `fetch` rejects with a TypeError when the API cannot be reached; anything else is a bug.
-    if (error instanceof TypeError) {
+    if (isNetworkFailure(error)) {
       return { ok: false, failure: { kind: 'network' }, fieldErrors: [] };
     }
     throw error;

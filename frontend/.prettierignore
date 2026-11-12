@@ -6,3 +6,9 @@ packages/api-client/src/schema.d.ts
 **/dist/
 **/coverage/
 **/.expo/
+# Base map built by the tiles-builder service (ADR-0016). The root .gitignore ignores it, but
+# Prettier only reads the .gitignore of this folder.
+apps/web/public/tiles/
+# Native projects that the development build generates (expo prebuild); Git ignores them too.
+apps/mobile/android/
+apps/mobile/ios/

@@ -6,7 +6,8 @@ import { createSessionFetch, type SessionOptions } from './session';
 // schema.d.ts is generated from docs/api/openapi.yml with `pnpm generate:api` and committed.
 // Never edit it by hand: the `contract` CI job fails when it differs from the contract.
 export type { components, paths } from './schema';
-export type { SessionOptions, SessionTokens, TokenStore } from './session';
+export type { SessionMark, SessionOptions, SessionTokens, TokenStore } from './session';
+export { markSession } from './session';
 export {
   callApi,
   changePassword,
@@ -18,6 +19,7 @@ export {
   type ApiResult,
 } from './account';
 export { listAuditEntries, type AuditEntryListQuery } from './audit';
+export { createUser, listUsers, updateUser, type UserListQuery } from './users';
 export {
   acceptIncident,
   assignIncident,
