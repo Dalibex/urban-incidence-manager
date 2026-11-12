@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import type { components } from '@urbanpulse/api-client';
 import { describe, expect, it } from 'vitest';
 
+import { createQueryClient } from '../query-client';
 import { incidentPath, PATHS } from '../routing/access';
 import { fakeApi, json, renderApp } from '../test-utils';
 
@@ -106,6 +107,22 @@ function api(
       return answer(body);
     },
   });
+}
+
+/** The PATCH as the API answers it: a version that is not the current one is a `409`. */
+function saveLikeTheApi(server: Server, body: UpdateIncidentRequest): Response {
+  if (body.version !== server.incident.version) {
+    return json(409, { status: 409, code: 'CONCURRENT_MODIFICATION' });
+  }
+  server.incident = {
+    ...server.incident,
+    ...(body.categoryId && {
+      category: [LIGHTING, ROADS].find((category) => category.id === body.categoryId) ?? null,
+    }),
+    ...(body.priority && { priority: body.priority, priorityReason: body.priorityReason ?? null }),
+    version: (server.incident.version ?? 0) + 1,
+  };
+  return json(200, server.incident);
 }
 
 function newServer(incident: Incident = INCIDENT): Server {
@@ -218,6 +235,83 @@ describe('classification panel', () => {
     server.incident = { ...INCIDENT, version: 5 };
     await userEvent.click(form.getByRole('button', { name: 'Save classification' }));
     await waitFor(() => expect(server.sent.at(-1)?.version).toBe(5));
+  });
+
+  // T13: two operators at once. The page reads the incident again while the form is open, as it
+  // does when the operator comes back to the tab, and the form must not send back what it read
+  // before another operator's change.
+  it('does not undo a category changed meanwhile, and keeps what the operator typed', async () => {
+    const server = newServer(CLASSIFIED);
+    const queryClient = createQueryClient({ retryDelay: 0 });
+    renderApp(incidentPath(INCIDENT.id), {
+      role: 'MUNICIPAL_OPERATOR',
+      fetch: api(server, (body) => saveLikeTheApi(server, body)),
+      queryClient,
+    });
+    const form = await panel();
+    await screen.findByRole('option', { name: ROADS.name });
+
+    server.incident = { ...CLASSIFIED, category: ROADS, version: 4 };
+    const reads = server.detailReads;
+    await queryClient.invalidateQueries();
+    await waitFor(() => expect(server.detailReads).toBeGreaterThan(reads));
+    expect(form.getByLabelText('Category')).toHaveProperty('value', LIGHTING.id);
+
+    await userEvent.selectOptions(form.getByLabelText('Priority'), 'LOW');
+    const reason = form.getByLabelText('Why this priority');
+    await userEvent.clear(reason);
+    await userEvent.type(reason, 'Only one light is off.');
+    await userEvent.click(form.getByRole('button', { name: 'Save classification' }));
+
+    expect((await form.findByRole('alert')).textContent).toContain('The incident changed');
+    expect(server.sent).toEqual([
+      { version: 3, priority: 'LOW', priorityReason: 'Only one light is off.' },
+    ]);
+    expect(server.incident.category).toEqual(ROADS);
+
+    // The category, which the operator did not change, shows the other operator's; the priority
+    // and its reason, which they typed, stay.
+    await userEvent.click(form.getByRole('button', { name: 'Reload the incident' }));
+    await waitFor(() => expect(form.getByLabelText('Category')).toHaveProperty('value', ROADS.id));
+    expect(form.getByLabelText('Priority')).toHaveProperty('value', 'LOW');
+    expect(form.getByLabelText('Why this priority')).toHaveProperty(
+      'value',
+      'Only one light is off.',
+    );
+
+    await userEvent.click(form.getByRole('button', { name: 'Save classification' }));
+    expect((await form.findByRole('status')).textContent).toContain('Classification saved.');
+    expect(server.sent[1]).toEqual({
+      version: 4,
+      priority: 'LOW',
+      priorityReason: 'Only one light is off.',
+    });
+    expect(server.incident.category).toEqual(ROADS);
+  });
+
+  // A change that leaves the classification as it was, such as a request for information to the
+  // citizen, is no conflict: the form sends the latest version.
+  it('saves after another change of the incident that kept its classification', async () => {
+    const server = newServer(CLASSIFIED);
+    const queryClient = createQueryClient({ retryDelay: 0 });
+    renderApp(incidentPath(INCIDENT.id), {
+      role: 'MUNICIPAL_OPERATOR',
+      fetch: api(server, (body) => saveLikeTheApi(server, body)),
+      queryClient,
+    });
+    const form = await panel();
+    await screen.findByRole('option', { name: ROADS.name });
+
+    server.incident = { ...CLASSIFIED, updatedAt: '2026-11-02T10:45:00Z', version: 4 };
+    const reads = server.detailReads;
+    await queryClient.invalidateQueries();
+    await waitFor(() => expect(server.detailReads).toBeGreaterThan(reads));
+
+    await userEvent.selectOptions(form.getByLabelText('Category'), ROADS.id);
+    await userEvent.click(form.getByRole('button', { name: 'Save classification' }));
+
+    expect((await form.findByRole('status')).textContent).toContain('Classification saved.');
+    expect(server.sent).toEqual([{ version: 4, categoryId: ROADS.id }]);
   });
 
   // T13: no network, then a 5xx; the form keeps its values and can be sent again.
