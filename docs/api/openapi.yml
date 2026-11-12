@@ -2356,7 +2356,8 @@ components:
 
     ReportedLocation:
       type: object
-      description: Position of the incident as the device measured it.
+      description: >-
+        Position of the incident: the device's GPS fix, or a position the citizen chose on a map.
       required: [latitude, longitude]
       properties:
         latitude:
@@ -2379,7 +2380,8 @@ components:
           minimum: 0
           description: >-
             Accuracy radius in metres reported by the device. Absent when the device does not
-            report it.
+            report it, or when the position was not measured by the device, such as a point the
+            citizen chose on a map.
           examples: [12.5]
 
     IncidentLocation:

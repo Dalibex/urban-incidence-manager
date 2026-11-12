@@ -7,14 +7,20 @@ process.env.EXPO_PUBLIC_QUICK_SIGN_IN = 'false';
 delete process.env.EXPO_PUBLIC_DEMO_PASSWORD;
 
 // MapLibre is a native module that Jest cannot load. The mock renders plain views and keeps the
-// props, so tests can read the style and fire the load events.
+// props, so tests can read the style and fire the map events. The camera's methods are shared
+// mocks that tests read through `jest.requireMock`.
 jest.mock('@maplibre/maplibre-react-native', () => {
-  const { createElement } = jest.requireActual<typeof import('react')>('react');
+  const { createElement, useImperativeHandle } =
+    jest.requireActual<typeof import('react')>('react');
   const { View } = jest.requireActual<typeof import('react-native')>('react-native');
+  const cameraMethods = { easeTo: jest.fn(), jumpTo: jest.fn() };
   return {
+    cameraMethods,
     Map: (props: Record<string, unknown>) =>
       createElement(View, { testID: 'maplibre-map', ...props }),
-    Camera: (props: Record<string, unknown>) =>
-      createElement(View, { testID: 'maplibre-camera', ...props }),
+    Camera: ({ ref, ...props }: { ref?: import('react').Ref<unknown> }) => {
+      useImperativeHandle(ref, () => cameraMethods);
+      return createElement(View, { testID: 'maplibre-camera', ...props });
+    },
   };
 });

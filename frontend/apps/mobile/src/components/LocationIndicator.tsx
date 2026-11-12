@@ -1,24 +1,31 @@
 import { colors, fontSizes, spacing } from '@urbanpulse/ui';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
-import { MIN_TOUCH_SIZE } from './Button';
+import type { ReportedLocation } from '../location/report-location';
+import { Button } from './Button';
+
+export const PLACED_BY_HAND = 'Position chosen on the map.';
 
 export interface LocationIndicatorProps {
-  accuracy: number | null;
+  /** What the report will send; `null` when there is nothing to send yet. */
+  location: ReportedLocation | null;
+  /** True when the location comes from the GPS fix, false when the citizen chose it. */
+  fromGps: boolean;
   isLoading: boolean;
   error: string | null;
   permissionDenied: boolean;
-  onRefresh: () => void;
+  onUseMyPosition: () => void;
   onOpenSettings: () => void;
 }
 
-/** Shows the GPS state: loading, permission denied, or acquired accuracy. */
+/** Says where the position of the report comes from, and how to use the GPS when it is off. */
 export function LocationIndicator({
-  accuracy,
+  location,
+  fromGps,
   isLoading,
   error,
   permissionDenied,
-  onRefresh,
+  onUseMyPosition,
   onOpenSettings,
 }: LocationIndicatorProps) {
   if (isLoading) {
@@ -30,43 +37,34 @@ export function LocationIndicator({
     );
   }
 
-  if (permissionDenied) {
-    return (
-      <View style={styles.block}>
-        <Text style={styles.title}>Location is needed</Text>
-        <Text style={styles.text}>
-          UrbanPulse uses your position to place the incident on the map. Enable location in the
-          device settings to report a problem.
-        </Text>
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        <Pressable
-          accessibilityRole="button"
-          onPress={onOpenSettings}
-          style={({ pressed }) => [styles.button, pressed && styles.dimmed]}
-        >
-          <Text style={styles.buttonLabel}>Open settings</Text>
-        </Pressable>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.block}>
-      <View style={styles.row}>
-        <Text style={styles.text}>
-          Accuracy: {accuracy !== null ? `${Math.round(accuracy)} m` : 'unknown'}
+      {location !== null ? (
+        <Text style={styles.text}>{fromGps ? gpsLine(location.accuracy) : PLACED_BY_HAND}</Text>
+      ) : null}
+      {error ? (
+        <Text accessibilityLiveRegion="polite" style={styles.error}>
+          {error}
         </Text>
-        <Pressable
-          accessibilityRole="button"
-          onPress={onRefresh}
-          style={({ pressed }) => [styles.button, pressed && styles.dimmed]}
-        >
-          <Text style={styles.buttonLabel}>Refresh</Text>
-        </Pressable>
-      </View>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      ) : null}
+      {permissionDenied ? (
+        <>
+          <Text style={styles.text}>
+            To start from your position, allow the location in the device settings.
+          </Text>
+          <Button label="Open settings" variant="secondary" onPress={onOpenSettings} />
+        </>
+      ) : (
+        <Button label="Use my position" variant="secondary" onPress={onUseMyPosition} />
+      )}
     </View>
   );
+}
+
+function gpsLine(accuracy: number | undefined): string {
+  return `Your GPS position. Accuracy: ${
+    accuracy !== undefined ? `${Math.round(accuracy)} m` : 'unknown'
+  }.`;
 }
 
 const styles = StyleSheet.create({
@@ -78,35 +76,12 @@ const styles = StyleSheet.create({
   block: {
     gap: spacing.sm,
   },
-  title: {
-    color: colors.text,
-    fontSize: fontSizes.body,
-    fontWeight: '600',
-  },
   text: {
     color: colors.text,
     fontSize: fontSizes.body,
   },
   error: {
-    color: colors.danger ?? colors.text,
+    color: colors.danger,
     fontSize: 14,
-  },
-  button: {
-    minHeight: MIN_TOUCH_SIZE,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.textMuted,
-    backgroundColor: colors.background,
-  },
-  buttonLabel: {
-    color: colors.primary,
-    fontSize: fontSizes.body,
-    fontWeight: '600',
-  },
-  dimmed: {
-    opacity: 0.6,
   },
 });
