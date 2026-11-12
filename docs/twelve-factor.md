@@ -70,7 +70,8 @@ ignored. The backend does not start without `JWT_SECRET`.
 The clients read their configuration when they are built: the web calls the relative `/api/v1` by
 default (`VITE_API_BASE_URL`) and loads the map style from the relative `/tiles/style.json`
 (`VITE_MAP_STYLE_URL`), so one bundle works on any host; the mobile app gets
-`EXPO_PUBLIC_API_BASE_URL`, which ends up inside the app, so it never holds a secret. The one
+`EXPO_PUBLIC_API_BASE_URL` and `EXPO_PUBLIC_MAP_STYLE_URL`, which end up inside the app, so they
+never hold a secret. The one
 exception is the quick sign-in of the demo (`VITE_QUICK_SIGN_IN`, `EXPO_PUBLIC_QUICK_SIGN_IN`):
 with the flag on, the demo password goes into the build, so that build is local only and never
 deployed ([demo script](demo.md)).

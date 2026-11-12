@@ -244,6 +244,7 @@ Known limits the team accepts for now. A review does not report them (*Sprint re
 | The API documentation is public (`/swagger-ui.html`, `/v3/api-docs`, `/openapi.yml`) | Anyone can read the contract, which is public by design | [Security guide](security.md), *Permission matrix*; [API guide](api.md) says how to turn it off |
 | The audit trigger guards against mistakes, not against the database owner | Someone with the owner or superuser account can disable it; a user who appears in the audit trail cannot be deleted | [Security guide](security.md), *Audit trail* |
 | Everything runs on one machine | If the machine stops, the whole system stops; nginx is also the single entry point, but keeps no data | [ADR-0011](adr/0011-deployment-12factor.md); [deployment guide](deployment.md), *If nginx Goes Down* |
+| A refresh that sign-out cannot use to revoke the session (it answers after the sign-out, or the `DELETE` itself fails) creates a session the device no longer holds | That session stays alive on the server until its refresh token expires (`REFRESH_TOKEN_TTL`, 14 days by default); nobody can use it without the token, which the device discarded | [Security guide](security.md), *Sessions and passwords*; #237 |
 
 ## 📋 ADRs Without a Measurable Evaluation
 

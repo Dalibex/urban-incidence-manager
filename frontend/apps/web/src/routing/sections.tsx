@@ -5,8 +5,8 @@ import { AuditLogPage } from '../audit/AuditLogPage';
 import { InboxPage } from '../incidents/InboxPage';
 import { WorkQueuePage } from '../incidents/WorkQueuePage';
 import { MapPage } from '../map/MapPage';
-import { PlaceholderPage } from '../pages/PlaceholderPage';
 import { ReportsPage } from '../reports/ReportsPage';
+import { UsersPage } from '../users/UsersPage';
 import {
   INBOX_DEFAULT_PATH,
   INCIDENT_DETAIL_ROLES,
@@ -57,7 +57,7 @@ export const SECTIONS: readonly Section[] = [
     path: PATHS.users,
     label: 'Users',
     roles: ['ADMINISTRATOR'],
-    element: <PlaceholderPage title="Users" summary="Accounts, roles and access." />,
+    element: <UsersPage />,
   },
   {
     path: PATHS.auditLog,

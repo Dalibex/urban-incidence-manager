@@ -462,8 +462,12 @@ public class Incident {
         return one != null && one.getId() != null && one.getId().equals(other.getId());
     }
 
+    /**
+     * Whether a reason or a justification is missing: {@code null}, or nothing that the {@code
+     * pattern: "\\S"} of the contract accepts, so a text of no-break spaces is blank too.
+     */
     private static boolean isBlank(String text) {
-        return text == null || text.isBlank();
+        return text == null || onlyWhiteSpace(text);
     }
 
     /**

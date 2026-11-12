@@ -1,0 +1,121 @@
+/* Users screen. The page, table, states and forms reuse Incidents.module.css; these are its own pieces. */
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-sm) var(--space-md);
+}
+
+/* A dense table: one line per account, so a page of twenty fits on the screen. */
+table.dense th,
+table.dense td {
+  padding: var(--space-xs) var(--space-md);
+  vertical-align: middle;
+}
+
+.name {
+  font-weight: 600;
+}
+
+.you {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.email {
+  overflow-wrap: anywhere;
+}
+
+/* Status: a filled mark for active, a hollow one for deactivated, and always the word. */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  white-space: nowrap;
+}
+
+.status::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border: 2px solid currentcolor;
+  border-radius: 50%;
+}
+
+.active::before {
+  background: currentcolor;
+}
+
+.inactive {
+  color: var(--color-text-muted);
+}
+
+.deactivated .name,
+.deactivated .email {
+  color: var(--color-text-muted);
+}
+
+/* Forms */
+
+.panel {
+  margin-bottom: var(--space-lg);
+  padding: var(--space-md);
+  border: 1px solid color-mix(in srgb, var(--color-text-muted) 30%, transparent);
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: var(--space-sm) var(--space-md);
+}
+
+.field input {
+  min-height: 2.5rem;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-text-muted);
+  border-radius: 6px;
+  background: var(--color-background);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 400;
+}
+
+.field input[aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.dense tbody tr.editorRow:hover {
+  background: none;
+}
+
+.editor {
+  display: grid;
+  gap: var(--space-md);
+  padding: var(--space-sm) 0;
+}
+
+.danger {
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid var(--color-danger);
+  border-radius: 6px;
+  background: var(--color-danger);
+  color: var(--color-background);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

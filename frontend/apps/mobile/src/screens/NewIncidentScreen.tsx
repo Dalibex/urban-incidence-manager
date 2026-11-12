@@ -17,11 +17,13 @@ import {
 
 import { colors, fontSizes, spacing } from '@urbanpulse/ui';
 
+import { BaseMap } from '../components/BaseMap';
 import { Button, MIN_TOUCH_SIZE } from '../components/Button';
 import { FormMessage } from '../components/FormMessage';
 import { LocationIndicator } from '../components/LocationIndicator';
 import { TextField } from '../components/TextField';
 import { useIncidentLocation } from '../hooks/useIncidentLocation';
+import { locationToReport, type MapPin } from '../location/report-location';
 import { incidentKeys, useCategories } from '../incidents/incident-queries';
 import type { MainTabsParamList } from '../navigation/MainTabs';
 import { ApiCallError } from '../query-client';
@@ -34,9 +36,17 @@ type Props = BottomTabScreenProps<MainTabsParamList, 'NewReport'>;
 /** Message of the per-field errors that are not shown next to an input (`location.*`). */
 const FIELD_BANNER = 'Check the highlighted fields.';
 
+export const MAP_HINT_WITH_GPS = 'The incident will use your GPS position.';
+export const MAP_HINT_WITHOUT_GPS =
+  'Without the map, the incident needs your GPS position: try again or allow the location.';
+export const MAP_HINT_GPS_FAILED =
+  'Without the map, the incident needs your GPS position: try again or tap "Use my position".';
+
 /**
- * Main screen for reporting an incident (RF03, RF04). The reporter is the session's user: the API
- * takes it from the access token, never from the body.
+ * Main screen for reporting an incident (RF03, RF04). The position is the pin in the centre of the
+ * map, which starts on the GPS fix or, without one, on Málaga: a citizen who rejects the location
+ * can still report once they move the map to the incident. The reporter is the session's user: the
+ * API takes it from the access token, never from the body.
  */
 export function NewIncidentScreen({ navigation }: Props) {
   const { api } = useSession();
@@ -48,20 +58,21 @@ export function NewIncidentScreen({ navigation }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Readonly<Record<string, string>>>({});
   const [error, setError] = useState<string | null>(null);
+  const [pin, setPin] = useState<MapPin | null>(null);
 
   const submittingRef = useRef(false);
 
   const categories = useCategories();
 
-  const canSubmit =
-    !location.isLoading &&
-    !isSubmitting &&
-    location.latitude !== null &&
-    location.longitude !== null;
+  const reportedLocation = locationToReport(location.gpsFix, pin);
+  const fromGps = location.gpsFix !== null && (pin === null || pin.source === 'gpsFix');
+  // The first fix recentres the map: waiting for it keeps a report from leaving with a pin that is
+  // about to move.
+  const canSubmit = !location.isLoading && !isSubmitting && reportedLocation !== null;
 
   async function submit() {
     // Guards the button too: `isSubmitting` plus a tap before the state settles would send it twice.
-    if (isSubmitting || location.latitude === null || location.longitude === null) {
+    if (isSubmitting || reportedLocation === null) {
       return;
     }
     if (submittingRef.current) {
@@ -84,11 +95,7 @@ export function NewIncidentScreen({ navigation }: Props) {
         title: title.trim(),
         description: description.trim(),
         ...(categoryId !== null ? { categoryId } : {}),
-        location: {
-          latitude: location.latitude,
-          longitude: location.longitude,
-          ...(location.accuracy !== null ? { accuracy: location.accuracy } : {}),
-        },
+        location: reportedLocation,
       });
       if (!result.ok) {
         showProblems(result.failure, result.fieldErrors);
@@ -158,13 +165,20 @@ export function NewIncidentScreen({ navigation }: Props) {
       <ScrollView contentContainerStyle={screenStyles.form} keyboardShouldPersistTaps="handled">
         <Text style={screenStyles.title}>Report an incident</Text>
 
+        <BaseMap
+          gpsFix={location.gpsFix}
+          onPinChange={setPin}
+          unavailableHint={mapHint(location.gpsFix !== null, location.permissionDenied)}
+        />
+
         <LocationIndicator
-          accuracy={location.accuracy}
+          location={reportedLocation}
+          fromGps={fromGps}
           isLoading={location.isLoading}
           error={location.error}
           permissionDenied={location.permissionDenied}
-          onRefresh={location.refreshLocation}
-          onOpenSettings={location.openSettings}
+          onUseMyPosition={() => void location.refreshLocation()}
+          onOpenSettings={() => void location.openSettings()}
         />
 
         <FormMessage message={error} tone="error" />
@@ -271,6 +285,15 @@ export function NewIncidentScreen({ navigation }: Props) {
       </ScrollView>
     </KeyboardAvoidingView>
   );
+}
+
+/** What the form can still do when the map is not on screen. */
+function mapHint(hasGpsFix: boolean, permissionDenied: boolean): string {
+  if (hasGpsFix) {
+    return MAP_HINT_WITH_GPS;
+  }
+  // With the location allowed, the GPS failed or took too long: asking to allow it would mislead.
+  return permissionDenied ? MAP_HINT_WITHOUT_GPS : MAP_HINT_GPS_FAILED;
 }
 
 const styles = StyleSheet.create({

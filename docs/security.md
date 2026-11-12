@@ -65,7 +65,19 @@ different one in every environment: whoever knows it can sign a token for any us
   possible on purpose: when a refresh fails without an answer, or with any error other than `401`,
   it keeps the tokens, because the session may still be valid, and sends the same refresh token at
   the next `401`. Otherwise it never sends a token twice: it shares one refresh among concurrent
-  requests and discards the tokens on sign-out.
+  requests and discards the tokens on sign-out. A refresh still in flight at sign-out does not
+  bring them back: if it answers while sign-out waits for it, its fresh token revokes the session;
+  if it answers later, its tokens are dropped. In neither case is a rejection reported as an
+  expired session, and a refresh is not sent if sign-out cleared the store while it was being read.
+  A refresh that sign-out could not use to revoke the session (it answers later, or the `DELETE`
+  itself fails) leaves a session alive on the server until its refresh token expires (#237). A
+  request is only repeated with the session it was sent with. Once that session has ended, because
+  the user signed out or because its refresh was rejected, a request of that session that gets
+  `401` is neither refreshed nor repeated, so it never runs as the user who signs in next, nor with
+  the token the sign-out refreshed. A request sent while the sign-out waits for the server belongs
+  to the session being signed out; only the sign-out's own `DELETE` is still repeated with a fresh
+  token, to revoke the session. The photo upload follows the same rule, and so do the automatic
+  retries of an upload on the mobile app (#259).
 - **Clean-up:** a job inside the backend deletes, every day at 03:00 UTC, the refresh tokens that
   expired longer ago than `REFRESH_TOKEN_RETENTION` (`RefreshTokenCleanup`). It deletes by expiry,
   not by revocation: a revoked token is kept while it would still work, because deleting it would
@@ -80,8 +92,8 @@ different one in every environment: whoever knows it can sign a token for any us
 - **Forced change at the first sign-in (#165).** An account with `password_change_required` gets
   `403 PASSWORD_CHANGE_REQUIRED` and no tokens from sign-in, so the password an administrator typed
   for it never opens a session. Sign-in only says so when the password is right, after the check
-  of a disabled account, so a wrong password does not reveal it. Today only the dev user
-  `dev.newstaff` has it; the accounts an administrator creates will have it (Planned: #40).
+  of a disabled account, so a wrong password does not reveal it. Every account an
+  administrator creates has it (`POST /users`, #191), and so does the dev user `dev.newstaff`.
 - **Password change** (`POST /password-changes`) is public: an account that must change its
   password has no tokens yet, so the current password is the credential. It is checked like
   sign-in (the same `401` for an unknown email, in a comparable time, and the same rate limit).
@@ -245,6 +257,10 @@ operation; the note says when the answer also depends on the resource. A role no
 | `POST /password-changes` | ✓ | | | | | |
 | `DELETE /sessions/current` | | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `GET /users/me` | | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `GET /users` | | | | | ✓ | |
+| `POST /users` | | | | | ✓, staff roles only | |
+| `GET /users/{id}` | | | | | ✓ | |
+| `PATCH /users/{id}` | | | | | ✓, staff roles only, not their own role or account | |
 | `GET /categories` | | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `GET /departments` | | | ✓ | ✓ | ✓ | |
 | `GET /technicians` | | | ✓ | | ✓ | |
@@ -254,6 +270,9 @@ operation; the note says when the answer also depends on the resource. A role no
 | `PATCH /incidents/{id}` | | | ✓ | | ✓ | |
 | `GET /incidents/{id}/classification-changes` | | | ✓ | assigned | ✓ | |
 | `GET /incidents/{id}/status-changes` | | own, citizen view | ✓ | assigned | ✓ | |
+| `POST /incidents/{id}/validation` | | | ✓ | | ✓ | |
+| `POST /incidents/{id}/rejection` | | | ✓ | | ✓ | |
+| `POST /incidents/{id}/information-requests` | | | ✓ | | ✓ | |
 | `POST /incidents/{id}/assignments` | | | ✓ | | ✓ | |
 | `POST /incidents/{id}/acceptance` | | | | assigned | | |
 | `POST /incidents/{id}/resolution` | | | | assigned | | |
@@ -267,6 +286,12 @@ operation; the note says when the answer also depends on the resource. A role no
 | `GET /incident-locations` | | | ✓ | assigned | ✓ | |
 | `GET /audit-entries` | | | | | ✓ | |
 | `GET /incident-reports` | | | | | ✓ | ✓ |
+
+User management is for administrators only. They cannot change their own role or disable their
+own account, nor give a staff role to a citizen account or the reverse (`422`), but two administrators who demote or disable each other at the same time can
+still leave none enabled: the `bootstrap-admin` profile then creates one again, because it only
+runs when no enabled administrator exists. A role change or a disabled account reaches the access
+tokens already issued at their next refresh, at most one access token lifetime later (ADR-0004).
 
 Outside `/api/v1` only `/actuator/health/**` and the API documentation (`/openapi.yml`,
 `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs/**`) are public.
@@ -315,3 +340,6 @@ is released: before that, a row would make it public.
 | [#2](https://github.com/Dalibex/urban-incidence-manager/security/code-scanning/2) | CodeQL `js/polynomial-redos` | `frontend/packages/api-client/src/session.ts` | High | Fixed before the merge | `/\/+$/` backtracks quadratically on a long run of slashes in the API base URL; a loop removes the trailing slashes instead | #97 |
 | [#3](https://github.com/Dalibex/urban-incidence-manager/security/code-scanning/3) | CodeQL `js/incomplete-multi-character-sanitization` | `docs/architecture/drawio/generate.mjs` | High | Fixed before the merge | A regular expression stripped tags to measure the legend of each page. Not exploitable: the generator writes that text itself and only uses its length. The legend is now built from plain text, so nothing strips tags | #154 |
 | Dependabot [#1](https://github.com/Dalibex/urban-incidence-manager/security/dependabot/1), [#4–#14](https://github.com/Dalibex/urban-incidence-manager/security/dependabot?q=package%3Anode-forge) | Twelve `node-forge` advisories | `frontend/pnpm-lock.yaml`, through `@expo/cli` | High | Fixed, updated to 1.4.2 | Version 1.4.0 had twelve published advisories, RSA signature verification among them; 1.4.2 is past every patched version | #158 |
+| Dependabot [#2](https://github.com/Dalibex/urban-incidence-manager/security/dependabot/2) | `zod` advisory | `frontend/pnpm-lock.yaml`, through `@expo/cli` | High | Fixed, `expo` updated to 58.0.23 | `zod` 3 can exhaust memory while validating oversized collections. Only the Expo development tooling used it, and `@expo/cli` 58.1.19 no longer depends on it | #252 |
+| Dependabot [#15](https://github.com/Dalibex/urban-incidence-manager/security/dependabot/15), [#17](https://github.com/Dalibex/urban-incidence-manager/security/dependabot/17) | `glob` and `minimatch` advisories | `frontend/pnpm-lock.yaml`, through Jest, ESLint and the Expo tooling | Medium | Fixed, overridden to `glob` 14 and `minimatch` 11 in `frontend/pnpm-workspace.yaml` | The fixes are only in a major version those tools do not ask for yet, so the overrides move only the vulnerable ranges up. Remove each one once Jest, ESLint and Expo require the fixed version | #252 |
+| Dependabot [#18–#21](https://github.com/Dalibex/urban-incidence-manager/security/dependabot?q=package%3Anode-forge) | Four `node-forge` advisories | `frontend/pnpm-lock.yaml`, through `@expo/cli` | Medium | Fixed, updated to 1.4.3 | Two crashes of the TLS client, a ReDoS in the header parsing of `forge.http` and an Ed25519 signature check; only the Expo development tooling uses `node-forge`, not the apps | #248 |
