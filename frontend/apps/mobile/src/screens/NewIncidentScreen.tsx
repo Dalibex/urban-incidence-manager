@@ -45,8 +45,8 @@ export const MAP_HINT_GPS_FAILED =
 /**
  * Main screen for reporting an incident (RF03, RF04). The position is the pin in the centre of the
  * map, which starts on the GPS fix or, without one, on Málaga: a citizen who rejects the location
- * can still report once they move the map to the incident. The reporter is the session's user: the API takes it from the access token,
- * never from the body.
+ * can still report once they move the map to the incident. The reporter is the session's user: the
+ * API takes it from the access token, never from the body.
  */
 export function NewIncidentScreen({ navigation }: Props) {
   const { api } = useSession();

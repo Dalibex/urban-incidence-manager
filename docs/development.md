@@ -271,7 +271,8 @@ pnpm dev:web --host
 
 Without `EXPO_PUBLIC_MAP_STYLE_URL`, or with the web app stopped, the report form shows a notice
 instead of the map. The citizen can still report with the GPS position, but without it the form
-waits for the map: *Submit* stays disabled until the map loads or the location is allowed.
+waits for the map: *Submit* stays disabled until the location is allowed, or until the map loads
+and the citizen moves the pin to the incident.
 
 #### Build, install and run
 

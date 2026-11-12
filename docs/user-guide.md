@@ -123,8 +123,8 @@ If the email already has an account, the app says so: sign in instead.
    *My reports*.
 
 If the map cannot load, a notice replaces it and *Try again* loads it again. Meanwhile the report
-uses your GPS position; without it, *Submit* stays disabled until the map or your position is back,
-and what you wrote is kept.
+uses your GPS position; without it, *Submit* stays disabled until your position is back, or until
+the map is back and you move it to the incident. What you wrote is kept.
 
 The report is saved as soon as you submit it. Photos are optional, and a photo that cannot be
 uploaded never loses the report.
