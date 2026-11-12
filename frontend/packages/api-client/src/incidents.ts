@@ -86,6 +86,67 @@ export function resolveIncident(
 }
 
 /**
+ * An operator or administrator validates a reported incident: `REPORTED` to `VALIDATED` (ADR-0020).
+ * The category and the priority must be set first, or it answers `422` on `category` and
+ * `priority`. A stale `version` answers `409` with `CONCURRENT_MODIFICATION` and a status that does
+ * not allow it `409` with `INVALID_TRANSITION`.
+ */
+export function validateIncident(
+  client: ApiClient,
+  incidentId: string,
+  body: Schemas['IncidentActionRequest'],
+): Promise<FormResult<IncidentResponse>> {
+  return callForm(
+    () =>
+      client.POST('/incidents/{incidentId}/validation', {
+        params: { path: { incidentId } },
+        body,
+      }),
+    'the incident',
+  );
+}
+
+/**
+ * An operator or administrator rejects a reported incident: `REPORTED` to `REJECTED`, which is
+ * final (ADR-0020). The citizen sees `reason`, which is required. It answers as
+ * {@link validateIncident} does, and `422` when the reason is missing.
+ */
+export function rejectIncident(
+  client: ApiClient,
+  incidentId: string,
+  body: Schemas['IncidentReasonRequest'],
+): Promise<FormResult<IncidentResponse>> {
+  return callForm(
+    () =>
+      client.POST('/incidents/{incidentId}/rejection', {
+        params: { path: { incidentId } },
+        body,
+      }),
+    'the incident',
+  );
+}
+
+/**
+ * An operator or administrator asks the citizen for more information on a reported incident. It
+ * stays `REPORTED` with a new `version`, and `reason`, the message the citizen sees, is one more
+ * entry of its history (ADR-0020). It answers as {@link rejectIncident} does.
+ */
+export function requestIncidentInformation(
+  client: ApiClient,
+  incidentId: string,
+  body: Schemas['IncidentReasonRequest'],
+): Promise<FormResult<IncidentResponse>> {
+  return callForm(
+    () =>
+      client.POST('/incidents/{incidentId}/information-requests', {
+        params: { path: { incidentId } },
+        body,
+      }),
+    'the incident',
+  );
+}
+
+/**
  * An operator or administrator assigns a `VALIDATED` or `REOPENED` incident to an active department
  * and, optionally, an active technician and a team, or reassigns an `ASSIGNED` one (ADR-0020). It
  * answers as {@link closeIncident} does, and `422` for a department or technician that is not active.

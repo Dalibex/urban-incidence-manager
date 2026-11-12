@@ -14,9 +14,12 @@ import {
   listIncidents,
   listIncidentStatusChanges,
   listTechnicians,
+  rejectIncident,
   reopenIncident,
+  requestIncidentInformation,
   resolveIncident,
   updateIncident,
+  validateIncident,
   type ApiClient,
   type ApiResult,
   type components,
@@ -253,6 +256,27 @@ export function useAcceptIncident(incidentId: string) {
 export function useResolveIncident(incidentId: string) {
   return useIncidentChange((api, body: IncidentReasonRequest) =>
     resolveIncident(api, incidentId, body),
+  );
+}
+
+/** The operator validates the reported incident once it is classified (#189). */
+export function useValidateIncident(incidentId: string) {
+  return useIncidentChange((api, body: IncidentActionRequest) =>
+    validateIncident(api, incidentId, body),
+  );
+}
+
+/** The operator asks the citizen for more information on the reported incident (#189). */
+export function useRequestIncidentInformation(incidentId: string) {
+  return useIncidentChange((api, body: IncidentReasonRequest) =>
+    requestIncidentInformation(api, incidentId, body),
+  );
+}
+
+/** The operator rejects the reported incident, with the reason the citizen sees (#189). */
+export function useRejectIncident(incidentId: string) {
+  return useIncidentChange((api, body: IncidentReasonRequest) =>
+    rejectIncident(api, incidentId, body),
   );
 }
 

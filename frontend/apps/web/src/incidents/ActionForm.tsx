@@ -56,15 +56,21 @@ interface ActionFormProps extends ActionCallbacks {
   notFound: string;
   /** Required notes, sent as `reason`; without it the action sends only the `version`. */
   notes?: { label: string; missing: string };
+  /**
+   * Why the action cannot be sent yet; while set, it is shown, describes the button and marks it
+   * unavailable.
+   */
+  blocked?: string;
   sending: boolean;
   send: (version: number, notes: string) => Promise<FormResult<Incident>>;
 }
 
 /**
- * One lifecycle action, of the technician or of the operator. It sends the `version` of the incident it shows, keeps
- * the notes whatever the answer, and ignores a second click while sending. On success the incident
- * changes status, so this form gives way to the next one and the parent announces `done` and moves
- * the focus.
+ * One lifecycle action, of the technician or of the operator. It sends the `version` of the
+ * incident it shows and ignores a second click while sending. The notes stay after a failure and
+ * are emptied after a success. Most successes change the status, so this form gives way to the next
+ * one and the parent announces `done` and moves the focus; an information request keeps the
+ * status, so its empty form stays for the next one.
  */
 export function ActionForm({
   incident,
@@ -74,6 +80,7 @@ export function ActionForm({
   done,
   notFound,
   notes,
+  blocked,
   sending,
   send,
   onSending,
@@ -91,7 +98,7 @@ export function ActionForm({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (inFlight.current) {
+    if (inFlight.current || blocked !== undefined) {
       return;
     }
     if (notes && text.trim() === '') {
@@ -104,6 +111,9 @@ export function ActionForm({
     try {
       const result = await send(incident.version ?? 0, text);
       if (result.ok) {
+        // An action that keeps the status, such as an information request, leaves this form on
+        // the page: empty it for the next one.
+        setText('');
         onDone({ message: done, from: incident.status });
       } else {
         setOutcome(outcomeOf(result));
@@ -126,6 +136,11 @@ export function ActionForm({
         {title}
       </h3>
       <p className={styles.fieldNote}>{lead}</p>
+      {blocked && (
+        <p id={`${titleId}-blocked`} className={styles.fieldNote}>
+          {blocked}
+        </p>
+      )}
       {notes && (
         <div className={styles.field}>
           <label htmlFor={`${titleId}-notes-field`}>{notes.label}</label>
@@ -148,7 +163,15 @@ export function ActionForm({
       )}
       <OutcomeMessage outcome={outcome} notFound={notFound} onReload={() => void reload()} />
       <p>
-        <button type="submit" className={styles.primaryButton} disabled={sending}>
+        {/* A blocked action stays reachable with Tab and reads out why, which `disabled` would
+            hide: the button is only marked unavailable, and the submit sends nothing. */}
+        <button
+          type="submit"
+          className={styles.primaryButton}
+          disabled={sending}
+          aria-disabled={blocked !== undefined ? true : undefined}
+          aria-describedby={blocked !== undefined ? `${titleId}-blocked` : undefined}
+        >
           {sending ? 'Saving…' : submitLabel}
         </button>
       </p>

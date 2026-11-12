@@ -109,7 +109,7 @@ for its code (#57).
 
   | Status | Actions | Issue |
   | --- | --- | --- |
-  | `REPORTED` | *Validate* (sets the category and priority first if they are missing), *Request information*, *Reject* (reason the citizen sees) | #47, #48 |
+  | `REPORTED` | *Validate* (once the category and priority are saved with *Classify*), *Request information* (message the citizen sees), *Reject* (reason the citizen sees) | #47, #48 |
   | `VALIDATED`, `REOPENED` | *Assign* to a department, optionally a team and technician | #49 |
   | `ASSIGNED` | *Reassign* | #49 |
   | `RESOLVED` | *Verify and close*, *Reopen* (reason required) | #52 |
