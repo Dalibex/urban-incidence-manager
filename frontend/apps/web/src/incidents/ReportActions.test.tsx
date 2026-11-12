@@ -135,12 +135,20 @@ describe('validate a reported incident (#189)', () => {
     renderApp(incidentPath(REPORTED.id), { role: 'MUNICIPAL_OPERATOR', fetch: api(server) });
     const validate = await form('Validate');
 
-    expect(
-      validate.getByText('Set its category and priority in Classification and save them first.'),
-    ).toBeDefined();
+    const note = validate.getByText(
+      'Set its category and priority in Classification and save them first.',
+    );
     const button = validate.getByRole('button', { name: 'Validate the incident' });
-    expect(button).toHaveProperty('disabled', true);
+    // Unavailable but still reached with Tab, and it reads out why.
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    expect(button).toHaveProperty('disabled', false);
+    expect(button.getAttribute('aria-describedby')).toBe(note.id);
+    for (let presses = 0; presses < 40 && document.activeElement !== button; presses++) {
+      await userEvent.tab();
+    }
+    expect(document.activeElement).toBe(button);
     await userEvent.click(button);
+    await userEvent.keyboard('{Enter}');
     expect(server.sent.validation).toEqual([]);
   });
 

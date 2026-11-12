@@ -56,7 +56,10 @@ interface ActionFormProps extends ActionCallbacks {
   notFound: string;
   /** Required notes, sent as `reason`; without it the action sends only the `version`. */
   notes?: { label: string; missing: string };
-  /** Why the action cannot be sent yet; while set, it is shown and the button is disabled. */
+  /**
+   * Why the action cannot be sent yet; while set, it is shown, describes the button and marks it
+   * unavailable.
+   */
   blocked?: string;
   sending: boolean;
   send: (version: number, notes: string) => Promise<FormResult<Incident>>;
@@ -95,7 +98,7 @@ export function ActionForm({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (inFlight.current) {
+    if (inFlight.current || blocked !== undefined) {
       return;
     }
     if (notes && text.trim() === '') {
@@ -133,7 +136,11 @@ export function ActionForm({
         {title}
       </h3>
       <p className={styles.fieldNote}>{lead}</p>
-      {blocked && <p className={styles.fieldNote}>{blocked}</p>}
+      {blocked && (
+        <p id={`${titleId}-blocked`} className={styles.fieldNote}>
+          {blocked}
+        </p>
+      )}
       {notes && (
         <div className={styles.field}>
           <label htmlFor={`${titleId}-notes-field`}>{notes.label}</label>
@@ -156,10 +163,14 @@ export function ActionForm({
       )}
       <OutcomeMessage outcome={outcome} notFound={notFound} onReload={() => void reload()} />
       <p>
+        {/* A blocked action stays reachable with Tab and reads out why, which `disabled` would
+            hide: the button is only marked unavailable, and the submit sends nothing. */}
         <button
           type="submit"
           className={styles.primaryButton}
-          disabled={sending || blocked !== undefined}
+          disabled={sending}
+          aria-disabled={blocked !== undefined ? true : undefined}
+          aria-describedby={blocked !== undefined ? `${titleId}-blocked` : undefined}
         >
           {sending ? 'Saving…' : submitLabel}
         </button>
