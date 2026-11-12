@@ -1,4 +1,4 @@
-import type { ApiResult, components, LocalFile } from '@urbanpulse/api-client';
+import type { ApiResult, components, LocalFile, SessionMark } from '@urbanpulse/api-client';
 import { act, fireEvent, render, screen, userEvent, waitFor } from '@testing-library/react-native';
 import type { ComponentProps } from 'react';
 import { Linking } from 'react-native';
@@ -12,8 +12,11 @@ type Props = ComponentProps<typeof AddPhotosScreen>;
 
 const mockUploadAttachment = jest.fn<
   Promise<ApiResult<Attachment>>,
-  [string, LocalFile, (fraction: number) => void]
+  [string, LocalFile, (fraction: number) => void, SessionMark | undefined]
 >();
+// The screen only passes the mark on; what it means is tested in api-client.
+const SESSION = { sessionEnds: 0 } as unknown as SessionMark;
+const mockMarkSession = jest.fn<SessionMark, []>();
 
 jest.mock('../attachments/photo-picker', () => ({ pickPhoto: jest.fn() }));
 jest.mock('../attachments/upload-retry', () => ({
@@ -22,7 +25,7 @@ jest.mock('../attachments/upload-retry', () => ({
   RETRY_DELAYS_MS: [0, 0],
 }));
 jest.mock('../session/SessionContext', () => ({
-  useSession: () => ({ uploadAttachment: mockUploadAttachment }),
+  useSession: () => ({ uploadAttachment: mockUploadAttachment, markSession: mockMarkSession }),
 }));
 
 const mockedPickPhoto = jest.mocked(pickPhoto);
@@ -62,6 +65,7 @@ async function pickFrom(button: 'Take a photo' | 'Choose from gallery') {
 
 beforeEach(() => {
   mockUploadAttachment.mockReset();
+  mockMarkSession.mockReset().mockReturnValue(SESSION);
   mockedPickPhoto.mockReset().mockResolvedValue({ kind: 'photo', photo: PHOTO });
   jest.spyOn(console, 'warn').mockImplementation(() => undefined);
 });
@@ -82,7 +86,12 @@ describe('AddPhotosScreen', () => {
 
     expect(await screen.findByText('Uploaded photos (1)')).toBeOnTheScreen();
     expect(mockedPickPhoto).toHaveBeenCalledWith(source);
-    expect(mockUploadAttachment).toHaveBeenCalledWith(INCIDENT_ID, PHOTO, expect.any(Function));
+    expect(mockUploadAttachment).toHaveBeenCalledWith(
+      INCIDENT_ID,
+      PHOTO,
+      expect.any(Function),
+      SESSION,
+    );
     expect(screen.getByLabelText('Uploaded photo 1')).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: 'Upload photo' })).not.toBeOnTheScreen();
   });
@@ -136,6 +145,20 @@ describe('AddPhotosScreen', () => {
     expect(screen.queryByText(/could not be uploaded/)).not.toBeOnTheScreen();
   });
 
+  // #259: no retry is sent with the session of someone who signed in during the wait.
+  it('passes the session of the first attempt to every retry', async () => {
+    mockUploadAttachment
+      .mockResolvedValueOnce(failed({ kind: 'network' }))
+      .mockResolvedValueOnce(ok(ATTACHMENT));
+    await renderScreen();
+
+    await fireEvent.press(await pickFrom('Choose from gallery'));
+
+    expect(await screen.findByText('Uploaded photos (1)')).toBeOnTheScreen();
+    expect(mockMarkSession).toHaveBeenCalledTimes(1);
+    expect(mockUploadAttachment.mock.calls.map((call) => call[3])).toEqual([SESSION, SESSION]);
+  });
+
   it('says the report is saved without the photo when the retries run out, and logs it (#67 T14)', async () => {
     mockUploadAttachment.mockResolvedValue(failed({ kind: 'network' }));
     await renderScreen();
@@ -162,7 +185,12 @@ describe('AddPhotosScreen', () => {
 
     expect(await screen.findByText('Uploaded photos (1)')).toBeOnTheScreen();
     expect(mockUploadAttachment).toHaveBeenCalledTimes(1);
-    expect(mockUploadAttachment).toHaveBeenCalledWith(INCIDENT_ID, PHOTO, expect.any(Function));
+    expect(mockUploadAttachment).toHaveBeenCalledWith(
+      INCIDENT_ID,
+      PHOTO,
+      expect.any(Function),
+      SESSION,
+    );
     expect(screen.queryByText(/could not be uploaded/)).not.toBeOnTheScreen();
   });
 

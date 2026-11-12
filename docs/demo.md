@@ -82,17 +82,22 @@ Follow these steps on a clean clone, with the prerequisites of the
 
    ```properties
    EXPO_PUBLIC_API_BASE_URL=http://192.168.1.20:8080/api/v1
+   EXPO_PUBLIC_MAP_STYLE_URL=http://192.168.1.20:5173/tiles/style.json
    ```
 
    Find the address with `ipconfig` on Windows (*IPv4 Address* of the Wi-Fi adapter) or
-   `ip addr` on Linux. Then, from `frontend/`:
+   `ip addr` on Linux. The map needs the base map built with that address and the web app started
+   with `pnpm dev:web --host` instead of step 4.
+
+   The app runs as a development build, not in Expo Go. Install it on the phone once, as *Run the
+   mobile app* in the [development guide](development.md) explains. Then, from `frontend/`:
 
    ```bash
    pnpm dev:mobile
    ```
 
-   Scan the QR code with Expo Go. If the phone cannot connect, use `pnpm dev:mobile --tunnel` (see
-   *Client Workspace* in the development guide).
+   Open the UrbanPulse app on the phone. If it cannot reach your machine, see *Build, install and
+   run* in the development guide.
 
 ### Quick Sign-In
 
