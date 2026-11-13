@@ -220,7 +220,8 @@ export function IncidentMap({ positions, selectedId, onSelect, ref }: IncidentMa
     <div className={styles.mapFrame}>
       {baseMapFailed && (
         <p className={styles.mapNotice} role="alert">
-          The base map could not be loaded. The incidents are still listed below the map.
+          The base map could not be loaded. The incidents are still in the list of the incidents on
+          the map.
         </p>
       )}
       <Map

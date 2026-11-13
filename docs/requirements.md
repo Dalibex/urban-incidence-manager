@@ -102,7 +102,8 @@ for its code (#57).
 - **Map** (#196): markers coloured by status and sized by priority, with the same filters as the
   inbox, clustered by zoom, each cluster labelled with its highest priority; refreshed every 15
   seconds. A click opens a summary with
-  *Manage*, and a list under the map opens the same summary from the keyboard. The menu opens it on
+  *Manage*, and the list of the incidents on the map, in its side column, opens the same summary
+  from the keyboard. The menu opens it on
   every status that can still change. Beside it, a dashboard (#177) counts the same incidents: the
   total, by priority, charts by status, category and department, and the latest reported; each
   part folds and is remembered. The filters fold behind a button, with quick ranges of days. A
