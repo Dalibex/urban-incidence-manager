@@ -19,11 +19,15 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * {@code getIncidentStatistics} outside a test transaction (#258, the row of two people changing
- * the same thing at once). {@link IncidentStatisticsApiIT} rolls every test back, so the service
- * joins the test's transaction and its {@code REPEATABLE_READ} isolation is never applied there.
- * Here the service opens its own read-only transaction with that isolation, as in production, and
- * the request must still succeed with groups that add up. It writes nothing, so it leaves no data.
+ * {@code getIncidentStatistics} outside a test transaction. {@link IncidentStatisticsApiIT} rolls
+ * every test back, so the service joins the test's transaction and its {@code REPEATABLE_READ}
+ * isolation is never applied there. Here the service opens its own read-only transaction with that
+ * isolation, as in production, and the request must still succeed with groups that add up. It
+ * writes nothing, so it leaves no data.
+ *
+ * <p>It does not change incidents while the four counts run, so it does not show that they share
+ * one snapshot: that rests on {@code REPEATABLE_READ} in PostgreSQL, as the service says (#258, the
+ * row of two people changing the same thing at once).
  */
 @SpringBootTest
 @AutoConfigureMockMvc
