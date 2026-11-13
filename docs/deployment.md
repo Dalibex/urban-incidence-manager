@@ -466,7 +466,10 @@ gets its own limits. Even so, several people can share one address:
 
 - **On Docker Desktop** (Windows and macOS), Docker hides the client address, so nginx sees the
   same address for every client and its limit is shared too. On a Linux machine the real address
-  of each client reaches nginx.
+  of each client reaches nginx, as long as it connects over IPv4.
+- **Over IPv6,** on any machine, every client arrives with the address of Docker's gateway and they
+  share the limits ([security guide](security.md#rate-limits)). Give the clients the IPv4 address
+  of the server, as the demo does.
 - **On a shared network,** such as the university wifi or some mobile operators, everyone behind
   one public address shares the limits.
 

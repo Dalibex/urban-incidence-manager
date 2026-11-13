@@ -143,13 +143,17 @@ Known limits:
   which covers the Compose networks. nginx writes all four itself at the `server` level of
   `frontend/nginx.conf`, so what a client sends never reaches the backend, and it removes the
   client's `Forwarded` and `X-Forwarded-Prefix`, which the backend would trust if it ever switched
-  to `server.forward-headers-strategy=framework`. The `build` job fails
-  if a `location` sets a `proxy_set_header` of its own, or if a forged header reaches the backend. This is safe only because the backend publishes
-  no port: if it were reachable from a private network without nginx, anyone there could send the
-  headers.
+  to `server.forward-headers-strategy=framework`. The `build` job fails if a `location` sets a
+  `proxy_set_header` of its own, or if a forged header reaches the backend. This is safe only
+  because the backend publishes no port: if it were reachable from a private network without
+  nginx, anyone there could send the headers.
 - On Docker Desktop (Windows and macOS), Docker hides the address of the devices that connect from
   outside its virtual machine, so nginx sees one address for all of them and they share the
-  limits. On a Linux machine each device arrives with its own address.
+  limits. On a Linux machine each device that connects over IPv4 arrives with its own address.
+- Devices that connect over IPv6 share the limits on any machine. The Compose networks are IPv4
+  only, so Docker passes those connections on through its own proxy and nginx sees the gateway of
+  the network (`172.x.0.1`) for all of them. Today the clients reach the deployment by an IPv4
+  address, so this only matters once its name has an IPv6 (`AAAA`) record.
 - Clients behind one public address share the limits: a university wifi or some mobile operators
   share the 10 sign-ups per hour, and someone on the same network can still block a person's
   sign-in. For a demo, create the users beforehand with the `demo` dataset
