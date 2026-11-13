@@ -47,6 +47,12 @@ The committed Sprint 2 operations were agreed ahead in #204. Each one says `Plan
 | `incidents` | `listIncidentLocations` | #195 |
 | `analytics` | `getIncidentReport` | #42 |
 
+Added later, together with its implementation:
+
+| Module | Operations | Implemented in |
+|---|---|---|
+| `incidents` | `getIncidentStatistics` | #177 |
+
 ## 3. Conventions
 
 ### Paths

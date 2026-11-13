@@ -316,6 +316,22 @@ export function listIncidentLocations(
   return callApi(() => client.GET('/incident-locations', { params: { query } }));
 }
 
+/** Query of `getIncidentStatistics`: the filters of `listIncidents`, the same as the map's. */
+export type IncidentStatisticsQuery = NonNullable<
+  operations['getIncidentStatistics']['parameters']['query']
+>;
+
+/**
+ * How many incidents the caller may see match the filters, by status, priority, category and
+ * department, with no cap: the dashboard beside the map (#177). Not cached by the API.
+ */
+export function getIncidentStatistics(
+  client: ApiClient,
+  query: IncidentStatisticsQuery = {},
+): Promise<ApiResult<Schemas['IncidentStatisticsResponse']>> {
+  return callApi(() => client.GET('/incident-statistics', { params: { query } }));
+}
+
 /** The full incident. Someone else's incident answers `404`, the same as one that does not exist. */
 export function getIncident(
   client: ApiClient,

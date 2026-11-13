@@ -9,6 +9,15 @@ peerDependencyRules:
   allowedVersions:
     openapi-typescript>typescript: '6'
 
+# react-plotly.js declares the whole plotly.js source (about 200 packages) as a peer, which pnpm
+# would install. The web passes it the prebuilt basic bundle through `react-plotly.js/factory`, so
+# that peer is optional here (#173).
+packageExtensions:
+  react-plotly.js:
+    peerDependenciesMeta:
+      plotly.js:
+        optional: true
+
 # Install scripts pnpm may run. @parcel/watcher (a Jest dependency) only compiles from source when
 # asked to; it uses the prebuilt binary of each platform, so its script is not needed.
 allowBuilds:

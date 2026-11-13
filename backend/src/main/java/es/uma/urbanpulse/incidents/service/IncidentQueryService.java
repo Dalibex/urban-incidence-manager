@@ -3,6 +3,7 @@ package es.uma.urbanpulse.incidents.service;
 import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.incidents.dto.IncidentLocationListResponse;
 import es.uma.urbanpulse.incidents.dto.IncidentResponse;
+import es.uma.urbanpulse.incidents.dto.IncidentStatisticsResponse;
 import es.uma.urbanpulse.incidents.dto.IncidentSummaryResponse;
 import es.uma.urbanpulse.incidents.dto.StatusChangeResponse;
 import es.uma.urbanpulse.incidents.entity.Incident;
@@ -15,6 +16,7 @@ import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -73,6 +75,23 @@ public class IncidentQueryService {
         var truncated = positions.size() > MAX_LOCATIONS;
         return new IncidentLocationListResponse(
                 truncated ? positions.subList(0, MAX_LOCATIONS) : positions, truncated);
+    }
+
+    /**
+     * The counts of the incidents the map would draw, with the same scope and filters as {@link
+     * #locations} but without a box or a cap. The controller only lets staff in.
+     */
+    // Four queries, one per dimension: REPEATABLE_READ gives them one snapshot, so an incident that
+    // changes meanwhile is in the same group in all of them and each list adds up to the total.
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public IncidentStatisticsResponse statistics(UUID userId, Role role, IncidentFilter filter) {
+        var matching = IncidentReadAccess.visibleTo(userId, role).and(filter.specification());
+        return IncidentStatisticsAssembler.assemble(
+                filter,
+                incidents.countByStatus(matching),
+                incidents.countByPriority(matching),
+                incidents.countByCategory(matching),
+                incidents.countByDepartment(matching));
     }
 
     /**
