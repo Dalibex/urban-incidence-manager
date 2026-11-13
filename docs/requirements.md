@@ -42,9 +42,9 @@ or *No* (after the MVP). Whether an issue is finished is in GitHub, not here.
 | RF01 | **Identity and access.** Users sign up or sign in; staff authenticate. | Yes. A second factor for staff is planned with low priority. | #35, #39, #126, #165; #57 (second factor, ADR-0021) |
 | RF02 | **Roles and permissions.** Different permissions for citizens, operators, technicians, administrators and analysts. | Yes | #35, #39, #100, #40; [permission matrix](security.md#permission-matrix) |
 | RF03 | **Report an incident** with a title, description, position and optional category. | Yes | #43 |
-| RF04 | **Location.** The incident keeps coordinates, normalized address and accuracy. | Partly. Coordinates and accuracy; correcting the position on a map is a stretch goal. The normalized address has no issue. | #43; #60 (stretch) |
+| RF04 | **Location.** The incident keeps coordinates, normalized address and accuracy. | Partly. Coordinates, and the accuracy while the position is the phone's GPS fix; the citizen corrects the position with a pin on the mobile map, and reports without GPS once they move it: the map's starting point on Málaga is never sent. The normalized address has no issue. | #43; #60 (#197, #198) |
 | RF06 | **Consultation and tracking.** A user sees the detail, status, dates and visible history of their incidents. | Yes | #45 (citizen), #46 (staff), #100, #169 (timeline) |
-| RF09 | **Validation.** An operator validates, requests more information or rejects a report with a reason. | Yes | #48 |
+| RF09 | **Validation.** An operator validates, requests more information or rejects a report with a reason. | Yes | #48 (#188, #189) |
 | RF11 | **Assignment** of a validated incident to a department, team or technician. | Yes | #49 (#184, #185), #190 |
 | RF12 | **Lifecycle.** Status changes follow the allowed transitions and are audited. | Yes | ADR-0020; #37, #99, #101, #102, #49, #51, #52 |
 | RF18 | **Audit** of administrative actions, assisted decisions and relevant changes. | Partly. Administrative actions and classification; assisted decisions come with RF20. | #36, #40, #41, #47 |
@@ -56,7 +56,7 @@ or *No* (after the MVP). Whether an issue is finished is in GitHub, not here.
 | --- | --- | --- | --- |
 | RF05 | **Evidence.** Photos or other files, with type and size validation. | Yes | #44 (ADR-0013; #192 API, #193 mobile, #194 web) |
 | RF07 | **Search.** Staff filter by status, category, date, priority, district and department. | Yes. The district filter needs RF21. | #58 (#182 API, #183 web) |
-| RF08 | **Map** of incidents and relevant urban layers. | Partly. Incidents on the web map, clustered by zoom and refreshed on their own; the mobile report form shows the base map; urban layers need urban data, which the MVP does not load. | #53 (#195 API, #196 web); #60 (stretch, mobile: #197, #198) |
+| RF08 | **Map** of incidents and relevant urban layers. | Partly. Incidents on the web map, clustered by zoom and refreshed on their own; the mobile report form places the incident with a pin on the base map; urban layers need urban data, which the MVP does not load. | #53 (#195 API, #196 web); #60 (mobile: #197, #198) |
 | RF10 | **Priority**, manual or assisted, keeping its justification. | Partly. Manual priority with a required justification; assisted priority comes with RF20. | #47 |
 | RF13 | **Collaboration.** Operators and technicians add comments, evidence and resolution data. | Yes. Every comment is internal in the MVP. | #50, #51, #44 |
 | RF14 | **Notifications** of relevant changes through configurable channels. | No. The delivery providers are only proposed (ADR-0019). | — |
@@ -112,7 +112,7 @@ for its code (#57).
 
   | Status | Actions | Issue |
   | --- | --- | --- |
-  | `REPORTED` | *Validate* (sets the category and priority first if they are missing), *Request information*, *Reject* (reason the citizen sees) | #47, #48 |
+  | `REPORTED` | *Validate* (once the category and priority are saved with *Classify*), *Request information* (message the citizen sees), *Reject* (reason the citizen sees) | #47, #48 |
   | `VALIDATED`, `REOPENED` | *Assign* to a department, optionally a team and technician | #49 |
   | `ASSIGNED` | *Reassign* | #49 |
   | `RESOLVED` | *Verify and close*, *Reopen* (reason required) | #52 |
@@ -154,8 +154,10 @@ for its code (#57).
 ### Mobile app: citizen
 
 - **Tabs:** *New*, *My reports* and *Profile*.
-- **New** (#43): title, description, optional category and the phone's position with its
-  accuracy. After sending, optional photos from the camera or the gallery (#193). Choosing or correcting the position on a map is a stretch goal (#60).
+- **New** (#43, #198): title, description, optional category and a pin on the base map, which
+  starts on the phone's position, or on Málaga without it, and the citizen moves to correct it. The
+  accuracy is sent only while the pin is on the phone's position. After sending, optional photos
+  from the camera or the gallery (#193).
 - **My reports** (#45): the citizen's incidents filtered by open or closed; title, date, status and
   a photo thumbnail when there is one.
 - **Detail** (#45): the report, its position, photos and the history the citizen may see (ADR-0020,

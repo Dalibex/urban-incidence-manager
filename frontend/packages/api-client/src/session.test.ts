@@ -859,3 +859,287 @@ describe('#238: signing out leaves no session behind', () => {
     });
   });
 });
+
+/**
+ * #260: a request is never repeated with a session other than the one it was sent with (#259). User
+ * A's request reaches the API with A's expired access token, and the test holds its answer back
+ * while A signs out and, in most cases, user B signs in on the same device.
+ */
+describe('#260: a request rejected after a sign-out never runs with another session', () => {
+  const B_TOKENS: SessionTokens = {
+    ...NEW_TOKENS,
+    accessToken: 'b-access',
+    refreshToken: 'b-refresh',
+  };
+  const B_CREDENTIALS = { email: 'b@example.com', password: 'b-password' };
+
+  const networkDown: Handler = () => {
+    throw new TypeError('Failed to fetch');
+  };
+  // How Expo's fetch rejects when the server does not answer in time (network-failure.test.ts).
+  const timedOut: Handler = () => {
+    throw new Error('fetch failed: The request timed out.');
+  };
+  const serverError: Handler = () => problem(503);
+  const revoked: Handler = () => new Response(null, { status: 204 });
+
+  /** An answer that the API sends only when the test says so. */
+  function heldAnswer() {
+    let answer: (response: Response) => void = () => undefined;
+    const response = new Promise<Response>((resolve) => {
+      answer = resolve;
+    });
+    return { response, answer };
+  }
+
+  /**
+   * A's request is the first `GET /users/me`: the API holds its answer. Later ones with A's expired
+   * token get 401 at once, and any other token is accepted, so the test sees which token A's request
+   * was repeated with.
+   */
+  function setUp(routes: Record<string, Handler>) {
+    const aRequest = heldAnswer();
+    let aRequestReceived = false;
+    const api = fakeApi({
+      'GET /users/me': (request) => {
+        if (request.authorization !== `Bearer ${OLD_TOKENS.accessToken}`) {
+          return json(200, CURRENT_USER);
+        }
+        if (aRequestReceived) {
+          return problem(401);
+        }
+        aRequestReceived = true;
+        return aRequest.response;
+      },
+      'POST /sessions': () => json(201, B_TOKENS),
+      ...routes,
+    });
+    const tokens = memoryTokenStore(OLD_TOKENS);
+    const onSessionExpired = vi.fn();
+    const client = createApiClient(BASE_URL, {
+      tokenStore: tokens.store,
+      fetch: api.fetch,
+      onSessionExpired,
+    });
+    return { api, tokens, client, aRequest, onSessionExpired };
+  }
+
+  /** Starts A's request and waits until it has reached the API. */
+  // Wrapped in an object: an async function that returned the request itself would wait for it.
+  async function sendARequest(context: ReturnType<typeof setUp>) {
+    const request = context.client.GET('/users/me');
+    await vi.waitFor(() => expect(context.api.calls('GET', '/users/me')).toHaveLength(1));
+    return { request };
+  }
+
+  async function signInAsB(context: ReturnType<typeof setUp>) {
+    expect((await signIn(context.client, context.tokens.store, B_CREDENTIALS)).ok).toBe(true);
+  }
+
+  function aRequestTokens(context: ReturnType<typeof setUp>) {
+    return context.api.calls('GET', '/users/me').map((request) => request.authorization);
+  }
+
+  it.each([
+    // T1
+    ['after the server revoked the session', revoked],
+    // T3
+    ['without network', networkDown],
+    ['after the sign-out timed out', timedOut],
+    ['after the server failed to revoke the session', serverError],
+  ])(
+    'T1, T3: is not repeated with the session of a user who signed in %s',
+    async (_, deleteSession) => {
+      const context = setUp({ 'DELETE /sessions/current': deleteSession });
+      const { request } = await sendARequest(context);
+
+      await signOut(context.client, context.tokens.store);
+      await signInAsB(context);
+      context.aRequest.answer(problem(401));
+
+      expect((await request).response.status).toBe(401);
+      expect(aRequestTokens(context)).toEqual([`Bearer ${OLD_TOKENS.accessToken}`]);
+      expect(context.api.calls('POST', '/sessions/refresh')).toHaveLength(0);
+      expect(context.tokens.current()).toEqual(B_TOKENS);
+      expect(context.onSessionExpired).not.toHaveBeenCalled();
+    },
+  );
+
+  // A's screens stay usable while the sign-out waits for the server, so A can still send a request.
+  it("T1: a request sent while the sign-out is in flight is not repeated with B's session", async () => {
+    const deleteAnswer = heldAnswer();
+    const context = setUp({ 'DELETE /sessions/current': () => deleteAnswer.response });
+    const signingOut = signOut(context.client, context.tokens.store);
+    await vi.waitFor(() =>
+      expect(context.api.calls('DELETE', '/sessions/current')).toHaveLength(1),
+    );
+    const { request } = await sendARequest(context);
+
+    deleteAnswer.answer(new Response(null, { status: 204 }));
+    await signingOut;
+    await signInAsB(context);
+    context.aRequest.answer(problem(401));
+
+    expect((await request).response.status).toBe(401);
+    expect(aRequestTokens(context)).toEqual([`Bearer ${OLD_TOKENS.accessToken}`]);
+    expect(context.tokens.current()).toEqual(B_TOKENS);
+  });
+
+  // The session can also end without a sign-out: a disabled account, a password change, or a
+  // refresh token used twice (#191, #165, #125).
+  it("is not repeated with B's session when A's session ended because its refresh was rejected", async () => {
+    const context = setUp({
+      'POST /sessions/refresh': () => problem(401, 'INVALID_REFRESH_TOKEN'),
+    });
+    const { request } = await sendARequest(context);
+
+    // Another request of A gets 401, its refresh is rejected, and the app asks to sign in again.
+    expect((await context.client.GET('/users/me')).response.status).toBe(401);
+    expect(context.onSessionExpired).toHaveBeenCalledTimes(1);
+    await signInAsB(context);
+    context.aRequest.answer(problem(401));
+
+    expect((await request).response.status).toBe(401);
+    expect(aRequestTokens(context)).toEqual([
+      `Bearer ${OLD_TOKENS.accessToken}`,
+      `Bearer ${OLD_TOKENS.accessToken}`,
+    ]);
+    expect(context.api.calls('POST', '/sessions/refresh')).toHaveLength(1);
+    expect(context.tokens.current()).toEqual(B_TOKENS);
+  });
+
+  it('T2: is repeated once with the token another request of the same session refreshed', async () => {
+    const context = setUp({ 'POST /sessions/refresh': rotatingRefresh() });
+    const { request } = await sendARequest(context);
+
+    // Another request of A gets 401 first and refreshes the session.
+    const other = await context.client.GET('/users/me');
+    expect(other.response.status).toBe(200);
+    context.aRequest.answer(problem(401));
+
+    expect((await request).response.status).toBe(200);
+    expect(aRequestTokens(context)).toEqual([
+      `Bearer ${OLD_TOKENS.accessToken}`,
+      `Bearer ${OLD_TOKENS.accessToken}`,
+      `Bearer ${NEW_TOKENS.accessToken}`,
+      `Bearer ${NEW_TOKENS.accessToken}`,
+    ]);
+    expect(context.api.calls('POST', '/sessions/refresh')).toHaveLength(1);
+  });
+
+  /** The sign-out's `DELETE` gets 401 with A's expired token and refreshes A's session to revoke it. */
+  const revokeWithFreshToken: Handler = (request) =>
+    request.authorization === `Bearer ${NEW_TOKENS.accessToken}`
+      ? new Response(null, { status: 204 })
+      : problem(401);
+
+  it("T4: is not repeated with the token the sign-out refreshed, nor with B's", async () => {
+    const context = setUp({
+      'DELETE /sessions/current': revokeWithFreshToken,
+      'POST /sessions/refresh': rotatingRefresh(),
+    });
+    const { request } = await sendARequest(context);
+
+    await signOut(context.client, context.tokens.store);
+    await signInAsB(context);
+    context.aRequest.answer(problem(401));
+
+    expect((await request).response.status).toBe(401);
+    expect(aRequestTokens(context)).toEqual([`Bearer ${OLD_TOKENS.accessToken}`]);
+    // The sign-out itself is still repeated with the fresh token, which revokes the session (#237).
+    expect(context.api.calls('DELETE', '/sessions/current').map((r) => r.authorization)).toEqual([
+      `Bearer ${OLD_TOKENS.accessToken}`,
+      `Bearer ${NEW_TOKENS.accessToken}`,
+    ]);
+  });
+
+  it('T4: is not repeated with the token the sign-out is still refreshing', async () => {
+    const refresh = heldAnswer();
+    const context = setUp({
+      'DELETE /sessions/current': revokeWithFreshToken,
+      'POST /sessions/refresh': () => refresh.response,
+    });
+    const { request } = await sendARequest(context);
+
+    const signingOut = signOut(context.client, context.tokens.store);
+    await vi.waitFor(() => expect(context.api.calls('POST', '/sessions/refresh')).toHaveLength(1));
+    // A's answer arrives while the sign-out waits for the refresh it needs to revoke the session.
+    context.aRequest.answer(problem(401));
+    expect((await request).response.status).toBe(401);
+    refresh.answer(json(200, NEW_TOKENS));
+    await signingOut;
+
+    expect(aRequestTokens(context)).toEqual([`Bearer ${OLD_TOKENS.accessToken}`]);
+    expect(context.api.calls('DELETE', '/sessions/current').map((r) => r.authorization)).toEqual([
+      `Bearer ${OLD_TOKENS.accessToken}`,
+      `Bearer ${NEW_TOKENS.accessToken}`,
+    ]);
+    expect(context.tokens.current()).toBeNull();
+    expect(context.onSessionExpired).not.toHaveBeenCalled();
+  });
+
+  it('T4: is not repeated with the refresh it was waiting for when the user signs out meanwhile', async () => {
+    const refresh = heldAnswer();
+    const context = setUp({
+      'DELETE /sessions/current': revokeWithFreshToken,
+      'POST /sessions/refresh': () => refresh.response,
+    });
+    const { request } = await sendARequest(context);
+    // A's request is rejected first, and its refresh is in flight when A signs out.
+    context.aRequest.answer(problem(401));
+    await vi.waitFor(() => expect(context.api.calls('POST', '/sessions/refresh')).toHaveLength(1));
+
+    const signingOut = signOut(context.client, context.tokens.store);
+    await vi.waitFor(() =>
+      expect(context.api.calls('DELETE', '/sessions/current')).toHaveLength(1),
+    );
+    refresh.answer(json(200, NEW_TOKENS));
+    await signingOut;
+
+    expect((await request).response.status).toBe(401);
+    expect(aRequestTokens(context)).toEqual([`Bearer ${OLD_TOKENS.accessToken}`]);
+    // The sign-out shares that refresh, and revokes the session with it.
+    expect(context.api.calls('DELETE', '/sessions/current').map((r) => r.authorization)).toEqual([
+      `Bearer ${OLD_TOKENS.accessToken}`,
+      `Bearer ${NEW_TOKENS.accessToken}`,
+    ]);
+    expect(context.tokens.current()).toBeNull();
+  });
+
+  it('T4: a request sent while the sign-out refreshes is not repeated with the refreshed token', async () => {
+    const refresh = heldAnswer();
+    const context = setUp({
+      'DELETE /sessions/current': revokeWithFreshToken,
+      'POST /sessions/refresh': () => refresh.response,
+    });
+    const signingOut = signOut(context.client, context.tokens.store);
+    await vi.waitFor(() => expect(context.api.calls('POST', '/sessions/refresh')).toHaveLength(1));
+    const { request } = await sendARequest(context);
+
+    refresh.answer(json(200, NEW_TOKENS));
+    await signingOut;
+    context.aRequest.answer(problem(401));
+
+    expect((await request).response.status).toBe(401);
+    expect(aRequestTokens(context)).toEqual([`Bearer ${OLD_TOKENS.accessToken}`]);
+    // The sign-out's own `DELETE` is still repeated with the fresh token, which revokes the session.
+    expect(context.api.calls('DELETE', '/sessions/current').map((r) => r.authorization)).toEqual([
+      `Bearer ${OLD_TOKENS.accessToken}`,
+      `Bearer ${NEW_TOKENS.accessToken}`,
+    ]);
+    expect(context.tokens.current()).toBeNull();
+  });
+
+  it('T5: gives the 401 and sends nothing again when nobody signs in', async () => {
+    const context = setUp({ 'DELETE /sessions/current': revoked });
+    const { request } = await sendARequest(context);
+
+    await signOut(context.client, context.tokens.store);
+    context.aRequest.answer(problem(401));
+
+    expect((await request).response.status).toBe(401);
+    expect(aRequestTokens(context)).toEqual([`Bearer ${OLD_TOKENS.accessToken}`]);
+    expect(context.api.calls('POST', '/sessions/refresh')).toHaveLength(0);
+    expect(context.tokens.current()).toBeNull();
+  });
+});

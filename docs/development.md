@@ -270,7 +270,9 @@ pnpm dev:web --host
 ```
 
 Without `EXPO_PUBLIC_MAP_STYLE_URL`, or with the web app stopped, the report form shows a notice
-instead of the map, and reporting still works.
+instead of the map. The citizen can still report with the GPS position, but without it the form
+waits for the map: *Submit* stays disabled until the location is allowed, or until the map loads
+and the citizen moves the pin to the incident.
 
 #### Build, install and run
 
@@ -322,8 +324,9 @@ native dependency or changing `app.json`, build again with `pnpm --filter @urban
   from a Phone* in the [deployment guide](deployment.md)).
 - The mobile app keeps the session in `expo-secure-store` (Keychain on iOS, Keystore on Android),
   so it survives a restart.
-- The report form shows the base map centred on Málaga. Moving a pin to correct the position is
-  planned: #198.
+- The report form places the incident with a pin fixed in the centre of the base map: it starts on
+  the GPS position or, without it, on Málaga, and the citizen moves the map under the pin. On an
+  emulator, set the position in its extended controls (*Location*) to try the GPS path.
 
 ### Before pushing
 

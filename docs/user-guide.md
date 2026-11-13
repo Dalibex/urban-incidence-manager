@@ -103,18 +103,28 @@ If the email already has an account, the app says so: sign in instead.
 
 ### Report an incident
 
-1. Open the *New* tab. The first time, the phone asks whether UrbanPulse may use your location:
-   allow it. Without it you cannot report; the screen shows *Location is needed* and an
-   *Open settings* button to allow it later. Above the form, a map of Málaga shows the area. If it
-   cannot load, a notice says so and you can still report; *Try again* loads it again.
-2. Check the accuracy under the form (for example *Accuracy: 12 m*). Outdoors it is usually a few
-   metres; indoors it can be much worse. Tap *Refresh* to read the position again before sending.
+1. Open the *New* tab. The first time, the phone asks whether UrbanPulse may use your location.
+   If you allow it, the map above the form opens on your position; if you refuse it, or the phone
+   cannot read your position or find it within 15 seconds, it opens on the centre of Málaga and
+   says why. You can report either way, but without your position you have to move the map to the
+   incident first: the centre of Málaga is only where the map starts, and *Submit* stays disabled
+   until you move it. *Open settings* lets you allow the location later: when you come back to the
+   app, it reads your position.
+2. Move the map until the pin in its centre points to the incident. The map stays inside the area
+   of Málaga it covers. Under the map, *Your GPS position* shows the accuracy the phone reported
+   (for example *Accuracy: 12 m*; outdoors it is usually a few metres, indoors much worse). Once
+   you move the map it says *Position chosen on the map*, and no accuracy is sent with the report.
+   *Use my position* reads your position again and puts the pin back on it.
 3. Write a **title** (a short summary) and a **description** (what happens and where). Both are
    required.
 4. Choose a **category** if one fits. It is optional: staff classify the report if you leave it
    empty. If the categories cannot be loaded, you can still report without one.
 5. Tap *Submit*. The app confirms that the incident was reported and offers *Add photos* or
    *My reports*.
+
+If the map cannot load, a notice replaces it and *Try again* loads it again. Meanwhile the report
+uses your GPS position; without it, *Submit* stays disabled until your position is back, or until
+the map is back and you move it to the incident. What you wrote is kept.
 
 The report is saved as soon as you submit it. Photos are optional, and a photo that cannot be
 uploaded never loses the report.
@@ -140,8 +150,6 @@ or goes over the limit of the report is refused with its reason.
 
 The report is accepted even when the address, neighbourhood or district cannot be worked out at
 that moment: they show as *Not available* until they are known.
-
-- Planned: choose or correct the position on the map (#198).
 
 ### Follow your reports
 
@@ -213,17 +221,45 @@ ticked. *Clear filters* lists every incident.
   their role and the text. Both are always internal. If they cannot be loaded, the status changes
   stay on screen with *Try again* for the rest.
 - **Actions:** the actions allowed for the status of the incident. When there are none, as on a
-  rejected or closed incident, it says *Only comments are available for this incident.* Planned:
-  #48, #49.
+  rejected or closed incident, it says *Only comments are available for this incident.*
 - **Classification:** choose the category and the priority, write why the incident has that
   priority and press *Save classification*. A priority always needs its reason; you can change
   only the category, only the priority or both. The button stays disabled until you change
   something, and the page says *Classification saved.* only once the server has kept it; the inbox
   shows the new values when you go back to it.
-  - If someone else changed the incident since you opened it, nothing is saved: press *Reload the
-    incident*, check the new values and save again. What you typed is kept.
+  - If someone else changed the classification since you opened it, nothing is saved, so their
+    change is never undone without you seeing it: press *Reload the incident*. The fields you did
+    not change show the classification as it is now and what you typed is kept: check them and
+    save again.
   - If the server cannot be reached or answers with an error, nothing is saved and what you typed
     is kept, so you can save again.
+- **Validate, request information or reject:** on a reported incident, decide what to do with
+  it.
+  - *Validate the incident* when it is a real incident the city council handles. Save its category
+    and priority in *Classification* first: until then the button is disabled and says so. It goes
+    to *Validated*, so it can be assigned.
+  - When you need more details, write them in *Message to the citizen* and press *Send the
+    request*. The citizen sees your message in the history of their report, and the incident stays
+    reported, so you can ask again or decide later.
+  - When it is not an incident the city council handles, write why in *Reason for the citizen* and
+    press *Reject the incident*. Rejecting is final and the citizen sees your reason, so do not
+    write internal data in it.
+  - If someone else changed the incident since you opened it, nothing is saved: press *Reload the
+    incident* and check it. If the server cannot be reached or answers with an error, nothing is
+    saved either. In both cases what you typed is kept.
+- **Assign or reassign:** on a validated or reopened incident, choose the *Department* that takes
+  care of it and, if you want, a *Technician* and a *Team*, and press *Assign the incident*. Without
+  a technician, it stays with the department and is in nobody's work queue. On an assigned
+  incident the form is *Reassign*: it starts from the active assignment, the button stays disabled
+  until you change something, and the previous assignment is kept in the history. The page says
+  *Incident assigned.* or *Incident reassigned.* only once the server has kept it, and the
+  incident then shows in the work queue of its technician.
+  - If someone else changed the assignment since you opened it, nothing is saved, so their change
+    is never undone without you seeing it: press *Reload the incident*. The fields you did not
+    change show the assignment as it is now and your choices are kept: check them and assign again.
+  - If the server cannot be reached or answers with an error, nothing is saved and your choices
+    are kept, so you can send them again. If the technicians cannot be loaded, you can still
+    assign the department only.
 - **Verify and close, or reopen:** on a resolved incident, check the technician's work. Press
   *Close the incident* when it is well done: closing is final, the incident shows when it was
   closed and the citizen sees it as closed. When it is not well done, write why in *Reason for

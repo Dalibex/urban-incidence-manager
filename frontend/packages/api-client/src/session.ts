@@ -6,7 +6,8 @@ export type SessionTokens = components['schemas']['SessionResponse'];
 /**
  * Where an app keeps the tokens (ADR-0007: platform code behind a small interface). The web keeps
  * them in memory; the mobile app in `expo-secure-store`. Never `localStorage`. An app passes the
- * same object to `createApiClient` and to `signOut`: that is how a refresh learns of a sign-out.
+ * same object to `createApiClient`, `signOut` and `uploadIncidentAttachment`: that is how a refresh,
+ * a rejected request and a photo upload learn of a sign-out.
  */
 export interface TokenStore {
   load(): Promise<SessionTokens | null>;
@@ -30,6 +31,10 @@ export interface SessionOptions {
 const signOuts = new WeakMap<TokenStore, number>();
 // Sign-outs that have started and not cleared the store yet; a count, because both can overlap.
 const signOutsInProgress = new WeakMap<TokenStore, number>();
+// Times the session of a store ended for the requests marked before (#259): a sign-out starts, for
+// those sent before it; it finishes, for those sent while it waited for the server; or a rejected
+// refresh ends the session. It only grows, so a mark compares it and nothing else.
+const sessionEnds = new WeakMap<TokenStore, number>();
 
 function signOutCount(tokenStore: TokenStore): number {
   return signOuts.get(tokenStore) ?? 0;
@@ -39,12 +44,21 @@ function isSigningOut(tokenStore: TokenStore): boolean {
   return (signOutsInProgress.get(tokenStore) ?? 0) > 0;
 }
 
+function sessionEndCount(tokenStore: TokenStore): number {
+  return sessionEnds.get(tokenStore) ?? 0;
+}
+
+function endSessionOfMarks(tokenStore: TokenStore): void {
+  sessionEnds.set(tokenStore, sessionEndCount(tokenStore) + 1);
+}
+
 /**
  * Called by `signOut` before it revokes the session. A refresh may still save its tokens, so that
  * the revocation can use them, but a rejected one is not reported as an expired session.
  */
 export function startSignOut(tokenStore: TokenStore): void {
   signOutsInProgress.set(tokenStore, (signOutsInProgress.get(tokenStore) ?? 0) + 1);
+  endSessionOfMarks(tokenStore);
 }
 
 /**
@@ -54,6 +68,30 @@ export function startSignOut(tokenStore: TokenStore): void {
 export function finishSignOut(tokenStore: TokenStore): void {
   signOutsInProgress.set(tokenStore, (signOutsInProgress.get(tokenStore) ?? 1) - 1);
   signOuts.set(tokenStore, signOutCount(tokenStore) + 1);
+  endSessionOfMarks(tokenStore);
+}
+
+/** The session a store holds at one moment, from {@link markSession}. */
+export interface SessionMark {
+  readonly tokenStore: TokenStore;
+  readonly sessionEnds: number;
+}
+
+/**
+ * Marks the session the store holds now. A request is marked before it reads the tokens, and is
+ * only repeated with the session of its mark: once that session has ended, it is not repeated with
+ * whatever the store holds by then, another user's session or the refreshed tokens of the session
+ * that ended (#259). A request sent while a sign-out waits for the server belongs to the session
+ * being signed out, so its session ends when the sign-out finishes. The `DELETE` of `signOut` has
+ * finished by then, so it is still repeated with a fresh token to revoke the session.
+ */
+export function markSession(tokenStore: TokenStore): SessionMark {
+  return { tokenStore, sessionEnds: sessionEndCount(tokenStore) };
+}
+
+/** Whether the session of the mark has ended: by a sign-out, or by a rejected refresh. */
+export function hasSessionEnded(mark: SessionMark): boolean {
+  return sessionEndCount(mark.tokenStore) !== mark.sessionEnds;
 }
 
 const REFRESH_PATH = '/sessions/refresh';
@@ -88,6 +126,8 @@ export function createSessionFetch(baseUrl: string, options: SessionOptions) {
       // The user signed out first: the store is no longer this session's, and nothing expired.
       return null;
     }
+    // Before clearing: no request of this session is repeated with the tokens of the next sign-in.
+    endSessionOfMarks(tokenStore);
     await tokenStore.clear();
     // Signing out ends the session anyway: the user asked for it, so it did not expire.
     if (!isSigningOut(tokenStore)) {
@@ -176,13 +216,21 @@ export function createSessionFetch(baseUrl: string, options: SessionOptions) {
   return async function sessionFetch(request: Request): Promise<Response> {
     // A request body can be read once: keep a copy in case the request has to be repeated.
     const retry = request.clone();
+    const session = markSession(tokenStore);
     const tokens = await tokenStore.load();
     const response = await send(withAccessToken(request, tokens));
-    if (response.status !== 401 || !tokens || PATHS_WITHOUT_REFRESH.has(operationPath(request))) {
+    if (
+      response.status !== 401 ||
+      !tokens ||
+      PATHS_WITHOUT_REFRESH.has(operationPath(request)) ||
+      // A request of a session that has ended neither refreshes nor is repeated (#259).
+      hasSessionEnded(session)
+    ) {
       return response;
     }
     const fresh = await tokensAfterRejection(tokens, request.url);
-    return fresh ? send(withAccessToken(retry, fresh)) : response;
+    // Checked again, with no await before sending: the user may sign out during the refresh.
+    return fresh && !hasSessionEnded(session) ? send(withAccessToken(retry, fresh)) : response;
   };
 }
 

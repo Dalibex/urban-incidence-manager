@@ -1,7 +1,14 @@
 import type { ApiClient } from './index';
 import { callApi, isProblem, type ApiFailure, type ApiResult } from './account';
 import type { components } from './schema';
-import { withoutTrailingSlashes, type SessionTokens, type TokenStore } from './session';
+import {
+  hasSessionEnded,
+  markSession,
+  withoutTrailingSlashes,
+  type SessionMark,
+  type SessionTokens,
+  type TokenStore,
+} from './session';
 
 type Attachment = components['schemas']['AttachmentResponse'];
 
@@ -20,6 +27,12 @@ export interface UploadOptions {
   baseUrl: string;
   /** The same token store the client was created with. */
   tokenStore: TokenStore;
+  /**
+   * The session the upload belongs to, from `markSession` on the same store: by default, the one
+   * the store holds when it is called. A caller that tries the same upload again passes the mark of
+   * the first attempt, so a retry is never sent with a session that started later (#259).
+   */
+  session?: SessionMark;
   /** Fraction of the file sent so far, from 0 to 1. */
   onProgress?: (fraction: number) => void;
   /** Replaces `XMLHttpRequest`, for tests. */
@@ -37,6 +50,13 @@ const STALL_TIMEOUT_MS = 60_000;
 
 type Reply = { kind: 'network' } | { kind: 'response'; status: number; body: unknown };
 
+// An upload whose session ended before the photo was sent answers as the API answers a request
+// without a session: a `401`, which no caller retries, unlike a network failure.
+const SESSION_ENDED: ApiResult<Attachment> = {
+  ok: false,
+  failure: { kind: 'problem', status: 401, code: undefined },
+};
+
 /**
  * Uploads one photo to an incident (`createIncidentAttachment`). It uses `XMLHttpRequest` instead
  * of the client's `fetch` because only XHR reports upload progress in React Native.
@@ -45,7 +65,9 @@ type Reply = { kind: 'network' } | { kind: 'response'; status: number; body: unk
  * attachment. The client owns the refresh (session.ts): an access token that has already expired is
  * refreshed with a small request before sending the photo, so the photo is not sent twice; if the
  * API still answers `401` (a clock that runs late), the session is refreshed and the upload is
- * repeated once.
+ * repeated once. The photo is only ever sent with the session of `options.session`: once that
+ * session has ended, by a sign-out or a rejected refresh, it is not sent with whatever the store
+ * holds by then (#259).
  */
 export async function uploadIncidentAttachment(
   client: ApiClient,
@@ -55,20 +77,34 @@ export async function uploadIncidentAttachment(
 ): Promise<ApiResult<Attachment>> {
   const url = `${withoutTrailingSlashes(options.baseUrl)}/incidents/${encodeURIComponent(incidentId)}/attachments`;
   const now = options.now ?? (() => new Date());
+  const session = options.session ?? markSession(options.tokenStore);
   let tokens = await options.tokenStore.load();
+  // A retry whose first attempt belonged to a session that has ended sends nothing.
+  if (hasSessionEnded(session)) {
+    return SESSION_ENDED;
+  }
   if (tokens && hasExpired(tokens, now())) {
     const failure = await refreshThroughClient(client);
+    // Nothing was sent: the caller sees why the refresh failed. A retry after a network failure
+    // sends nothing either if the session has ended meanwhile.
     if (failure) {
       return { ok: false, failure };
     }
     tokens = await options.tokenStore.load();
+    if (hasSessionEnded(session)) {
+      return SESSION_ENDED;
+    }
   }
   let reply = await send(url, file, tokens, options);
-  if (reply.kind === 'response' && reply.status === 401 && tokens) {
-    if ((await refreshThroughClient(client))?.kind === 'network') {
+  if (reply.kind === 'response' && reply.status === 401 && tokens && !hasSessionEnded(session)) {
+    const failure = await refreshThroughClient(client);
+    const fresh = await options.tokenStore.load();
+    if (hasSessionEnded(session)) {
+      return toResult(reply);
+    }
+    if (failure?.kind === 'network') {
       return { ok: false, failure: { kind: 'network' } };
     }
-    const fresh = await options.tokenStore.load();
     if (fresh && fresh.accessToken !== tokens.accessToken) {
       // The whole photo is sent again, so the bar starts again instead of staying at 100%.
       options.onProgress?.(0);
