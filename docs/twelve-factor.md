@@ -28,7 +28,7 @@ Commands run from `backend/`, with Docker running and `backend/.env` created fro
 | [VII. Port binding](#vii-port-binding) | Done | Done: #199 |
 | [VIII. Concurrency](#viii-concurrency) | Accepted limit | |
 | [IX. Disposability](#ix-disposability) | Partial | |
-| [X. Dev/prod parity](#x-devprod-parity) | Done | Done: #90, #199 |
+| [X. Dev/prod parity](#x-devprod-parity) | Done | Done: #90, #199, #200 |
 | [XI. Logs](#xi-logs) | Done | |
 | [XII. Admin processes](#xii-admin-processes) | Done | Done: #8, #34, #38, #54, #83, #84, #126 |
 
