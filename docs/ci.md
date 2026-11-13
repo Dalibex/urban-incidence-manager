@@ -140,6 +140,7 @@ The three gates run in separate steps so that the name of the red step tells you
 | Build the web image | `frontend/Dockerfile` does not build: the lockfile and `package.json` disagree, or the web Vite build fails |
 | Web image — `nginx.conf` is valid | `nginx -t` rejects `frontend/nginx.conf` |
 | Web smoke test — a client route | `/inbox` does not return the web app within 30 s |
+| Web smoke test — scripts as JavaScript | A `.js` or `.mjs` file of the build goes out with another type, which the browser refuses for a module, or the build has no `.mjs` |
 | Web smoke test — not root | nginx runs as root |
 | Web smoke test — stop signal | nginx does not stop within 10 s after `docker stop` and is killed |
 
