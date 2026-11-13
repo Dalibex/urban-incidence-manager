@@ -27,7 +27,7 @@ The repository currently provides:
 - **Clients:** a pnpm workspace in `frontend/` with the web app for staff (operator inbox with filters, and incident detail with its photos, where operators classify the incident, validate, reject or ask for information on a reported one, assign it and close or reopen it once resolved, and staff add internal comments; the technician's work queue and detail, where they accept and resolve their incidents; the administrator's *Users* screen and audit log; and the reports screen with its CSV download), the mobile app for citizens (report an incident by moving the base map under a pin, which starts on the GPS position or, without it, on Málaga; "My reports"), which runs as an Expo development build, and their shared packages, including the API client generated from the contract. How each role uses them is in the [user guide](docs/user-guide.md).
 - **Data:** the database schema of the whole data model, created by Flyway migrations, and sample data behind the `dev`, `demo` and `perf` profiles ([datasets](docs/datasets.md)).
 - **Base map:** a self-hosted OpenStreetMap map of the province of Málaga, built as a one-off process ([ADR-0016](docs/adr/0016-self-hosted-osm-base-map.md)).
-- **Operations:** Docker Compose for the database and a container image of the backend, integration tests against PostGIS with Testcontainers, a GitHub Actions pipeline and a pre-commit hook that formats staged Java and client files.
+- **Operations:** a deployment Docker Compose that starts the whole system behind nginx, the single published port, with the web app and the base map served by its image; Docker Compose for the database and a container image of the backend in development, integration tests against PostGIS with Testcontainers, a GitHub Actions pipeline and a pre-commit hook that formats staged Java and client files.
 
 ## 🧰 Technology Stack
 
@@ -37,7 +37,7 @@ The repository currently provides:
 - Spring Security
 - PostgreSQL 18 with PostGIS 3.6
 - Flyway
-- Docker Compose
+- Docker Compose and nginx
 - Testcontainers
 - GitHub Actions
 - Maven Wrapper
@@ -153,9 +153,13 @@ urban-incidence-manager/
 |   |   |-- api-client/
 |   |   |-- domain/
 |   |   `-- ui/
+|   |-- Dockerfile        web image with nginx (ADR-0017)
+|   |-- nginx.conf
 |   |-- package.json
 |   `-- pnpm-workspace.yaml
 |-- tiles/                base map builder (ADR-0016)
+|-- .env.example
+|-- docker-compose.yaml   deployment: the whole system behind nginx
 |-- AGENTS.md
 |-- CHANGELOG.md
 |-- CODE_OF_CONDUCT.md
@@ -178,7 +182,7 @@ The diagram is a `.drawio.svg`: GitHub shows it as an image, and draw.io opens i
 - [User guide](docs/user-guide.md): how each role uses the web and mobile apps
 - [Requirements and prioritization](docs/requirements.md) (the plan is in the GitHub milestones)
 - [Development guide](docs/development.md)
-- [Deployment guide](docs/deployment.md) (local Compose stack for now)
+- [Deployment guide](docs/deployment.md): the whole system with Docker Compose behind nginx, and the local Compose stack
 - [Database guide](docs/database.md) and [database schema](docs/database.drawio.svg)
 - [Datasets and measurements](docs/datasets.md) and [demo script](docs/demo.md)
 - [Testing guide](docs/testing.md)

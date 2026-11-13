@@ -137,8 +137,16 @@ The three gates run in separate steps so that the name of the red step tells you
 | Smoke test — not root | The process in the container runs as root |
 | Smoke test — SIGTERM | The container does not stop within 30 s after `docker stop` (SIGTERM) and is killed |
 | Extract the jar and publish it | — (`urbanpulse-<sha>` artifact, 7 days) |
+| Build the web image | `frontend/Dockerfile` does not build: the lockfile and `package.json` disagree, or the web Vite build fails |
+| Web image — `nginx.conf` is valid | `nginx -t` rejects `frontend/nginx.conf` |
+| Web smoke test — a client route | `/inbox` does not return the web app within 30 s |
+| Web smoke test — scripts as JavaScript | A `.js` or `.mjs` file of the build goes out with another type, which the browser refuses for a module, or the build has no `.mjs` |
+| Web smoke test — not root | nginx runs as root |
+| Web smoke test — stop signal | nginx does not stop within 10 s after `docker stop` and is killed |
 
 The image is the artifact ([ADR-0011](adr/0011-deployment-12factor.md)): the jar is compiled once, inside the image, and the published jar is copied out of the image that passed the smoke test. The image is not pushed to any registry yet.
+
+The web image ([ADR-0017](adr/0017-reverse-proxy.md)) is built and checked in the same job, after the backend: nginx serves the web build and the tiles and proxies `/api/`, and a broken `nginx.conf` never reaches a deployment. Its smoke test starts no backend, because nginx looks it up on each request. Locally, from `frontend/`: `docker build -t urbanpulse-web .` and `docker run --rm urbanpulse-web nginx -t`.
 
 The smoke test uses `docker run` with the PostGIS image on a Docker network, **not `docker compose`**. The packaged jar does not include Spring Boot's Docker Compose support, which is why the connection comes through `SPRING_DATASOURCE_*` and not through `application.yml`: locally, Spring Boot starts the Compose file and infers the URL and credentials.
 

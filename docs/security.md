@@ -120,6 +120,12 @@ step, so a burst of parallel requests cannot go past the limit; a right password
 back, so only failures add up. The limits are properties (`urbanpulse.security.sign-in-attempts.max` / `.window`,
 `urbanpulse.security.sign-up-attempts.max` / `.window`).
 
+In the deployment, nginx also limits the public identity operations (sign-up, sign-in, refresh
+and password change) to 30 requests a minute per client address, with a burst of 20
+(`limit_req` in `frontend/nginx.conf`). Past it, nginx answers `429` without a body of the API and
+the request never reaches the backend. It only stops floods: these operations need no token, and
+each sign-in checks a password hash.
+
 Known limits:
 
 - The counters live in the backend process. That is correct with one replica (ADR-0011); with more,
@@ -128,10 +134,10 @@ Known limits:
 - The key is the email and the address, so one address can still try 5 passwords on each of many
   emails (password spraying), and the counters of one window grow with every email tried. A global
   limit per address is the next step if that becomes a problem.
-- The client address is the TCP peer, not `X-Forwarded-For`, because no proxy sits in front of the
-  backend yet. When one is added (ADR-0017), configure Spring to trust only that proxy
-  (`server.forward-headers-strategy`); trusting the header from anyone would let a client skip the
-  limit.
+- The client address is the TCP peer, not `X-Forwarded-For`. In the deployment Compose that peer
+  is nginx (ADR-0017), so every client shares the limits until Spring trusts the address that
+  nginx sends, and only from nginx (`server.forward-headers-strategy`); trusting the header from
+  anyone would let a client skip the limit. Planned: #200.
 
 ## First administrator
 
