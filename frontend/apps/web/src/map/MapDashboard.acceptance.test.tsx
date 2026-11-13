@@ -417,6 +417,30 @@ describe('staff dashboard on the map (#177, test #258)', () => {
     expect(screen.getByText('By category').closest('details')?.open).toBe(true);
   });
 
+  // docs/security.md, Browser storage: the folded parts are the only thing the app writes there,
+  // and signing out keeps them, because they are only a layout.
+  it('keeps only the folded parts in the browser storage, also after signing out', async () => {
+    const dashboard = dashboardApi([counts(STATISTICS)]);
+    const signOut = vi.fn(() => new Response(null, { status: 204 }));
+    const fetch = (request: Request) =>
+      request.method === 'DELETE' && new URL(request.url).pathname.endsWith('/sessions/current')
+        ? Promise.resolve(signOut())
+        : dashboard(request);
+    renderApp(PATHS.map, { role: 'MUNICIPAL_OPERATOR', fetch });
+    await within(await screen.findByRole('region', { name: 'Summary' })).findAllByTestId('chart');
+    await userEvent.click(screen.getByText('By category'));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+    expect(await screen.findByRole('heading', { name: 'Sign in to UrbanPulse' })).toBeDefined();
+    expect(signOut).toHaveBeenCalledTimes(1);
+
+    expect(Object.keys(window.localStorage)).toEqual(['urbanpulse.map-preferences.user-1']);
+    cleanup();
+    renderApp(PATHS.map, { role: 'MUNICIPAL_OPERATOR', fetch: dashboardApi([counts(STATISTICS)]) });
+    await within(await screen.findByRole('region', { name: 'Summary' })).findAllByTestId('chart');
+    expect(screen.getByText('By category').closest('details')?.open).toBe(false);
+  });
+
   it('still folds when the browser refuses its storage, and simply does not remember', async () => {
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new DOMException('Blocked', 'SecurityError');
