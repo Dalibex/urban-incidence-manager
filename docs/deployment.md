@@ -148,6 +148,7 @@ while you create the first administrator).
 | `STORAGE_BASE_PATH` | `/app/storage` | `/app/storage` | | `backend` | Folder for the evidence files, on the `evidence_data` volume ([ADR-0013](adr/0013-evidence-storage.md)) |
 | `EVIDENCE_MAX_FILE_SIZE` | `10MB` | `10MB` | | `backend` | Maximum size of an evidence file; a larger one answers `413`. It also bounds the upload request (the file plus 64 KB), and so does `client_max_body_size` in `frontend/nginx.conf` |
 | `EVIDENCE_MAX_FILES_PER_INCIDENT` | `5` | `5` | | `backend` | Maximum evidence files per incident; one more answers `422` |
+| `SERVER_FORWARD_HEADERS_STRATEGY` | not set | `native`, fixed in `docker-compose.yaml`, not in `.env` | | `backend` | The backend takes the client address and the public address from the `X-Forwarded-*` headers that nginx writes, only from a private address ([security guide](security.md#rate-limits)). Never set it in development, where clients reach the backend directly and could forge them |
 
 The backend does not start when an evidence limit is zero or negative.
 
@@ -453,20 +454,19 @@ if the machine falls, both fall.
 4. If the new version is what is broken, deploy the previous image (see *Update and Roll Back*). It
    is safe, because nginx has no migrations.
 5. **Do not publish the port of the backend as a shortcut:** it would be exposed without the limits
-   of nginx, and without the client address that #200 relies on.
+   of nginx, and anyone who reached it could forge the client address it trusts behind nginx.
 
 ## 👥 Shared Limits
 
 The sign-up and sign-in limits of the backend tell clients apart by their address
-([security guide](security.md#rate-limits)), and so does the limit of nginx. Several people can
-share one address:
+([security guide](security.md#rate-limits)), and so does the limit of nginx. nginx passes the real
+client address to the backend in `X-Forwarded-For`, and the backend trusts it because the
+deployment Compose sets `SERVER_FORWARD_HEADERS_STRATEGY` (see *Configuration*), so each client
+gets its own limits. Even so, several people can share one address:
 
-- **Behind nginx, the backend sees the address of nginx.** Until #200 passes it the real client
-  address, every client shares the backend limits: the 10 sign-ups per hour are for everyone, and
-  five wrong passwords for an email block that email for everyone. Planned: #200.
 - **On Docker Desktop** (Windows and macOS), Docker hides the client address, so nginx sees the
   same address for every client and its limit is shared too. On a Linux machine the real address
-  reaches nginx.
+  of each client that connects over IPv4 reaches nginx.
 - **On a shared network,** such as the university wifi or some mobile operators, everyone behind
   one public address shares the limits.
 

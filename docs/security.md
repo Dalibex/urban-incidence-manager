@@ -134,10 +134,30 @@ Known limits:
 - The key is the email and the address, so one address can still try 5 passwords on each of many
   emails (password spraying), and the counters of one window grow with every email tried. A global
   limit per address is the next step if that becomes a problem.
-- The client address is the TCP peer, not `X-Forwarded-For`. In the deployment Compose that peer
-  is nginx (ADR-0017), so every client shares the limits until Spring trusts the address that
-  nginx sends, and only from nginx (`server.forward-headers-strategy`); trusting the header from
-  anyone would let a client skip the limit. Planned: #200.
+- The client address is the TCP peer of the backend (`getRemoteAddr()`). In development that is
+  the client itself, and the backend ignores any `X-Forwarded-*` header it sends. In the deployment
+  Compose the peer is nginx (ADR-0017), so `SERVER_FORWARD_HEADERS_STRATEGY=native` makes Tomcat
+  take the client address from `X-Forwarded-For`, and the scheme, host and port of the `Location`
+  of a `201` from `X-Forwarded-Proto`, `X-Forwarded-Host` and `X-Forwarded-Port` (#200). Tomcat
+  only reads them from a private address, the default of `server.tomcat.remoteip.internal-proxies`,
+  which covers the Compose networks. nginx writes all four itself at the `server` level of
+  `frontend/nginx.conf`, so what a client sends never reaches the backend, and it removes the
+  client's `Forwarded` and `X-Forwarded-Prefix`, which the backend would trust if it ever switched
+  to `server.forward-headers-strategy=framework`. The `build` job fails
+  if a `location` sets a `proxy_set_header` of its own, or if a forged header reaches the backend. This is safe only because the backend publishes
+  no port: if it were reachable from a private network without nginx, anyone there could send the
+  headers.
+- On Docker Desktop (Windows and macOS), Docker hides the address of the devices that connect from
+  outside its virtual machine, so nginx sees one address for all of them and they share the
+  limits. On a Linux machine each device that connects over IPv4 arrives with its own address.
+- Clients behind one public address share the limits: a university wifi or some mobile operators
+  share the 10 sign-ups per hour, and someone on the same network can still block a person's
+  sign-in. For a demo, create the users beforehand with the `demo` dataset
+  ([deployment guide](deployment.md#-shared-limits)).
+- The host of the `Location` comes from the `Host` the client sent, because `server_name _`
+  accepts any. A client can only change the links of its own answers, so it harms nobody today.
+  Before the backend sends absolute links to other people (notifications, emails), list the
+  public domain in `server_name`.
 
 ## First administrator
 
