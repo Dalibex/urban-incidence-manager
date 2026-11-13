@@ -1,7 +1,6 @@
 import type { components } from '@urbanpulse/api-client';
-import { INCIDENT_STATUSES } from '@urbanpulse/domain';
 import { formatInstant, STATUS_LABELS, statusColor } from '@urbanpulse/ui';
-import { lazy, Suspense, useRef, useState, type CSSProperties } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { MapRef } from 'react-map-gl/maplibre';
 import { useSearchParams } from 'react-router';
 
@@ -12,14 +11,17 @@ import {
   withFilters,
   type IncidentFilters,
 } from '../incidents/filters/incident-filters';
-import { useIncidentLocations } from '../incidents/incident-queries';
+import { useCategories, useDepartments, useIncidentLocations } from '../incidents/incident-queries';
 import incidentStyles from '../incidents/Incidents.module.css';
 import { PRIORITY_LABELS } from '../incidents/labels';
 import { LoadFailure } from '../incidents/LoadFailure';
-import { HIGH_BORDER, PRIORITY_MARKS, PRIORITY_RANK } from './incident-features';
+import { filterSummary } from './filter-summary';
 import { IncidentPanel } from './IncidentPanel';
+import { MapDashboard } from './MapDashboard';
+import { MapKey } from './MapKey';
 import styles from './Map.module.css';
-import { INCIDENT_ZOOM } from './map-config';
+import { INCIDENT_ZOOM, MAP_SCREEN_ID } from './map-config';
+import { useMapPreferences } from './map-preferences';
 
 type IncidentPosition = components['schemas']['IncidentPosition'];
 
@@ -28,23 +30,36 @@ const IncidentMap = lazy(() =>
   import('./IncidentMap').then((module) => ({ default: module.IncidentMap })),
 );
 
+const FILTERS_ID = 'map-filters';
+
 /**
  * The live map of incidents (#53, #196): the incidents the user may see that match the filters, the
  * same filters as the lists, kept in the address. The API decides which ones the user may see: an
  * operator gets every incident, a technician their active assignments. The positions are read again
- * on an interval, so new incidents appear without reloading. Every incident is also in a list under
- * the map, which opens the same panel from the keyboard.
+ * on an interval, so new incidents appear without reloading. Beside the map, the summary of the
+ * same incidents (#177), or the incident selected on it. Every incident is also in a list under
+ * the summary, which opens the same panel from the keyboard.
+ *
+ * The filters fold behind a button, so the map keeps the room; while folded, a line says which
+ * ones apply, so nobody forgets that the map is filtered.
  */
 export function MapPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const filters = filtersFrom(searchParams);
   const locations = useIncidentLocations(filters);
+  const categories = useCategories();
+  const departments = useDepartments();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const preferences = useMapPreferences();
   const mapRef = useRef<MapRef>(null);
   const firstFilter = useRef<HTMLInputElement>(null);
-  // Where the focus goes back when the panel closes: the button of the list that opened it.
+  const filtersButton = useRef<HTMLButtonElement>(null);
+  // Where the focus goes back when the panel closes: the button that opened it. The dashboard stays
+  // mounted while the panel is open, only hidden, so a button inside it is still there.
   const opener = useRef<HTMLElement | null>(null);
   const positions = locations.data?.content ?? [];
+  const activeFilters = filterSummary(filters, categories.data, departments.data);
 
   const changeFilters = (next: IncidentFilters) => setSearchParams(withFilters(searchParams, next));
 
@@ -53,39 +68,89 @@ export function MapPage() {
     setSelectedId(incidentId);
   };
 
-  const selectFromList = (position: IncidentPosition) => {
-    select(position.id);
+  /** Selects an incident and centres the map on it, when it is on the map. */
+  const selectAndShow = (incidentId: string) => {
+    select(incidentId);
+    const position = positions.find((each) => each.id === incidentId);
     const map = mapRef.current;
-    map?.flyTo({
-      center: [position.longitude, position.latitude],
-      zoom: Math.max(map.getZoom(), INCIDENT_ZOOM),
-    });
-  };
-
-  const closePanel = () => {
-    setSelectedId(null);
-    if (opener.current?.isConnected) {
-      opener.current.focus();
+    if (position && map) {
+      map.flyTo({
+        center: [position.longitude, position.latitude],
+        zoom: Math.max(map.getZoom(), INCIDENT_ZOOM),
+      });
     }
   };
 
+  const selectFromList = (position: IncidentPosition) => selectAndShow(position.id);
+
+  const closePanel = () => {
+    setSelectedId(null);
+  };
+
+  // The opener can only take the focus once the dashboard is shown again, after the render that
+  // closed the panel; a button inside a hidden block cannot be focused.
+  useEffect(() => {
+    if (selectedId === null && opener.current?.isConnected) {
+      opener.current.focus();
+      opener.current = null;
+    }
+  }, [selectedId]);
+
+  // The clear buttons go away when pressed, so the focus stays in the filters: on the first one
+  // when the bar is open, on the button that opens it when it is folded.
   const clearFilters = () => {
     changeFilters({});
-    firstFilter.current?.focus();
+    (firstFilter.current ?? filtersButton.current)?.focus();
   };
 
   return (
-    <section className={styles.page} aria-labelledby="page-title">
-      <header className={incidentStyles.header}>
-        <h1 id="page-title" className={incidentStyles.title}>
+    // The whole screen fills the height under the navbar (AppLayout), and the full-screen button
+    // of the map takes all of it, filters included (map-config.ts).
+    <section
+      id={MAP_SCREEN_ID}
+      className={styles.page}
+      aria-labelledby="page-title"
+      data-fill-height
+    >
+      <header className={styles.toolbar}>
+        <h1 id="page-title" className={styles.pageTitle}>
           Map
         </h1>
-        <p className={incidentStyles.lead}>
-          The incidents that match the filters, updated on their own. Select one to see its summary.
-        </p>
+        <button
+          ref={filtersButton}
+          type="button"
+          className={incidentStyles.button}
+          aria-expanded={filtersOpen}
+          aria-controls={FILTERS_ID}
+          onClick={() => setFiltersOpen((open) => !open)}
+        >
+          {activeFilters.length > 0 ? `Filters (${activeFilters.length})` : 'Filters'}
+        </button>
+        {!filtersOpen &&
+          (activeFilters.length > 0 ? (
+            <>
+              {/* Cut to one line; the title shows the whole list on hover. */}
+              <p className={styles.filterSummary} title={activeFilters.join(' · ')}>
+                {activeFilters.join(' · ')}
+              </p>
+              <button type="button" className={incidentStyles.button} onClick={clearFilters}>
+                Clear filters
+              </button>
+            </>
+          ) : (
+            <p className={styles.filterSummary}>No filters: every incident you can see.</p>
+          ))}
       </header>
 
-      <IncidentFilterBar filters={filters} onChange={changeFilters} firstFilterRef={firstFilter} />
+      {filtersOpen && (
+        <div id={FILTERS_ID} className={styles.filters}>
+          <IncidentFilterBar
+            filters={filters}
+            onChange={changeFilters}
+            firstFilterRef={firstFilter}
+          />
+        </div>
+      )}
 
       <div className={styles.messages}>
         {locations.isPending ? (
@@ -134,113 +199,78 @@ export function MapPage() {
         )}
       </div>
 
-      <div className={selectedId ? styles.layoutWithPanel : styles.layout}>
-        <Suspense
-          fallback={
-            <div className={styles.mapFrame}>
-              <p className={styles.mapNotice} role="status">
-                Loading the map…
-              </p>
-            </div>
-          }
-        >
-          <IncidentMap
-            ref={mapRef}
-            positions={positions}
-            selectedId={selectedId}
-            onSelect={select}
+      {/* The map keeps its size: the summary and the selected incident share the side column. */}
+      <div className={styles.workspace}>
+        <div className={styles.mapArea}>
+          <Suspense
+            fallback={
+              <div className={styles.mapFrame}>
+                <p className={styles.mapNotice} role="status">
+                  Loading the map…
+                </p>
+              </div>
+            }
+          >
+            <IncidentMap
+              ref={mapRef}
+              positions={positions}
+              selectedId={selectedId}
+              onSelect={select}
+            />
+          </Suspense>
+          <MapKey
+            open={preferences.isOpen('key')}
+            onToggle={(open) => preferences.setPanel('key', open)}
           />
-        </Suspense>
-        {selectedId && <IncidentPanel incidentId={selectedId} onClose={closePanel} />}
+        </div>
+        <div className={styles.side}>
+          {selectedId && <IncidentPanel incidentId={selectedId} onClose={closePanel} />}
+          {/* Hidden, not removed, while an incident is open: its queries keep their data and the
+              button that opened the incident is still there to take the focus back. */}
+          <div className={styles.sideContent} hidden={selectedId !== null}>
+            <MapDashboard
+              filters={filters}
+              isOpen={preferences.isOpen}
+              onToggle={preferences.setPanel}
+              onSelectIncident={selectAndShow}
+            />
+            {/* In the column, not under the map, so opening it never takes height from the map. */}
+            {positions.length > 0 && (
+              <details className={styles.list}>
+                <summary>List of the incidents on the map, the most relevant first</summary>
+                <ol>
+                  {positions.map((position) => (
+                    <li key={position.id}>
+                      <button
+                        type="button"
+                        className={styles.listItem}
+                        onClick={() => selectFromList(position)}
+                      >
+                        <span
+                          className={incidentStyles.status}
+                          style={
+                            { '--status-color': statusColor(position.status) } as CSSProperties
+                          }
+                        >
+                          {STATUS_LABELS[position.status]}
+                        </span>
+                        <span>
+                          {position.priority
+                            ? `${PRIORITY_LABELS[position.priority]} priority`
+                            : 'No priority'}
+                        </span>
+                        <span className={incidentStyles.muted}>
+                          {position.latitude.toFixed(4)}, {position.longitude.toFixed(4)}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              </details>
+            )}
+          </div>
+        </div>
       </div>
-
-      <MapLegend />
-
-      {positions.length > 0 && (
-        <details className={styles.list}>
-          <summary>List of the incidents on the map, the most relevant first</summary>
-          <ol>
-            {positions.map((position) => (
-              <li key={position.id}>
-                <button
-                  type="button"
-                  className={styles.listItem}
-                  aria-current={position.id === selectedId ? 'true' : undefined}
-                  onClick={() => selectFromList(position)}
-                >
-                  <span
-                    className={incidentStyles.status}
-                    style={{ '--status-color': statusColor(position.status) } as CSSProperties}
-                  >
-                    {STATUS_LABELS[position.status]}
-                  </span>
-                  <span>
-                    {position.priority
-                      ? `${PRIORITY_LABELS[position.priority]} priority`
-                      : 'No priority'}
-                  </span>
-                  <span className={incidentStyles.muted}>
-                    {position.latitude.toFixed(4)}, {position.longitude.toFixed(4)}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ol>
-        </details>
-      )}
     </section>
-  );
-}
-
-/**
- * What the map draws: the color is the status, the size the priority, and a group shows how many
- * incidents it holds and their highest priority. The list and the panel say the same in words.
- */
-function MapLegend() {
-  return (
-    <div className={styles.legend}>
-      <p className={styles.legendTitle}>Color: status</p>
-      <ul className={styles.legendItems}>
-        {INCIDENT_STATUSES.map((status) => (
-          <li key={status}>
-            <span
-              className={styles.swatch}
-              style={{ background: statusColor(status) }}
-              aria-hidden="true"
-            />
-            {STATUS_LABELS[status]}
-          </li>
-        ))}
-      </ul>
-      <p className={styles.legendTitle}>Size: priority</p>
-      <ul className={styles.legendItems}>
-        {PRIORITY_MARKS.map(({ rank, label, radius }) => (
-          <li key={label}>
-            <span
-              className={styles.sizeSwatch}
-              style={
-                {
-                  '--swatch-size': `${radius * 2}px`,
-                  ...(rank === PRIORITY_RANK.HIGH && {
-                    '--swatch-border': `${HIGH_BORDER.width}px solid ${HIGH_BORDER.color}`,
-                  }),
-                } as CSSProperties
-              }
-              aria-hidden="true"
-            />
-            {rank === PRIORITY_RANK.HIGH ? `${label}, with a dark border` : label}
-          </li>
-        ))}
-      </ul>
-      <p className={styles.legendTitle}>Groups</p>
-      <ul className={styles.legendItems}>
-        <li>
-          <span className={styles.groupSwatch} aria-hidden="true">
-            8
-          </span>
-          The number of incidents, with their highest priority written under it
-        </li>
-      </ul>
-    </div>
   );
 }

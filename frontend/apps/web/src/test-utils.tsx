@@ -35,6 +35,8 @@ export function json(status: number, body: unknown): Response {
 interface RenderOptions {
   role?: Role | null;
   fetch?: (request: Request) => Promise<Response>;
+  /** Another user id than {@link userWith}'s, for what is kept per user. */
+  userId?: string;
   /** The cache of the app, for a test that makes the page read its data again. */
   queryClient?: QueryClient;
 }
@@ -45,14 +47,16 @@ export function renderApp(
   {
     role = null,
     fetch = fakeApi({}),
+    userId,
     // A new cache per test, so no test reads the data of another.
     queryClient = createQueryClient({ retryDelay: 0 }),
   }: RenderOptions = {},
 ) {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
+  const user = role ? { ...userWith(role), ...(userId && { id: userId }) } : null;
   render(
     <QueryClientProvider client={queryClient}>
-      <SessionProvider initialUser={role ? userWith(role) : null} fetch={fetch}>
+      <SessionProvider initialUser={user} fetch={fetch}>
         <RouterProvider router={router} />
       </SessionProvider>
     </QueryClientProvider>,

@@ -149,6 +149,44 @@ describe('IncidentFilterBar', () => {
     });
   });
 
+  // The latest incidents in one click (#177): the days end today in Málaga, and keep the rest.
+  it('sets the days of a quick range ending today, and marks the one that applies', async () => {
+    // 23:30 in UTC is already the next day in Málaga (UTC+1 in November).
+    vi.useFakeTimers({ shouldAdvanceTime: true, now: new Date('2026-11-11T23:30:00Z') });
+    try {
+      const changes = renderBar({ priority: 'HIGH' });
+      const ranges = within(screen.getByRole('group', { name: 'Reported in' }));
+
+      await userEvent.click(ranges.getByRole('button', { name: 'Last 7 days' }));
+
+      expect(changes).toHaveBeenLastCalledWith({
+        priority: 'HIGH',
+        reportedFrom: '2026-11-06',
+        reportedTo: '2026-11-12',
+      });
+      expect(field('Reported from').value).toBe('2026-11-06');
+      expect(ranges.getByRole('button', { name: 'Last 7 days' }).getAttribute('aria-pressed')).toBe(
+        'true',
+      );
+      expect(ranges.getByRole('button', { name: 'Today' }).getAttribute('aria-pressed')).toBe(
+        'false',
+      );
+
+      await userEvent.click(ranges.getByRole('button', { name: 'Today' }));
+      expect(changes).toHaveBeenLastCalledWith({
+        priority: 'HIGH',
+        reportedFrom: '2026-11-12',
+        reportedTo: '2026-11-12',
+      });
+
+      // Pressed again, it removes the days, as a toggle does.
+      await userEvent.click(ranges.getByRole('button', { name: 'Today' }));
+      expect(changes).toHaveBeenLastCalledWith({ priority: 'HIGH' });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('clears every filter, and cannot clear when none is set', async () => {
     const changes = renderBar({ status: ['REPORTED', 'REOPENED'], reportedTo: '2026-11-05' });
     const clear = screen.getByRole('button', { name: 'Clear filters' });

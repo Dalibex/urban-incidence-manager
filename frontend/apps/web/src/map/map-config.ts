@@ -26,3 +26,9 @@ export const INCIDENT_ZOOM = 16;
 
 /** The last zoom with clusters; from the next one every incident is its own marker. */
 export const CLUSTER_MAX_ZOOM = 15;
+
+/**
+ * The id of the map screen. The full-screen button of the map takes the whole screen, not the map
+ * alone, so the filters and a summary opened in full screen can still be used (#177).
+ */
+export const MAP_SCREEN_ID = 'map-screen';

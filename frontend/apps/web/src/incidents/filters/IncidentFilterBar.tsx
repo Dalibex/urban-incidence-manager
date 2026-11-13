@@ -7,11 +7,14 @@ import { useCategories, useDepartments } from '../incident-queries';
 import incidentStyles from '../Incidents.module.css';
 import { PRIORITY_LABELS } from '../labels';
 import styles from './IncidentFilterBar.module.css';
+import { cityDay } from '../../reports/report-period';
 import {
   hasFilters,
   isDay,
   isPriority,
   PRIORITIES,
+  RANGE_SHORTCUTS,
+  shortcutRange,
   statusesFrom,
   withoutEmpty,
   type IncidentFilters,
@@ -131,6 +134,33 @@ export function IncidentFilterBar({ filters, onChange, firstFilterRef }: Inciden
         min={filters.reportedFrom}
         onChange={setLastDay}
       />
+
+      {/* The latest incidents in one click (#177): the days end today, in Málaga. */}
+      <fieldset className={styles.shortcuts}>
+        <legend className={styles.label}>Reported in</legend>
+        <div className={styles.choices}>
+          {RANGE_SHORTCUTS.map((shortcut) => {
+            const range = shortcutRange(shortcut, cityDay(new Date()));
+            const chosen =
+              filters.reportedFrom === range.reportedFrom &&
+              filters.reportedTo === range.reportedTo;
+            return (
+              <button
+                key={shortcut.label}
+                type="button"
+                className={styles.shortcut}
+                aria-pressed={chosen}
+                // A toggle, as `aria-pressed` says: pressing the chosen range removes the days.
+                onClick={() =>
+                  set(chosen ? { reportedFrom: undefined, reportedTo: undefined } : range)
+                }
+              >
+                {shortcut.label}
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
 
       <button
         type="button"

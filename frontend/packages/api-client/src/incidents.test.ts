@@ -7,6 +7,7 @@ import {
   createIncident,
   createIncidentComment,
   getIncident,
+  getIncidentStatistics,
   listCategories,
   listDepartments,
   listIncidentClassificationChanges,
@@ -264,6 +265,29 @@ describe('incident calls', () => {
     expect(url.searchParams.getAll('status')).toEqual(['REPORTED', 'ASSIGNED']);
     expect(url.searchParams.getAll('priority')).toEqual(['HIGH']);
     expect(result).toEqual({ ok: true, data: { content: [], truncated: false } });
+  });
+
+  it('asks for the statistics of the dashboard with the same filters as the map', async () => {
+    const categoryId = 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d';
+    const statistics = {
+      total: 0,
+      byStatus: [{ status: 'REPORTED', count: 0 }],
+      byPriority: [{ priority: null, count: 0 }],
+      byCategory: [],
+      byDepartment: [],
+    };
+    const { fetch, client } = clientAnswering(200, statistics);
+
+    const result = await getIncidentStatistics(client, {
+      status: ['REPORTED'],
+      categoryId: [categoryId],
+    });
+
+    const url = new URL(fetch.mock.calls[0]![0].url);
+    expect(url.pathname).toBe('/api/v1/incident-statistics');
+    expect(url.searchParams.getAll('status')).toEqual(['REPORTED']);
+    expect(url.searchParams.getAll('categoryId')).toEqual([categoryId]);
+    expect(result).toEqual({ ok: true, data: statistics });
   });
 
   it('reports a missing incident as a 404 problem', async () => {

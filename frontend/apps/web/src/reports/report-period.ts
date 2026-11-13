@@ -1,7 +1,7 @@
 import type { components, IncidentReportQuery } from '@urbanpulse/api-client';
 import { startOfDay } from '@urbanpulse/ui';
 
-import { isDay } from '../incidents/filters/incident-filters';
+import { addDays, isDay } from '../incidents/filters/incident-filters';
 
 export type ReportGrouping = components['schemas']['IncidentReportGrouping'];
 
@@ -86,9 +86,4 @@ export function periodError(request: ReportRequest): string | undefined {
 /** The name of the downloaded file, so several reports do not overwrite each other. */
 export function csvFileName(request: ReportRequest): string {
   return `incident-report-${request.groupBy}-${request.fromDay}-to-${request.toDay}.csv`;
-}
-
-function addDays(day: string, days: number): string {
-  const [year, month, date] = day.split('-').map(Number);
-  return new Date(Date.UTC(year!, month! - 1, date! + days)).toISOString().slice(0, 10);
 }
