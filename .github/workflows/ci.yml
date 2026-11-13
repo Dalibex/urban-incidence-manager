@@ -10,7 +10,8 @@
 #   test → unit (*Test) + integration (*IT, Testcontainers) tests, coverage gate and SpotBugs
 #   build → builds the backend image (ONE jar per commit inside), smoke-tests the container against
 #           PostGIS and publishes the jar copied from the image; builds the web image, checks its
-#           nginx configuration and smoke-tests it
+#           nginx configuration, smoke-tests it and checks that a client cannot forge the
+#           forwarded headers
 
 name: CI
 
@@ -473,3 +474,10 @@ jobs:
             exit 1
           fi
           echo "nginx stopped after docker stop (exit code $code)." | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # The backend trusts the X-Forwarded-* headers behind nginx (#200), so nginx must write every
+      # one of them itself. One proxy_set_header inside a location would let the client's own values
+      # through on that path, and with them skip the rate limits (#144, T13).
+      - name: Web image — the client cannot forge the forwarded headers
+        working-directory: .
+        run: bash .github/scripts/check_forwarded_headers.sh "$WEB_IMAGE"
