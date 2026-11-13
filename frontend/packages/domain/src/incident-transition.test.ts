@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { INCIDENT_STATUSES, type IncidentStatus } from './incident-status';
 import {
-  canTransition,
+  availableTransitions,
   FINAL_STATUSES,
   OPEN_STATUSES,
   type TransitionActor,
@@ -45,15 +45,18 @@ const actors: TransitionActor[] = ROLES.flatMap((role) => [
   { role, isAssignedTechnician: true },
 ]);
 
-describe('canTransition', () => {
+function allows(from: IncidentStatus, to: IncidentStatus, actor: TransitionActor): boolean {
+  return availableTransitions(from, actor).some((transition) => transition.to === to);
+}
+
+describe('availableTransitions', () => {
   it.each(pairs)('%s -> %s is allowed only to whom ADR-0020 says', (from, to) => {
     const who = ADR_0020.find(([adrFrom, adrTo]) => adrFrom === from && adrTo === to)?.[2];
 
     for (const actor of actors) {
-      expect(
-        canTransition(from, to, actor),
-        `${actor.role}, assigned ${actor.isAssignedTechnician}`,
-      ).toBe(allowedBy(who, actor));
+      expect(allows(from, to, actor), `${actor.role}, assigned ${actor.isAssignedTechnician}`).toBe(
+        allowedBy(who, actor),
+      );
     }
   });
 
@@ -61,18 +64,30 @@ describe('canTransition', () => {
     const otherTechnician = { role: 'TECHNICIAN', isAssignedTechnician: false } as const;
     const assignedTechnician = { role: 'TECHNICIAN', isAssignedTechnician: true } as const;
 
-    expect(canTransition('ASSIGNED', 'IN_PROGRESS', otherTechnician)).toBe(false);
-    expect(canTransition('ASSIGNED', 'IN_PROGRESS', assignedTechnician)).toBe(true);
-    expect(canTransition('IN_PROGRESS', 'RESOLVED', otherTechnician)).toBe(false);
-    expect(canTransition('IN_PROGRESS', 'RESOLVED', assignedTechnician)).toBe(true);
+    expect(allows('ASSIGNED', 'IN_PROGRESS', otherTechnician)).toBe(false);
+    expect(allows('ASSIGNED', 'IN_PROGRESS', assignedTechnician)).toBe(true);
+    expect(allows('IN_PROGRESS', 'RESOLVED', otherTechnician)).toBe(false);
+    expect(allows('IN_PROGRESS', 'RESOLVED', assignedTechnician)).toBe(true);
+  });
+
+  it('lists the actions of a status in the order of the table', () => {
+    const operator = { role: 'MUNICIPAL_OPERATOR', isAssignedTechnician: false } as const;
+    const analyst = { role: 'ANALYST', isAssignedTechnician: false } as const;
+
+    expect(availableTransitions('REPORTED', operator).map(({ name }) => name)).toEqual([
+      'INFORMATION_REQUEST',
+      'VALIDATION',
+      'REJECTION',
+    ]);
+    expect(availableTransitions('REPORTED', analyst)).toEqual([]);
   });
 
   it('keeps REJECTED and CLOSED final', () => {
     const administrator = { role: 'ADMINISTRATOR', isAssignedTechnician: false } as const;
 
     for (const to of INCIDENT_STATUSES) {
-      expect(canTransition('REJECTED', to, administrator)).toBe(false);
-      expect(canTransition('CLOSED', to, administrator)).toBe(false);
+      expect(allows('REJECTED', to, administrator)).toBe(false);
+      expect(allows('CLOSED', to, administrator)).toBe(false);
     }
   });
 });
