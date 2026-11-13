@@ -149,7 +149,7 @@ Known limits:
   headers.
 - On Docker Desktop (Windows and macOS), Docker hides the address of the devices that connect from
   outside its virtual machine, so nginx sees one address for all of them and they share the
-  limits. On a Linux machine each device that connects over IPv4 arrives with its own address.
+  limits. On a Linux machine each device arrives with its own address.
 - Clients behind one public address share the limits: a university wifi or some mobile operators
   share the 10 sign-ups per hour, and someone on the same network can still block a person's
   sign-in. For a demo, create the users beforehand with the `demo` dataset
