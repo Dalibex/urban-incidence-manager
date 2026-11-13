@@ -44,17 +44,28 @@ http {
     }
 }'
 
+config_errors=$(mktemp)
+
 cleanup() {
     docker rm -f "$prefix-web" "$prefix-backend" >/dev/null 2>&1 || true
     docker network rm "$network" >/dev/null 2>&1 || true
+    rm -f "$config_errors"
 }
 trap cleanup EXIT
 
-# The configuration the image really runs (nginx -T), one file after another. The scan keeps the
-# stack of open blocks and prints every proxy_set_header whose innermost block is not server or
-# http: inside a location, an if or any other block, however its braces are laid out. Comments
-# and quoted values are skipped, so a brace or a semicolon inside them does not count.
-in_location=$(docker run --rm "$image" nginx -T 2>/dev/null | awk '
+# The configuration the image really runs (nginx -T), one file after another. Its stderr only holds
+# the result of the test, so it is kept apart and shown when nginx -T fails: inside the pipe below,
+# set -e would end the script with no message.
+if ! config=$(docker run --rm "$image" nginx -T 2>"$config_errors"); then
+    echo "::error title=nginx forwarded headers::nginx -T failed, so the configuration of the image could not be read:"
+    cat "$config_errors"
+    exit 1
+fi
+
+# The scan keeps the stack of open blocks and prints every proxy_set_header whose innermost block
+# is not server or http: inside a location, an if or any other block, however its braces are laid
+# out. Comments and quoted values are skipped, so a brace or a semicolon inside them does not count.
+in_location=$(printf '%s\n' "$config" | awk '
     {
         for (i = 1; i <= length($0); i++) {
             c = substr($0, i, 1)
