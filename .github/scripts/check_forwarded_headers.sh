@@ -3,8 +3,8 @@
 # (#200, T13 of #144). The backend trusts those headers in the deployment, for the rate limits and
 # the Location of a 201, so nginx must write every one of them itself on every proxied path.
 #
-# First, a location that sets a proxy_set_header of its own fails at once, because nginx then drops
-# every proxy_set_header of the server on that path. This covers the locations added later too.
+# First, any proxy_set_header outside the server level fails at once: in a location, nginx then
+# drops every proxy_set_header of the server on that path. This covers the locations added later.
 #
 # Then the web image runs in front of a stub called "backend" that answers with the headers it receives.
 # The stub and the client are the same image, so the check needs no other one. A client container
@@ -50,16 +50,44 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# The configuration the image really runs (nginx -T), without comments. Prints every
-# proxy_set_header found inside a location block, nested ones included.
+# The configuration the image really runs (nginx -T), one file after another. The scan keeps the
+# stack of open blocks and prints every proxy_set_header whose innermost block is not server or
+# http: inside a location, an if or any other block, however its braces are laid out. Comments
+# and quoted values are skipped, so a brace or a semicolon inside them does not count.
 in_location=$(docker run --rm "$image" nginx -T 2>/dev/null | awk '
-    { line = $0; sub(/#.*/, "", line) }
-    !inside && line ~ /^[[:space:]]*location[[:space:]]/ { inside = 1; outer = depth; name = line }
-    inside && line ~ /proxy_set_header/ { print name " -> " line }
-    { depth += gsub(/\{/, "{", line) - gsub(/\}/, "}", line); if (inside && depth <= outer) inside = 0 }
+    {
+        for (i = 1; i <= length($0); i++) {
+            c = substr($0, i, 1)
+            if (quote != "") {
+                if (c == "\\") i++
+                else if (c == quote) quote = ""
+                continue
+            }
+            if (c == "#") break
+            if (c == "\"" || c == "\047") { quote = c; continue }
+            if (c == "{") {
+                split(statement, words, " ")
+                block[++depth] = words[1]
+                statement = ""
+                continue
+            }
+            if (c == "}") { depth--; statement = ""; continue }
+            if (c == ";") {
+                if (statement ~ /^[[:space:]]*proxy_set_header[[:space:]]/ && depth > 0 \
+                    && block[depth] != "server" && block[depth] != "http") {
+                    gsub(/[[:space:]]+/, " ", statement)
+                    print "inside " block[depth] ":" statement
+                }
+                statement = ""
+                continue
+            }
+            statement = statement c
+        }
+        statement = statement " "
+    }
 ')
 if [ -n "$in_location" ]; then
-    echo "::error file=frontend/nginx.conf,title=nginx forwarded headers::A location sets its own proxy_set_header, so nginx drops the X-Forwarded-* headers of the server there and the client's own values reach the backend. Move it to the server level:"
+    echo "::error file=frontend/nginx.conf,title=nginx forwarded headers::A proxy_set_header outside the server level, such as inside a location, makes nginx drop the X-Forwarded-* headers of the server there, so the client's own values reach the backend. Move it to the server level:"
     echo "$in_location"
     exit 1
 fi
