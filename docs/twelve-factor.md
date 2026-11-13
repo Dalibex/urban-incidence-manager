@@ -28,7 +28,7 @@ Commands run from `backend/`, with Docker running and `backend/.env` created fro
 | [VII. Port binding](#vii-port-binding) | Done | Done: #199 |
 | [VIII. Concurrency](#viii-concurrency) | Accepted limit | |
 | [IX. Disposability](#ix-disposability) | Partial | |
-| [X. Dev/prod parity](#x-devprod-parity) | Partial | Done: #90, #199 |
+| [X. Dev/prod parity](#x-devprod-parity) | Done | Done: #90, #199 |
 | [XI. Logs](#xi-logs) | Done | |
 | [XII. Admin processes](#xii-admin-processes) | Done | Done: #8, #34, #38, #54, #83, #84, #126 |
 
@@ -168,7 +168,7 @@ complete` and `HikariPool-1 - Shutdown completed`. Start-up takes about 5 s on a
 
 ## X. Dev/prod parity
 
-**Partial.** The same backend image runs locally (`--profile app`), in the deployment Compose and
+**Done.** The same backend image runs locally (`--profile app`), in the deployment Compose and
 in the CI (#90), with the same PostGIS image in both Compose files, in the Testcontainers tests and
 in the CI. The Java version is the
 same in `ci.yml`, `pom.xml` and the two Temurin tags of the Dockerfile ([CI guide](ci.md)).
