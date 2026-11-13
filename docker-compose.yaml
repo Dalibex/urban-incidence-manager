@@ -70,6 +70,11 @@ services:
       STORAGE_BASE_PATH: ${STORAGE_BASE_PATH:-/app/storage}
       EVIDENCE_MAX_FILE_SIZE: ${EVIDENCE_MAX_FILE_SIZE:-10MB}
       EVIDENCE_MAX_FILES_PER_INCIDENT: ${EVIDENCE_MAX_FILES_PER_INCIDENT:-5}
+      # Every request comes from nginx, so Tomcat takes the client address, the scheme, the host
+      # and the port from the X-Forwarded-* headers that nginx writes (frontend/nginx.conf), and
+      # only from a private address. Fixed here, not in .env: development reaches the backend
+      # without nginx and must ignore those headers (docs/security.md, Rate limits).
+      SERVER_FORWARD_HEADERS_STRATEGY: native
     depends_on:
       postgres:
         condition: service_healthy

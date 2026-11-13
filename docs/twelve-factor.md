@@ -21,14 +21,14 @@ Commands run from `backend/`, with Docker running and `backend/.env` created fro
 | --- | --- | --- |
 | [I. Codebase](#i-codebase) | Done | |
 | [II. Dependencies](#ii-dependencies) | Done | |
-| [III. Config](#iii-config) | Done | Planned: #200 |
+| [III. Config](#iii-config) | Done | Done: #200 |
 | [IV. Backing services](#iv-backing-services) | Done | |
 | [V. Build, release, run](#v-build-release-run) | Partial | Done: #199 |
 | [VI. Processes](#vi-processes) | Partial | Done: #192 |
 | [VII. Port binding](#vii-port-binding) | Done | Done: #199 |
 | [VIII. Concurrency](#viii-concurrency) | Accepted limit | |
 | [IX. Disposability](#ix-disposability) | Partial | |
-| [X. Dev/prod parity](#x-devprod-parity) | Done | Done: #90, #199 |
+| [X. Dev/prod parity](#x-devprod-parity) | Done | Done: #90, #199, #200 |
 | [XI. Logs](#xi-logs) | Done | |
 | [XII. Admin processes](#xii-admin-processes) | Done | Done: #8, #34, #38, #54, #83, #84, #126 |
 
@@ -80,7 +80,9 @@ deployed ([demo script](demo.md)).
   in.
 - **Check:** from the repository root, `git ls-files | grep -E '(^|/)\.env$'` prints nothing. The
   `lint` job fails if a `.env` is versioned or if Compose is not valid with `.env.example`.
-- **Planned: #200**, `SERVER_FORWARD_HEADERS_STRATEGY` only in the deployment Compose.
+- **Trusting a proxy is configuration:** `SERVER_FORWARD_HEADERS_STRATEGY=native` is set only in
+  the deployment Compose, where nginx is in front of the backend (#200). Development runs the same
+  code without it, so a client there cannot forge its address with `X-Forwarded-For`.
 
 ## IV. Backing services
 
@@ -179,6 +181,9 @@ same in `ci.yml`, `pom.xml` and the two Temurin tags of the Dockerfile ([CI guid
 - **Difference:** the web app and the base map are served by Vite in development and by nginx in
   the deployment (#199). Both put the API on the same origin, at `/api`, so the clients do not
   change ([development guide](development.md)).
+- **Difference:** only the deployment Compose trusts the `X-Forwarded-*` headers
+  (`SERVER_FORWARD_HEADERS_STRATEGY`, #200), because only there nginx stands in front of the
+  backend. The code is the same; in development a client reaches the backend directly.
 
 ## XI. Logs
 
