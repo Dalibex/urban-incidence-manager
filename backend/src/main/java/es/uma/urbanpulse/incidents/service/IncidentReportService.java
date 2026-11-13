@@ -9,6 +9,8 @@ import es.uma.urbanpulse.incidents.entity.InvalidIncidentDataException;
 import es.uma.urbanpulse.incidents.entity.Location;
 import es.uma.urbanpulse.incidents.repository.CategoryRepository;
 import es.uma.urbanpulse.incidents.repository.IncidentRepository;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.UUID;
@@ -24,16 +26,25 @@ public class IncidentReportService {
     private final CategoryRepository categories;
     private final UserRepository users;
     private final Clock clock;
+    // A business metric next to the technical ones of Micrometer, read by the load tests in
+    // Grafana: how many reports the system accepts while it is under load.
+    private final Counter incidentsCreated;
 
     public IncidentReportService(
             IncidentRepository incidents,
             CategoryRepository categories,
             UserRepository users,
-            Clock clock) {
+            Clock clock,
+            MeterRegistry meterRegistry) {
         this.incidents = incidents;
         this.categories = categories;
         this.users = users;
         this.clock = clock;
+        this.incidentsCreated =
+                // Not "...created": Prometheus reserves the _created suffix and would drop it.
+                Counter.builder("urbanpulse.incidents.reported")
+                        .description("Incidents reported and stored")
+                        .register(meterRegistry);
     }
 
     @Transactional
@@ -71,6 +82,9 @@ public class IncidentReportService {
                         category,
                         location,
                         Instant.now(clock));
-        return incidents.saveAndFlush(incident);
+        Incident saved = incidents.saveAndFlush(incident);
+        // Only after the row is written: a rejected report is not counted.
+        incidentsCreated.increment();
+        return saved;
     }
 }

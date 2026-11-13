@@ -1,0 +1,12 @@
+# Prometheus of the "observability" profile (backend/docker-compose.yaml).
+# k6 writes its own series by remote write; this file only adds the backend's Micrometer metrics.
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: urbanpulse-backend
+    metrics_path: /actuator/prometheus
+    static_configs:
+      # The backend container of the "app" profile, on the same Compose network.
+      - targets: ["backend:8080"]

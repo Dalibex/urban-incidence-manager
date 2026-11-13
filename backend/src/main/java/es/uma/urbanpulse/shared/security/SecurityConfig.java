@@ -68,6 +68,11 @@ class SecurityConfig {
                                         .permitAll()
                                         .requestMatchers("/actuator/health/**")
                                         .permitAll()
+                                        // Read by Prometheus without a token. It is only reachable
+                                        // inside the Compose network or on 127.0.0.1: nginx does
+                                        // not proxy /actuator in the deployment.
+                                        .requestMatchers("/actuator/prometheus")
+                                        .permitAll()
                                         .requestMatchers(API_DOCS_PATHS)
                                         .permitAll()
                                         .anyRequest()

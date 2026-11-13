@@ -298,8 +298,13 @@ still leave none enabled: the `bootstrap-admin` profile then creates one again, 
 runs when no enabled administrator exists. A role change or a disabled account reaches the access
 tokens already issued at their next refresh, at most one access token lifetime later (ADR-0004).
 
-Outside `/api/v1` only `/actuator/health/**` and the API documentation (`/openapi.yml`,
-`/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs/**`) are public.
+Outside `/api/v1` only `/actuator/health/**`, `/actuator/prometheus` and the API documentation
+(`/openapi.yml`, `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs/**`) are public.
+`/actuator/prometheus` gives Prometheus the backend's metrics for the load tests
+(`backend/load-tests/practice/README.md`): counts and timings per endpoint, the JVM and the
+connection pool, without request data or user identifiers. It is only reachable where the
+backend's port is: `127.0.0.1` in development and the Compose network in the deployment, whose
+nginx does not proxy `/actuator`.
 
 "own" and "assigned" are checked by the service with the data of the resource, not by the role:
 being authenticated or knowing an id never gives access to an incident (see `AGENTS.md`, section 6).
