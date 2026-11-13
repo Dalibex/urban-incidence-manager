@@ -136,9 +136,17 @@ function server(
   };
 }
 
-function api(state: Server) {
+/**
+ * Every request the detail page makes, so no query fails because of the test (#272); `extra` adds
+ * the writes of a test.
+ */
+function api(state: Server, extra: Parameters<typeof fakeApi>[0] = {}) {
   return fakeApi({
     [`GET /incidents/${INCIDENT.id}`]: () => json(200, INCIDENT),
+    // The Assign panel and the photos of the detail, which these tests do not look at.
+    'GET /departments': () => json(200, []),
+    'GET /technicians': () => json(200, []),
+    [`GET /incidents/${INCIDENT.id}/attachments`]: () => json(200, []),
     [`GET /incidents/${INCIDENT.id}/status-changes`]: () => state.history(),
     [`GET /incidents/${INCIDENT.id}/classification-changes`]: (request) => {
       state.classificationReads++;
@@ -149,6 +157,7 @@ function api(state: Server) {
       return state.comments(Number(new URL(request.url).searchParams.get('page')));
     },
     'GET /categories': () => json(200, [{ ...LIGHTING, description: null }]),
+    ...extra,
   });
 }
 
@@ -181,7 +190,10 @@ describe('incident timeline', () => {
       fetch: api(server([REPORTED, INFORMATION_REQUEST, VALIDATED], [RECLASSIFIED, CLASSIFIED])),
     });
 
-    await waitFor(async () => expect(await entries()).toHaveLength(5));
+    // The first test of the file pays the first render of the whole detail (about 300 ms alone,
+    // three times the others), so on a loaded CI runner it can pass the default 1,000 ms (#272).
+    // The limit stays below the 5 s of the test.
+    await waitFor(async () => expect(await entries()).toHaveLength(5), { timeout: 3_000 });
     const [reported, informationRequest, classified, reclassified, validated] = await entries();
 
     expect(reported).toContain('Reported');
@@ -394,12 +406,8 @@ describe('incident timeline', () => {
 
   it('shows a classification saved from the detail once, without reloading the page', async () => {
     const changes = [CLASSIFIED];
-    const fetch = fakeApi({
-      [`GET /incidents/${INCIDENT.id}`]: () => json(200, INCIDENT),
-      [`GET /incidents/${INCIDENT.id}/status-changes`]: () => json(200, [REPORTED]),
-      [`GET /incidents/${INCIDENT.id}/classification-changes`]: () => pageOf([...changes]),
-      [`GET /incidents/${INCIDENT.id}/comments`]: () => pageOf([]),
-      'GET /categories': () => json(200, [{ ...LIGHTING, description: null }]),
+    const state = server([REPORTED], [], { classification: () => pageOf([...changes]) });
+    const fetch = api(state, {
       [`PATCH /incidents/${INCIDENT.id}`]: () => {
         changes.push({ ...RECLASSIFIED, before: { priority: 'HIGH' }, after: { priority: 'LOW' } });
         return json(200, { ...INCIDENT, priority: 'LOW', version: 4 });
