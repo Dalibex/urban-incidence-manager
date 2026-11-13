@@ -86,6 +86,87 @@ export function resolveIncident(
 }
 
 /**
+ * An operator or administrator validates a reported incident: `REPORTED` to `VALIDATED` (ADR-0020).
+ * The category and the priority must be set first, or it answers `422` on `category` and
+ * `priority`. A stale `version` answers `409` with `CONCURRENT_MODIFICATION` and a status that does
+ * not allow it `409` with `INVALID_TRANSITION`.
+ */
+export function validateIncident(
+  client: ApiClient,
+  incidentId: string,
+  body: Schemas['IncidentActionRequest'],
+): Promise<FormResult<IncidentResponse>> {
+  return callForm(
+    () =>
+      client.POST('/incidents/{incidentId}/validation', {
+        params: { path: { incidentId } },
+        body,
+      }),
+    'the incident',
+  );
+}
+
+/**
+ * An operator or administrator rejects a reported incident: `REPORTED` to `REJECTED`, which is
+ * final (ADR-0020). The citizen sees `reason`, which is required. It answers as
+ * {@link validateIncident} does, and `422` when the reason is missing.
+ */
+export function rejectIncident(
+  client: ApiClient,
+  incidentId: string,
+  body: Schemas['IncidentReasonRequest'],
+): Promise<FormResult<IncidentResponse>> {
+  return callForm(
+    () =>
+      client.POST('/incidents/{incidentId}/rejection', {
+        params: { path: { incidentId } },
+        body,
+      }),
+    'the incident',
+  );
+}
+
+/**
+ * An operator or administrator asks the citizen for more information on a reported incident. It
+ * stays `REPORTED` with a new `version`, and `reason`, the message the citizen sees, is one more
+ * entry of its history (ADR-0020). It answers as {@link rejectIncident} does.
+ */
+export function requestIncidentInformation(
+  client: ApiClient,
+  incidentId: string,
+  body: Schemas['IncidentReasonRequest'],
+): Promise<FormResult<IncidentResponse>> {
+  return callForm(
+    () =>
+      client.POST('/incidents/{incidentId}/information-requests', {
+        params: { path: { incidentId } },
+        body,
+      }),
+    'the incident',
+  );
+}
+
+/**
+ * An operator or administrator assigns a `VALIDATED` or `REOPENED` incident to an active department
+ * and, optionally, an active technician and a team, or reassigns an `ASSIGNED` one (ADR-0020). It
+ * answers as {@link closeIncident} does, and `422` for a department or technician that is not active.
+ */
+export function assignIncident(
+  client: ApiClient,
+  incidentId: string,
+  body: Schemas['CreateAssignmentRequest'],
+): Promise<FormResult<IncidentResponse>> {
+  return callForm(
+    () =>
+      client.POST('/incidents/{incidentId}/assignments', {
+        params: { path: { incidentId } },
+        body,
+      }),
+    'the incident',
+  );
+}
+
+/**
  * An operator or administrator closes a resolved incident: `RESOLVED` to `CLOSED`, which is final
  * and sets `closedAt` (ADR-0020). A stale `version` answers `409` with `CONCURRENT_MODIFICATION`
  * and a status that does not allow it `409` with `INVALID_TRANSITION`.
@@ -201,6 +282,13 @@ export function listDepartments(
   return callApi(() => client.GET('/departments'));
 }
 
+/** The active technicians, ordered by name and then by id, for the assignment form. */
+export function listTechnicians(
+  client: ApiClient,
+): Promise<ApiResult<Schemas['TechnicianSummary'][]>> {
+  return callApi(() => client.GET('/technicians'));
+}
+
 /** Query of `listIncidents`: `page` starts at 0; omitted values take the contract's defaults. */
 export type IncidentListQuery = NonNullable<operations['listIncidents']['parameters']['query']>;
 
@@ -226,6 +314,22 @@ export function listIncidentLocations(
   query: IncidentLocationQuery = {},
 ): Promise<ApiResult<Schemas['IncidentLocationListResponse']>> {
   return callApi(() => client.GET('/incident-locations', { params: { query } }));
+}
+
+/** Query of `getIncidentStatistics`: the filters of `listIncidents`, the same as the map's. */
+export type IncidentStatisticsQuery = NonNullable<
+  operations['getIncidentStatistics']['parameters']['query']
+>;
+
+/**
+ * How many incidents the caller may see match the filters, by status, priority, category and
+ * department, with no cap: the dashboard beside the map (#177). Not cached by the API.
+ */
+export function getIncidentStatistics(
+  client: ApiClient,
+  query: IncidentStatisticsQuery = {},
+): Promise<ApiResult<Schemas['IncidentStatisticsResponse']>> {
+  return callApi(() => client.GET('/incident-statistics', { params: { query } }));
 }
 
 /** The full incident. Someone else's incident answers `404`, the same as one that does not exist. */

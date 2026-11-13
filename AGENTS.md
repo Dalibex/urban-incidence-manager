@@ -134,13 +134,13 @@ Do not change the stack or introduce components because they are popular. An arc
 | Path         | Purpose                                                                 |
 | ------------ | ----------------------------------------------------------------------- |
 | `backend/`   | Spring Boot backend, its Dockerfile and the Compose file.               |
-| `frontend/`  | Client pnpm workspace: `apps/web`, `apps/mobile` and `packages/*`.      |
+| `frontend/`  | Client pnpm workspace: `apps/web`, `apps/mobile` and `packages/*`, and the web image (nginx). |
 | `docs/`      | Guides, ADRs, the API contract and the C4 model (see section 2).        |
 | `tiles/`     | Base map builder, a one-off process.                                    |
 | `.github/`   | CI workflows, issue and pull request templates.                         |
 | `.githooks/` | Versioned Git hooks (pre-commit formatting).                            |
 
-The repository root only holds what is shared (README, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `CHANGELOG.md`, `LICENSE`, CI, hooks). Do not create empty folders to anticipate future modules.
+The repository root only holds what is shared (README, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `CHANGELOG.md`, `LICENSE`, CI, hooks) and the deployment `docker-compose.yaml` with its `.env.example`, which build from several folders (ADR-0017). Do not create empty folders to anticipate future modules.
 
 ### Separation of responsibilities
 

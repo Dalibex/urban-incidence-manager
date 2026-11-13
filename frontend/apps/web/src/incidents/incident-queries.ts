@@ -1,9 +1,11 @@
 import {
   acceptIncident,
+  assignIncident,
   closeIncident,
   createIncidentComment,
   getAttachmentContent,
   getIncident,
+  getIncidentStatistics,
   listCategories,
   listDepartments,
   listIncidentAttachments,
@@ -12,9 +14,13 @@ import {
   listIncidentLocations,
   listIncidents,
   listIncidentStatusChanges,
+  listTechnicians,
+  rejectIncident,
   reopenIncident,
+  requestIncidentInformation,
   resolveIncident,
   updateIncident,
+  validateIncident,
   type ApiClient,
   type ApiResult,
   type components,
@@ -42,10 +48,13 @@ type Incident = components['schemas']['IncidentResponse'];
 type UpdateIncidentRequest = components['schemas']['UpdateIncidentRequest'];
 type IncidentActionRequest = components['schemas']['IncidentActionRequest'];
 type IncidentReasonRequest = components['schemas']['IncidentReasonRequest'];
+type CreateAssignmentRequest = components['schemas']['CreateAssignmentRequest'];
 
 const incidentKeys = {
   page: (page: number, filters: IncidentFilters) => ['incidents', 'page', page, filters] as const,
   locations: (filters: IncidentFilters) => ['incidents', 'locations', filters] as const,
+  statistics: (filters: IncidentFilters) => ['incidents', 'statistics', filters] as const,
+  latest: (filters: IncidentFilters) => ['incidents', 'latest', filters] as const,
   detail: (incidentId: string) => ['incidents', incidentId] as const,
   history: (incidentId: string) => ['incidents', incidentId, 'status-changes'] as const,
   classificationChanges: (incidentId: string) =>
@@ -85,6 +94,40 @@ export function useIncidentLocations(filters: IncidentFilters) {
     queryFn: () => dataOf(listIncidentLocations(api, toListQuery(filters))),
     refetchInterval: MAP_REFRESH_INTERVAL_MS,
     // The markers stay on the map while other filters load, instead of the map emptying.
+    placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * The counts of the dashboard beside the map (#177), with the same filters and read on the same
+ * interval as {@link useIncidentLocations}. They are two requests with their own timers, so for a
+ * few seconds a new incident may be on the map and not yet counted, or the reverse. A failed
+ * refresh keeps the last counts (`data`) next to the error, as the map does.
+ */
+export function useIncidentStatistics(filters: IncidentFilters) {
+  const { api } = useSession();
+  return useQuery({
+    queryKey: incidentKeys.statistics(filters),
+    queryFn: () => dataOf(getIncidentStatistics(api, toListQuery(filters))),
+    refetchInterval: MAP_REFRESH_INTERVAL_MS,
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** How many of the latest incidents the dashboard of the map lists. */
+export const LATEST_COUNT = 5;
+
+/**
+ * The latest incidents reported that match the filters of the map (#177): the first page of
+ * `listIncidents`, newest first, read again with the map.
+ */
+export function useLatestIncidents(filters: IncidentFilters) {
+  const { api } = useSession();
+  return useQuery({
+    queryKey: incidentKeys.latest(filters),
+    queryFn: () =>
+      dataOf(listIncidents(api, { page: 0, size: LATEST_COUNT, ...toListQuery(filters) })),
+    refetchInterval: MAP_REFRESH_INTERVAL_MS,
     placeholderData: keepPreviousData,
   });
 }
@@ -179,12 +222,21 @@ export function useCategories() {
   });
 }
 
-/** The active departments, ordered by name: the options of the department filter. */
+/** The active departments, ordered by name: the options of the department filter and the assignment. */
 export function useDepartments() {
   const { api } = useSession();
   return useQuery({
     queryKey: ['departments'],
     queryFn: () => dataOf(listDepartments(api)),
+  });
+}
+
+/** The active technicians, ordered by name: the options of the assignment form (#185). */
+export function useTechnicians() {
+  const { api } = useSession();
+  return useQuery({
+    queryKey: ['technicians'],
+    queryFn: () => dataOf(listTechnicians(api)),
   });
 }
 
@@ -244,6 +296,34 @@ export function useResolveIncident(incidentId: string) {
   );
 }
 
+/** The operator validates the reported incident once it is classified (#189). */
+export function useValidateIncident(incidentId: string) {
+  return useIncidentChange((api, body: IncidentActionRequest) =>
+    validateIncident(api, incidentId, body),
+  );
+}
+
+/** The operator asks the citizen for more information on the reported incident (#189). */
+export function useRequestIncidentInformation(incidentId: string) {
+  return useIncidentChange((api, body: IncidentReasonRequest) =>
+    requestIncidentInformation(api, incidentId, body),
+  );
+}
+
+/** The operator rejects the reported incident, with the reason the citizen sees (#189). */
+export function useRejectIncident(incidentId: string) {
+  return useIncidentChange((api, body: IncidentReasonRequest) =>
+    rejectIncident(api, incidentId, body),
+  );
+}
+
+/** The operator assigns the incident, or reassigns an assigned one (#185). */
+export function useAssignIncident(incidentId: string) {
+  return useIncidentChange((api, body: CreateAssignmentRequest) =>
+    assignIncident(api, incidentId, body),
+  );
+}
+
 /** The operator closes the resolved incident after checking the work (#52). */
 export function useCloseIncident(incidentId: string) {
   return useIncidentChange((api, body: IncidentActionRequest) =>
@@ -276,8 +356,15 @@ export function useAddComment(incidentId: string) {
   });
 }
 
-/** Reads the incident again, for example after a `409` that says it changed meanwhile. */
+/**
+ * Reads the incident again, for example after a `409` that says it changed meanwhile. It resolves
+ * with the incident as the cache then holds it: the one just read, or the earlier one if it could
+ * not be read.
+ */
 export function useReloadIncident(incidentId: string) {
   const queryClient = useQueryClient();
-  return () => queryClient.invalidateQueries({ queryKey: incidentKeys.detail(incidentId) });
+  return async (): Promise<Incident | undefined> => {
+    await queryClient.invalidateQueries({ queryKey: incidentKeys.detail(incidentId) });
+    return queryClient.getQueryData<Incident>(incidentKeys.detail(incidentId));
+  };
 }

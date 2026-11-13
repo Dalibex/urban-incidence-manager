@@ -6,7 +6,7 @@ on them. Other guides cover the rest:
 | Guide | What it covers |
 | --- | --- |
 | [Architecture](architecture.md) | The architecture drivers, a summary of the containers and the quality attribute scenarios |
-| [Deployment](deployment.md) | The Compose services, their variables and volumes, the backend in Docker, resetting the database, the base map |
+| [Deployment](deployment.md) | The deployment Compose behind nginx, the development Compose services, their variables and volumes, the backend in Docker, backups, resetting the database, the base map |
 | [Database](database.md) | Migrations, reference data and how the data profiles work |
 | [Datasets and measurements](datasets.md) | The demo and performance datasets, and the quality attribute measurements |
 | [Testing](testing.md) | Backend and client tests |
@@ -213,6 +213,11 @@ use another backend, set `API_PROXY_TARGET` before `pnpm dev:web`. The web keeps
 memory only: reloading the page asks for sign-in again. To sign in as each demo user with one
 click, see *Quick Sign-In* in the [demo script](demo.md); it is off by default.
 
+In the deployment, nginx plays the part of Vite: it serves the production build, the base map at
+`/tiles/` and `/api` on the same origin, so the code and the bundle are the same
+([deployment guide](deployment.md)). To try that build behind nginx, use the deployment Compose at
+the repository root; the development stack never runs nginx.
+
 The web reads the API through React Query ([ADR-0006](adr/0006-frontend-web-technology.md)): each
 screen calls a hook such as `useIncidentPage` (`apps/web/src/incidents/incident-queries.ts`), which
 caches the result and shares it between screens. Only failures that may pass on their own are
@@ -270,7 +275,9 @@ pnpm dev:web --host
 ```
 
 Without `EXPO_PUBLIC_MAP_STYLE_URL`, or with the web app stopped, the report form shows a notice
-instead of the map, and reporting still works.
+instead of the map. The citizen can still report with the GPS position, but without it the form
+waits for the map: *Submit* stays disabled until the location is allowed, or until the map loads
+and the citizen moves the pin to the incident.
 
 #### Build, install and run
 
@@ -322,8 +329,9 @@ native dependency or changing `app.json`, build again with `pnpm --filter @urban
   from a Phone* in the [deployment guide](deployment.md)).
 - The mobile app keeps the session in `expo-secure-store` (Keychain on iOS, Keystore on Android),
   so it survives a restart.
-- The report form shows the base map centred on Málaga. Moving a pin to correct the position is
-  planned: #198.
+- The report form places the incident with a pin fixed in the centre of the base map: it starts on
+  the GPS position or, without it, on Málaga, and the citizen moves the map under the pin. On an
+  emulator, set the position in its extended controls (*Location*) to try the GPS path.
 
 ### Before pushing
 

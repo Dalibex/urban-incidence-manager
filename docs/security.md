@@ -65,7 +65,19 @@ different one in every environment: whoever knows it can sign a token for any us
   possible on purpose: when a refresh fails without an answer, or with any error other than `401`,
   it keeps the tokens, because the session may still be valid, and sends the same refresh token at
   the next `401`. Otherwise it never sends a token twice: it shares one refresh among concurrent
-  requests and discards the tokens on sign-out.
+  requests and discards the tokens on sign-out. A refresh still in flight at sign-out does not
+  bring them back: if it answers while sign-out waits for it, its fresh token revokes the session;
+  if it answers later, its tokens are dropped. In neither case is a rejection reported as an
+  expired session, and a refresh is not sent if sign-out cleared the store while it was being read.
+  A refresh that sign-out could not use to revoke the session (it answers later, or the `DELETE`
+  itself fails) leaves a session alive on the server until its refresh token expires (#237). A
+  request is only repeated with the session it was sent with. Once that session has ended, because
+  the user signed out or because its refresh was rejected, a request of that session that gets
+  `401` is neither refreshed nor repeated, so it never runs as the user who signs in next, nor with
+  the token the sign-out refreshed. A request sent while the sign-out waits for the server belongs
+  to the session being signed out; only the sign-out's own `DELETE` is still repeated with a fresh
+  token, to revoke the session. The photo upload follows the same rule, and so do the automatic
+  retries of an upload on the mobile app (#259).
 - **Clean-up:** a job inside the backend deletes, every day at 03:00 UTC, the refresh tokens that
   expired longer ago than `REFRESH_TOKEN_RETENTION` (`RefreshTokenCleanup`). It deletes by expiry,
   not by revocation: a revoked token is kept while it would still work, because deleting it would
@@ -108,6 +120,12 @@ step, so a burst of parallel requests cannot go past the limit; a right password
 back, so only failures add up. The limits are properties (`urbanpulse.security.sign-in-attempts.max` / `.window`,
 `urbanpulse.security.sign-up-attempts.max` / `.window`).
 
+In the deployment, nginx also limits the public identity operations (sign-up, sign-in, refresh
+and password change) to 30 requests a minute per client address, with a burst of 20
+(`limit_req` in `frontend/nginx.conf`). Past it, nginx answers `429` without a body of the API and
+the request never reaches the backend. It only stops floods: these operations need no token, and
+each sign-in checks a password hash.
+
 Known limits:
 
 - The counters live in the backend process. That is correct with one replica (ADR-0011); with more,
@@ -116,10 +134,10 @@ Known limits:
 - The key is the email and the address, so one address can still try 5 passwords on each of many
   emails (password spraying), and the counters of one window grow with every email tried. A global
   limit per address is the next step if that becomes a problem.
-- The client address is the TCP peer, not `X-Forwarded-For`, because no proxy sits in front of the
-  backend yet. When one is added (ADR-0017), configure Spring to trust only that proxy
-  (`server.forward-headers-strategy`); trusting the header from anyone would let a client skip the
-  limit.
+- The client address is the TCP peer, not `X-Forwarded-For`. In the deployment Compose that peer
+  is nginx (ADR-0017), so every client shares the limits until Spring trusts the address that
+  nginx sends, and only from nginx (`server.forward-headers-strategy`); trusting the header from
+  anyone would let a client skip the limit. Planned: #200.
 
 ## First administrator
 
@@ -226,6 +244,16 @@ That change needs an update of [ADR-0004](adr/0004-authentication-strategy.md) a
 (or `SameSite=Strict` plus a check of the `Origin` header) for those endpoints, in the same pull
 request.
 
+## Browser storage
+
+The web app keeps the tokens in memory only (`SessionContext`), never in `localStorage` or
+`sessionStorage`, where any script of the page could read them. The only thing it writes there is
+which parts of the map screen each user folded or opened, under a key with the user's id
+(`urbanpulse.map-preferences.<user id>`, #177). The value holds no personal data and the API never
+reads it. It stays after sign-out because it is only a layout, so on a shared browser the storage
+keeps the ids of the users who opened the map there. If the browser refuses its storage, the
+screen works with the defaults.
+
 ## Permission matrix
 
 Paths are relative to `/api/v1`. **Public** means no token. A role in the cell can call the
@@ -252,6 +280,9 @@ operation; the note says when the answer also depends on the resource. A role no
 | `PATCH /incidents/{id}` | | | ✓ | | ✓ | |
 | `GET /incidents/{id}/classification-changes` | | | ✓ | assigned | ✓ | |
 | `GET /incidents/{id}/status-changes` | | own, citizen view | ✓ | assigned | ✓ | |
+| `POST /incidents/{id}/validation` | | | ✓ | | ✓ | |
+| `POST /incidents/{id}/rejection` | | | ✓ | | ✓ | |
+| `POST /incidents/{id}/information-requests` | | | ✓ | | ✓ | |
 | `POST /incidents/{id}/assignments` | | | ✓ | | ✓ | |
 | `POST /incidents/{id}/acceptance` | | | | assigned | | |
 | `POST /incidents/{id}/resolution` | | | | assigned | | |
@@ -263,6 +294,7 @@ operation; the note says when the answer also depends on the resource. A role no
 | `GET /incidents/{id}/comments` | | | ✓ | assigned | ✓ | |
 | `POST /incidents/{id}/comments` | | | ✓ | assigned | ✓ | |
 | `GET /incident-locations` | | | ✓ | assigned | ✓ | |
+| `GET /incident-statistics` | | | ✓ | assigned | ✓ | |
 | `GET /audit-entries` | | | | | ✓ | |
 | `GET /incident-reports` | | | | | ✓ | ✓ |
 

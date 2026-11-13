@@ -23,12 +23,22 @@ export interface ActionCallbacks {
   onDone: (done: ActionDone) => void;
 }
 
+/**
+ * A field of a form whose incident was read again after a `409`: what the operator changed from
+ * the incident the form started from stays, and a field they left as it was shows the incident as
+ * it is now, so the next save never sends back a value someone else changed meanwhile.
+ */
+export function keepChanged<T>(value: T, before: T, now: T): T {
+  return value === before ? now : value;
+}
+
 /** What every lifecycle panel receives: the incident, to send its `version` back. */
 export interface PanelProps extends ActionCallbacks {
   incident: Incident;
 }
 
-type Outcome =
+/** What the API answered to a lifecycle action, as the form shows it. */
+export type Outcome =
   | { kind: 'changed' }
   | { kind: 'notAllowed' }
   | { kind: 'notFound' }
@@ -46,15 +56,21 @@ interface ActionFormProps extends ActionCallbacks {
   notFound: string;
   /** Required notes, sent as `reason`; without it the action sends only the `version`. */
   notes?: { label: string; missing: string };
+  /**
+   * Why the action cannot be sent yet; while set, it is shown, describes the button and marks it
+   * unavailable.
+   */
+  blocked?: string;
   sending: boolean;
   send: (version: number, notes: string) => Promise<FormResult<Incident>>;
 }
 
 /**
- * One lifecycle action, of the technician or of the operator. It sends the `version` of the incident it shows, keeps
- * the notes whatever the answer, and ignores a second click while sending. On success the incident
- * changes status, so this form gives way to the next one and the parent announces `done` and moves
- * the focus.
+ * One lifecycle action, of the technician or of the operator. It sends the `version` of the
+ * incident it shows and ignores a second click while sending. The notes stay after a failure and
+ * are emptied after a success. Most successes change the status, so this form gives way to the next
+ * one and the parent announces `done` and moves the focus; an information request keeps the
+ * status, so its empty form stays for the next one.
  */
 export function ActionForm({
   incident,
@@ -64,6 +80,7 @@ export function ActionForm({
   done,
   notFound,
   notes,
+  blocked,
   sending,
   send,
   onSending,
@@ -81,7 +98,7 @@ export function ActionForm({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (inFlight.current) {
+    if (inFlight.current || blocked !== undefined) {
       return;
     }
     if (notes && text.trim() === '') {
@@ -94,6 +111,9 @@ export function ActionForm({
     try {
       const result = await send(incident.version ?? 0, text);
       if (result.ok) {
+        // An action that keeps the status, such as an information request, leaves this form on
+        // the page: empty it for the next one.
+        setText('');
         onDone({ message: done, from: incident.status });
       } else {
         setOutcome(outcomeOf(result));
@@ -116,6 +136,11 @@ export function ActionForm({
         {title}
       </h3>
       <p className={styles.fieldNote}>{lead}</p>
+      {blocked && (
+        <p id={`${titleId}-blocked`} className={styles.fieldNote}>
+          {blocked}
+        </p>
+      )}
       {notes && (
         <div className={styles.field}>
           <label htmlFor={`${titleId}-notes-field`}>{notes.label}</label>
@@ -138,7 +163,15 @@ export function ActionForm({
       )}
       <OutcomeMessage outcome={outcome} notFound={notFound} onReload={() => void reload()} />
       <p>
-        <button type="submit" className={styles.primaryButton} disabled={sending}>
+        {/* A blocked action stays reachable with Tab and reads out why, which `disabled` would
+            hide: the button is only marked unavailable, and the submit sends nothing. */}
+        <button
+          type="submit"
+          className={styles.primaryButton}
+          disabled={sending}
+          aria-disabled={blocked !== undefined ? true : undefined}
+          aria-describedby={blocked !== undefined ? `${titleId}-blocked` : undefined}
+        >
           {sending ? 'Saving…' : submitLabel}
         </button>
       </p>
@@ -146,7 +179,8 @@ export function ActionForm({
   );
 }
 
-function outcomeOf(result: Extract<FormResult<Incident>, { ok: false }>): Outcome {
+/** The outcome of an answer the API did not accept. */
+export function outcomeOf(result: Extract<FormResult<Incident>, { ok: false }>): Outcome {
   const { failure } = result;
   if (failure.kind === 'network') {
     return { kind: 'unreachable' };
@@ -172,13 +206,17 @@ const RELOAD_MESSAGES = {
   notAllowed: 'This incident no longer allows this action. Reload it to see its status.',
 } as const;
 
-interface OutcomeMessageProps {
+export interface OutcomeMessageProps {
   outcome: Outcome | null;
   notFound: string;
   onReload: () => void;
 }
 
-function OutcomeMessage({ outcome, notFound, onReload }: OutcomeMessageProps) {
+/**
+ * The answer of an action next to its button: a reload after a `409` or a `404`, and an error with
+ * the form kept for a retry otherwise. The assignment form shows it too.
+ */
+export function OutcomeMessage({ outcome, notFound, onReload }: OutcomeMessageProps) {
   if (outcome === null) {
     // Kept in the page while empty, so screen readers announce the message when it appears.
     return <p role="status" className={styles.formMessage} />;

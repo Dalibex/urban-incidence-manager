@@ -1,20 +1,26 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   acceptIncident,
+  assignIncident,
   closeIncident,
   createApiClient,
   createIncident,
   createIncidentComment,
   getIncident,
+  getIncidentStatistics,
   listCategories,
   listDepartments,
   listIncidentClassificationChanges,
   listIncidentComments,
   listIncidentLocations,
   listIncidents,
+  listTechnicians,
+  rejectIncident,
   reopenIncident,
+  requestIncidentInformation,
   resolveIncident,
   updateIncident,
+  validateIncident,
   type ApiClient,
   type SessionTokens,
   type TokenStore,
@@ -183,6 +189,21 @@ describe('listDepartments', () => {
   });
 });
 
+describe('listTechnicians', () => {
+  it('returns the active technicians', async () => {
+    const technicians: components['schemas']['TechnicianSummary'][] = [
+      { id: '7c2e4b1a-9d3f-4e8a-b6c5-1f0a2d3e4b5c', name: 'Sergio Molina' },
+    ];
+    const fetch = vi.fn(async (request: Request) => {
+      expect(new URL(request.url).pathname).toBe('/api/v1/technicians');
+      return json(200, technicians);
+    });
+    const client = createApiClient(BASE_URL, { tokenStore: memoryStore(TOKENS), fetch });
+
+    expect(await listTechnicians(client)).toEqual({ ok: true, data: technicians });
+  });
+});
+
 const INCIDENT_ID = '3f1c2a9e-7b4d-4c1a-9e2f-5d6b7a8c9d0e';
 
 function clientAnswering(status: number, body: unknown) {
@@ -246,6 +267,29 @@ describe('incident calls', () => {
     expect(result).toEqual({ ok: true, data: { content: [], truncated: false } });
   });
 
+  it('asks for the statistics of the dashboard with the same filters as the map', async () => {
+    const categoryId = 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d';
+    const statistics = {
+      total: 0,
+      byStatus: [{ status: 'REPORTED', count: 0 }],
+      byPriority: [{ priority: null, count: 0 }],
+      byCategory: [],
+      byDepartment: [],
+    };
+    const { fetch, client } = clientAnswering(200, statistics);
+
+    const result = await getIncidentStatistics(client, {
+      status: ['REPORTED'],
+      categoryId: [categoryId],
+    });
+
+    const url = new URL(fetch.mock.calls[0]![0].url);
+    expect(url.pathname).toBe('/api/v1/incident-statistics');
+    expect(url.searchParams.getAll('status')).toEqual(['REPORTED']);
+    expect(url.searchParams.getAll('categoryId')).toEqual([categoryId]);
+    expect(result).toEqual({ ok: true, data: statistics });
+  });
+
   it('reports a missing incident as a 404 problem', async () => {
     const { fetch, client } = clientAnswering(404, { status: 404 });
 
@@ -304,10 +348,43 @@ describe('updateIncident', () => {
 
 const ACCEPTANCE = { version: 3 };
 const RESOLUTION = { version: 3, reason: 'Replaced the lamp and checked it at night.' };
+const VALIDATION = { version: 0 };
+const REJECTION = { version: 0, reason: 'This streetlight belongs to a private estate.' };
+const INFORMATION_REQUEST = { version: 0, reason: 'Which street is it on?' };
 const CLOSURE = { version: 4 };
 const REOPENING = { version: 4, reason: 'The lamp went off again the same night.' };
+const ASSIGNMENT = {
+  version: 2,
+  departmentId: 'b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e',
+  technicianId: '7c2e4b1a-9d3f-4e8a-b6c5-1f0a2d3e4b5c',
+  team: 'Night shift',
+};
 
 describe.each([
+  [
+    'validateIncident',
+    'validation',
+    VALIDATION,
+    (client: ApiClient) => validateIncident(client, INCIDENT_ID, VALIDATION),
+  ],
+  [
+    'rejectIncident',
+    'rejection',
+    REJECTION,
+    (client: ApiClient) => rejectIncident(client, INCIDENT_ID, REJECTION),
+  ],
+  [
+    'requestIncidentInformation',
+    'information-requests',
+    INFORMATION_REQUEST,
+    (client: ApiClient) => requestIncidentInformation(client, INCIDENT_ID, INFORMATION_REQUEST),
+  ],
+  [
+    'assignIncident',
+    'assignments',
+    ASSIGNMENT,
+    (client: ApiClient) => assignIncident(client, INCIDENT_ID, ASSIGNMENT),
+  ],
   [
     'acceptIncident',
     'acceptance',

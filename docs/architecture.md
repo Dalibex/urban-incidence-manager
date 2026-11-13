@@ -71,7 +71,7 @@ same REST API and a set of TypeScript packages ([ADR-0007](adr/0007-client-appli
 | Database | PostgreSQL with PostGIS, Flyway migrations | [ADR-0001](adr/0001-database.md), [ADR-0003](adr/0003-geospatial-data-management.md), [ADR-0014](adr/0014-database-migrations-flyway.md) | Yes |
 | Tiles builder | One-off process that builds the base map | [ADR-0016](adr/0016-self-hosted-osm-base-map.md) | Yes |
 | Evidence storage | Docker volume behind a storage interface | [ADR-0013](adr/0013-evidence-storage.md) | Yes, in the API (#192), the mobile upload (#193) and the web gallery (#194) |
-| Reverse proxy | nginx, the single published entry point | [ADR-0017](adr/0017-reverse-proxy.md) | No, #134 |
+| Reverse proxy | nginx, the single published entry point, that also serves the web app and the base map | [ADR-0017](adr/0017-reverse-proxy.md) | Yes (#199); the real client address with #200 |
 | Cache | Redis | [ADR-0022](adr/0022-redis-from-measurements.md), which supersedes [ADR-0012](adr/0012-cache-redis.md) | No, until a measurement or a second replica asks for it |
 
 Where to look for more:
@@ -243,7 +243,8 @@ Known limits the team accepts for now. A review does not report them (*Sprint re
 | Clients behind one public address share the rate limits | A university wifi shares the 10 sign-ups per hour, and someone on the same network can block a person's sign-in | #200 |
 | The API documentation is public (`/swagger-ui.html`, `/v3/api-docs`, `/openapi.yml`) | Anyone can read the contract, which is public by design | [Security guide](security.md), *Permission matrix*; [API guide](api.md) says how to turn it off |
 | The audit trigger guards against mistakes, not against the database owner | Someone with the owner or superuser account can disable it; a user who appears in the audit trail cannot be deleted | [Security guide](security.md), *Audit trail* |
-| Everything runs on one machine | If the machine stops, the whole system stops; with #199, nginx is also the single entry point, but keeps no data | [ADR-0011](adr/0011-deployment-12factor.md), #199 |
+| Everything runs on one machine | If the machine stops, the whole system stops; nginx is also the single entry point, but keeps no data | [ADR-0011](adr/0011-deployment-12factor.md); [deployment guide](deployment.md), *If nginx Goes Down* |
+| A refresh that sign-out cannot use to revoke the session (it answers after the sign-out, or the `DELETE` itself fails) creates a session the device no longer holds | That session stays alive on the server until its refresh token expires (`REFRESH_TOKEN_TTL`, 14 days by default); nobody can use it without the token, which the device discarded | [Security guide](security.md), *Sessions and passwords*; #237 |
 
 ## 📋 ADRs Without a Measurable Evaluation
 

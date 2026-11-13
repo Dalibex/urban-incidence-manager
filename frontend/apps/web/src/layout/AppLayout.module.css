@@ -2,6 +2,23 @@
   min-height: 100vh;
 }
 
+/*
+ * A screen that must fill the height under the navbar, whatever it measures (the map, #177), marks
+ * itself with `data-fill-height`. Only then the frame becomes a column, so the other screens keep
+ * their normal flow.
+ */
+.shell:has([data-fill-height]) {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.shell:has([data-fill-height]) .content {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+}
+
 .navbar {
   display: flex;
   flex-wrap: wrap;

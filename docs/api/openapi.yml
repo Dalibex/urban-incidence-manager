@@ -908,8 +908,6 @@ paths:
       operationId: createIncidentValidation
       summary: Validate a reported incident
       description: |
-        Planned: #188.
-
         `REPORTED` to `VALIDATED`. The category and the priority must already be set with
         `updateIncident`, or the request returns `422`. The citizen sees the status.
 
@@ -950,8 +948,6 @@ paths:
       operationId: createIncidentRejection
       summary: Reject a reported incident
       description: |
-        Planned: #188.
-
         `REPORTED` to `REJECTED`, which is final. `reason` is required, and the citizen sees the
         status and the reason, so it must not hold internal data.
 
@@ -992,8 +988,6 @@ paths:
       operationId: createIncidentInformationRequest
       summary: Ask the citizen for more information
       description: |
-        Planned: #188.
-
         The incident stays `REPORTED` and the request is one more entry of its history. `reason` is
         the message to the citizen and is required; the citizen sees it. The citizen's reply is out
         of the MVP.
@@ -1554,6 +1548,52 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/IncidentLocationListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /incident-statistics:
+    get:
+      tags: [incidents]
+      operationId: getIncidentStatistics
+      summary: Count the incidents of the map by status, priority, category and department
+      description: |
+        The indicators of the staff dashboard (#177), shown beside the map: how many incidents
+        match, and how they split by status, priority, category and department. It takes the same
+        filters and the same scope as `listIncidentLocations`, without the bounding box, so it
+        counts the incidents the map draws. Unlike the map it has no cap: it counts every one.
+        An unknown parameter, or one without a value, returns `400`, like `listIncidents`.
+
+        Every group of a dimension adds up to `total`: they are read from one snapshot, so an
+        incident that changes meanwhile is counted once. A status or priority that the filters
+        allow is listed even with `0`, a real zero; one that the filters leave out is not listed,
+        because its count is not known. A category or department is only listed when it has
+        incidents. An incident without priority, category or active assignment is the group
+        `null`, which goes last.
+
+        These data are live and are not cached.
+
+        Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR` (every incident), `TECHNICIAN` (active
+        assignments). `CITIZEN` and `ANALYST` get `403`.
+      parameters:
+        - $ref: "#/components/parameters/StatusFilter"
+        - $ref: "#/components/parameters/CategoryIdFilter"
+        - $ref: "#/components/parameters/PriorityFilter"
+        - $ref: "#/components/parameters/ReportedFromFilter"
+        - $ref: "#/components/parameters/ReportedToFilter"
+        - $ref: "#/components/parameters/DepartmentIdFilter"
+      responses:
+        "200":
+          description: The counts.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IncidentStatisticsResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -2362,7 +2402,8 @@ components:
 
     ReportedLocation:
       type: object
-      description: Position of the incident as the device measured it.
+      description: >-
+        Position of the incident: the device's GPS fix, or a position the citizen chose on a map.
       required: [latitude, longitude]
       properties:
         latitude:
@@ -2385,7 +2426,8 @@ components:
           minimum: 0
           description: >-
             Accuracy radius in metres reported by the device. Absent when the device does not
-            report it.
+            report it, or when the position was not measured by the device, such as a point the
+            citizen chose on a map.
           examples: [12.5]
 
     IncidentLocation:
@@ -2904,6 +2946,113 @@ components:
           type: boolean
           description: "`true` when more incidents match than the cap allows, so some are left out."
           examples: [false]
+
+    IncidentStatisticsResponse:
+      type: object
+      description: >-
+        The counts of the staff dashboard. Each list adds up to `total`. It is not paginated: the
+        groups are few by nature.
+      required: [total, byStatus, byPriority, byCategory, byDepartment]
+      properties:
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Every incident that matches, with no cap.
+          examples: [42]
+        byStatus:
+          type: array
+          description: >-
+            Each status the filters allow, every one without a status filter, in the order of
+            `IncidentStatus`; `0` when none has it.
+          items:
+            $ref: "#/components/schemas/StatusCount"
+        byPriority:
+          type: array
+          description: >-
+            `HIGH`, `MEDIUM`, `LOW` and then `null` (no priority), only the ones the filters allow;
+            `0` when none has it. With a priority filter, `null` is not listed.
+          items:
+            $ref: "#/components/schemas/PriorityCount"
+        byCategory:
+          type: array
+          description: >-
+            Each category with incidents, the largest first and then by name; `null` (not
+            classified) last.
+          items:
+            $ref: "#/components/schemas/CategoryCount"
+        byDepartment:
+          type: array
+          description: >-
+            Each department of an active assignment, the largest first and then by name; `null`
+            (no active assignment) last.
+          items:
+            $ref: "#/components/schemas/DepartmentCount"
+
+    StatusCount:
+      type: object
+      required: [status, count]
+      properties:
+        status:
+          $ref: "#/components/schemas/IncidentStatus"
+        count:
+          type: integer
+          format: int64
+          minimum: 0
+          examples: [12]
+
+    PriorityCount:
+      type: object
+      required: [priority, count]
+      properties:
+        priority:
+          description: "`null` for the incidents without priority."
+          oneOf:
+            - $ref: "#/components/schemas/Priority"
+            - type: "null"
+        count:
+          type: integer
+          format: int64
+          minimum: 0
+          examples: [7]
+
+    CategoryCount:
+      type: object
+      required: [categoryId, name, count]
+      properties:
+        categoryId:
+          type: [string, "null"]
+          format: uuid
+          description: "`null` for the incidents without category."
+          examples: [a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d]
+        name:
+          type: [string, "null"]
+          description: "`null` together with `categoryId`."
+          examples: [Street lighting]
+        count:
+          type: integer
+          format: int64
+          minimum: 1
+          examples: [9]
+
+    DepartmentCount:
+      type: object
+      required: [departmentId, name, count]
+      properties:
+        departmentId:
+          type: [string, "null"]
+          format: uuid
+          description: "`null` for the incidents without an active assignment."
+          examples: [5b2e9c1a-3d4f-4e6a-8b7c-9d0e1f2a3b4c]
+        name:
+          type: [string, "null"]
+          description: "`null` together with `departmentId`."
+          examples: [Public works]
+        count:
+          type: integer
+          format: int64
+          minimum: 1
+          examples: [5]
 
     IncidentReportGrouping:
       type: string
