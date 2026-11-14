@@ -321,7 +321,8 @@ below about 280 pixels of map the page scrolls instead.
   title, status, priority, category, when it was reported and the description. *Manage* opens its
   detail, and *Close* or *Escape* brings the counts back. If the incident left your view since the
   last refresh (a technician's incident was assigned to someone else), the summary says *Incident
-  not found*, and the next refresh removes its marker. Closing an incident does not hide it.
+  not found*, and the next refresh removes its marker. Closing an incident does not make its
+  summary say *Incident not found*.
 - **Live:** the map reads the incidents again every 15 seconds, so a new report appears without
   reloading the page.
 - **List:** *List of the incidents on the map*, under the summary, has every incident on the map,

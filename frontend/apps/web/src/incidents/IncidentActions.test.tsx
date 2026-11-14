@@ -55,6 +55,27 @@ const PANEL_TITLES: Record<TransitionName, (status: IncidentStatus) => string> =
   REOPENING: () => 'Reopen',
 };
 
+/**
+ * The order the detail shows its panels in: the operator classifies a report before deciding on it,
+ * and validating comes first among those decisions (#189). It is not the order of the domain table.
+ */
+const DETAIL_ORDER = [
+  'Classification',
+  'Validate',
+  'Request information',
+  'Reject',
+  'Assign',
+  'Reassign',
+  'Accept the work',
+  'Resolve',
+  'Verify and close',
+  'Reopen',
+];
+
+function inDetailOrder(titles: readonly string[]): string[] {
+  return [...titles].sort((a, b) => DETAIL_ORDER.indexOf(a) - DETAIL_ORDER.indexOf(b));
+}
+
 const EMPTY_PAGE = { content: [], page: { number: 0, size: 100, totalElements: 0, totalPages: 0 } };
 
 function api(incident: Incident) {
@@ -88,7 +109,7 @@ const cases = INCIDENT_STATUSES.flatMap((status) =>
 );
 
 describe('the action panels follow the transition table (#277)', () => {
-  it('has a panel for every transition of the table', () => {
+  it('reaches every transition with some staff role, so the cases below cover them all', () => {
     const covered = new Set(
       cases.flatMap(([status, role]) =>
         availableTransitions(status, { role, isAssignedTechnician: role === 'TECHNICIAN' }).map(
@@ -111,9 +132,9 @@ describe('the action panels follow the transition table (#277)', () => {
     }).map(({ name }) => PANEL_TITLES[name](status));
     const classification =
       role !== 'TECHNICIAN' && !FINAL.includes(status) ? ['Classification'] : [];
-    const expected = [...classification, ...transitions].sort();
+    const expected = inDetailOrder([...classification, ...transitions]);
 
-    await waitFor(() => expect(actionForms().sort()).toEqual(expected));
+    await waitFor(() => expect(actionForms()).toEqual(expected));
     if (expected.length === 0) {
       expect(screen.getByText('Only comments are available for this incident.')).toBeDefined();
     }
