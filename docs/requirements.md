@@ -159,11 +159,11 @@ for its code (#57).
   starts on the phone's position, or on Málaga without it, and the citizen moves to correct it. The
   accuracy is sent only while the pin is on the phone's position. After sending, optional photos
   from the camera or the gallery (#193).
-- **My reports** (#45): the citizen's incidents filtered by open or closed; title, date, status and
-  a photo thumbnail when there is one.
-- **Detail** (#45): the report, its position, photos and the history the citizen may see (ADR-0020,
+- **My reports** (#45): the citizen's incidents filtered by open or closed; title, date and status.
+  A photo thumbnail when there is one: Planned: #279.
+- **Detail** (#45): the report, its position and the history the citizen may see (ADR-0020,
   *Citizen sees*): an information request shows as a message from the city council, and a rejection
-  shows its reason.
+  shows its reason. The photos: Planned: #279.
 - **Profile:** name, email and *Sign out*.
 - **Not in the MVP:** replying to an information request from the app (ADR-0020) and the
   notification channel settings (RF14).

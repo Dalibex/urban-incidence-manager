@@ -144,8 +144,8 @@ sign-in. A wrong password, or a database without the demo dataset, gives the nor
 | 4 | Operator, web | Open *Leaking fountain in Plaza de la Constitución*. | The full history from the report to the reopening, with who made each change and the internal reasons (resolution notes, reopening). | #46 |
 | 5 | Citizen, phone | Sign in as `demo.citizen@example.com`. On the *New* tab, allow the location when the phone asks, write a title and a description, for example a bin knocked over on Calle Granada, and tap *Submit*. | Reporting from the phone with the device's position and accuracy; the app confirms with "Incident reported". | #43 |
 | 6 | Operator, web | Reload the inbox and open the new incident. | The report is first in the list, with its position; the address is "not available" until the context is resolved, and the report was accepted anyway. | #43, #46 |
-| 7 | Citizen, phone | Open the list of your incidents. | The sixteen incidents of the citizen with their status. | #45 |
-| 8 | Citizen, phone | Open *Loud music from a bar terrace*, then *Leaking fountain in Plaza de la Constitución*. | The rejection reason, which the citizen sees; the history of the fountain without the internal resolution and reopening notes. | #45 |
+| 7 | Citizen, phone | Open *My reports*, then tap *Closed*. | It opens on *Open*, with the thirteen open incidents of the citizen and their status; *Closed* shows the other three, rejected or closed. | #45 |
+| 8 | Citizen, phone | On *Closed*, open *Loud music from a bar terrace*; then go back, tap *Open* and open *Leaking fountain in Plaza de la Constitución*. | The rejection reason, which the citizen sees; the history of the fountain without the internal resolution and reopening notes. | #45 |
 | 9 | Citizen, web | Sign out on the web and sign in as `demo.citizen@example.com`, then open `/inbox`. | The web sends citizens to the mobile app: the inbox is staff only, and the API checks it again. | #39 |
 | 10 | Technician, administrator, analyst, web | Sign in with each of them. | Each lands on its own screen (work queue, users, reports). | #39 |
 

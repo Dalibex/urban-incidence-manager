@@ -20,8 +20,9 @@ import java.util.Set;
  * what its reason is for. Each constant is one domain action of the API (a sub-resource such as
  * {@code /validation}); a change that no constant describes is not allowed.
  *
- * <p>Only {@link Incident#changeStatus} applies it. {@code canTransition} in {@code
- * frontend/packages/domain} repeats this table to show or hide buttons; the backend always checks.
+ * <p>Only {@link Incident#changeStatus} applies it. {@code INCIDENT_TRANSITIONS} in {@code
+ * frontend/packages/domain} repeats this table, and the web shows the action panels of the
+ * transitions it allows; the backend always checks.
  */
 public enum IncidentTransition {
     INFORMATION_REQUEST(

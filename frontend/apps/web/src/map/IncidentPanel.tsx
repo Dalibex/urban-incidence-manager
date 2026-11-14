@@ -22,8 +22,8 @@ interface IncidentPanelProps {
  */
 export function IncidentPanel({ incidentId, onClose }: IncidentPanelProps) {
   const incident = useIncident(incidentId);
-  // The marker may be older than the incident: it can leave the user's scope (closed, or no longer
-  // assigned to a technician) before the next refresh of the map removes it.
+  // The marker may be older than the incident: a technician's incident leaves their scope when it is
+  // assigned to someone else, before the next refresh of the map removes it.
   const notFound = incident.isError && isNotFound(incident.error);
   const heading = useRef<HTMLHeadingElement>(null);
 

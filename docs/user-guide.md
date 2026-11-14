@@ -97,7 +97,8 @@ Three tabs: *New*, *My reports* and *Profile*.
 1. On the sign-in screen, tap *Create an account*.
 2. Enter your full name, your email and a password, and tap *Create account*. The form says what
    a valid password needs.
-3. The app says *Your account is ready. Sign in to continue.* and takes you back to sign in.
+3. The app signs you in and opens *New*. If that sign-in fails, it says *Your account is ready.
+   Sign in to continue.* and takes you back to sign in.
 
 If the email already has an account, the app says so: sign in instead.
 
@@ -318,9 +319,10 @@ below about 280 pixels of map the page scrolls instead.
   a priority). Click it to zoom in until it splits.
 - **An incident:** click a marker to open its summary at the side, in the place of the counts:
   title, status, priority, category, when it was reported and the description. *Manage* opens its
-  detail, and *Close* or *Escape* brings the counts back. If the incident left your view since the last refresh (it was closed, or is
-  no longer assigned to you), the summary says *Incident not found*, and the next refresh removes
-  its marker.
+  detail, and *Close* or *Escape* brings the counts back. If the incident left your view since the
+  last refresh (a technician's incident was assigned to someone else), the summary says *Incident
+  not found*, and the next refresh removes its marker. Closing an incident does not make its
+  summary say *Incident not found*.
 - **Live:** the map reads the incidents again every 15 seconds, so a new report appears without
   reloading the page.
 - **List:** *List of the incidents on the map*, under the summary, has every incident on the map,
