@@ -83,8 +83,9 @@ stateDiagram-v2
 - **One place decides.** A domain component in `incidents` decides whether a transition is
   allowed (origin, destination, role, required data), with no dependency on HTTP. Every feature
   goes through the same application service (#37). The clients get the same table in
-  `frontend/packages/domain` (`canTransition`) only to show or hide buttons; the backend always
-  checks it.
+  `frontend/packages/domain` only to show or hide actions: the web shows a panel for each
+  transition that `availableTransitions` allows the user, and a test fails when a transition has no
+  panel (#277). The backend always checks it.
 - **One transaction.** The status change, the `status_change` row and any data the action writes
   (for example the new assignment) are persisted in one transaction. A forbidden or failed
   transition leaves neither the status nor the history changed.

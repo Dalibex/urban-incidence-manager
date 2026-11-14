@@ -24,8 +24,9 @@ Authorization: Bearer <access token>
 
 The token is signed, not encrypted: anyone who holds it can read it, so it carries no personal data
 (no name, no email). The role in the token is trusted until the token expires: a role change or a
-disabled account takes effect, at the latest, when the current access token expires, because the
-refresh token is revoked and no new access token is issued.
+disabled account takes effect, at the latest, when the current access token expires. Disabling an
+account revokes its refresh tokens, so no new access token is issued. A role change revokes nothing:
+the next refresh issues an access token with the new role.
 
 ### Configuration
 

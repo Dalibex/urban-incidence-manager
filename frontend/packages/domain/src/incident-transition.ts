@@ -8,8 +8,19 @@ import type { Role } from './role';
  */
 export type Performer = 'OPERATOR' | 'ASSIGNED_TECHNICIAN';
 
+/** The domain actions of ADR-0020, named as `IncidentTransition` in the backend. */
+export type TransitionName =
+  | 'INFORMATION_REQUEST'
+  | 'VALIDATION'
+  | 'REJECTION'
+  | 'ASSIGNMENT'
+  | 'ACCEPTANCE'
+  | 'RESOLUTION'
+  | 'CLOSURE'
+  | 'REOPENING';
+
 export interface IncidentTransition {
-  readonly name: string;
+  readonly name: TransitionName;
   readonly from: readonly IncidentStatus[];
   readonly to: IncidentStatus;
   readonly performer: Performer;
@@ -59,16 +70,17 @@ export interface TransitionActor {
   readonly isAssignedTechnician: boolean;
 }
 
-/** Whether the table allows `actor` to move an incident from `from` to `to`. */
-export function canTransition(
+/**
+ * The transitions the table lets `actor` make on an incident in `from`, in the order of the table.
+ * The web shows one action panel for each of them.
+ */
+export function availableTransitions(
   from: IncidentStatus,
-  to: IncidentStatus,
   actor: TransitionActor,
-): boolean {
-  const transition = INCIDENT_TRANSITIONS.find(
-    (candidate) => candidate.to === to && candidate.from.includes(from),
+): readonly IncidentTransition[] {
+  return INCIDENT_TRANSITIONS.filter(
+    (transition) => transition.from.includes(from) && performs(transition.performer, actor),
   );
-  return transition !== undefined && performs(transition.performer, actor);
 }
 
 function performs(performer: Performer, actor: TransitionActor): boolean {
