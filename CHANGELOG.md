@@ -7,6 +7,10 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-14
+
+This version covers the full life of an incident. Operators classify reports on the web and validate them, reject them or ask for more information, then assign them to a department and a technician; technicians accept and resolve their work from a work queue; operators close or reopen the result. Citizens place their report with a pin on the map of Málaga, attach photos and follow its progress on a timeline in the mobile app. It also adds a live incident map with a dashboard, internal comments, user administration, an audit log and operational reports, and a production deployment behind nginx with a single Compose file.
+
 ### Added
 
 - Staff dashboard beside the web map for operators, administrators and technicians: the incidents that match the filters of the map counted by priority, status, category and department, and the five latest reported, from `GET /incident-statistics` with the filters and the scope of the map (citizens and analysts get `403`). The map screen fills the window, folds its filters behind *Filters* and has a full-screen button, and the filter bars gain *Today*, *Last 7 days* and *Last 30 days* (#177).
@@ -53,7 +57,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ## [0.1.0] - 2026-11-03
 
-End of Sprint 1: a citizen signs up on the mobile app, reports an incident with its position and sees it in their list, and an operator signs in on the web app and sees it in the inbox and its detail. The web app still runs only with the Vite development server.
+First version with incidents: a citizen signs up on the mobile app, reports an incident with its position and sees it in their list, and an operator signs in on the web app and sees it in the inbox and its detail. The web app still runs only with the Vite development server.
 
 ### Added
 

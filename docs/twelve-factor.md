@@ -36,7 +36,8 @@ Commands run from `backend/`, with Docker running and `backend/.env` created fro
 
 **Done.** One repository holds the backend, the web and mobile clients, the base map builder and
 the documentation. Every change reaches `main` through a pull request (GitHub Flow,
-[contributing guide](../CONTRIBUTING.md)), and a release is a tag of `main` (`v0.0.1`, `v0.1.0`).
+[contributing guide](../CONTRIBUTING.md)), and a release is a tag of `main` (`v0.0.1`, `v0.1.0`,
+`v0.2.0`).
 
 - **It would break if:** each environment had its own copy of the code, or a long-lived branch.
 - **Check:** `git tag` lists the releases, all of them commits of `main`.
