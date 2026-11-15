@@ -88,6 +88,6 @@ body:
         - [ ] The tests run in the CI job named in each case.
         - [ ] They do not depend on real external services or on execution order.
         - [ ] Module coverage does not drop below the agreed threshold.
-        - [ ] Manual cases were run on the PR's commit and the evidence is in a comment.
+        - [ ] Manual cases were run on the PR's commit and the evidence, with that commit, is in the PR description.
     validations:
       required: true
