@@ -1,9 +1,13 @@
 # 🧩 Twelve-Factor Traceability
 
-How UrbanPulse applies each factor of the [Twelve-Factor App](https://12factor.net/), what would
-break it, and how to check it. It describes what the repository shows today; what is not built
-says `Planned: #N`. The deployment decision behind most factors is
-[ADR-0011](adr/0011-deployment-12factor.md).
+How UrbanPulse applies each principle of the [Twelve-Factor App](https://12factor.net/), a
+methodology for building apps that run well in the cloud: what each factor asks, how the project
+applies it, what would break it, and how to check it.
+
+> [!NOTE]
+> **For** anyone who needs the evidence that UrbanPulse follows Twelve-Factor. It describes what the
+> repository shows today; what is not built says `Planned: #N`. The deployment decision behind most
+> factors is [ADR-0011](adr/0011-deployment-12factor.md).
 
 | Status | Meaning |
 | --- | --- |
@@ -12,27 +16,32 @@ says `Planned: #N`. The deployment decision behind most factors is
 | Planned | Not built; an open issue covers it |
 | Accepted limit | Not built, and no issue plans it: the team accepts it for now |
 
-Commands run from `backend/`, with Docker running and `backend/.env` created from
-`.env.example` ([development guide](development.md)), unless the factor says otherwise.
+> [!TIP]
+> The commands run from `backend/`, with Docker running and `backend/.env` created from
+> `.env.example` ([development guide](development.md)), unless the factor says otherwise.
 
-## 📋 Summary
+## 📑 Contents
 
-| Factor | Status | Issues |
-| --- | --- | --- |
-| [I. Codebase](#i-codebase) | Done | |
-| [II. Dependencies](#ii-dependencies) | Done | |
-| [III. Config](#iii-config) | Done | Done: #200 |
-| [IV. Backing services](#iv-backing-services) | Done | |
-| [V. Build, release, run](#v-build-release-run) | Partial | Done: #199 |
-| [VI. Processes](#vi-processes) | Partial | Done: #192 |
-| [VII. Port binding](#vii-port-binding) | Done | Done: #199 |
-| [VIII. Concurrency](#viii-concurrency) | Accepted limit | |
-| [IX. Disposability](#ix-disposability) | Partial | |
-| [X. Dev/prod parity](#x-devprod-parity) | Done | Done: #90, #199, #200 |
-| [XI. Logs](#xi-logs) | Done | |
-| [XII. Admin processes](#xii-admin-processes) | Done | Done: #8, #34, #38, #54, #83, #84, #126 |
+| Factor | What it asks | Status | Issues |
+| --- | --- | --- | --- |
+| [I. Codebase](#i-codebase) | One repository, many deploys | Done | |
+| [II. Dependencies](#ii-dependencies) | Declared and isolated dependencies | Done | |
+| [III. Config](#iii-config) | Configuration in the environment | Done | Done: #200 |
+| [IV. Backing services](#iv-backing-services) | Services as attached resources | Done | |
+| [V. Build, release, run](#v-build-release-run) | Separate build, release and run | Partial | Done: #199 |
+| [VI. Processes](#vi-processes) | Stateless processes | Partial | Done: #192 |
+| [VII. Port binding](#vii-port-binding) | Self-contained, served on a port | Done | Done: #199 |
+| [VIII. Concurrency](#viii-concurrency) | Scale out with processes | Accepted limit | |
+| [IX. Disposability](#ix-disposability) | Fast start, graceful stop | Partial | |
+| [X. Dev/prod parity](#x-devprod-parity) | Development like production | Done | Done: #90, #199, #200 |
+| [XI. Logs](#xi-logs) | Logs as a stream to stdout | Done | |
+| [XII. Admin processes](#xii-admin-processes) | Admin tasks as one-off processes | Done | Done: #8, #34, #38, #54, #83, #84, #126 |
+
+And at the end, [🔄 Keeping It Current](#-keeping-it-current): when this annex changes.
 
 ## I. Codebase
+
+> **The principle** ([12factor.net/codebase](https://12factor.net/codebase)): One codebase in version control, deployed many times.
 
 **Done.** One repository holds the backend, the web and mobile clients, the base map builder and
 the documentation. Every change reaches `main` through a pull request (GitHub Flow,
@@ -44,6 +53,8 @@ the documentation. Every change reaches `main` through a pull request (GitHub Fl
 
 ## II. Dependencies
 
+> **The principle** ([12factor.net/dependencies](https://12factor.net/dependencies)): Declare every dependency explicitly and isolate it; never rely on something installed on the machine.
+
 **Done.** Every dependency is declared and pinned:
 
 - Backend: `backend/pom.xml` and the Maven Wrapper (`mvnw`), so Maven is not installed.
@@ -52,7 +63,8 @@ the documentation. Every change reaches `main` through a pull request (GitHub Fl
 - Images: pinned by tag in `backend/Dockerfile` (`eclipse-temurin:25.0.4.1_1-*`) and Compose
   (`postgis/postgis:18-3.6`).
 
-Only the toolchain is installed by hand: Java 25, Docker and Node 24 (README, *Prerequisites*).
+Only the toolchain is installed by hand: Java 25, Docker and Node 24
+([development guide](development.md#-prerequisites)).
 
 - **It would break if:** the README asked to install a library, or a build used a version that is
   not in a lockfile.
@@ -62,11 +74,13 @@ Only the toolchain is installed by hand: Java 25, Docker and Node 24 (README, *P
 
 ## III. Config
 
+> **The principle** ([12factor.net/config](https://12factor.net/config)): Keep what changes between environments in environment variables, never in the code.
+
 **Done.** Every value that changes between environments is an environment variable:
-`application.yaml` reads them, `backend/docker-compose.yaml` passes them to the container, and the
-[deployment guide](deployment.md) lists each one, secrets marked. `backend/.env.example`,
-`frontend/apps/web/.env.example` and `frontend/apps/mobile/.env.example` are versioned; `.env` is
-ignored. The backend does not start without `JWT_SECRET`.
+`application.yaml` reads them, both Compose files pass them to the containers, and the
+[deployment guide](deployment.md) lists each one, secrets marked. `.env.example`,
+`backend/.env.example`, `frontend/apps/web/.env.example` and `frontend/apps/mobile/.env.example` are
+versioned; every `.env` is ignored. The backend does not start without `JWT_SECRET`.
 
 The clients read their configuration when they are built: the web calls the relative `/api/v1` by
 default (`VITE_API_BASE_URL`) and loads the map style from the relative `/tiles/style.json`
@@ -87,6 +101,8 @@ deployed ([demo script](demo.md)).
 
 ## IV. Backing services
 
+> **The principle** ([12factor.net/backing-services](https://12factor.net/backing-services)): Treat databases, queues and other services as attached resources, swapped by changing the configuration.
+
 **Done.** PostgreSQL is an attached resource: the backend gets it from `SPRING_DATASOURCE_URL` and
 its credentials (locally, Spring Boot infers them from Compose). The evidence folder is
 `STORAGE_BASE_PATH`. PostgreSQL is the only backing service today: Redis enters only when a
@@ -98,6 +114,8 @@ the external data sources are not built.
   against a database container named `smoke-db`, set only through those variables.
 
 ## V. Build, release, run
+
+> **The principle** ([12factor.net/build-release-run](https://12factor.net/build-release-run)): Keep three separate stages: build the code once, combine it with a configuration into a release, run it.
 
 **Partial.**
 
@@ -121,6 +139,8 @@ the external data sources are not built.
 
 ## VI. Processes
 
+> **The principle** ([12factor.net/processes](https://12factor.net/processes)): Run the app as stateless processes; anything that must last goes to a backing service.
+
 **Partial.** The backend keeps no data in the process or on the container's filesystem: access
 tokens are stateless JWT, refresh tokens and every domain record are in PostgreSQL, and two
 concurrent edits of the same incident are detected by optimistic locking in the database
@@ -135,6 +155,8 @@ evidence folder, a volume ([deployment guide](deployment.md), *Volumes*), never 
 
 ## VII. Port binding
 
+> **The principle** ([12factor.net/port-binding](https://12factor.net/port-binding)): The app serves itself on a port, without being injected into an external web server.
+
 **Done.** The backend is a self-contained jar with its own web server, and listens on
 `SERVER_PORT` (8080 by default). The web app is served by its own image, nginx on port 8080, which
 is the only port the deployment publishes (`HTTP_PORT`, [ADR-0017](adr/0017-reverse-proxy.md)).
@@ -147,6 +169,8 @@ is the only port the deployment publishes (`HTTP_PORT`, [ADR-0017](adr/0017-reve
 
 ## VIII. Concurrency
 
+> **The principle** ([12factor.net/concurrency](https://12factor.net/concurrency)): Scale out by running more processes, not by making one process bigger.
+
 **Accepted limit.** The system runs one backend replica (ADR-0011). Nothing in the domain stops a
 second one, because the state is in PostgreSQL (see VI), but the rate-limit counters would not be
 shared. A second replica is one of the triggers of
@@ -154,6 +178,8 @@ shared. A second replica is one of the triggers of
 (`backend/load-tests`, [architecture overview](architecture.md)) measures a single replica.
 
 ## IX. Disposability
+
+> **The principle** ([12factor.net/disposability](https://12factor.net/disposability)): Start fast and stop gracefully, so processes can be started or stopped at any moment.
 
 **Partial.** `java` is PID 1 in the image (exec form of `ENTRYPOINT`), so it receives the
 `SIGTERM` of `docker stop`. On it, Spring Boot's graceful shutdown stops taking requests, lets the
@@ -170,6 +196,8 @@ complete` and `HikariPool-1 - Shutdown completed`. Start-up takes about 5 s on a
   measured on the demo machine.
 
 ## X. Dev/prod parity
+
+> **The principle** ([12factor.net/dev-prod-parity](https://12factor.net/dev-prod-parity)): Keep development, staging and production as similar as possible.
 
 **Done.** The same backend image runs locally (`--profile app`), in the deployment Compose and
 in the CI (#90), with the same PostGIS image in both Compose files, in the Testcontainers tests and
@@ -188,6 +216,8 @@ same in `ci.yml`, `pom.xml` and the two Temurin tags of the Dockerfile ([CI guid
 
 ## XI. Logs
 
+> **The principle** ([12factor.net/logs](https://12factor.net/logs)): Write logs as an event stream to stdout; the environment collects and routes them.
+
 **Done.** The backend writes its log to stdout and keeps no log file. Every line of a request
 starts with its request id (`RequestIdFilter`, `X-Request-ID`), the same as the `traceId` of its
 error body ([API guide](api.md)), so a user's report leads to its lines. nginx writes its access
@@ -198,6 +228,8 @@ Compose keeps at most three files of 10 MB per container.
 - **Check:** `docker compose --profile app logs backend` shows the application log.
 
 ## XII. Admin processes
+
+> **The principle** ([12factor.net/admin-processes](https://12factor.net/admin-processes)): Run admin and maintenance tasks as one-off processes, with the same code and configuration as the app.
 
 **Done.** Admin tasks run with the same code and configuration as the application:
 

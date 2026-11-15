@@ -1,6 +1,26 @@
-# Continuous integration (CI)
+# ⚙️ CI Guide
 
-> Decision: [ADR-0015](adr/0015-ci-pipeline-and-pre-commit-formatting.md). How the tests are organised: [testing guide](testing.md). One-time setup of a clone and of the repository: [section 9](#9-setup).
+What the continuous integration checks on every pull request, why each job fails and how to fix it,
+and the one-time setup it needs ([ADR-0015](adr/0015-ci-pipeline-and-pre-commit-formatting.md)).
+
+> [!NOTE]
+> **For** every developer before pushing (*8. How to make sure the CI works*), and for the
+> maintainer, who sets up the repository (*9. Setup*). How the tests are organised is in the
+> [testing guide](testing.md).
+
+## 📑 Contents
+
+| Section | What you will find |
+| --- | --- |
+| [1. What it is and the rules it follows](#1-what-it-is-and-the-rules-it-follows) | The four rules the CI follows |
+| [2. The full flow](#2-the-full-flow) | From a commit to the merge, as a diagram |
+| [3. Workflows and jobs](#3-workflows-and-jobs) | Every workflow and job, what makes it fail and how to fix it |
+| [4. Formatting: local hook + CI check](#4-formatting-local-hook--ci-check) | The pre-commit hook, and when `lint` still fails |
+| [5. Test contract](#5-test-contract) | Where the rules of the tests are |
+| [6. Squash merge and history](#6-squash-merge-and-history) | Why the title of a pull request becomes its commit on `main` |
+| [7. How to scale the CI](#7-how-to-scale-the-ci) | Recipes for when the project grows |
+| [8. How to make sure the CI works and does not fail for silly reasons](#8-how-to-make-sure-the-ci-works-and-does-not-fail-for-silly-reasons) | The checks to run before pushing, and how to change a workflow |
+| [9. Setup](#9-setup) | One-time setup of a clone and of the repository |
 
 ## 1. What it is and the rules it follows
 
@@ -9,7 +29,7 @@ The CI is a set of checks that GitHub Actions runs on every Pull Request and on 
 Four rules drive the whole design:
 
 1. **The CI checks; it does not modify code.** Formatting is done by the `pre-commit` hook, on your machine, before the commit exists.
-2. **What passes locally passes in the CI.** `./mvnw verify` runs the same checks as the `lint` and `test` jobs, because they are bound to Maven phases in `pom.xml` and not written only in the workflow.
+2. **What passes locally passes in the CI.** `./mvnw verify` runs the same checks as the `test` job and the formatting of `lint`, because they are bound to Maven phases in `pom.xml` and not written only in the workflow. The other steps of `lint` are shell checks of the workflow; *8.1 Before pushing* says how to repeat them.
 3. **Each job fails for a single kind of reason.** A stray space only turns `lint` red, a broken test only `test`, and a jar that does not start only `build`. You know what happened without opening the logs.
 4. **Stable job names and no `paths:` filters.** They are *required checks*: if they change or do not run, every PR stays blocked.
 
@@ -52,11 +72,12 @@ flowchart LR
 | Step | Fails if… | Fix |
 |---|---|---|
 | No .env file is versioned | There is a `.env` in git | `git rm --cached .env` (it is already in `.gitignore`) |
-| Same PostgreSQL image… | The image in `docker-compose.yaml` or `TestcontainersConfiguration.java` is not `POSTGRES_IMAGE` from `ci.yml` | Change the image in the three places at once |
-| Docker Compose file is valid | `docker-compose.yaml` is not valid with `.env.example`. It only parses it, it does not start containers | `docker compose config` locally |
+| Same PostgreSQL image… | The image in `backend/docker-compose.yaml`, in the root `docker-compose.yaml` or in `TestcontainersConfiguration.java` is not `POSTGRES_IMAGE` from `ci.yml` | Change `POSTGRES_IMAGE`, both Compose files and `TestcontainersConfiguration.java` at once |
+| Docker Compose file is valid | `backend/docker-compose.yaml` is not valid with `backend/.env.example`. It only parses it, it does not start containers | `docker compose config` in `backend/` |
+| Deployment Compose file is valid… and publishes one port | The root `docker-compose.yaml` is not valid with the root `.env.example`, or a service other than `web` publishes a port | `docker compose --profile tiles config` at the repository root |
 | Formatting (Spotless) | Some file is not formatted | `./mvnw spotless:apply`, commit and push |
 
-**Local equivalent:** `./mvnw spotless:check` (or any `./mvnw verify`, which includes it in `validate`).
+**Local equivalent:** `./mvnw spotless:check` (or any `./mvnw verify`, which includes it in `validate`) for the formatting, and `docker compose config` in `backend/` and at the root for the Compose files.
 
 ### `contract` — OpenAPI contract
 
@@ -151,7 +172,7 @@ The web image ([ADR-0017](adr/0017-reverse-proxy.md)) is built and checked in th
 
 The forwarded headers check (`.github/scripts/check_forwarded_headers.sh`) first reads the configuration the image runs (`nginx -T`) and fails on any `proxy_set_header` outside the `server` level, such as inside a `location`, however its braces are laid out, so it also covers locations added later. Then it runs the web image in front of a stub called `backend`, made from the same image, that answers with the headers it receives. A client container sends forged `X-Forwarded-*` headers, and the check fails unless the stub got the values of nginx: the client's address, the host and port of its `Host` header, `http`, and no `Forwarded` or `X-Forwarded-Prefix`. Locally, from the repository root, after building the image: `bash .github/scripts/check_forwarded_headers.sh urbanpulse-web`.
 
-The smoke test uses `docker run` with the PostGIS image on a Docker network, **not `docker compose`**. The packaged jar does not include Spring Boot's Docker Compose support, which is why the connection comes through `SPRING_DATASOURCE_*` and not through `application.yml`: locally, Spring Boot starts the Compose file and infers the URL and credentials.
+The smoke test uses `docker run` with the PostGIS image on a Docker network, **not `docker compose`**. The packaged jar does not include Spring Boot's Docker Compose support, which is why the connection comes through `SPRING_DATASOURCE_*` and not through `application.yaml`: locally, Spring Boot starts the Compose file and infers the URL and credentials.
 
 The Maven dependencies are downloaded again on every run, because the build runs inside Docker and does not use the `setup-java` cache. If the job gets slow, see [7.6 Caching](#76-caching).
 
@@ -168,7 +189,8 @@ It matters because, with squash merge, **the PR title is the commit message on `
 
 Moves the issues the PR closes (`Closes #N`) on the project board: a **draft** PR puts them in **In progress**, a PR **ready for review** puts them in **In review**. An issue not yet on the board is added. The board's own workflows cover the rest: *Item added* puts new issues in **Backlog**, and *Item closed* / *Pull request merged* put them in **Done**. Only **Backlog → Ready** is manual.
 
-It is automation, **not a required check**: never add it to the ruleset.
+> [!WARNING]
+> It is automation, **not a required check**: never add it to the ruleset.
 
 | Result | When | Fix |
 |---|---|---|
@@ -257,7 +279,7 @@ curl -fsS "http://localhost:$SMOKE_PORT/api/v1/status" | tee -a "$GITHUB_STEP_SU
 
 It has to be changed in four places, always with the same image:
 
-1. `docker-compose.yaml` (local development).
+1. `backend/docker-compose.yaml` (development) and `docker-compose.yaml` at the repository root (deployment).
 2. `TestcontainersConfiguration.java`: one more `@Bean @ServiceConnection` (`RedisContainer`, `RabbitMQContainer`…).
 3. `build` job: one more `docker run -d --network smoke …` and its `SPRING_…` variables as `-e` options of the `smoke-app` container, if the app needs it to start.
 4. `ci.yml`: a `REDIS_IMAGE` variable and its line in the *Same … image* step of `lint`.
@@ -351,7 +373,7 @@ docker compose -f docs/architecture/compose.yaml run --rm drawio
 
 The pre-commit hook formats what you commit; to format by hand, run `./mvnw spotless:apply` from `backend/` and `pnpm format` from `frontend/`.
 
-If they pass locally, `lint`, `contract`, `architecture`, `frontend` and `test` pass in the CI. The only thing they do not cover is the `build` smoke test (building and starting the image), which can be reproduced from `backend/`:
+If they pass locally, `contract`, `architecture`, `frontend`, `test` and the formatting of `lint` pass in the CI; the rest of `lint` is repeated with `docker compose config` in `backend/` and at the root. The only thing they do not cover is the `build` smoke test (building and starting the image), which can be reproduced from `backend/`:
 
 ```bash
 docker compose --profile app up --build
@@ -418,6 +440,7 @@ Result: each PR enters `main` as **a single commit** whose message is the PR tit
 
 ### 9.3 Protect `main` with a ruleset
 
+> [!NOTE]
 > A check only shows up in the ruleset search **after it has run once**.
 
 In **Settings → Rules → Rulesets → New ruleset → New branch ruleset**:

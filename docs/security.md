@@ -1,11 +1,29 @@
-# Security
+# 🔐 Security Guide
 
-How the API authenticates requests and checks permissions ([ADR-0004](adr/0004-authentication-strategy.md)).
-Every feature that adds or changes an endpoint updates the [permission matrix](#permission-matrix)
-in the same pull request, and every security alert gets its row in
-[Security findings](#security-findings).
+How the API authenticates requests and checks permissions
+([ADR-0004](adr/0004-authentication-strategy.md)), and the security limits the team knows about.
 
-## Access tokens
+> [!IMPORTANT]
+> Every feature that adds or changes an endpoint updates the
+> [permission matrix](#-permission-matrix) in the same pull request, and every security alert gets
+> its row in [Security Findings](#-security-findings).
+
+## 📑 Contents
+
+| Section | What you will find |
+| --- | --- |
+| [🎫 Access Tokens](#-access-tokens) | The JWT, its claims, its lifetime and its configuration |
+| [🔒 Sessions and Passwords](#-sessions-and-passwords) | Refresh tokens, rotation and reuse, sign-out, password changes and rate limits |
+| [👑 First Administrator](#-first-administrator) | The rules of the one-off process that creates it |
+| [📜 Audit Trail](#-audit-trail) | What is recorded, who reads it and the rules for writing it |
+| [🚫 Errors](#-errors) | The `401`, `403` and `404` answers of security |
+| [🍪 CSRF](#-csrf) | Why the protection is off, and when it must not be |
+| [💾 Browser Storage](#-browser-storage) | What the web app keeps in the browser |
+| [🧮 Permission Matrix](#-permission-matrix) | Who may call each operation |
+| [➕ Protecting a New Endpoint](#-protecting-a-new-endpoint) | The steps and the tests |
+| [🚨 Security Findings](#-security-findings) | Every alert, and what was done about it |
+
+## 🎫 Access Tokens
 
 Every request, except the public operations below, carries a JWT access token:
 
@@ -30,18 +48,13 @@ the next refresh issues an access token with the new role.
 
 ### Configuration
 
-| Variable | Required | Default | Meaning |
-| --- | --- | --- | --- |
-| `JWT_SECRET` | Yes | — | Signing secret. The application does not start without it or with fewer than 32 bytes. |
-| `JWT_ACCESS_TOKEN_TTL` | No | `PT15M` | Lifetime of the access tokens. |
-| `REFRESH_TOKEN_TTL` | No | `P14D` | Lifetime of the refresh tokens. After it, the user signs in again. |
-| `REFRESH_TOKEN_RETENTION` | No | `P30D` | How long an expired refresh token is kept before the daily clean-up deletes it. |
+`JWT_SECRET`, `JWT_ACCESS_TOKEN_TTL`, `REFRESH_TOKEN_TTL` and `REFRESH_TOKEN_RETENTION`, with their
+defaults, are in *Configuration* in the [deployment guide](deployment.md). The
+backend does not start without `JWT_SECRET` or with one under 32 bytes. Never commit a real secret,
+never log it, and use a different one in every environment: whoever knows it can sign a token for
+any user and role.
 
-Locally the variables come from `backend/.env` ([development guide](development.md)); in a container
-or in production, from the environment. Never commit a real secret, never log it, and use a
-different one in every environment: whoever knows it can sign a token for any user and role.
-
-## Sessions and passwords
+## 🔒 Sessions and Passwords
 
 - **Passwords** are hashed with bcrypt (cost 10) behind a prefix (`{bcrypt}$2a$10$...`), so a
   stronger algorithm can become the default later without resetting anyone's password. They are 8
@@ -53,32 +66,35 @@ different one in every environment: whoever knows it can sign a token for any us
   of the user and then the one of the token (`SELECT ... FOR UPDATE`), so the refreshes of one user
   run one after another: two requests with the same token cannot both succeed, and revoking every
   session never misses the one that a refresh with another token is opening at that moment.
-- **Reuse of a revoked refresh token revokes every session of its user.** A token that is presented
-  again after a refresh or a sign-out revoked it, and before it expires, means that two parties hold
-  it: if a thief refreshed first, the thief has the live session and the user holds the spent token.
-  The server cannot tell which one is the user, so it revokes every active session of that user and
-  logs a warning with the session and user ids (never the token). The answer is the same `401
-  INVALID_REFRESH_TOKEN` as for an unknown or expired token, so it does not tell the client what
-  happened. An expired token is only rejected, even if it had been revoked. The price is a false
-  alarm when the answer of a refresh is lost (the network drops after the server rotated the token,
-  or the app is closed before it saves the new pair): the client still holds the spent token, and
-  the user is signed out of every device at its next refresh. `api-client` makes that case
-  possible on purpose: when a refresh fails without an answer, or with any error other than `401`,
-  it keeps the tokens, because the session may still be valid, and sends the same refresh token at
-  the next `401`. Otherwise it never sends a token twice: it shares one refresh among concurrent
-  requests and discards the tokens on sign-out. A refresh still in flight at sign-out does not
-  bring them back: if it answers while sign-out waits for it, its fresh token revokes the session;
-  if it answers later, its tokens are dropped. In neither case is a rejection reported as an
-  expired session, and a refresh is not sent if sign-out cleared the store while it was being read.
-  A refresh that sign-out could not use to revoke the session (it answers later, or the `DELETE`
-  itself fails) leaves a session alive on the server until its refresh token expires (#237). A
-  request is only repeated with the session it was sent with. Once that session has ended, because
-  the user signed out or because its refresh was rejected, a request of that session that gets
-  `401` is neither refreshed nor repeated, so it never runs as the user who signs in next, nor with
-  the token the sign-out refreshed. A request sent while the sign-out waits for the server belongs
-  to the session being signed out; only the sign-out's own `DELETE` is still repeated with a fresh
-  token, to revoke the session. The photo upload follows the same rule, and so do the automatic
-  retries of an upload on the mobile app (#259).
+- **Reuse of a revoked refresh token revokes every session of its user.**
+  - **Why:** a token that is presented again after a refresh or a sign-out revoked it, and before it
+    expires, means that two parties hold it: if a thief refreshed first, the thief has the live
+    session and the user holds the spent token. The server cannot tell which one is the user, so it
+    revokes every active session of that user and logs a warning with the session and user ids
+    (never the token).
+  - **The answer** is the same `401 INVALID_REFRESH_TOKEN` as for an unknown or expired token, so it
+    does not tell the client what happened. An expired token is only rejected, even if it had been
+    revoked.
+  - **The price** is a false alarm when the answer of a refresh is lost (the network drops after the
+    server rotated the token, or the app is closed before it saves the new pair): the client still
+    holds the spent token, and the user is signed out of every device at its next refresh.
+    `api-client` makes that case possible on purpose: when a refresh fails without an answer, or
+    with any error other than `401`, it keeps the tokens, because the session may still be valid,
+    and sends the same refresh token at the next `401`. Otherwise it never sends a token twice: it
+    shares one refresh among concurrent requests and discards the tokens on sign-out.
+  - **A refresh still in flight at sign-out** does not bring the tokens back: if it answers while
+    sign-out waits for it, its fresh token revokes the session; if it answers later, its tokens are
+    dropped. In neither case is a rejection reported as an expired session, and a refresh is not
+    sent if sign-out cleared the store while it was being read. A refresh that sign-out could not
+    use to revoke the session (it answers later, or the `DELETE` itself fails) leaves a session
+    alive on the server until its refresh token expires (#237).
+  - **A request is only repeated with the session it was sent with.** Once that session has ended,
+    because the user signed out or because its refresh was rejected, a request of that session that
+    gets `401` is neither refreshed nor repeated, so it never runs as the user who signs in next,
+    nor with the token the sign-out refreshed. A request sent while the sign-out waits for the
+    server belongs to the session being signed out; only the sign-out's own `DELETE` is still
+    repeated with a fresh token, to revoke the session. The photo upload follows the same rule, and
+    so do the automatic retries of an upload on the mobile app (#259).
 - **Clean-up:** a job inside the backend deletes, every day at 03:00 UTC, the refresh tokens that
   expired longer ago than `REFRESH_TOKEN_RETENTION` (`RefreshTokenCleanup`). It deletes by expiry,
   not by revocation: a revoked token is kept while it would still work, because deleting it would
@@ -96,17 +112,19 @@ different one in every environment: whoever knows it can sign a token for any us
   of a disabled account, so a wrong password does not reveal it. Every account an
   administrator creates has it (`POST /users`, #191), and so does the dev user `dev.newstaff`.
 - **Password change** (`POST /password-changes`) is public: an account that must change its
-  password has no tokens yet, so the current password is the credential. It is checked like
-  sign-in (the same `401` for an unknown email, in a comparable time, and the same rate limit).
-  The new hash, the end of the obligation, the revocation of every refresh token of the user and
-  the `CHANGE_PASSWORD` entry are one transaction, so a failure in any of them leaves the old
-  password. bcrypt runs before it, and the transaction locks the user row and checks that the hash
-  is still the one checked: of two changes at once with the same current password, the second gets
-  `401`. The access tokens already issued keep working until they expire, as when an account is
-  disabled.
-  A sign-in that checks the old password at the same moment a change commits can still open a
-  session with it, because sign-in does not lock the user row: the window is a few milliseconds and
-  needs the old password.
+  password has no tokens yet, so the current password is the credential.
+  - **Checked like sign-in:** the same `401` for an unknown email, in a comparable time, and the
+    same rate limit.
+  - **All or nothing:** the new hash, the end of the obligation, the revocation of every refresh
+    token of the user and the `CHANGE_PASSWORD` entry are one transaction, so a failure in any of
+    them leaves the old password.
+  - **Two changes at once:** bcrypt runs before the transaction, which locks the user row and checks
+    that the hash is still the one checked, so of two changes with the same current password the
+    second gets `401`.
+  - **What it does not stop:** the access tokens already issued keep working until they expire, as
+    when an account is disabled. A sign-in that checks the old password at the same moment a change
+    commits can still open a session with it, because sign-in does not lock the user row: the
+    window is a few milliseconds and needs the old password.
 
 ### Rate limits
 
@@ -135,19 +153,22 @@ Known limits:
 - The key is the email and the address, so one address can still try 5 passwords on each of many
   emails (password spraying), and the counters of one window grow with every email tried. A global
   limit per address is the next step if that becomes a problem.
-- The client address is the TCP peer of the backend (`getRemoteAddr()`). In development that is
-  the client itself, and the backend ignores any `X-Forwarded-*` header it sends. In the deployment
-  Compose the peer is nginx (ADR-0017), so `SERVER_FORWARD_HEADERS_STRATEGY=native` makes Tomcat
-  take the client address from `X-Forwarded-For`, and the scheme, host and port of the `Location`
-  of a `201` from `X-Forwarded-Proto`, `X-Forwarded-Host` and `X-Forwarded-Port` (#200). Tomcat
-  only reads them from a private address, the default of `server.tomcat.remoteip.internal-proxies`,
-  which covers the Compose networks. nginx writes all four itself at the `server` level of
-  `frontend/nginx.conf`, so what a client sends never reaches the backend, and it removes the
-  client's `Forwarded` and `X-Forwarded-Prefix`, which the backend would trust if it ever switched
-  to `server.forward-headers-strategy=framework`. The `build` job fails if a `location` sets a
-  `proxy_set_header` of its own, or if a forged header reaches the backend. This is safe only
-  because the backend publishes no port: if it were reachable from a private network without
-  nginx, anyone there could send the headers.
+- **The client address** is the TCP peer of the backend (`getRemoteAddr()`).
+  - **In development** that is the client itself, and the backend ignores any `X-Forwarded-*`
+    header it sends.
+  - **In the deployment Compose** the peer is nginx (ADR-0017), so
+    `SERVER_FORWARD_HEADERS_STRATEGY=native` makes Tomcat take the client address from
+    `X-Forwarded-For`, and the scheme, host and port of the `Location` of a `201` from
+    `X-Forwarded-Proto`, `X-Forwarded-Host` and `X-Forwarded-Port` (#200). Tomcat only reads them
+    from a private address, the default of `server.tomcat.remoteip.internal-proxies`, which covers
+    the Compose networks.
+  - **Why a client cannot forge them:** nginx writes all four itself at the `server` level of
+    `frontend/nginx.conf`, so what a client sends never reaches the backend, and it removes the
+    client's `Forwarded` and `X-Forwarded-Prefix`, which the backend would trust if it ever switched
+    to `server.forward-headers-strategy=framework`. The `build` job fails if a `location` sets a
+    `proxy_set_header` of its own, or if a forged header reaches the backend.
+  - **The condition:** this is safe only because the backend publishes no port. If it were reachable
+    from a private network without nginx, anyone there could send the headers.
 - On Docker Desktop (Windows and macOS), Docker hides the address of the devices that connect from
   outside its virtual machine, so nginx sees one address for all of them and they share the
   limits. On a Linux machine each device that connects over IPv4 arrives with its own address.
@@ -164,7 +185,7 @@ Known limits:
   Before the backend sends absolute links to other people (notifications, emails), list the
   public domain in `server_name`.
 
-## First administrator
+## 👑 First Administrator
 
 Sign-up only creates citizens and staff accounts are created by an administrator (#40), so a clean
 deployment gets its first administrator from a one-off admin process (#126, 12-factor XII), run
@@ -184,7 +205,7 @@ with the same image and configuration as the backend. How to run it is in
 - The administrator is not obliged to change the password of the environment, but can with
   `POST /password-changes`. Remove it from the environment once the account exists.
 
-## Audit trail
+## 📜 Audit Trail
 
 Administrative actions and relevant decisions are recorded in `audit_log` (RF18): who (`actor_id`),
 when (`instant`, UTC), what (`action`), on which record (`target_type`, `target_id`) and `details`,
@@ -231,7 +252,7 @@ Known limits:
   stop it. Accounts are disabled instead (#40); erasing personal data on request would need its own
   procedure.
 
-## Errors
+## 🚫 Errors
 
 The filters answer before any controller runs, with the contract's Problem Details body
 (`application/problem+json`):
@@ -248,7 +269,7 @@ API does not reveal which ids exist. The contract says so in each operation.
 Sign-up, sign-in, refresh and the password change run in their own filter chain without token validation: a client that
 sends its expired access token along with the refresh request still gets the refresh.
 
-## CSRF
+## 🍪 CSRF
 
 CSRF protection is disabled in `SecurityConfig` on purpose. A cross-site request forgery works
 because the browser attaches a site's cookies to any request sent to it, even from another site's
@@ -263,13 +284,14 @@ Static analysis flags the disabled protection anyway (CodeQL `java/spring-disabl
 it cannot see that no cookie carries a credential. The alert is dismissed as a false positive with a
 link to this section.
 
-**When this stops being true:** if any credential ever travels in a cookie (for example, the refresh
-token in an `HttpOnly` cookie for the web client), the endpoints that accept it are open to CSRF.
-That change needs an update of [ADR-0004](adr/0004-authentication-strategy.md) and CSRF protection
-(or `SameSite=Strict` plus a check of the `Origin` header) for those endpoints, in the same pull
-request.
+> [!IMPORTANT]
+> **When this stops being true:** if any credential ever travels in a cookie (for example, the
+> refresh token in an `HttpOnly` cookie for the web client), the endpoints that accept it are open to
+> CSRF. That change needs an update of [ADR-0004](adr/0004-authentication-strategy.md) and CSRF
+> protection (or `SameSite=Strict` plus a check of the `Origin` header) for those endpoints, in the
+> same pull request.
 
-## Browser storage
+## 💾 Browser Storage
 
 The web app keeps the tokens in memory only (`SessionContext`), never in `localStorage` or
 `sessionStorage`, where any script of the page could read them. The only thing it writes there is
@@ -279,7 +301,7 @@ reads it. It stays after sign-out because it is only a layout, so on a shared br
 keeps the ids of the users who opened the map there. If the browser refuses its storage, the
 screen works with the defaults.
 
-## Permission matrix
+## 🧮 Permission Matrix
 
 Paths are relative to `/api/v1`. **Public** means no token. A role in the cell can call the
 operation; the note says when the answer also depends on the resource. A role not listed gets `403`.
@@ -341,7 +363,7 @@ and accepting `priority` would reveal a staff-only value by trying values. A pho
 of its incident: the id of an attachment is not a public URL, and a photo of an incident the caller
 may not see answers `404` too (ADR-0013).
 
-## Protecting a new endpoint
+## ➕ Protecting a New Endpoint
 
 1. Add the operation to the matrix above and to `docs/api/openapi.yml` (`401`, and `403` when the role
    matters).
@@ -360,7 +382,7 @@ A global `@RestControllerAdvice` must not catch `AccessDeniedException` or `Auth
 written by the security filters after the exception leaves the controller; if an advice catches it
 first, the client gets `500`.
 
-## Security findings
+## 🚨 Security Findings
 
 Every alert that GitHub raises on this repository gets a row here: code scanning (CodeQL) and
 Dependabot. The row goes in the pull request that fixes or dismisses the alert, so the reason stays
@@ -372,7 +394,7 @@ is released: before that, a row would make it public.
 
 | Alert | Rule | Where | Severity | Outcome | Why | Pull request |
 | --- | --- | --- | --- | --- | --- | --- |
-| [#1](https://github.com/Dalibex/urban-incidence-manager/security/code-scanning/1) | CodeQL `java/spring-disabled-csrf-protection` | `shared/security/SecurityConfig.java` | High | Dismissed, false positive | No credential travels in a cookie, so there is nothing to forge ([CSRF](#csrf)) | — |
+| [#1](https://github.com/Dalibex/urban-incidence-manager/security/code-scanning/1) | CodeQL `java/spring-disabled-csrf-protection` | `shared/security/SecurityConfig.java` | High | Dismissed, false positive | No credential travels in a cookie, so there is nothing to forge ([CSRF](#-csrf)) | — |
 | [#2](https://github.com/Dalibex/urban-incidence-manager/security/code-scanning/2) | CodeQL `js/polynomial-redos` | `frontend/packages/api-client/src/session.ts` | High | Fixed before the merge | `/\/+$/` backtracks quadratically on a long run of slashes in the API base URL; a loop removes the trailing slashes instead | #97 |
 | [#3](https://github.com/Dalibex/urban-incidence-manager/security/code-scanning/3) | CodeQL `js/incomplete-multi-character-sanitization` | `docs/architecture/drawio/generate.mjs` | High | Fixed before the merge | A regular expression stripped tags to measure the legend of each page. Not exploitable: the generator writes that text itself and only uses its length. The legend is now built from plain text, so nothing strips tags | #154 |
 | Dependabot [#1](https://github.com/Dalibex/urban-incidence-manager/security/dependabot/1), [#4–#14](https://github.com/Dalibex/urban-incidence-manager/security/dependabot?q=package%3Anode-forge) | Twelve `node-forge` advisories | `frontend/pnpm-lock.yaml`, through `@expo/cli` | High | Fixed, updated to 1.4.2 | Version 1.4.0 had twelve published advisories, RSA signature verification among them; 1.4.2 is past every patched version | #158 |

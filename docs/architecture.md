@@ -1,14 +1,23 @@
 # 🏛️ Architecture Overview
 
-Why UrbanPulse is built the way it is: the drivers that shape it, a short summary of its parts, and
-the quality attribute scenarios that say, with numbers, whether the architecture does its job. The
-structure is drawn in the [C4 model](architecture/) and each decision is argued in its
-[ADR](adr/); this document links them instead of repeating them.
+Why UrbanPulse is built the way it is: the drivers that shape it, a summary of its parts, and the
+quality attribute scenarios that check, with numbers, that the architecture does its job.
 
-A quality goal without its measurement conditions cannot be checked (`AGENTS.md`, section 12), so
-every scenario below states its source, stimulus, environment, artifact, response and response
-measure, how it is measured, and what has been measured so far. The response measures are
-**proposed targets**: the team confirms or adjusts them when the first full measurement is taken.
+> [!NOTE]
+> **For** anyone who needs the reasons behind the design. The structure is drawn in the
+> [C4 model](architecture/) and each decision is argued in its [ADR](adr/); this document links them
+> instead of repeating them.
+
+## 📑 Contents
+
+| Section | What you will find |
+| --- | --- |
+| [🎯 Architecture Drivers](#-architecture-drivers) | The requirements, quality attributes and constraints that shape the design |
+| [🧱 Architecture Summary](#-architecture-summary) | Each container, its technology, the ADR behind it and whether it is built |
+| [🧩 C4 Model](#-c4-model) | Where the model is, how to regenerate it and how to browse it |
+| [📐 Quality Attribute Scenarios](#-quality-attribute-scenarios) | QA-1 to QA-4: what is measured, how, and the results so far |
+| [🚧 Accepted Risks](#-accepted-risks) | The known limits the team accepts, and where each one is explained |
+| [📋 ADRs Without a Measurable Evaluation](#-adrs-without-a-measurable-evaluation) | The scenario that would evaluate each accepted ADR |
 
 ## 🎯 Architecture Drivers
 
@@ -85,7 +94,7 @@ Where to look for more:
 - **Deployment:** the [deployment guide](deployment.md).
 - **Data:** the [database guide](database.md) and the [datasets](datasets.md).
 
-## 🗺️ C4 Model
+## 🧩 C4 Model
 
 [`architecture/workspace.dsl`](architecture/workspace.dsl) (Structurizr DSL) is the only source of
 the model. It shows the decided architecture, so it includes containers that accepted ADRs decide
@@ -104,14 +113,22 @@ with Graphviz and writes the file; it needs only Docker. The `architecture` CI j
 and fails if the committed file differs ([CI guide](ci.md#architecture--c4-model)).
 
 To browse the model in Structurizr, run this from the repository root and open
-`http://localhost:8080` (*Diagrams* lists every view). It saves `workspace.json` and `.structurizr/`
+`http://localhost:8081` (*Diagrams* lists every view). It uses 8081 because the backend takes 8080. It saves `workspace.json` and `.structurizr/`
 next to the DSL; Git ignores both.
 
 ```bash
-docker run -it --rm -p 8080:8080 -v "$PWD/docs/architecture:/usr/local/structurizr" structurizr/structurizr:2026.09.19 local
+docker run -it --rm -p 8081:8080 -v "$PWD/docs/architecture:/usr/local/structurizr" structurizr/structurizr:2026.09.19 local
 ```
 
 ## 📐 Quality Attribute Scenarios
+
+A quality goal without its measurement conditions cannot be checked (`AGENTS.md`, section 12), so
+every scenario states its source, stimulus, environment, artifact, response and response measure,
+how it is measured, and what has been measured so far.
+
+> [!NOTE]
+> The response measures are **proposed targets**: the team confirms or adjusts them when the first
+> full measurement is taken.
 
 | ID | Quality attribute | Scenario | Status |
 | --- | --- | --- | --- |
@@ -133,39 +150,24 @@ docker run -it --rm -p 8080:8080 -v "$PWD/docs/architecture:/usr/local/structuri
 
 **How it is measured.** In two parts:
 
-- **Database:** `EXPLAIN (ANALYZE, BUFFERS)` of the SQL each operation runs, on the `perf` dataset,
-  as *Indexes* in the [database guide](database.md) describes.
-- **HTTP:** a load test against the running backend, recording p50, p95 and p99 in *Measurements*
-  in the [datasets guide](datasets.md), with the conditions that template asks for.
+- **Database:** `EXPLAIN (ANALYZE, BUFFERS)` of the SQL each operation runs, on the `perf` dataset.
+- **HTTP:** a k6 load test against the running backend, recording p50, p95 and p99.
 
-**First measurement (database, 2026-11-02, #132).** With the indexes of
-`V10__incidents_index_main_queries.sql`, every main query is under 10 ms:
+Both are recorded, with their conditions, in *Measurements* in the
+[datasets guide](datasets.md#-measurements).
 
-| Query | Median |
-| --- | --- |
-| *My reports*, page of 20 (the citizen with the most incidents, 5,901) | 0.5 ms |
-| Operator inbox, every status, page of 20 | 0.5 ms |
-| Operator inbox, one status, page of 20 | 0.4 ms |
-| Technician list, page of 20 (2,089 active assignments) | 8.1 ms |
-| History of one incident | 0.1 ms |
+**Results so far.** Both parts meet the target:
 
-Conditions and the rest of the queries (the counts, the technician detail) are in the
-[database guide](database.md#main-queries).
+- **Database (2026-11-02, #132):** with the indexes of `V10`, every main query is under 10 ms; the
+  slowest is the technician's list, at 8.1 ms
+  ([query plans](datasets.md#query-plans-of-the-indexes)).
+- **HTTP (2026-11-03, #155):** every operation of every role has a p95 under 30 ms, and no request
+  failed; the slowest is the technician's list, at 27.5 ms
+  ([load test](datasets.md#load-test-of-qa-1)).
 
-**First measurement (HTTP, 2026-11-03, #155).** With the k6 script
-`backend/load-tests/qa1-incidents.js`, every operation of every role has a p95 under 30 ms and no
-request failed:
-
-| Operation | p95, slowest role |
-| --- | --- |
-| List, page of 20 | 27.5 ms (technician) |
-| Detail | 4.9 ms (citizen, administrator) |
-| History | 6.2 ms (citizen) |
-
-How to run it, the conditions and every role are in *Load test of QA-1* in the
-[datasets guide](datasets.md#load-test-of-qa-1). It was measured on a developer laptop with the
-backend, the database and k6 on the same machine. QA-1 asks for the machine the demo runs on, so it
-must be measured again there once that machine exists.
+It was measured on a developer laptop with the backend, the database and k6 on the same machine.
+QA-1 asks for the machine the demo runs on, so it must be measured again there once that machine
+exists.
 
 ### QA-2: Create an incident while an external source is down (RF26)
 
@@ -231,7 +233,7 @@ to Redis.
 container (the data and the photos are in the volumes), but the no-loss check has not been
 recorded yet (T1 of #67).
 
-## ⚖️ Accepted Risks
+## 🚧 Accepted Risks
 
 Known limits the team accepts for now. A review does not report them (*Sprint review* in
 `CONTRIBUTING.md`); each one is revisited when its source says.

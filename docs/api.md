@@ -1,6 +1,24 @@
-# REST API contract
+# 🔌 API Guide
 
-> Contract: [`docs/api/openapi.yml`](api/openapi.yml). Decision: [ADR-0008](adr/0008-backend.md) (contract first).
+The conventions of the UrbanPulse REST API and how to change it. The API is designed contract
+first: [`docs/api/openapi.yml`](api/openapi.yml) is its source of truth
+([ADR-0008](adr/0008-backend.md)).
+
+> [!NOTE]
+> **For** anyone who adds or changes an endpoint, or builds a client on the API. Who may call each
+> operation is in the [security guide](security.md#-permission-matrix); how the HTTP tests check the
+> contract, in the [testing guide](testing.md).
+
+## 📑 Contents
+
+| Section | What you will find |
+| --- | --- |
+| [1. What it is and why it comes first](#1-what-it-is-and-why-it-comes-first) | Why the contract is the source of truth of the API |
+| [2. What the contract defines](#2-what-the-contract-defines) | Its parts, and the operations agreed in each sprint |
+| [3. Conventions](#3-conventions) | Paths, names, schemas, errors and their codes, request id and listings |
+| [4. How to add an endpoint](#4-how-to-add-an-endpoint) | The steps, from the contract to the tests |
+| [5. Viewing the documentation](#5-viewing-the-documentation) | Swagger UI and the contract served by the backend |
+| [6. Generated client](#6-generated-client) | The TypeScript client of the apps, generated from the contract |
 
 ## 1. What it is and why it comes first
 
@@ -262,7 +280,7 @@ The backend serves the contract with [springdoc-openapi](https://springdoc.org/)
 | `http://localhost:8080/openapi.yml` | The contract file itself, copied into the jar at build time |
 | `http://localhost:8080/v3/api-docs` | What springdoc generates from the controllers. Useful to compare with the contract while implementing |
 
-The build copies `docs/api/openapi.yml` into the jar (`maven-resources-plugin` in `pom.xml`), so the documentation always matches the contract of that commit. Any future Docker build must keep `docs/api/` in its context for the same reason.
+The build copies `docs/api/openapi.yml` into the jar (`maven-resources-plugin` in `pom.xml`), so the documentation always matches the contract of that commit. The backend image does the same: `backend/Dockerfile` takes the file from a second build context, `contract` (`docs/api`), which both Compose files pass to it.
 
 These URLs are open without authentication. To turn off Swagger UI and the generated description in an environment, set `SPRINGDOC_SWAGGER_UI_ENABLED=false` and `SPRINGDOC_API_DOCS_ENABLED=false`. `/openapi.yml` stays available: it is the public contract the clients are built from.
 
@@ -274,6 +292,7 @@ The clients never write the API types by hand. `frontend/packages/api-client/src
 pnpm generate:api
 ```
 
-Never edit `schema.d.ts` by hand: the `contract` CI job fails if it differs from the contract.
+> [!WARNING]
+> Never edit `schema.d.ts` by hand: the `contract` CI job fails if it differs from the contract.
 
 Each operation gets a typed function in `api-client` (`listIncidents`, `getIncident`...) that returns an `ApiResult`, so both apps handle failures by `status` and `code`, never by the text.
