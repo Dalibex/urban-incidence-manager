@@ -1,18 +1,19 @@
 # Contributing to UrbanPulse
 
-UrbanPulse is built by a university team. This guide has two parts:
+UrbanPulse is built by a university team. This guide says how to take part in it, in three parts:
 
-- **[For everyone](#for-everyone):** how anyone can report a bug, request a feature, report a
-  vulnerability or propose a change.
-- **[Team workflow](#team-workflow):** how the team members, who have write access to the repository,
-  plan, build, review and merge every change, including documentation.
+| Part | For | Sections |
+| --- | --- | --- |
+| [🌍 For everyone](#-for-everyone) | Anyone | [Report a bug or request a feature](#report-a-bug-or-request-a-feature) · [Report a vulnerability](#report-a-vulnerability) · [Propose a change](#propose-a-change) |
+| [📏 Conventions for every change](#-conventions-for-every-change) | Every change, whoever makes it | [Failure and limit cases](#failure-and-limit-cases) · [Branches](#branches) · [Commits](#commits) · [Pull requests](#pull-requests) · [Changelog](#changelog) · [Architecture decisions](#architecture-decisions) |
+| [👥 Team workflow](#-team-workflow) | The team members, who have write access | [Team and roles](#team-and-roles) · [Workflow at a glance](#workflow-at-a-glance) · [Issues](#issues) · [Testing lifecycle](#testing-lifecycle) · [Dependabot pull requests](#dependabot-pull-requests) · [Review and merge](#review-and-merge) · [Sprint review](#sprint-review) · [Protection of `main`](#protection-of-main) · [Versioning](#versioning) |
 
 Everyone who takes part in the project agrees to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 Write issues, pull requests and commits in English. To set up the project locally, follow the
 [development guide](docs/development.md). This document does not repeat it.
 
-## For everyone
+## 🌍 For everyone
 
 ### Report a bug or request a feature
 
@@ -31,146 +32,25 @@ done. Do not include real personal data, passwords or tokens in an issue.
 
 ### Report a vulnerability
 
-Never open a public issue for a vulnerability. Follow the [security policy](SECURITY.md), which uses
-GitHub private vulnerability reporting.
+> [!CAUTION]
+> Never open a public issue for a vulnerability. Follow the [security policy](SECURITY.md), which
+> uses GitHub private vulnerability reporting.
 
 ### Propose a change
 
 If you are not part of the team and want to fix something, comment on its issue first and wait until a
 team member agrees, so the work is not done twice. Then work on a fork and open a pull request that
-follows the [branch](#branches), [commit](#commits) and [pull request](#pull-requests) conventions of
-the team. The `pr-title` job and the CI checks run on it like on any other pull request (for a
+follows the [Conventions for every change](#-conventions-for-every-change), as any team member does.
+The `pr-title` job and the CI checks run on it like on any other pull request (for a
 first-time contributor, after a maintainer approves the run), and a team member reviews it and merges
 it.
 
 Only team members are assigned issues or move cards on the project board.
 
-## Team workflow
+## 📏 Conventions for every change
 
-The rest of this guide applies to the team members.
-
-### Team and roles
-
-The roles below organize the work on this repository. The Members column shows how our team assigns
-them, as a reference; update it whenever the assignment changes.
-
-| Role | Responsibility | Members |
-| --- | --- | --- |
-| Maintainer | Manages the repository settings, branch rules, releases and long-lived branches | Dalibex |
-| Developer | Implements issues, opens pull requests and answers review comments | Everyone |
-| Reviewer | Reviews pull requests and approves them | Pablit023, AlejandroCuetoDiaz |
-| Tester | Writes the acceptance tests of each feature and validates that it works as described in its issue | Lewas88 |
-| Product owner | Prioritizes issues and plans the milestones | Fjjorda |
-
-A person can hold more than one role, but nobody approves their own pull request: a reviewer other
-than its author approves it. When no reviewer can review in time and the pull request cannot wait,
-for example a critical fix, another team member who is not its author may approve it, and says why
-in the review.
-
-### Workflow at a glance
-
-1. Pick an issue from the **Ready** column of the project board and assign it to yourself.
-2. Create a branch from the latest `main`, push the first commit and open a **draft** pull request
-   that closes its issue (`Closes #N`) and, if it is the last pull request of that issue, its
-   `[Test]` (see [Sub-issues](#sub-issues)). The tester adds the acceptance tests to it (see
-   [Testing lifecycle](#testing-lifecycle)). The cards move to **In progress** by themselves.
-3. Commit small changes with Conventional Commits.
-4. Mark the pull request **Ready for review** when it is done (see
-   [When a pull request is done](#when-a-pull-request-is-done)). The cards move to **In review** by
-   themselves.
-5. Fix what the CI or the reviewer reports, pushing to the same branch.
-6. A reviewer approves, and you merge with **Squash and merge**. The issues close and move to
-   **Done** by themselves.
-
-The only card you move by hand is **Backlog → Ready**, when the issue is planned for the sprint.
-
-`main` is the only long-lived branch. The application skeleton was built on a separate
-`boilerplate` branch and merged into `main` as version `0.0.1`.
-
-### Issues
-
-Every change starts from an issue. Besides the templates in [For everyone](#for-everyone), the team
-uses the ones for internal work:
-
-| Template | Title prefix | Use it for |
-| --- | --- | --- |
-| Feature request | `[Feature]: ` | New functionality |
-| Bug report | `[Bug]: ` | Something that does not work as expected |
-| Task | `[Task]: ` | Technical work with no new behavior |
-| 12-Factor | `[12F-]: ` | Applying a Twelve-Factor principle |
-| Test | `[Test]: ` | Adding or improving tests |
-| ADR | `[ADR]: ADR-XXXX ` | Proposing an architectural decision |
-| Documentation | `[Docs]: ` | Documentation changes |
-| CI/CD | `[CI]: ` | Pipeline and automation changes |
-
-Give each issue its labels and the milestone it belongs to. Use `priority: high`, `priority: medium`
-or `priority: low` to order the work. The issue joins the project board in **Backlog** by itself. Triage
-the issues opened by people outside the team in the same way, or close them with a reason.
-
-Record dependencies in the issue's **Relationships**, with **Blocked by**: its pull request is not
-merged until the blocking one is, because it would not work without it. A `[Test]` issue has no
-**Blocked by**: it is worked on inside the draft pull request of its feature, while the feature is
-built.
-
-A blocked issue can still start when it only needs what the blocker looks like from outside, and
-that is already in `main`: the OpenAPI contract and its generated types, or an accepted decision.
-Its tests simulate the missing part, and the manual test and the merge wait for the blocker. It
-waits to start when it needs the blocker's code: a migration or entity it uses, a backend class it
-calls, a shared component still being written, or a contract not decided yet. The *Dependencies*
-field of the issue says both, with `Start:` and `Merge after:`. Each issue still gets its own
-branch from `main`, never from the blocker's branch.
-
-Every feature, bug and task names, in its *Failure and limit cases* field, the cases of
-[Failure and limit cases](#failure-and-limit-cases) that apply to it, and in *Out of scope* what it
-does not do.
-
-#### Project board
-
-| Column | The card gets there when… |
-| --- | --- |
-| Backlog | The issue is created (automatic) |
-| Ready | The team plans it for the sprint (manual) |
-| In progress | A **draft** pull request that closes it is opened (automatic) |
-| In review | That pull request is marked **Ready for review** (automatic) |
-| Done | The issue is closed or the pull request is merged (automatic) |
-
-The `project-status` workflow moves the cards to **In progress** and **In review** from the pull
-request status, so it only works when the description says `Closes #N`. It skips pull requests from
-forks: for those, the team moves the cards by hand. The [CI guide](docs/ci.md) explains it.
-
-#### Sub-issues
-
-Split an issue into sub-issues when its pieces have different blockers, or when someone else waits
-for one of them.
-
-- Each sub-issue has its own pull request, which says `Closes #<sub-issue>`.
-- The parent stays open until every sub-issue is done. The last pull request also says
-  `Closes #<parent>` and `Closes #<test>`.
-- There is one `[Test]` per parent. Each sub-issue lists which cases of that `[Test]` it covers,
-  and the tester adds them to the sub-issue's pull request.
-
-### Testing lifecycle
-
-Each feature or task that changes behavior has a `[Test]` sub-issue whose table of test cases is the
-specification of the feature, written from the issue and the [OpenAPI contract](docs/api/openapi.yml).
-The code and the acceptance tests are written in parallel on the same draft pull request, so
-neither waits for the other: the developer works from the issue, the tester from the `[Test]` and
-the contract, and each one starts as soon as they can. What is fixed is the end, not the order:
-the pull request is reviewed only when both are complete.
-
-| Step | Who | What |
-| --- | --- | --- |
-| 1. Start | Developer | Creates the branch and opens a **draft** pull request from the first commit, for every issue that has testing. |
-| 2. Build | Developer | Implements the feature, with unit tests for the internal logic. |
-| 3. Test | Tester | At the same time, adds the acceptance tests to the draft pull request: HTTP, integration, contract and components. |
-| 4. Evidence | Tester | Runs the manual cases on the pull request's commit and leaves the evidence in a comment. |
-| 5. Review | Developer | Marks it ready for review when every case of the `[Test]` that this pull request covers is covered and the checks pass. |
-
-- A feature is merged only with its tests.
-- The tester and the developer push to the same branch: pull before pushing and avoid editing the same
-  files at the same time.
-- Failing tests never reach `main`: the required checks block the merge until they pass.
-- The contract of an endpoint is merged before or with its implementation ([API guide](docs/api.md)).
+These conventions apply to every change, whoever makes it: a team member or anyone who proposes
+one from a fork.
 
 ### Failure and limit cases
 
@@ -190,7 +70,10 @@ without a token, so the same thing is not tested many times.
 
 ### Branches
 
-Never commit directly to `main`. Create one branch per issue from an up-to-date `main`:
+> [!IMPORTANT]
+> Never commit directly to `main`.
+
+Create one branch per issue from an up-to-date `main`:
 
 ```bash
 git switch main
@@ -276,7 +159,7 @@ A pull request can only be merged when these CI jobs pass:
 
 | Job | Checks |
 | --- | --- |
-| `lint` | No versioned `.env`, same database image everywhere, valid Compose file, formatting |
+| `lint` | No versioned `.env`, same database image everywhere, valid Compose files with only `web` published, formatting |
 | `contract` | The OpenAPI contract is valid |
 | `architecture` | The C4 model is valid and its draw.io file is the one it generates |
 | `frontend` | Formatting, lint, types, tests and build of the web and mobile clients |
@@ -305,6 +188,183 @@ docker compose -f docs/architecture/compose.yaml run --rm drawio
 
 The draw.io file is an output of the DSL: never edit it by hand, because the next regeneration
 overwrites the change.
+
+### Changelog
+
+From the first release on `main`, every pull request that adds a feature, fixes a bug or changes
+behavior adds a short entry to [`CHANGELOG.md`](CHANGELOG.md), under `[Unreleased]`, in the same pull
+request. Use the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) sections (`Added`, `Changed`,
+`Fixed`, `Removed`) and link the issue or pull request.
+
+The changelog tells the people who use or deploy UrbanPulse what changed between versions, so it only
+lists changes they can notice:
+
+| Goes in the changelog | Does not |
+| --- | --- |
+| New features and endpoints (`Added`) | Documentation, guides and ADRs |
+| Changes to existing behavior, the API contract, configuration or environment variables (`Changed`) | Refactorings with no change in behavior |
+| Removed features or endpoints (`Removed`) | Tests, CI and repository tooling |
+| Bugs fixed in a released version (`Fixed`) | Formatting and dependency bumps without a visible effect |
+
+Keep each entry consistent with the rest of the file:
+
+- `Fixed` is only for bugs that exist in a released version. A bug in something that is still under
+  `[Unreleased]` is not a separate entry: correct the original entry if its description changes.
+- If a later pull request changes or removes something still under `[Unreleased]`, edit or delete its
+  entry instead of adding a contradictory one.
+- Write each entry from the user's point of view, as one short noun phrase, like the existing ones.
+
+### Architecture decisions
+
+A significant technical decision (technology, architecture, persistence, security, infrastructure) is
+recorded as an ADR in [`docs/adr/`](docs/adr/), using the [ADR template](.github/adr-template.md) and the
+ADR issue template. A new ADR starts as **Proposed** and becomes **Accepted** only when the team agrees.
+
+## 👥 Team workflow
+
+This part applies to the team members, who have write access to the repository: how they plan,
+build, review and merge every change, including documentation.
+
+### Team and roles
+
+The roles below organize the work on this repository. The Members column shows how our team assigns
+them, as a reference; update it whenever the assignment changes.
+
+| Role | Responsibility | Members |
+| --- | --- | --- |
+| Maintainer | Manages the repository settings, branch rules, releases and long-lived branches | Dalibex |
+| Developer | Implements issues, opens pull requests and answers review comments | Everyone |
+| Reviewer | Reviews pull requests and approves them | Pablit023, AlejandroCuetoDiaz |
+| Tester | Writes the acceptance tests of each feature and validates that it works as described in its issue | Lewas88 |
+| Product owner | Prioritizes issues and plans the milestones | Fjjorda |
+
+A person can hold more than one role, but nobody approves their own pull request: a reviewer other
+than its author approves it. When no reviewer can review in time and the pull request cannot wait,
+for example a critical fix, another team member who is not its author may approve it, and says why
+in the review.
+
+### Workflow at a glance
+
+1. Pick an issue from the **Ready** column of the project board and assign it to yourself.
+2. Create a branch from the latest `main`, push the first commit and open a **draft** pull request
+   that closes its issue (`Closes #N`) and, if it is the last pull request of that issue, its
+   `[Test]` (see [Sub-issues](#sub-issues)). The tester adds the acceptance tests to it (see
+   [Testing lifecycle](#testing-lifecycle)). The cards move to **In progress** by themselves.
+3. Commit small changes with Conventional Commits.
+4. Mark the pull request **Ready for review** when it is done (see
+   [When a pull request is done](#when-a-pull-request-is-done)). The cards move to **In review** by
+   themselves.
+5. Fix what the CI or the reviewer reports, pushing to the same branch.
+6. A reviewer approves, and you merge with **Squash and merge**. The issues close and move to
+   **Done** by themselves.
+
+The only card you move by hand is **Backlog → Ready**, when the issue is planned for the sprint.
+
+`main` is the only long-lived branch. The application skeleton was built on a separate
+`boilerplate` branch and merged into `main` as version `0.0.1`.
+
+### Issues
+
+Every change starts from an issue, opened from one of these templates:
+
+| Template | Title prefix | Use it for |
+| --- | --- | --- |
+| Feature request | `[Feature]: ` | New functionality |
+| Bug report | `[Bug]: ` | Something that does not work as expected |
+| Task | `[Task]: ` | Technical work with no new behavior |
+| 12-Factor | `[12F-]: ` | Applying a Twelve-Factor principle |
+| Test | `[Test]: ` | Adding or improving tests |
+| ADR | `[ADR]: ADR-XXXX ` | Proposing an architectural decision |
+| Documentation | `[Docs]: ` | Documentation changes |
+| CI/CD | `[CI]: ` | Pipeline and automation changes |
+
+Give each issue its labels and the milestone it belongs to. Use `priority: high`, `priority: medium`
+or `priority: low` to order the work. The issue joins the project board in **Backlog** by itself. Triage
+the issues opened by people outside the team in the same way, or close them with a reason.
+
+Record dependencies in the issue's **Relationships**, with **Blocked by**: its pull request is not
+merged until the blocking one is, because it would not work without it. A `[Test]` issue has no
+**Blocked by**: it is worked on inside the draft pull request of its feature, while the feature is
+built.
+
+A blocked issue can still start when it only needs what the blocker looks like from outside, and
+that is already in `main`: the OpenAPI contract and its generated types, or an accepted decision.
+Its tests simulate the missing part, and the manual test and the merge wait for the blocker. It
+waits to start when it needs the blocker's code: a migration or entity it uses, a backend class it
+calls, a shared component still being written, or a contract not decided yet. The *Dependencies*
+field of the issue says both, with `Start:` and `Merge after:`. Each issue still gets its own
+branch from `main`, never from the blocker's branch.
+
+Every feature, bug and task names, in its *Failure and limit cases* field, the cases of
+[Failure and limit cases](#failure-and-limit-cases) that apply to it, and in *Out of scope* what it
+does not do.
+
+#### Project board
+
+| Column | The card gets there when… |
+| --- | --- |
+| Backlog | The issue is created (automatic) |
+| Ready | The team plans it for the sprint (manual) |
+| In progress | A **draft** pull request that closes it is opened (automatic) |
+| In review | That pull request is marked **Ready for review** (automatic) |
+| Done | The issue is closed or the pull request is merged (automatic) |
+
+The `project-status` workflow moves the cards to **In progress** and **In review** from the pull
+request status, so it only works when the description says `Closes #N`. It skips pull requests from
+forks: for those, the team moves the cards by hand. The [CI guide](docs/ci.md) explains it.
+
+#### Sub-issues
+
+Split an issue into sub-issues when its pieces have different blockers, or when someone else waits
+for one of them.
+
+- Each sub-issue has its own pull request, which says `Closes #<sub-issue>`.
+- The parent stays open until every sub-issue is done. The last pull request also says
+  `Closes #<parent>` and `Closes #<test>`.
+- There is one `[Test]` per parent. Each sub-issue lists which cases of that `[Test]` it covers,
+  and the tester adds them to the sub-issue's pull request.
+
+### Testing lifecycle
+
+Each feature or task that changes behavior has a `[Test]` sub-issue whose table of test cases is the
+specification of the feature, written from the issue and the [OpenAPI contract](docs/api/openapi.yml).
+The code and the acceptance tests are written in parallel on the same draft pull request, so
+neither waits for the other: the developer works from the issue, the tester from the `[Test]` and
+the contract, and each one starts as soon as they can. What is fixed is the end, not the order:
+the pull request is reviewed only when both are complete.
+
+| Step | Who | What |
+| --- | --- | --- |
+| 1. Start | Developer | Creates the branch and opens a **draft** pull request from the first commit, for every issue that has testing. |
+| 2. Build | Developer | Implements the feature, with unit tests for the internal logic. |
+| 3. Test | Tester | At the same time, adds the acceptance tests to the draft pull request: HTTP, integration, contract and components. |
+| 4. Evidence | Tester | Runs the manual cases on the pull request's commit and adds the evidence, with that commit, to *Manual Evidence* in the pull request description. |
+| 5. Review | Developer | Marks it ready for review when every case of the `[Test]` that this pull request covers is covered and the checks pass. |
+
+- A feature is merged only with its tests.
+- The tester and the developer push to the same branch: pull before pushing and avoid editing the same
+  files at the same time.
+- Failing tests never reach `main`: the required checks block the merge until they pass.
+- The contract of an endpoint is merged before or with its implementation ([API guide](docs/api.md)).
+
+### Dependabot pull requests
+
+Dependabot opens its own pull requests for vulnerable or outdated dependencies. They follow this
+workflow, with three differences:
+
+1. **A `[Task]` issue is the card on the board.** It has the labels `dependencies`, `security` when it
+   fixes an alert, the priority, the area and the size, and the milestone of the sprint, and it is
+   assigned to whoever handles it. The Dependabot pull request itself is not added to the board.
+2. **The description keeps Dependabot's text.** Put the [pull request template](.github/pull_request_template.md)
+   on top (Type of Change *Maintenance* and `Closes #N` of the task), and leave everything Dependabot
+   wrote below it, under `## Dependabot Changes`. The pull request gets the labels and milestone of
+   the issue.
+3. **Each fixed alert gets its row** in *Security findings* of `docs/security.md`, committed on the
+   Dependabot branch: `docs(security): record the <package> Dependabot alerts`.
+
+> [!TIP]
+> Write each alert as a link, `[#N](https://github.com/Dalibex/urban-incidence-manager/security/dependabot/N)`,
+> never as a bare `#N`, which GitHub links to issue N, and keep alert numbers out of titles.
 
 ### Review and merge
 
@@ -378,34 +438,3 @@ backend, both clients, the shared client packages and the API contract. The rele
 
 When the maintainer cuts a release, the same pull request moves the `[Unreleased]` entries under the new
 version in the changelog and updates every file in the table. Never change the version of a single part.
-
-### Changelog
-
-From the first release on `main`, every pull request that adds a feature, fixes a bug or changes
-behavior adds a short entry to [`CHANGELOG.md`](CHANGELOG.md), under `[Unreleased]`, in the same pull
-request. Use the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) sections (`Added`, `Changed`,
-`Fixed`, `Removed`) and link the issue or pull request.
-
-The changelog tells the people who use or deploy UrbanPulse what changed between versions, so it only
-lists changes they can notice:
-
-| Goes in the changelog | Does not |
-| --- | --- |
-| New features and endpoints (`Added`) | Documentation, guides and ADRs |
-| Changes to existing behavior, the API contract, configuration or environment variables (`Changed`) | Refactorings with no change in behavior |
-| Removed features or endpoints (`Removed`) | Tests, CI and repository tooling |
-| Bugs fixed in a released version (`Fixed`) | Formatting and dependency bumps without a visible effect |
-
-Keep each entry consistent with the rest of the file:
-
-- `Fixed` is only for bugs that exist in a released version. A bug in something that is still under
-  `[Unreleased]` is not a separate entry: correct the original entry if its description changes.
-- If a later pull request changes or removes something still under `[Unreleased]`, edit or delete its
-  entry instead of adding a contradictory one.
-- Write each entry from the user's point of view, as one short noun phrase, like the existing ones.
-
-### Architecture decisions
-
-A significant technical decision (technology, architecture, persistence, security, infrastructure) is
-recorded as an ADR in [`docs/adr/`](docs/adr/), using the [ADR template](.github/adr-template.md) and the
-ADR issue template. A new ADR starts as **Proposed** and becomes **Accepted** only when the team agrees.
