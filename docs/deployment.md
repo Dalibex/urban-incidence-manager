@@ -17,23 +17,21 @@ tests ([ADR-0011](adr/0011-deployment-12factor.md)).
 
 ## 📑 Contents
 
-| Section | What you will find |
-| --- | --- |
-| [🌐 Deploy the Whole System](#-deploy-the-whole-system) | Start everything from a clean machine, and what nginx serves |
-| [🔧 Configuration](#-configuration) | Every environment variable, in development and in the deployment |
-| [🌍 Build the Base Map](#-build-the-base-map) | Build the map of Málaga, once and whenever you want newer data |
-| [🔑 Create the First Administrator](#-create-the-first-administrator) | The one-off process for a deployment with no accounts |
-| [📱 Reach the API from a Phone](#-reach-the-api-from-a-phone) | The addresses a phone needs with each Compose file |
-| [💾 Volumes](#-volumes) | Where the data lives, and what deletes it |
-| [💽 Back Up and Restore](#-back-up-and-restore) | Copy the database and the photos, and bring them back |
-| [🧹 Reset](#-reset) | Start again from an empty database |
-| [🔄 Update and Roll Back](#-update-and-roll-back) | Deploy new code, and what going back does not undo |
-| [🛟 Restarts and Logs](#-restarts-and-logs) | What restarts by itself, and where the logs are |
-| [🔁 One Backend Replica](#-one-backend-replica) | Why the backend runs as a single container |
-| [🚨 If nginx Goes Down](#-if-nginx-goes-down) | What to check, and what not to do |
-| [👥 Shared Limits](#-shared-limits) | When several clients share the sign-in limits |
-| [🧩 Services of the Development File](#-services-of-the-development-file) | The services of `backend/docker-compose.yaml` and their profiles |
-| [🚀 Run the Backend in Docker](#-run-the-backend-in-docker) | The backend image in development, without Java |
+- **[Deploy the Whole System](#-deploy-the-whole-system)**: start everything from a clean machine, and what nginx serves.
+- **[Configuration](#-configuration)**: every environment variable, in development and in the deployment.
+- **[Build the Base Map](#-build-the-base-map)**: build the map of Málaga, once and whenever you want newer data.
+- **[Create the First Administrator](#-create-the-first-administrator)**: the one-off process for a deployment with no accounts.
+- **[Reach the API from a Phone](#-reach-the-api-from-a-phone)**: the addresses a phone needs with each Compose file.
+- **[Volumes](#-volumes)**: where the data lives, and what deletes it.
+- **[Back Up and Restore](#-back-up-and-restore)**: copy the database and the photos, and bring them back.
+- **[Reset](#-reset)**: start again from an empty database.
+- **[Update and Roll Back](#-update-and-roll-back)**: deploy new code, and what going back does not undo.
+- **[Restarts and Logs](#-restarts-and-logs)**: what restarts by itself, and where the logs are.
+- **[One Backend Replica](#-one-backend-replica)**: why the backend runs as a single container.
+- **[If nginx Goes Down](#-if-nginx-goes-down)**: what to check, and what not to do.
+- **[Shared Limits](#-shared-limits)**: when several clients share the sign-in limits.
+- **[Services of the Development File](#-services-of-the-development-file)**: the services of `backend/docker-compose.yaml` and their profiles.
+- **[Run the Backend in Docker](#-run-the-backend-in-docker)**: the backend image in development, without Java.
 
 ## 🌐 Deploy the Whole System
 

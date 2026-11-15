@@ -1,39 +1,37 @@
-# ⚙️ CI Guide
+# 🔁 CI Guide
 
 What the continuous integration checks on every pull request, why each job fails and how to fix it,
 and the one-time setup it needs ([ADR-0015](adr/0015-ci-pipeline-and-pre-commit-formatting.md)).
 
 > [!NOTE]
-> **For** every developer before pushing (*8. How to make sure the CI works*), and for the
-> maintainer, who sets up the repository (*9. Setup*). How the tests are organised is in the
+> **For** every developer before pushing ([Keep the CI Green](#-keep-the-ci-green)), and for the
+> maintainer, who sets up the repository ([Setup](#-setup)). How the tests are organised is in the
 > [testing guide](testing.md).
 
 ## 📑 Contents
 
-| Section | What you will find |
-| --- | --- |
-| [1. What it is and the rules it follows](#1-what-it-is-and-the-rules-it-follows) | The four rules the CI follows |
-| [2. The full flow](#2-the-full-flow) | From a commit to the merge, as a diagram |
-| [3. Workflows and jobs](#3-workflows-and-jobs) | Every workflow and job, what makes it fail and how to fix it |
-| [4. Formatting: local hook + CI check](#4-formatting-local-hook--ci-check) | The pre-commit hook, and when `lint` still fails |
-| [5. Test contract](#5-test-contract) | Where the rules of the tests are |
-| [6. Squash merge and history](#6-squash-merge-and-history) | Why the title of a pull request becomes its commit on `main` |
-| [7. How to scale the CI](#7-how-to-scale-the-ci) | Recipes for when the project grows |
-| [8. How to make sure the CI works and does not fail for silly reasons](#8-how-to-make-sure-the-ci-works-and-does-not-fail-for-silly-reasons) | The checks to run before pushing, and how to change a workflow |
-| [9. Setup](#9-setup) | One-time setup of a clone and of the repository |
+- **[What It Is and the Rules It Follows](#-what-it-is-and-the-rules-it-follows)**: the four rules the CI follows.
+- **[The Full Flow](#-the-full-flow)**: from a commit to the merge, as a diagram.
+- **[Workflows and Jobs](#-workflows-and-jobs)**: every workflow and job, what makes it fail and how to fix it.
+- **[Formatting: Local Hook and CI Check](#-formatting-local-hook-and-ci-check)**: the pre-commit hook, and when `lint` still fails.
+- **[Test Contract](#-test-contract)**: where the rules of the tests are.
+- **[Squash Merge and History](#-squash-merge-and-history)**: why the title of a pull request becomes its commit on `main`.
+- **[How to Scale the CI](#-how-to-scale-the-ci)**: recipes for when the project grows.
+- **[Keep the CI Green](#-keep-the-ci-green)**: the checks to run before pushing, and how to change a workflow.
+- **[Setup](#-setup)**: one-time setup of a clone and of the repository.
 
-## 1. What it is and the rules it follows
+## 📏 What It Is and the Rules It Follows
 
 The CI is a set of checks that GitHub Actions runs on every Pull Request and on every push to `main`. If any of them fails, the PR cannot be merged (`main` ruleset).
 
 Four rules drive the whole design:
 
 1. **The CI checks; it does not modify code.** Formatting is done by the `pre-commit` hook, on your machine, before the commit exists.
-2. **What passes locally passes in the CI.** `./mvnw verify` runs the same checks as the `test` job and the formatting of `lint`, because they are bound to Maven phases in `pom.xml` and not written only in the workflow. The other steps of `lint` are shell checks of the workflow; *8.1 Before pushing* says how to repeat them.
+2. **What passes locally passes in the CI.** `./mvnw verify` runs the same checks as the `test` job and the formatting of `lint`, because they are bound to Maven phases in `pom.xml` and not written only in the workflow. The other steps of `lint` are shell checks of the workflow; [Before pushing](#before-pushing) says how to repeat them.
 3. **Each job fails for a single kind of reason.** A stray space only turns `lint` red, a broken test only `test`, and a jar that does not start only `build`. You know what happened without opening the logs.
 4. **Stable job names and no `paths:` filters.** They are *required checks*: if they change or do not run, every PR stays blocked.
 
-## 2. The full flow
+## 🔄 The Full Flow
 
 ```mermaid
 flowchart LR
@@ -53,7 +51,7 @@ flowchart LR
 
 `lint`, `contract`, `architecture`, `frontend`, `test` and `build` run **in parallel**. A new push to the same PR cancels the run in progress.
 
-## 3. Workflows and jobs
+## 🧱 Workflows and Jobs
 
 | File | When | Jobs |
 |---|---|---|
@@ -174,7 +172,7 @@ The forwarded headers check (`.github/scripts/check_forwarded_headers.sh`) first
 
 The smoke test uses `docker run` with the PostGIS image on a Docker network, **not `docker compose`**. The packaged jar does not include Spring Boot's Docker Compose support, which is why the connection comes through `SPRING_DATASOURCE_*` and not through `application.yaml`: locally, Spring Boot starts the Compose file and infers the URL and credentials.
 
-The Maven dependencies are downloaded again on every run, because the build runs inside Docker and does not use the `setup-java` cache. If the job gets slow, see [7.6 Caching](#76-caching).
+The Maven dependencies are downloaded again on every run, because the build runs inside Docker and does not use the `setup-java` cache. If the job gets slow, see [Caching](#caching).
 
 The health step needs `/actuator/health` to stay unprotected: `SecurityConfig` (`shared.security`) leaves `/actuator/health/**` open ([security guide](security.md)). Any **mandatory** property that gets added must also be passed as an environment variable in the smoke test step, as `JWT_SECRET` already is.
 
@@ -204,7 +202,7 @@ Moves the issues the PR closes (`Closes #N`) on the project board: a **draft** P
 
 **Token.** The default `GITHUB_TOKEN` cannot write to a project owned by a user account, so the job uses the repository secret `PROJECT_TOKEN`: a classic personal access token of the board owner with **only** the `project` scope (the repository is public, so `repo` is not needed). It can edit every board of that account, but it is only readable by the workflows on `main`; collaborators cannot see it. When it expires, the job fails with 401: the owner creates a new token and replaces the secret in *Settings → Secrets and variables → Actions*.
 
-## 4. Formatting: local hook + CI check
+## 🎨 Formatting: Local Hook and CI Check
 
 ```
 git commit
@@ -226,7 +224,7 @@ git commit
 - **If Maven cannot start** (e.g. `JAVA_HOME` pointing to an old JDK, or GitHub Desktop's Git not understanding the JDK path), the hook **does not block**: it warns that it did not format, shows the cause and lets the commit through. `lint` will catch it. If the failure comes from Spotless (a `.java` with a syntax error), it does block and shows the first lines of the error.
 - **Same rule for the clients:** if `pnpm` is not installed or `pnpm install` was never run, the hook warns and lets the commit through, and `frontend` will catch it. A client file with a syntax error blocks the commit.
 - **Execute permission:** the file must be in Git as `100755` (`git ls-files --stage .githooks/pre-commit`). On Windows it is set with `git update-index --chmod=+x .githooks/pre-commit`; without it, Git silently ignores the hook on Linux/macOS.
-- **JDK:** the hook uses the `JAVA_HOME` of the process that runs `git commit`. Set JDK 25 as a **user** variable (see [9.1 The hook in every clone](#91-the-hook-in-every-clone)).
+- **JDK:** the hook uses the `JAVA_HOME` of the process that runs `git commit`. Set JDK 25 as a **user** variable (see [The hook in every clone](#the-hook-in-every-clone)).
 
 **When `lint` can fail on formatting** (and only then):
 
@@ -243,11 +241,11 @@ git commit
 - `.editorconfig` (already in the repo) sets 4-space indentation, LF, no trailing spaces and 100 columns. IntelliJ reads it on its own; in VS Code, install the *EditorConfig* extension.
 - IntelliJ: **google-java-format** plugin → *Settings → google-java-format Settings* → *Enable* and style **Android Open Source Project (AOSP)**.
 
-## 5. Test contract
+## 🧪 Test Contract
 
 Unit tests are `*Test` (Surefire, no Docker) and integration tests are `*IT` (Failsafe, PostGIS in Testcontainers); the `test` job runs both. The naming rules, the coverage threshold and the client test runners are in the [testing guide](testing.md).
 
-## 6. Squash merge and history
+## 🔀 Squash Merge and History
 
 Only squash merge is allowed (`main` ruleset). Each PR becomes a single commit on `main` with the PR title as its message. Therefore:
 
@@ -255,19 +253,19 @@ Only squash merge is allowed (`main` ruleset). Each PR becomes a single commit o
 - What matters is the **PR title**, and `pr-title` validates it.
 - `main` stays linear and readable (`git log --oneline`), and can be used to generate a changelog.
 
-## 7. How to scale the CI
+## 📈 How to Scale the CI
 
-Recipes for when the project grows. General rule: **if you add or rename a job, update the `main` ruleset** ([9.3](#93-protect-main-with-a-ruleset)) and this guide.
+Recipes for when the project grows. General rule: **if you add or rename a job, update the `main` ruleset** ([Protect `main` with a ruleset](#protect-main-with-a-ruleset)) and this guide.
 
-### 7.1 New modules (ADR-0010)
+### New modules (ADR-0010)
 
 Nothing to change in the CI. Each module's tests are picked up by name (`*Test` / `*IT`). Keep the naming convention.
 
-### 7.2 Database migrations
+### Database migrations
 
 Nothing to change in the CI either: the `*IT` tests and the smoke test start the app against an empty DB, so migrations run and are tested in both. With `ddl-auto: validate`, an entity that does not match its migration breaks `test` and `build`, which is what we want.
 
-### 7.3 New endpoints in the smoke test
+### New endpoints in the smoke test
 
 Once `/api/v1/status` exists, add this to the health step of the `build` job, after the loop:
 
@@ -275,7 +273,7 @@ Once `/api/v1/status` exists, add this to the health step of the `build` job, af
 curl -fsS "http://localhost:$SMOKE_PORT/api/v1/status" | tee -a "$GITHUB_STEP_SUMMARY"
 ```
 
-### 7.4 A new backing service (Redis, RabbitMQ…)
+### A new backing service (Redis, RabbitMQ…)
 
 It has to be changed in four places, always with the same image:
 
@@ -284,7 +282,7 @@ It has to be changed in four places, always with the same image:
 3. `build` job: one more `docker run -d --network smoke …` and its `SPRING_…` variables as `-e` options of the `smoke-app` container, if the app needs it to start.
 4. `ci.yml`: a `REDIS_IMAGE` variable and its line in the *Same … image* step of `lint`.
 
-### 7.5 Tests take too long: split unit and integration
+### Tests take too long: split unit and integration
 
 When `test` goes over about 8 minutes, split it into two parallel jobs and one coverage job:
 
@@ -322,20 +320,20 @@ When `test` goes over about 8 minutes, split it into two parallel jobs and one c
 
 Then, in the ruleset, replace `test` with `test-unit`, `test-integration` and `quality`.
 
-### 7.6 Caching
+### Caching
 
 - **Maven dependencies:** already on in `lint` and `test` (`cache: maven` in `setup-java`, keyed on the hash of `pom.xml`). The `build` job compiles inside Docker and downloads them on every run; if that becomes slow, cache the BuildKit layers with `docker/build-push-action` and `cache-from: type=gha`.
 - **Frontend:** already on: `.github/actions/setup-js` caches the pnpm store, keyed on the hash of `frontend/pnpm-lock.yaml`.
 - **Testcontainers Docker images:** GitHub runners already ship Docker and pull the image in a few seconds. Caching them is not worth it unless you hit Docker Hub limits.
 
-### 7.7 Changing the Java version
+### Changing the Java version
 
 `JAVA_VERSION` in `ci.yml`, `java.version` in `pom.xml` and the two Temurin image tags in `backend/Dockerfile`, in the same PR.
 
 
-## 8. How to make sure the CI works and does not fail for silly reasons
+## ✅ Keep the CI Green
 
-### 8.1 Before pushing
+### Before pushing
 
 Backend, from `backend/` (needs Docker); it covers `lint` and `test`:
 
@@ -380,17 +378,17 @@ docker compose --profile app up --build
 # in another terminal: curl localhost:8080/actuator/health
 ```
 
-### 8.2 When changing a workflow
+### When changing a workflow
 
 1. Validate it before pushing with [actionlint](https://github.com/rhysd/actionlint): `pipx run actionlint` or `brew install actionlint`, then `actionlint`.
 2. Push it on a `ci/...` branch and open a PR. The PR's workflow is the one on the branch, so you test the change without touching `main`.
 3. If you rename or add a job, update the ruleset **before** merging.
 
-## 9. Setup
+## 🔧 Setup
 
-One-time steps for a new clone (9.1) and for the repository settings the CI relies on (9.2, 9.3). The pipeline was first rolled out on a `boilerplate` integration branch, one commit per step; that history is in `git log`.
+One-time steps for a new clone and for the repository settings the CI relies on. The pipeline was first rolled out on a `boilerplate` integration branch, one commit per step; that history is in `git log`.
 
-### 9.1 The hook in every clone
+### The hook in every clone
 
 Nobody on the team has to do anything special: the first `./mvnw test`, `verify`, `package` or `spring-boot:run` in a clone runs the `install-git-hooks` profile of `pom.xml`, which sets `core.hooksPath`. To install it before building:
 
@@ -427,7 +425,7 @@ Check it with `git config --get core.hooksPath` (it prints `.githooks`).
 | IntelliJ: `Plugin 'org.codehaus.mojo:exec-maven-plugin:' not found` | IntelliJ has not reloaded `pom.xml` | Maven → *Reload All Projects*. VS Code: *Java: Update Project* |
 | A Spring test named `*Tests` runs under Surefire and needs Docker | Integration tests must be `*IT` | Rename it to `*IT` with `git mv` and import `TestcontainersConfiguration` |
 
-### 9.2 Squash merge
+### Squash merge
 
 In **Settings → General → Pull Requests**:
 
@@ -436,9 +434,9 @@ In **Settings → General → Pull Requests**:
 3. Uncheck **Allow rebase merging**.
 4. Check **Always suggest updating pull request branches** and **Automatically delete head branches**.
 
-Result: each PR enters `main` as **a single commit** whose message is the PR title, already validated by `pr-title` (section 6).
+Result: each PR enters `main` as **a single commit** whose message is the PR title, already validated by `pr-title` ([Squash Merge and History](#-squash-merge-and-history)).
 
-### 9.3 Protect `main` with a ruleset
+### Protect `main` with a ruleset
 
 > [!NOTE]
 > A check only shows up in the ruleset search **after it has run once**.

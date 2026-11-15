@@ -9,10 +9,8 @@ How the backend and client tests are organised and how to run them.
 
 ## 📑 Contents
 
-| Section | What you will find |
-| --- | --- |
-| [☕ Backend](#-backend) | Run the tests, the kinds of tests and the checks against the contract |
-| [📱 Clients](#-clients) | Run the tests of the apps and the shared packages |
+- **[Backend](#-backend)**: run the tests, the kinds of tests and the checks against the contract.
+- **[Clients](#-clients)**: run the tests of the apps and the shared packages.
 
 ## ☕ Backend
 

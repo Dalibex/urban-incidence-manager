@@ -1,4 +1,4 @@
-# 🛠️ Development Guide
+# 💻 Development Guide
 
 How to run the UrbanPulse backend and clients on your machine, work on them, and fix what usually
 goes wrong.
@@ -10,17 +10,15 @@ goes wrong.
 
 ## 📑 Contents
 
-| Section | What you will find |
-| --- | --- |
-| [🐛 Prerequisites](#-prerequisites) | What to install |
-| [📥 Get the Code](#-get-the-code) | Clone the repository |
-| [📝 Create the Local Environment File](#-create-the-local-environment-file) | `backend/.env`, and which `.env` each way of running reads |
-| [🍃 Run with IntelliJ IDEA (recommended)](#-run-with-intellij-idea-recommended) | Start the backend from the IDE |
-| [🍂 Run from the Terminal](#-run-from-the-terminal) | Start the backend with Maven |
-| [🧪 Development Dataset](#-development-dataset) | Sample users and incidents for development |
-| [📱 Client Workspace](#-client-workspace) | The web and mobile apps: set up, run and check them |
-| [🔙 Backend Structure](#-backend-structure) | The modules and the layout of each one |
-| [🧯 Troubleshooting](#-troubleshooting) | Common problems and their fixes |
+- **[Prerequisites](#-prerequisites)**: what to install.
+- **[Get the Code](#-get-the-code)**: clone the repository.
+- **[Create the Local Environment File](#-create-the-local-environment-file)**: `backend/.env`, and which `.env` each way of running reads.
+- **[Run with IntelliJ IDEA (recommended)](#-run-with-intellij-idea-recommended)**: start the backend from the IDE.
+- **[Run from the Terminal](#-run-from-the-terminal)**: start the backend with Maven.
+- **[Development Dataset](#-development-dataset)**: sample users and incidents for development.
+- **[Client Workspace](#-client-workspace)**: the web and mobile apps: set up, run and check them.
+- **[Backend Structure](#-backend-structure)**: the modules and the layout of each one.
+- **[Troubleshooting](#-troubleshooting)**: common problems and their fixes.
 
 ## 🐛 Prerequisites
 
@@ -361,7 +359,7 @@ build again with `pnpm --filter @urbanpulse/mobile android`.
 ### Before pushing
 
 Run the checks of the `frontend` CI job and format the code as described in
-[8.1 Before pushing](ci.md#81-before-pushing) in the CI guide. The client tests are in the [testing guide](testing.md).
+[Before pushing](ci.md#before-pushing) in the CI guide. The client tests are in the [testing guide](testing.md).
 
 ## 🔙 Backend Structure
 
@@ -413,8 +411,8 @@ It writes to `C:\Program Files\nodejs`. Run it once from a terminal opened as ad
 ### Maven, the pre-commit hook or GitHub Desktop complain about Java
 
 Maven and the hook need JDK 25 in `JAVA_HOME`. The fixes for Windows, and the common errors such as
-`release version 25 not supported`, are in *9.1 The hook in every clone* in the
-[CI guide](ci.md#91-the-hook-in-every-clone).
+`release version 25 not supported`, are in *The hook in every clone* in the
+[CI guide](ci.md#the-hook-in-every-clone).
 
 ### The backend does not start
 

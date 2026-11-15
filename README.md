@@ -1,4 +1,4 @@
-# 🏙️ UrbanPulse
+# 🌆 UrbanPulse
 
 [![CI](https://github.com/Dalibex/urban-incidence-manager/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Dalibex/urban-incidence-manager/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Dalibex/urban-incidence-manager?include_prereleases&sort=semver)](https://github.com/Dalibex/urban-incidence-manager/releases)
@@ -11,16 +11,14 @@ UrbanPulse manages the urban incidents of Málaga, from the citizen's report to 
 
 ## 📑 Contents
 
-| Section | What you will find |
-| --- | --- |
-| [📦 Current Scope](#-current-scope) | What each role can do today |
-| [🔄 How It Works](#-how-it-works) | The life of an incident, from the report to its closure |
-| [🧰 Technology Stack](#-technology-stack) | Each part, what it is built with and the decision behind it |
-| [⚡ Quick Start](#-quick-start) | The whole system running on your machine, with the demo users |
-| [🧪 Testing](#-testing) | How to run the tests |
-| [📁 Project Structure](#-project-structure) | What each folder holds |
-| [📚 Documentation](#-documentation) | Every guide, by what you want to do |
-| [📄 License](#-license) | Apache 2.0 |
+- **[Current Scope](#-current-scope)**: what each role can do today.
+- **[How It Works](#-how-it-works)**: the life of an incident, from the report to its closure.
+- **[Technology Stack](#-technology-stack)**: each part, what it is built with and the decision behind it.
+- **[Quick Start](#-quick-start)**: the whole system running on your machine, with the demo users.
+- **[Testing](#-testing)**: how to run the tests.
+- **[Project Structure](#-project-structure)**: what each folder holds.
+- **[Documentation](#-documentation)**: every document of the project, by what you want to do.
+- **[License](#-license)**: Apache 2.0.
 
 ## 📦 Current Scope
 
@@ -128,31 +126,40 @@ The kinds of tests and how to run part of them are in the [testing guide](docs/t
 
 ## 📚 Documentation
 
-**🚀 Use it**
+Every document of the project, grouped by what you want to do.
 
-- **Try the whole system** on your machine: [Quick Start](#-quick-start), then the [deployment guide](docs/deployment.md#-deploy-the-whole-system)
-- **Give the demo** on a test system with sample data: [demo script](docs/demo.md)
-- **Use the apps** as a citizen, operator, technician, administrator or analyst: [user guide](docs/user-guide.md)
+### 🚀 Use it
 
-**🛠️ Build and run it**
+- **[Quick Start](#-quick-start)**: try the whole system on your machine, with Docker only.
+- **[Demo script](docs/demo.md)**: give the demo on a test system with sample data.
+- **[User guide](docs/user-guide.md)**: use the apps as a citizen, operator, technician, administrator or analyst.
 
-- **Develop** the backend, the web app or the mobile app: [development guide](docs/development.md), with its *Troubleshooting*
-- **Test** a change and know what the CI checks: [testing guide](docs/testing.md) and [CI guide](docs/ci.md)
-- **Deploy** on a server, back it up or update it: [deployment guide](docs/deployment.md)
+### 🛠 Build and run it
 
-**🧠 Understand it**
+- **[Development guide](docs/development.md)**: run and develop the backend and the apps, and fix what usually goes wrong.
+- **[Testing guide](docs/testing.md)**: run the tests and know what each kind checks.
+- **[CI guide](docs/ci.md)**: know what the CI checks, and fix a red job.
+- **[Deployment guide](docs/deployment.md)**: deploy on a server, configure it, back it up and update it.
 
-- **Why it is built this way:** [architecture overview](docs/architecture.md), [C4 model](docs/architecture/) and [ADRs](docs/adr/). Check each ADR's status: a *Proposed* one is not a decision yet
-- **What is planned,** and with what priority: [requirements](docs/requirements.md) and the GitHub milestones
-- **The API:** [API guide](docs/api.md) and [OpenAPI contract](docs/api/openapi.yml)
-- **Who may do what,** with tokens, sessions and limits: [security guide](docs/security.md)
-- **The data:** [database guide](docs/database.md), with the schema diagram, and [datasets and measurements](docs/datasets.md)
-- **The Twelve-Factor principles,** and how to check each one: [twelve-factor traceability](docs/twelve-factor.md)
+### 🧠 Understand it
 
-**🤝 Contribute**
+- **[Architecture overview](docs/architecture.md)**: why it is built this way, its quality scenarios and its accepted risks.
+- **[C4 model](docs/architecture/)**: the structure, from the context to the deployment.
+- **[ADRs](docs/adr/)**: each decision and its reasons; a *Proposed* one is not decided yet.
+- **[Requirements](docs/requirements.md)**: what is built and what is planned, with its priority.
+- **[API guide](docs/api.md)** and **[OpenAPI contract](docs/api/openapi.yml)**: use the API, or add and change an endpoint.
+- **[Security guide](docs/security.md)**: who may do what, with tokens, sessions, limits and permissions.
+- **[Database guide](docs/database.md)**: change the schema, an index or the sample data.
+- **[Datasets and measurements](docs/datasets.md)**: load the demo or performance data, and read the measurements.
+- **[Twelve-factor traceability](docs/twelve-factor.md)**: how each Twelve-Factor principle is applied.
 
-- **The team workflow,** from the issue to the merge: [contributing guide](CONTRIBUTING.md)
-- [Changelog](CHANGELOG.md), [security policy](SECURITY.md) and the rules for AI agents ([AGENTS.md](AGENTS.md))
+### 🤝 Contribute
+
+- **[Contributing guide](CONTRIBUTING.md)**: the workflow, from the issue to the merge.
+- **[Code of Conduct](CODE_OF_CONDUCT.md)**: how everyone who takes part is expected to behave.
+- **[Changelog](CHANGELOG.md)**: what changed in each version.
+- **[Security policy](SECURITY.md)**: how to report a vulnerability privately.
+- **[AGENTS.md](AGENTS.md)**: the rules that AI agents follow here.
 
 ## 📄 License
 

@@ -1,4 +1,4 @@
-# 🏛️ Architecture Overview
+# 📐 Architecture Overview
 
 Why UrbanPulse is built the way it is: the drivers that shape it, a summary of its parts, and the
 quality attribute scenarios that check, with numbers, that the architecture does its job.
@@ -10,14 +10,12 @@ quality attribute scenarios that check, with numbers, that the architecture does
 
 ## 📑 Contents
 
-| Section | What you will find |
-| --- | --- |
-| [🎯 Architecture Drivers](#-architecture-drivers) | The requirements, quality attributes and constraints that shape the design |
-| [🧱 Architecture Summary](#-architecture-summary) | Each container, its technology, the ADR behind it and whether it is built |
-| [🧩 C4 Model](#-c4-model) | Where the model is, how to regenerate it and how to browse it |
-| [📐 Quality Attribute Scenarios](#-quality-attribute-scenarios) | QA-1 to QA-4: what is measured, how, and the results so far |
-| [🚧 Accepted Risks](#-accepted-risks) | The known limits the team accepts, and where each one is explained |
-| [📋 ADRs Without a Measurable Evaluation](#-adrs-without-a-measurable-evaluation) | The scenario that would evaluate each accepted ADR |
+- **[Architecture Drivers](#-architecture-drivers)**: the requirements, quality attributes and constraints that shape the design.
+- **[Architecture Summary](#-architecture-summary)**: each container, its technology, the ADR behind it and whether it is built.
+- **[C4 Model](#-c4-model)**: where the model is, how to regenerate it and how to browse it.
+- **[Quality Attribute Scenarios](#-quality-attribute-scenarios)**: QA-1 to QA-4: what is measured, how, and the results so far.
+- **[Accepted Risks](#-accepted-risks)**: the known limits the team accepts, and where each one is explained.
+- **[ADRs Without a Measurable Evaluation](#-adrs-without-a-measurable-evaluation)**: the scenario that would evaluate each accepted ADR.
 
 ## 🎯 Architecture Drivers
 

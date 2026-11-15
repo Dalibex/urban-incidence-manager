@@ -17,13 +17,11 @@ differed and which side was kept.
 
 ## 📑 Contents
 
-| Section | What you will find |
-| --- | --- |
-| [🧭 Two Kinds of Priority](#-two-kinds-of-priority) | The priority of the case study, and the team's own |
-| [📌 Requirements](#-requirements) | Every requirement, with its priority, status and issues |
-| [💻 Screens per Role](#-screens-per-role) | What each role gets, built or planned |
-| [🔀 Changes From the Original Prioritization](#-changes-from-the-original-prioritization) | What the team changed, and why |
-| [🔄 Keeping This Document Up to Date](#-keeping-this-document-up-to-date) | When and how it changes |
+- **[Two Kinds of Priority](#-two-kinds-of-priority)**: the priority of the case study, and the team's own.
+- **[Requirements](#-requirements)**: every requirement, with its priority, status and issues.
+- **[Screens per Role](#-screens-per-role)**: what each role gets, built or planned.
+- **[Changes From the Original Prioritization](#-changes-from-the-original-prioritization)**: what the team changed, and why.
+- **[Keeping This Document Up to Date](#-keeping-this-document-up-to-date)**: when and how it changes.
 
 ## 🧭 Two Kinds of Priority
 

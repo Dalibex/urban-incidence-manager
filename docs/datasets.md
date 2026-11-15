@@ -16,11 +16,9 @@ with it.
 
 ## 📑 Contents
 
-| Section | What you will find |
-| --- | --- |
-| [🎬 Demo Dataset](#-demo-dataset) | The sample data of the demo, and how it is loaded |
-| [📈 Performance Dataset](#-performance-dataset) | The large dataset for the measurements: what it generates and how to check it |
-| [📏 Measurements](#-measurements) | The query plans of the indexes and the load test of QA-1 |
+- **[Demo Dataset](#-demo-dataset)**: the sample data of the demo, and how it is loaded.
+- **[Performance Dataset](#-performance-dataset)**: the large dataset for the measurements: what it generates and how to check it.
+- **[Measurements](#-measurements)**: the query plans of the indexes and the load test of QA-1.
 
 ## 🎬 Demo Dataset
 

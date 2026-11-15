@@ -10,12 +10,10 @@ it. The demo runs the same code as any other environment; only the `demo` profil
 
 ## 📑 Contents
 
-| Section | What you will find |
-| --- | --- |
-| [👥 Demo Data](#-demo-data) | The demo users and the incidents in every status |
-| [🚀 Start the Demo](#-start-the-demo) | On the deployment or in development, and the quick sign-in |
-| [🚶 Walk Through It](#-walk-through-it) | The steps to show, role by role |
-| [🔁 Repeat or End the Demo](#-repeat-or-end-the-demo) | Start again from the same data, or go back to development |
+- **[Demo Data](#-demo-data)**: the demo users and the incidents in every status.
+- **[Start the Demo](#-start-the-demo)**: on the deployment or in development, and the quick sign-in.
+- **[Walk Through It](#-walk-through-it)**: the steps to show, role by role.
+- **[Repeat or End the Demo](#-repeat-or-end-the-demo)**: start again from the same data, or go back to development.
 
 ## 👥 Demo Data
 

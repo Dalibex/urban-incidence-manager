@@ -1,4 +1,4 @@
-# 🗄️ Database Guide
+# 🐘 Database Guide
 
 How the PostgreSQL schema, with PostGIS, is created and changed, and how the data that users do not
 create gets into it ([ADR-0001](adr/0001-database.md), [ADR-0003](adr/0003-geospatial-data-management.md)).
@@ -10,13 +10,11 @@ create gets into it ([ADR-0001](adr/0001-database.md), [ADR-0003](adr/0003-geosp
 
 ## 📑 Contents
 
-| Section | What you will find |
-| --- | --- |
-| [🗺 Schema](#-schema) | The diagram of every table |
-| [🧱 Migrations](#-migrations) | How to write a migration, and the rules that protect them |
-| [📇 Indexes](#-indexes) | Every index, its migration and the query it serves |
-| [📚 Reference Data](#-reference-data) | How the initial categories and departments are added and changed |
-| [🧪 Data Profiles](#-data-profiles) | How the sample data of `dev`, `demo` and `perf` is loaded, reloaded and changed |
+- **[Schema](#-schema)**: the diagram of every table.
+- **[Migrations](#-migrations)**: how to write a migration, and the rules that protect them.
+- **[Indexes](#-indexes)**: every index, its migration and the query it serves.
+- **[Reference Data](#-reference-data)**: how the initial categories and departments are added and changed.
+- **[Data Profiles](#-data-profiles)**: how the sample data of `dev`, `demo` and `perf` is loaded, reloaded and changed.
 
 ## 🗺 Schema
 

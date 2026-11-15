@@ -10,18 +10,16 @@ How the API authenticates requests and checks permissions
 
 ## 📑 Contents
 
-| Section | What you will find |
-| --- | --- |
-| [🎫 Access Tokens](#-access-tokens) | The JWT, its claims, its lifetime and its configuration |
-| [🔒 Sessions and Passwords](#-sessions-and-passwords) | Refresh tokens, rotation and reuse, sign-out, password changes and rate limits |
-| [👑 First Administrator](#-first-administrator) | The rules of the one-off process that creates it |
-| [📜 Audit Trail](#-audit-trail) | What is recorded, who reads it and the rules for writing it |
-| [🚫 Errors](#-errors) | The `401`, `403` and `404` answers of security |
-| [🍪 CSRF](#-csrf) | Why the protection is off, and when it must not be |
-| [💾 Browser Storage](#-browser-storage) | What the web app keeps in the browser |
-| [🧮 Permission Matrix](#-permission-matrix) | Who may call each operation |
-| [➕ Protecting a New Endpoint](#-protecting-a-new-endpoint) | The steps and the tests |
-| [🚨 Security Findings](#-security-findings) | Every alert, and what was done about it |
+- **[Access Tokens](#-access-tokens)**: the JWT, its claims, its lifetime and its configuration.
+- **[Sessions and Passwords](#-sessions-and-passwords)**: refresh tokens, rotation and reuse, sign-out, password changes and rate limits.
+- **[First Administrator](#-first-administrator)**: the rules of the one-off process that creates it.
+- **[Audit Trail](#-audit-trail)**: what is recorded, who reads it and the rules for writing it.
+- **[Errors](#-errors)**: the `401`, `403` and `404` answers of security.
+- **[CSRF](#-csrf)**: why the protection is off, and when it must not be.
+- **[Browser Storage](#-browser-storage)**: what the web app keeps in the browser.
+- **[Permission Matrix](#-permission-matrix)**: who may call each operation.
+- **[Protecting a New Endpoint](#-protecting-a-new-endpoint)**: the steps and the tests.
+- **[Security Findings](#-security-findings)**: every alert, and what was done about it.
 
 ## 🎫 Access Tokens
 

@@ -116,7 +116,7 @@ Make small, focused commits with a clear description, for example `feat(incident
 registration endpoint` instead of `changes`.
 
 Java files are formatted automatically by the pre-commit hook, which any local `./mvnw` build installs.
-See *The hook in every clone* in the [CI guide](docs/ci.md#91-the-hook-in-every-clone) if it does not run.
+See *The hook in every clone* in the [CI guide](docs/ci.md#the-hook-in-every-clone) if it does not run.
 
 ### Pull requests
 
@@ -133,7 +133,7 @@ See *The hook in every clone* in the [CI guide](docs/ci.md#91-the-hook-in-every-
 - Set the same labels as the issue, its priority label included, and the same milestone. Add the
   `agent-assisted` label when an AI agent created or significantly assisted the change.
 - Before asking for review, run the checks of the parts you changed (*Before pushing* in the
-  [CI guide](docs/ci.md#81-before-pushing)) and update the documentation affected by the change.
+  [CI guide](docs/ci.md#before-pushing)) and update the documentation affected by the change.
 - Never include secrets, `.env` files or personal data.
 
 #### When a pull request is done
@@ -421,7 +421,7 @@ review has an end:
   branch up to date with `main`.
 - Linear history, no force pushes and no deletion of the branch.
 
-The maintainer configures it as described in the [CI guide](docs/ci.md#93-protect-main-with-a-ruleset).
+The maintainer configures it as described in the [CI guide](docs/ci.md#protect-main-with-a-ruleset).
 
 ### Versioning
 
