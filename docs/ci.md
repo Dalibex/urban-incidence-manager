@@ -72,6 +72,7 @@ flowchart LR
 | No .env file is versioned | There is a `.env` in git | `git rm --cached .env` (it is already in `.gitignore`) |
 | Same PostgreSQL image… | The image in `backend/docker-compose.yaml`, in the root `docker-compose.yaml` or in `TestcontainersConfiguration.java` is not `POSTGRES_IMAGE` from `ci.yml` | Change `POSTGRES_IMAGE`, both Compose files and `TestcontainersConfiguration.java` at once |
 | Docker Compose file is valid | `backend/docker-compose.yaml` is not valid with `backend/.env.example`. It only parses it, it does not start containers | `docker compose config` in `backend/` |
+| Development Compose starts the same services… | Without profiles `backend/docker-compose.yaml` starts something other than `postgres`, or `--profile app` something other than `backend` and `postgres`: a new service must sit behind its own profile, as `observability` does (#176) | Add the service to a profile, or change the expected list in the step if the change is intended |
 | Deployment Compose file is valid… and publishes one port | The root `docker-compose.yaml` is not valid with the root `.env.example`, or a service other than `web` publishes a port | `docker compose --profile tiles config` at the repository root |
 | Formatting (Spotless) | Some file is not formatted | `./mvnw spotless:apply`, commit and push |
 

@@ -25,12 +25,19 @@ docker compose -p qaobs --profile app --profile observability up -d --build
 
 | Service | Address | What it does |
 | --- | --- | --- |
-| `backend` | `http://localhost:8090` (`BACKEND_PORT`) | The API on the `perf` dataset; `/actuator/prometheus` gives its Micrometer metrics |
+| `backend` | `http://localhost:8080` (`BACKEND_PORT`) | The API on the `perf` dataset; `/actuator/prometheus` gives its Micrometer metrics |
 | `prometheus` | `http://localhost:9090` | Scrapes the backend every 5 s and receives the k6 results by remote write |
 | `grafana` | `http://localhost:3000` | Two provisioned dashboards: *k6 load tests* and *UrbanPulse backend (Micrometer)* |
 
 Every port is published on `127.0.0.1` only. Nothing of the profile starts with a plain `up`, and
-the deployment Compose at the repository root does not include it.
+the deployment Compose at the repository root does not include it. `run.sh` and `lib.js` read
+`BACKEND_PORT` from `.env`, so a different port only needs changing there.
+
+`-p qaobs` keeps this stack apart from the development one: its volumes are `qaobs_postgres-data`,
+`qaobs_prometheus-data` and `qaobs_grafana-data` instead of the `urbanpulse_*` of the
+[deployment guide](../../../docs/deployment.md), so `run.sh` can reset the database between
+repetitions without touching the development data. Remove them with
+`docker compose -p qaobs --profile app --profile observability down -v`.
 
 ## Running the experiments
 

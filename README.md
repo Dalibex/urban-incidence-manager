@@ -75,7 +75,7 @@ and administrators manage the staff accounts and read the audit log.
 | Base map | Our own vector map of Málaga, built from OpenStreetMap: no tile provider and no API key | [ADR-0016](docs/adr/0016-self-hosted-osm-base-map.md) |
 | Deployment | Docker Compose on one machine, behind nginx, the only published port | [ADR-0011](docs/adr/0011-deployment-12factor.md), [ADR-0017](docs/adr/0017-reverse-proxy.md) |
 | Quality | GitHub Actions, Testcontainers, Spotless, JaCoCo and SpotBugs | [ADR-0015](docs/adr/0015-ci-pipeline-and-pre-commit-formatting.md) |
-| Load tests | k6, with Prometheus, Grafana and the backend's Micrometer metrics in a development profile | [ADR-0023](docs/adr/0023-load-test-observability.md) (*Proposed*) |
+| Load tests | k6, with Prometheus, Grafana and the backend's Micrometer metrics in a development profile | [ADR-0023](docs/adr/0023-load-test-observability.md) |
 
 ## ⚡ Quick Start
 

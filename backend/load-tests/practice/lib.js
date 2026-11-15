@@ -4,7 +4,8 @@
 import http from 'k6/http';
 import { check, fail } from 'k6';
 
-export const BASE_URL = __ENV.BASE_URL || 'http://localhost:8090/api/v1';
+// BACKEND_PORT is the one of backend/.env (8080 by default); run.sh exports it.
+export const BASE_URL = __ENV.BASE_URL || `http://localhost:${__ENV.BACKEND_PORT || '8080'}/api/v1`;
 export const PASSWORD = __ENV.PERF_PASSWORD || 'urbanpulse-perf';
 export const P95_MS = Number(__ENV.P95_MS || 500);
 

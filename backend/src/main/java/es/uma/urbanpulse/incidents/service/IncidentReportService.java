@@ -18,6 +18,8 @@ import org.locationtech.jts.geom.Coordinate;
 import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 public class IncidentReportService {
@@ -83,8 +85,15 @@ public class IncidentReportService {
                         location,
                         Instant.now(clock));
         Incident saved = incidents.saveAndFlush(incident);
-        // Only after the row is written: a rejected report is not counted.
-        incidentsCreated.increment();
+        // Counted once the report is committed: a rejected report, or one whose transaction rolls
+        // back, is never counted.
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        incidentsCreated.increment();
+                    }
+                });
         return saved;
     }
 }

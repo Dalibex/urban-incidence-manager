@@ -9,6 +9,10 @@ set -euo pipefail
 cd "$(dirname "$0")"
 COMPOSE=(docker compose -p "${COMPOSE_PROJECT:-qaobs}" -f ../../docker-compose.yaml --profile app --profile observability)
 REPETITIONS="${REPETITIONS:-3}"
+# The port the stack publishes the backend on: BACKEND_PORT of backend/.env, 8080 if it is not set.
+BACKEND_PORT="${BACKEND_PORT:-$(sed -n 's/^BACKEND_PORT=//p' ../../.env 2>/dev/null | tr -d '
+')}"
+export BACKEND_PORT="${BACKEND_PORT:-8080}"
 export K6_PROMETHEUS_RW_SERVER_URL="${K6_PROMETHEUS_RW_SERVER_URL:-http://localhost:9090/api/v1/write}"
 export K6_PROMETHEUS_RW_TREND_STATS="p(50),p(95),p(99),max"
 mkdir -p results logs
@@ -23,7 +27,7 @@ reset_database() {
     docker volume rm -f "${COMPOSE_PROJECT:-qaobs}_postgres-data" >/dev/null
     PERF_INCIDENTS="$size" "${COMPOSE[@]}" up -d postgres backend >/dev/null 2>&1
     for _ in $(seq 1 240); do
-        if [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8090/actuator/health)" = 200 ]; then
+        if [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:${BACKEND_PORT}/actuator/health)" = 200 ]; then
             log "reset: backend ready"
             return
         fi

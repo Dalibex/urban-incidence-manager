@@ -1,6 +1,6 @@
 # ADR-0023: See the load tests in Grafana, with the backend's metrics from Micrometer
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision Makers:** Project Team
 - **Date:** 2026-11-15
 
@@ -57,7 +57,8 @@ How should the k6 results and the backend's metrics be collected and seen togeth
 - **Negatives:**
   - `/actuator/prometheus` is a public path of the backend. It holds counts and timings, no request
     data or users, and is safe only while the backend publishes no port beyond `127.0.0.1` and
-    nginx does not proxy `/actuator`. The `lint` job already fails if a service other than `web`
+    nginx does not proxy `/actuator`. A backend run from the IDE listens on every interface, so
+    there the metrics are visible from the local network. The `lint` job already fails if a service other than `web`
     publishes a port in the deployment.
   - Two more images to keep up to date, and Docker resources while the profile runs.
   - k6's remote write output is still marked experimental by k6.

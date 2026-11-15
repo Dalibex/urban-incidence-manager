@@ -80,7 +80,7 @@ same REST API and a set of TypeScript packages ([ADR-0007](adr/0007-client-appli
 | Evidence storage | Docker volume behind a storage interface | [ADR-0013](adr/0013-evidence-storage.md) | Yes, in the API (#192), the mobile upload (#193) and the web gallery (#194) |
 | Reverse proxy | nginx, the single published entry point, that also serves the web app and the base map | [ADR-0017](adr/0017-reverse-proxy.md) | Yes (#199, #200) |
 | Cache | Redis | [ADR-0022](adr/0022-redis-from-measurements.md), which supersedes [ADR-0012](adr/0012-cache-redis.md) | No, until a measurement or a second replica asks for it |
-| Load test observability | Prometheus and Grafana, with the backend's Micrometer metrics; development only | [ADR-0023](adr/0023-load-test-observability.md), *Proposed* | Yes, in the `observability` profile of the development Compose (#176) |
+| Load test observability | Prometheus and Grafana, with the backend's Micrometer metrics; development only | [ADR-0023](adr/0023-load-test-observability.md) | Yes, in the `observability` profile of the development Compose (#176) |
 
 Where to look for more:
 
@@ -88,7 +88,7 @@ Where to look for more:
   containers, the components of the backend, the web app, the mobile app and the database, the
   deployment in development and on a single host, and two dynamic views: sign-in with refresh
   rotation and reporting an incident. See *C4 Model* below.
-- **Decisions:** the [ADRs](adr/). Check each status: 0018, 0019 and 0023 are only *Proposed*.
+- **Decisions:** the [ADRs](adr/). Check each status: 0018 and 0019 are only *Proposed*.
 - **API:** the [OpenAPI contract](api/openapi.yml) and the [API guide](api.md).
 - **Deployment:** the [deployment guide](deployment.md).
 - **Data:** the [database guide](database.md) and the [datasets](datasets.md).

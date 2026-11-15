@@ -9,7 +9,6 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- The `observability` profile of the development Compose (`backend/docker-compose.yaml`) starts Prometheus and Grafana for the load tests: k6 sends its results to Prometheus by remote write, Prometheus also reads the backend's metrics, and Grafana shows both on two provisioned dashboards. New variables `GRAFANA_ADMIN_PASSWORD`, `GRAFANA_PORT` (3000) and `PROMETHEUS_PORT` (9090), on `127.0.0.1` only. Nothing starts without the profile, and the deployment Compose does not include it (#176).
 - The backend publishes its metrics in the Prometheus format at `/actuator/prometheus`, without a token, with the latency of each endpoint, the database connection pool, the JVM and the count of reported incidents (`urbanpulse_incidents_reported_total`). The rest of the actuator still needs one (#176).
 
 ### Changed

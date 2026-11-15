@@ -304,7 +304,10 @@ workspace "UrbanPulse" "C4 Model" {
                     }
                     postgres_volume = infrastructureNode "postgres-data" "Mounted in postgres at /var/lib/postgresql" "Docker named volume"
                     sources_volume = infrastructureNode "tiles-sources" "The OpenStreetMap downloads, reused between runs" "Docker named volume"
+                    prometheus_service = infrastructureNode "prometheus" "Profile observability, published on 127.0.0.1:9090. Stores the k6 results and the backend's metrics (ADR-0023)" "prom/prometheus"
+                    grafana_service = infrastructureNode "grafana" "Profile observability, published on 127.0.0.1:3000. Two provisioned dashboards: k6 and the backend (ADR-0023)" "grafana/grafana"
                 }
+                k6 = infrastructureNode "k6" "The load tests of backend/load-tests, run from the developer's terminal (ADR-0023)" "k6"
                 vite = infrastructureNode "Vite development server" "pnpm dev:web on localhost:5173. Serves the SPA and frontend/apps/web/public/tiles, and proxies /api to the backend (API_PROXY_TARGET)." "Vite on Node.js"
                 developer_browser = deploymentNode "Browser" "Runs the staff web app" "Chrome, Firefox, Edge or Safari" {
                     web_instance = containerInstance urbanpulse.frontend_web
@@ -320,6 +323,10 @@ workspace "UrbanPulse" "C4 Model" {
             developer_machine.compose.postgres_service.postgres_instance -> developer_machine.compose.postgres_volume "Stores the database files" "Volume mount"
             developer_machine.compose.tiles_service.tiles_instance -> developer_machine.compose.sources_volume "Reuses the downloads between runs" "Volume mount"
             developer_machine.compose.tiles_service.tiles_instance -> developer_machine.vite "Writes malaga.pmtiles to frontend/apps/web/public/tiles" "Bind mount"
+            developer_machine.k6 -> developer_machine.compose.backend_service.backend_instance "Sends the load of each experiment to /api" "HTTP"
+            developer_machine.k6 -> developer_machine.compose.prometheus_service "Sends its results by remote write" "HTTP"
+            developer_machine.compose.prometheus_service -> developer_machine.compose.backend_service.backend_instance "Scrapes /actuator/prometheus every 5 seconds" "HTTP"
+            developer_machine.compose.grafana_service -> developer_machine.compose.prometheus_service "Queries the k6 results and the backend's metrics" "HTTP"
         }
 
         # The deployed system decided by ADR-0011 and ADR-0017: docker-compose.yaml at the

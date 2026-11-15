@@ -354,8 +354,10 @@ Outside `/api/v1` only `/actuator/health/**`, `/actuator/prometheus` and the API
 `/actuator/prometheus` gives Prometheus the backend's metrics for the load tests
 (`backend/load-tests/practice/README.md`): counts and timings per endpoint, the JVM and the
 connection pool, without request data or user identifiers. It is only reachable where the
-backend's port is: `127.0.0.1` in development and the Compose network in the deployment, whose
-nginx does not proxy `/actuator`.
+backend's port is: `127.0.0.1` when the development Compose runs the backend, and the Compose
+network in the deployment, whose nginx does not proxy `/actuator`. A backend started from the IDE
+or with `./mvnw spring-boot:run` listens on every interface of the machine, so other devices of the
+same network can read the metrics too (nothing more, since the rest still needs a token).
 
 "own" and "assigned" are checked by the service with the data of the resource, not by the role:
 being authenticated or knowing an id never gives access to an incident (see `AGENTS.md`, section 6).
