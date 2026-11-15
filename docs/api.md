@@ -1,8 +1,24 @@
-# REST API contract
+# 🔌 API Guide
 
-> Contract: [`docs/api/openapi.yml`](api/openapi.yml). Decision: [ADR-0008](adr/0008-backend.md) (contract first).
+The conventions of the UrbanPulse REST API and how to change it. The API is designed contract
+first: [`docs/api/openapi.yml`](api/openapi.yml) is its source of truth
+([ADR-0008](adr/0008-backend.md)).
 
-## 1. What it is and why it comes first
+> [!NOTE]
+> **For** anyone who adds or changes an endpoint, or builds a client on the API. Who may call each
+> operation is in the [security guide](security.md#-permission-matrix); how the HTTP tests check the
+> contract, in the [testing guide](testing.md).
+
+## 📑 Contents
+
+- **[What It Is and Why It Comes First](#-what-it-is-and-why-it-comes-first)**: why the contract is the source of truth of the API.
+- **[What the Contract Defines](#-what-the-contract-defines)**: its parts, and the operations agreed in each sprint.
+- **[Conventions](#-conventions)**: paths, names, schemas, errors and their codes, request id and listings.
+- **[How to Add an Endpoint](#-how-to-add-an-endpoint)**: the steps, from the contract to the tests.
+- **[Viewing the Documentation](#-viewing-the-documentation)**: Swagger UI and the contract served by the backend.
+- **[Generated Client](#-generated-client)**: the TypeScript client of the apps, generated from the contract.
+
+## 🎯 What It Is and Why It Comes First
 
 `docs/api/openapi.yml` is an OpenAPI 3.1 document and the **source of truth of the API**:
 
@@ -12,7 +28,7 @@
 
 Any change to public behaviour (a new endpoint, a new field, a different status code) changes this file **before or in the same PR as the code**, never after it. The history of `openapi.yml` is the history of the API.
 
-## 2. What the contract defines
+## 📜 What the Contract Defines
 
 | Part | Where | Notes |
 |---|---|---|
@@ -53,7 +69,7 @@ Added later, together with its implementation:
 |---|---|---|
 | `incidents` | `getIncidentStatistics` | #177 |
 
-## 3. Conventions
+## 📏 Conventions
 
 ### Paths
 
@@ -201,9 +217,9 @@ The contract is stricter than Spring's defaults, and the acceptance tests follow
 - **Unknown and empty parameters.** Spring ignores a query parameter no argument asks for, so a mistyped filter returns the unfiltered list, and it turns an empty value (`?categoryId=`) into `null`. A listing that documents its parameters receives them all as `@RequestParam MultiValueMap` and checks them with `QueryParameters.requireKnownAndFilled`, which answers `400` to both.
 - **Validation.** A failed `@Valid` body returns `400` by default. The shared `@RestControllerAdvice` translates it to `422` with `VALIDATION_FAILED` and `errors`.
 
-## 4. How to add an endpoint
+## ➕ How to Add an Endpoint
 
-An operation agreed ahead (see [2. What the contract defines](#2-what-the-contract-defines)) is already in the contract: start at step 7, remove its `Planned: #N` mark in the pull request that builds it, and if you find a real difference, correct the contract in that pull request and tell the client streams. The steps below are for an operation that is not there yet.
+An operation agreed ahead (see [What the Contract Defines](#-what-the-contract-defines)) is already in the contract: start at step 7, remove its `Planned: #N` mark in the pull request that builds it, and if you find a real difference, correct the contract in that pull request and tell the client streams. The steps below are for an operation that is not there yet.
 
 1. **Branch from the feature issue** and edit `docs/api/openapi.yml` **before** writing the controller.
 2. **Add the path** under `paths`, following the conventions above. Example:
@@ -249,10 +265,10 @@ An operation agreed ahead (see [2. What the contract defines](#2-what-the-contra
 
    The rules are in `redocly.yaml` and are the same ones the `contract` CI job runs.
 5. **Preview it**: run the backend and open `http://localhost:8080/swagger-ui.html`, or paste the file into [Swagger Editor](https://editor.swagger.io/). Without the backend, build a static page from the repository root with `npx @redocly/cli@2.71.0 build-docs docs/api/openapi.yml -o redoc-static.html` and open it (do not commit it). `redocly preview` is not for this: it previews a whole Redocly project and parses every YAML file of the folder.
-6. **Open the PR with the contract change first** if the clients or the tester need it soon (tick *OpenAPI contract* in the issue), and regenerate the client types (`pnpm generate:api`, see [6. Generated client](#6-generated-client)) in it. The implementation can come in the same PR or right after, but never before: the code must never expose something the contract does not describe. If the implementation needs to change what was agreed, it changes the contract in its own PR and tells the client streams.
+6. **Open the PR with the contract change first** if the clients or the tester need it soon (tick *OpenAPI contract* in the issue), and regenerate the client types (`pnpm generate:api`, see [Generated Client](#-generated-client)) in it. The implementation can come in the same PR or right after, but never before: the code must never expose something the contract does not describe. If the implementation needs to change what was agreed, it changes the contract in its own PR and tells the client streams.
 7. **Implement the controller** following the contract, and add HTTP tests that check status codes, validation errors and permissions (AGENTS.md, section 9).
 
-## 5. Viewing the documentation
+## 👀 Viewing the Documentation
 
 The backend serves the contract with [springdoc-openapi](https://springdoc.org/):
 
@@ -262,11 +278,11 @@ The backend serves the contract with [springdoc-openapi](https://springdoc.org/)
 | `http://localhost:8080/openapi.yml` | The contract file itself, copied into the jar at build time |
 | `http://localhost:8080/v3/api-docs` | What springdoc generates from the controllers. Useful to compare with the contract while implementing |
 
-The build copies `docs/api/openapi.yml` into the jar (`maven-resources-plugin` in `pom.xml`), so the documentation always matches the contract of that commit. Any future Docker build must keep `docs/api/` in its context for the same reason.
+The build copies `docs/api/openapi.yml` into the jar (`maven-resources-plugin` in `pom.xml`), so the documentation always matches the contract of that commit. The backend image does the same: `backend/Dockerfile` takes the file from a second build context, `contract` (`docs/api`), which both Compose files pass to it.
 
 These URLs are open without authentication. To turn off Swagger UI and the generated description in an environment, set `SPRINGDOC_SWAGGER_UI_ENABLED=false` and `SPRINGDOC_API_DOCS_ENABLED=false`. `/openapi.yml` stays available: it is the public contract the clients are built from.
 
-## 6. Generated client
+## 🧬 Generated Client
 
 The clients never write the API types by hand. `frontend/packages/api-client/src/schema.d.ts` is generated from the contract; after changing `docs/api/openapi.yml`, regenerate it from `frontend/` and commit the result in the same pull request:
 
@@ -274,6 +290,7 @@ The clients never write the API types by hand. `frontend/packages/api-client/src
 pnpm generate:api
 ```
 
-Never edit `schema.d.ts` by hand: the `contract` CI job fails if it differs from the contract.
+> [!WARNING]
+> Never edit `schema.d.ts` by hand: the `contract` CI job fails if it differs from the contract.
 
 Each operation gets a typed function in `api-client` (`listIncidents`, `getIncident`...) that returns an `ApiResult`, so both apps handle failures by `status` and `code`, never by the text.

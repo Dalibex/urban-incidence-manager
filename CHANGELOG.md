@@ -7,6 +7,10 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-14
+
+This version covers the full life of an incident. Operators classify reports on the web and validate them, reject them or ask for more information, then assign them to a department and a technician; technicians accept and resolve their work from a work queue; operators close or reopen the result. Citizens place their report with a pin on the map of Málaga, attach photos and follow its progress on a timeline in the mobile app. It also adds a live incident map with a dashboard, internal comments, user administration, an audit log and operational reports, and a production deployment behind nginx with a single Compose file.
+
 ### Added
 
 - Staff dashboard beside the web map for operators, administrators and technicians: the incidents that match the filters of the map counted by priority, status, category and department, and the five latest reported, from `GET /incident-statistics` with the filters and the scope of the map (citizens and analysts get `403`). The map screen fills the window, folds its filters behind *Filters* and has a full-screen button, and the filter bars gain *Today*, *Last 7 days* and *Last 30 days* (#177).
@@ -27,6 +31,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
 - Photos of an incident on the API: upload one JPEG, PNG or WebP photo at a time, list the photos of an incident and download each one. The type is read from the content, never from the file name. Uploading the same photo again to the same incident returns the one already stored instead of a copy, so a client can retry safely. A photo over `EVIDENCE_MAX_FILE_SIZE` answers `413`, one more than `EVIDENCE_MAX_FILES_PER_INCIDENT` answers `422`, and a citizen can only add photos while the incident is `REPORTED`. Who can see a photo is who can see its incident (#192).
 - Photos on the mobile app: after reporting, or from the detail while the report is `REPORTED`, the citizen adds photos from the camera or the gallery. The app makes each photo smaller (at most 1920 px on its longest side, JPEG) before uploading it, shows the upload progress, and retries a failed upload twice on its own. If it still fails, the citizen is told that the report is saved without the photo and can try again. The app asks for the camera permission only when the citizen chooses the camera (#193).
 - Positions of incidents for the map on the API (`GET /incident-locations`): id, status, priority, latitude and longitude, with the same filters as the incident list and an optional bounding box. Operators and administrators get every incident and technicians their active assignments; citizens and analysts get `403`. It returns at most 1,000 positions, the highest priority and newest first, and says when it left some out (#195).
+- A deployment without Vite: `docker-compose.yaml` at the repository root starts the whole system with one published port, nginx. Its web image serves the production build of the web app, the base map with `Range` requests and the API on the same origin, refuses uploads over the limit of the backend with `413`, limits the public identity operations to 30 requests a minute per address and answers `504` when the backend does not answer in 30 s. Behind nginx the backend still tells clients apart by their own address for the sign-up and sign-in limits, and the `Location` of a `201` has the public address the client used. The database and the backend publish no port, every service restarts by itself and the Docker logs have a size limit. The [deployment guide](docs/deployment.md) covers the variables, backups, updates and what to do if nginx goes down (#199, #200).
 - Operational reports for analysts and administrators: the incidents reported in a period of up to 366 days, grouped by status, category, priority, department or district, with how many are open, closed and rejected and the median and 95th percentile hours to close, on the *Reports* screen of the web and as a CSV download with the same rows. Incidents without that information go under *Not available*; the report has no personal data (#42).
 - Photos in the incident detail of the web, for operators, administrators and the assigned technician: each photo is downloaded with the session, never through a public link. One that fails to load shows an error with *Try again* while the others stay, and a list that fails does not hide the rest of the detail (#194).
 - Audit log for administrators on the API (`GET /audit-entries`) and the web: who did what and when, newest first, with each actor's and record's current name and the values each change replaced and set. Filters by days, actor (from a row) and one or several actions, kept in the address with the page. The trail stays read-only: there is no operation to change or delete an entry (#41).
@@ -52,7 +57,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ## [0.1.0] - 2026-11-03
 
-End of Sprint 1: a citizen signs up on the mobile app, reports an incident with its position and sees it in their list, and an operator signs in on the web app and sees it in the inbox and its detail. The web app still runs only with the Vite development server.
+First version with incidents: a citizen signs up on the mobile app, reports an incident with its position and sees it in their list, and an operator signs in on the web app and sees it in the inbox and its detail. The web app still runs only with the Vite development server.
 
 ### Added
 

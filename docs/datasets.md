@@ -1,24 +1,33 @@
 # 📊 Datasets and Measurements
 
-The datasets UrbanPulse loads for a purpose other than development, and the measurements taken
-with them. The development dataset (`dev` profile) is in the [development guide](development.md);
-how every data profile is loaded, reloaded and changed is in *Data Profiles* in the
-[database guide](database.md).
+The sample data UrbanPulse loads for the demo and for the measurements, and the measurements taken
+with it.
+
+> [!NOTE]
+> **For** anyone who gives the demo or measures performance. The development dataset is in the
+> [development guide](development.md#-development-dataset); how every data profile is loaded,
+> reloaded and changed, in *Data Profiles* in the [database guide](database.md#-data-profiles).
 
 | Profile | Purpose | Where |
 | --- | --- | --- |
-| `dev` | Try the API and the clients while developing | [Development guide](development.md) |
-| `demo` | Tell one story in front of an audience | *Demo Dataset* below and the [demo script](demo.md) |
+| `dev` | Try the API and the clients while developing | [Development guide](development.md#-development-dataset) |
+| `demo` | Show the system working, with sample data that simulates real use | *Demo Dataset* below and the [demo script](demo.md) |
 | `perf` | Measure the quality attributes on a large, repeatable volume | *Performance Dataset* below |
+
+## 📑 Contents
+
+- **[Demo Dataset](#-demo-dataset)**: the sample data of the demo, and how it is loaded.
+- **[Performance Dataset](#-performance-dataset)**: the large dataset for the measurements: what it generates and how to check it.
+- **[Measurements](#-measurements)**: the query plans of the indexes and the load test of QA-1.
 
 ## 🎬 Demo Dataset
 
-The `demo` Spring profile loads the curated story of the demo (#54): one user per role and fifteen
+The `demo` Spring profile loads the sample data of the demo (#54): one user per role and fifteen
 incidents in Málaga covering every status, each with a history allowed by
 [ADR-0020](adr/0020-incident-lifecycle-transitions.md). The [demo script](demo.md) lists its users
 and incidents and how to walk through them. It is separate from the development dataset: the
 development data keeps the cases developers need (several citizens and technicians, urban context,
-assets, notifications), the demo data tells one story that is easy to follow.
+assets, notifications); the demo data is small and easy to follow in front of an audience.
 
 It follows the pattern of every data profile (*Data Profiles* in the
 [database guide](database.md)):
@@ -26,18 +35,16 @@ It follows the pattern of every data profile (*Data Profiles* in the
 `db/demo-data/R__demo_data.sql` is a repeatable migration, and `DemoDatasetIT` loads it on its own
 PostGIS container.
 
-- Activate it as the `dev` profile (see *Activate it* in the
-  [development guide](development.md)), with `demo` instead of `dev`, on an empty database. To show
-  the mobile app on a phone, run the backend from the IDE or the terminal (see the
-  [demo script](demo.md)).
-- Every demo user signs in with the password in the `DEMO_PASSWORD` environment variable
-  (`backend/.env`, or the environment of the container). The backend does not start with the
-  `demo` profile without it. Flyway passes it to the script as the `demo_password` placeholder and
+- Activate it on an empty database, as *Start the Demo* in the [demo script](demo.md) explains: on
+  the deployment, or in development like the `dev` profile, with `demo` instead of `dev`.
+- Every demo user signs in with the password in the `DEMO_PASSWORD` environment variable (the
+  `.env` at the repository root for the deployment, `backend/.env` in development). The backend
+  does not start with the `demo` profile without it. Flyway passes it to the script as the `demo_password` placeholder and
   PostgreSQL hashes it with bcrypt (the `pgcrypto` extension, which the script enables), so no
   password or hash is in the repository. To change the password, reset the database and start
   again with the new value.
 - Restarting keeps what was created during the demo; only a change to `R__demo_data.sql` or a
-  reset inserts the story again.
+  reset inserts the demo data again.
 
 ## 📈 Performance Dataset
 
@@ -136,8 +143,123 @@ or repeated, so every measurement records:
 | Result | Percentiles (p50, p95, p99), never only the average |
 | Date and commit | When and on which commit it was measured |
 
-The query plans that justify the indexes of the main queries are in *Indexes* in the
-[database guide](database.md).
+Two kinds are recorded below: the query plans that justify each index, and the load test of QA-1.
+
+### Query plans of the indexes
+
+Each index of the [database guide](database.md#-indexes) that serves a query has its measurement
+here: the query, its plan and time before and after the index, and what the measurement decided.
+
+#### Main Queries
+
+`V10__incidents_index_main_queries.sql` (#132) adds one index for each main query of the incidents
+module. The queries are the SQL Hibernate generates for the listing, the count of its page, the
+detail and the history (`IncidentQueryService`), captured with `spring.jpa.show-sql`.
+
+| Query | Index | Before | After |
+| --- | --- | --- | --- |
+| *My reports*: a citizen's page of 20, newest first | `ix_incident_reporter_reported_at` | 17.6 ms, seq scan of `incident` | 0.5 ms, index scan |
+| *My reports*: its count | `ix_incident_reporter_reported_at` | 21.1 ms, seq scan | 1.6 ms, index-only scan |
+| Operator inbox, every status, page of 20 | `ix_incident_reported_at` | 111.3 ms, seq scans of `incident` and `location` and a sort | 0.5 ms, index scan |
+| Operator inbox, one status, page of 20 | `ix_incident_status_reported_at` | 15.5 ms, seq scan | 0.4 ms, index scan |
+| Operator inbox, one status, count | `ix_incident_status_reported_at` | 18.1 ms, seq scan | 1.5 ms, index-only scan |
+| Technician list, page of 20 | `ix_assignment_active_technician` (and `ix_incident_reported_at`) | 20.7 ms, seq scans of `incident` and `assignment` | 8.1 ms, index scans |
+| Technician list, count | `ix_assignment_active_technician` | 11.0 ms, seq scan of `assignment` | 8.0 ms, index-only scan |
+| Technician detail of one incident | `ix_assignment_active_technician` | 5.1 ms, seq scan of `assignment` | 0.1 ms, index-only scan |
+| History of one incident | `ix_status_change_incident_id` | 25.3 ms, seq scan of `status_change` | 0.1 ms, bitmap index scan |
+
+`V12__incidents_index_assignment_incident.sql` (#184) adds one more, measured in the same way on
+2026-11-05, on commit `e29d3d6` with the perf dataset loaded by `0.1.0`:
+
+| Query | Index | Before | After |
+| --- | --- | --- | --- |
+| Assignments of one incident: the active one of the staff detail, and the one a reassignment deactivates | `ix_assignment_incident_id` | 4.4 ms, seq scan of `assignment` | 0.06 ms, index scan |
+
+It takes 2.5 MB with 80,000 assignments.
+
+Conditions:
+
+- Data: `perf` profile with the default volume, 100,000 incidents, about 487,000 history entries
+  and 80,000 assignments. The citizen is `perf.citizen1@example.com`, the one with the most
+  incidents (5,901); the technician has 2,089 active assignments; the status is `REPORTED` (6,512
+  incidents); the incident of the history has 6 entries.
+- Method: `EXPLAIN (ANALYZE, BUFFERS)` of each query, run six times after `VACUUM ANALYZE`; the
+  table gives the median of the last five, with the cache warm. Execution time only, without the
+  network or the backend.
+- Environment: PostgreSQL 18.6 with PostGIS 3.6 (`postgis/postgis:18-3.6`) in Docker, 4 CPUs and
+  16 GB of memory, on commit `2bd35be` plus this migration, on 2026-11-02.
+
+What the measurements decided:
+
+- The technician's queries gain the least: there is no index that gives both "assigned to me" and
+  "newest first", so PostgreSQL walks the newest incidents and checks each one's assignment. With
+  2,000 incidents per technician it stays under 10 ms.
+- Filtering by several statuses at once uses `ix_incident_reported_at` and filters as it walks:
+  0.5 ms for `REPORTED`, `REOPENED` and `VALIDATED`.
+- The history index is on `incident_id` alone. The wider `(incident_id, instant, id)`, which also
+  gives the order, measured the same time (0.06 ms against 0.08 ms) and was four times larger
+  (27 MB against 6.6 MB), because PostgreSQL only deduplicates repeated keys.
+- The indexes take 25 MB in total with this volume, against 33 MB of the `incident` table.
+
+To repeat a measurement, load the `perf` dataset, open `psql` (*Determinism* above) and run the
+query with `EXPLAIN (ANALYZE, BUFFERS)`, for example:
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT i.id, i.title, i.status, i.reported_at, l.address
+  FROM incident i
+  LEFT JOIN category c ON c.id = i.category_id
+  LEFT JOIN location l ON l.incident_id = i.id
+ WHERE i.reporter_id = 'f0000000-0000-4000-8000-000000000001'
+ ORDER BY i.reported_at DESC, i.id
+ OFFSET 0 ROWS FETCH FIRST 20 ROWS ONLY;
+```
+
+When a new query or filter is added, measure it the same way and add its index, with its row in a
+table here and the index in a new migration ([database guide](database.md)).
+
+#### Staff Filters
+
+`V11__incidents_index_staff_filters.sql` (#182) adds the indexes the filters of the incident list
+need. The queries are those of the operator, who sees every incident, so nothing else narrows them.
+
+| Query | Index | Before | After |
+| --- | --- | --- | --- |
+| Department with 7,058 active assignments, page of 20 | `ix_assignment_active_department` | 22.6 ms, scans of `ix_assignment_active_technician` for each incident | 1.7 ms, index-only scan |
+| Department with 30,997 active assignments, page of 20 | `ix_assignment_active_department` | 4.4 ms, the same scans | 0.6 ms, index-only scan |
+| Every incident sorted by `updatedAt`, page of 20 | `ix_incident_updated_at` | 10.9 ms, seq scan of `incident` and a sort | 0.1 ms, index scan |
+| `REPORTED` sorted by `updatedAt`, page of 20 | `ix_incident_updated_at` | 5.0 ms, bitmap scan and a sort | 1.2 ms, index scan |
+
+Conditions: the same data and method as *Main Queries* above, on PostgreSQL 18.6 with PostGIS 3.6 in
+Docker Desktop (16 CPUs, 15.2 GB), on commit `284142a` plus this change, on 2026-11-05.
+
+What the measurements decided:
+
+- The category, priority and date filters need no index: their pages take under 1.1 ms with
+  `ix_incident_reported_at`, which PostgreSQL walks newest first until it has 20 rows. A week of
+  incidents also counts in 0.2 ms with it.
+- Their counts read the whole `incident` table, about 13 ms for one category or one priority. An
+  index per filter would only serve that count, so they are left as they are.
+- The count of a department does not improve: 10 and 15 ms with the index, against 10 and 13 ms
+  without it, because it still checks every incident. Only its page does.
+- The two indexes take 8 MB in total with this volume.
+
+#### Classification Changes
+
+`V14__identity_index_audit_log_target.sql` (#47) adds `ix_audit_log_target_id`, for the
+classification changes of one incident (`listIncidentClassificationChanges`), which reads its
+`CLASSIFY_INCIDENT` entries of `audit_log` by `target_id`:
+
+| Query | Index | Before | After |
+| --- | --- | --- | --- |
+| Classification changes of one incident, page of 20 | `ix_audit_log_target_id` | 9.7 ms, parallel seq scan of `audit_log` | 0.1 ms, index scan |
+| Its count | `ix_audit_log_target_id` | 8.3 ms, parallel seq scan | 0.03 ms, index scan |
+
+The `perf` dataset has no audit entries, so for this measurement two `CLASSIFY_INCIDENT` entries
+were added to each of its 100,000 incidents (200,000 entries) with an `INSERT ... SELECT` over
+`incident`, followed by `VACUUM ANALYZE audit_log`. Measured once each with the cache warm, on
+PostgreSQL 18.6 with PostGIS 3.6 in Docker on Linux (4 CPUs, 15 GB), on commit `284142a` plus this
+change, on 2026-11-05. The index takes 4.9 MB.
 
 ### Load test of QA-1
 

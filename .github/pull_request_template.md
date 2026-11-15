@@ -27,12 +27,16 @@ Closes #XX
 
 ## How Has This Been Tested?
 
-Describe the tests performed to verify the changes, and the manual checks with their result.
+Describe the automated tests and checks run to verify the changes. The manual cases go in
+*Manual Evidence* below.
 
-## Screenshots
+## Manual Evidence
 
-For changes to the web or mobile screens, add a screenshot or a short recording. Delete this section
-otherwise.
+The result of each manual case that this pull request covers, and the commit it ran on, whoever ran
+it. Put screenshots and recordings in collapsible `<details>` blocks. A change to the web or mobile
+screens also shows what it looks like here. The evidence goes here, never in a comment, so the next
+reader finds it in one place (*Testing lifecycle* in `CONTRIBUTING.md`). Delete this section when
+there are no manual cases and no screen changed.
 
 ## Risks
 

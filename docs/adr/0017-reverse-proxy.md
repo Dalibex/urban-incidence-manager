@@ -27,6 +27,7 @@ In the **production/demo compose** we use **nginx as the unique published entry 
 - We prefer an **unprivileged nginx image** (for example `nginxinc/nginx-unprivileged` listening on 8080) to follow the "unprivileged in the container" practice.
 - The `nginx.conf` maximum request body size (`client_max_body_size`) must match the evidence upload limit defined in ADR-0013.
 - Only the `web` container publishes a host port (`HTTP_PORT`). The `backend`, `db` and Redis publish no ports, per ADR-0011.
+- nginx tells the backend who the client is and which address it used: it writes `X-Forwarded-For` (its own `$remote_addr`), `X-Forwarded-Proto`, `X-Forwarded-Host` and `X-Forwarded-Port` itself, at the `server` level of `nginx.conf`, so a client's own values never pass, and removes the client's `Forwarded` and `X-Forwarded-Prefix`. The backend trusts them only in the deployment Compose (`SERVER_FORWARD_HEADERS_STRATEGY=native`) and only from a private address (#200).
 - **HTTPS is strictly required** before any deployment reachable from the internet, for three reasons:
   - credentials and tokens must not travel in plain HTTP;
   - browsers only allow geolocation and the camera on secure origins;
@@ -61,6 +62,7 @@ The full-stack **`docker-compose.yaml` file is located at the repository root**,
 - **Negatives:**
   - One more configuration artifact to keep in sync with the API path (`/api`) and the evidence upload size limits.
   - Development and production expose ports differently (documented).
+  - Behind nginx the backend sees nginx as the client of every request, so the rate limits per client address would be shared by everyone and the `Location` of a `201` would point inside Compose. The forwarded headers above mitigate it (#200), and they are only safe while the backend publishes no port.
 
 ## How it will be evaluated
 

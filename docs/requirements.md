@@ -1,19 +1,27 @@
 # 📋 Requirements and Prioritization
 
 The priority of each functional requirement of the case study (RF01–RF26), which issues cover it in
-the MVP, and the screens each role gets. It replaces the team's *Priorización de Requisitos* of
-2026-10-27, which was written before the backlog was planned on GitHub; *Changes From the Original
-Prioritization* below records where the two differed and which side was kept.
+the MVP, and the screens each role gets.
 
-This document does not repeat the plan. The live plan is in GitHub:
+> [!NOTE]
+> **This document does not repeat the plan.** The GitHub **milestones** say when each issue is done,
+> and the **issues** what each feature includes and how it is accepted. When the behaviour of a
+> feature is decided elsewhere, that document wins and this one links to it: the lifecycle in
+> [ADR-0020](adr/0020-incident-lifecycle-transitions.md), permissions and the audit trail in the
+> [security guide](security.md), the API in the [OpenAPI contract](api/openapi.yml), and any other
+> decision in its [ADR](adr/).
 
-- the **milestones** (*Sprint 1*, *Sprint 2*) say when each issue is done;
-- the **issues** say what each feature includes and how it is accepted.
+It replaces the team's *Priorización de Requisitos* of 2026-10-27, which was written before the
+backlog was planned on GitHub; *Changes From the Original Prioritization* records where the two
+differed and which side was kept.
 
-When the behaviour of a feature is decided elsewhere, that document wins and this one links to it:
-the lifecycle in [ADR-0020](adr/0020-incident-lifecycle-transitions.md), permissions and the audit
-trail in the [security guide](security.md), the API in the [OpenAPI contract](api/openapi.yml), and
-any other decision in its [ADR](adr/).
+## 📑 Contents
+
+- **[Two Kinds of Priority](#-two-kinds-of-priority)**: the priority of the case study, and the team's own.
+- **[Requirements](#-requirements)**: every requirement, with its priority, status and issues.
+- **[Screens per Role](#-screens-per-role)**: what each role gets, built or planned.
+- **[Changes From the Original Prioritization](#-changes-from-the-original-prioritization)**: what the team changed, and why.
+- **[Keeping This Document Up to Date](#-keeping-this-document-up-to-date)**: when and how it changes.
 
 ## 🧭 Two Kinds of Priority
 
@@ -40,7 +48,7 @@ or *No* (after the MVP). Whether an issue is finished is in GitHub, not here.
 | ID | Requirement | In the MVP | Issues |
 | --- | --- | --- | --- |
 | RF01 | **Identity and access.** Users sign up or sign in; staff authenticate. | Yes. A second factor for staff is planned with low priority. | #35, #39, #126, #165; #57 (second factor, ADR-0021) |
-| RF02 | **Roles and permissions.** Different permissions for citizens, operators, technicians, administrators and analysts. | Yes | #35, #39, #100, #40; [permission matrix](security.md#permission-matrix) |
+| RF02 | **Roles and permissions.** Different permissions for citizens, operators, technicians, administrators and analysts. | Yes | #35, #39, #100, #40; [permission matrix](security.md#-permission-matrix) |
 | RF03 | **Report an incident** with a title, description, position and optional category. | Yes | #43 |
 | RF04 | **Location.** The incident keeps coordinates, normalized address and accuracy. | Partly. Coordinates, and the accuracy while the position is the phone's GPS fix; the citizen corrects the position with a pin on the mobile map, and reports without GPS once they move it: the map's starting point on Málaga is never sent. The normalized address has no issue. | #43; #60 (#197, #198) |
 | RF06 | **Consultation and tracking.** A user sees the detail, status, dates and visible history of their incidents. | Yes | #45 (citizen), #46 (staff), #100, #169 (timeline) |
@@ -80,7 +88,7 @@ The schema already has tables for some requirements outside the MVP (`urban_cont
 `urban_asset`, `notification`, `data_source_config`; see the [database guide](database.md)). A table
 does not mean the requirement is implemented.
 
-## 🖥️ Screens per Role
+## 💻 Screens per Role
 
 What each role gets, built or planned. How to use what is built, step by step, is in the
 [user guide](user-guide.md).
@@ -90,8 +98,8 @@ in on the web gets a notice to use the phone; staff who sign in on the phone get
 web. Every screen is also protected by the API: hiding a menu entry is not access control
 ([security guide](security.md)).
 
-The sign-in screen asks for the email and password; a staff account with a second factor also asks
-for its code (#57).
+The sign-in screen asks for the email and password. A second factor for staff accounts is a stretch
+goal: Planned: #57.
 
 ### Web: municipal operator
 
@@ -159,11 +167,11 @@ for its code (#57).
   starts on the phone's position, or on Málaga without it, and the citizen moves to correct it. The
   accuracy is sent only while the pin is on the phone's position. After sending, optional photos
   from the camera or the gallery (#193).
-- **My reports** (#45): the citizen's incidents filtered by open or closed; title, date, status and
-  a photo thumbnail when there is one.
-- **Detail** (#45): the report, its position, photos and the history the citizen may see (ADR-0020,
+- **My reports** (#45): the citizen's incidents filtered by open or closed; title, date and status.
+  A photo thumbnail when there is one: Planned: #279.
+- **Detail** (#45): the report, its position and the history the citizen may see (ADR-0020,
   *Citizen sees*): an information request shows as a message from the city council, and a rejection
-  shows its reason.
+  shows its reason. The photos: Planned: #279.
 - **Profile:** name, email and *Sign out*.
 - **Not in the MVP:** replying to an information request from the app (ADR-0020) and the
   notification channel settings (RF14).
@@ -177,8 +185,8 @@ changed.
 | Topic | Original document | Now | Decided by |
 | --- | --- | --- | --- |
 | Plan of Sprint 1 | Sprint 1 included user management, evidence, validation, classification, assignment, comments, filters and the technician's queue. | Sprint 1 was the walking skeleton (sign-up and sign-in, reporting, the citizen's list, the operator's inbox and detail); the rest is in Sprint 2. The milestones are the plan. | Milestones *Sprint 1* and *Sprint 2* |
-| Audit log | `AuditLog` with the administrator's email as actor, the affected user's email as target, free text as details, and the actions `CREATE_USER`, `UPDATE_USER`, `DELETE_USER`. | `audit_log` keeps the actor's id, the target's type and id, and the values before and after as JSON, with no emails or names. Actions: `CREATE_USER`, `UPDATE_USER`, `CHANGE_ROLE`, `DISABLE_USER`, `ENABLE_USER`, `CLASSIFY_INCIDENT`. Entries can never be changed or deleted. | [Security guide](security.md#audit-trail), #36, #41 |
-| Delete user | *Delete* with a confirmation. | *Deactivate*: the account can no longer sign in and its sessions are revoked. A user is referenced by incidents, history and the audit log, so it is never deleted. | #40, [security guide](security.md#audit-trail) |
+| Audit log | `AuditLog` with the administrator's email as actor, the affected user's email as target, free text as details, and the actions `CREATE_USER`, `UPDATE_USER`, `DELETE_USER`. | `audit_log` keeps the actor's id, the target's type and id, and the values before and after as JSON, with no emails or names. Actions: `CREATE_USER`, `UPDATE_USER`, `CHANGE_ROLE`, `DISABLE_USER`, `ENABLE_USER`, `CLASSIFY_INCIDENT`. Entries can never be changed or deleted. | [Security guide](security.md#-audit-trail), #36, #41 |
+| Delete user | *Delete* with a confirmation. | *Deactivate*: the account can no longer sign in and its sessions are revoked. A user is referenced by incidents, history and the audit log, so it is never deleted. | #40, [security guide](security.md#-audit-trail) |
 | API key of an external source | `DataSourceConfig.apiKey` stored in the database and typed in the *Sources* screen. | `data_source_config` has no key: secrets come from the environment (Twelve-Factor III). The *Sources* screen is not in the MVP. | ADR-0011, migration `V4` |
 | Validate | *Validate* sets the category and priority and changes the status to `VALIDATED`. | Two steps that the same panel runs: classify (#47) and then validate (#48). Validation only checks that both are set. | ADR-0020, #47, #48 |
 | Request information | A form to ask the citizen; the citizen answers from the app. | The incident stays `REPORTED` and the request is recorded in its history, visible to the citizen. The citizen's answer is not in the MVP. | ADR-0020 (option B), #48 |

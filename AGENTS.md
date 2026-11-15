@@ -35,12 +35,12 @@ Read the source before relying on any summary, including this file. Do not descr
 | API contract and its conventions | `docs/api/openapi.yml`, `docs/api.md` |
 | Authentication, permission matrix and security limits | `docs/security.md` |
 | Schema, migrations and data profiles | `docs/database.md`, `docs/database.drawio.svg`, `backend/src/main/resources/db/migration` |
-| Sample datasets and measurements | `docs/datasets.md`, `docs/demo.md` |
-| Local setup and commands | `docs/development.md` |
-| Deployment, environment variables and volumes | `docs/deployment.md` |
+| Sample datasets, measurements and the query plans of the indexes | `docs/datasets.md`; the demo walk-through in `docs/demo.md` |
+| Local setup, commands and troubleshooting | `docs/development.md` |
+| Deployment, every environment variable and the volumes | `docs/deployment.md` |
 | Twelve-Factor evidence | `docs/twelve-factor.md` |
 | Tests and CI | `docs/testing.md`, `docs/ci.md` |
-| Team workflow: issues, sub-issues, testing, review, done | `CONTRIBUTING.md` |
+| Team workflow: issues, sub-issues, testing, manual evidence, review, done, Dependabot | `CONTRIBUTING.md` |
 | Changes per version | `CHANGELOG.md` |
 
 ### Actors
@@ -134,13 +134,13 @@ Do not change the stack or introduce components because they are popular. An arc
 | Path         | Purpose                                                                 |
 | ------------ | ----------------------------------------------------------------------- |
 | `backend/`   | Spring Boot backend, its Dockerfile and the Compose file.               |
-| `frontend/`  | Client pnpm workspace: `apps/web`, `apps/mobile` and `packages/*`.      |
+| `frontend/`  | Client pnpm workspace: `apps/web`, `apps/mobile` and `packages/*`, and the web image (nginx). |
 | `docs/`      | Guides, ADRs, the API contract and the C4 model (see section 2).        |
 | `tiles/`     | Base map builder, a one-off process.                                    |
 | `.github/`   | CI workflows, issue and pull request templates.                         |
 | `.githooks/` | Versioned Git hooks (pre-commit formatting).                            |
 
-The repository root only holds what is shared (README, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `CHANGELOG.md`, `LICENSE`, CI, hooks). Do not create empty folders to anticipate future modules.
+The repository root only holds what is shared (README, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `CHANGELOG.md`, `LICENSE`, CI, hooks) and the deployment `docker-compose.yaml` with its `.env.example`, which build from several folders (ADR-0017). Do not create empty folders to anticipate future modules.
 
 ### Separation of responsibilities
 
@@ -274,7 +274,7 @@ Especially important cases for UrbanPulse:
 - Record in `CHANGELOG.md`, under `[Unreleased]` and in the same PR, only the changes users can notice: features, changes to behavior, the API, configuration or environment variables, removals, and fixes of released bugs. Never documentation, ADRs, refactorings, tests, CI or tooling. `Fixed` is only for bugs of a released version; if a change alters something still under `[Unreleased]`, edit that entry instead of adding a contradictory one. Rules in *Changelog* of `CONTRIBUTING.md`.
 - Do not overwrite others' changes or include generated files, secrets, or changes unrelated to the task.
 - Keep implementation, tests, and contract synchronized. Do not disable validations or controls to make CI pass.
-- When GitHub raises a security alert (CodeQL, Dependabot), fix it or dismiss it with its reason, and add its row to *Security findings* in `docs/security.md` in the same PR.
+- When GitHub raises a security alert (CodeQL, Dependabot), fix it or dismiss it with its reason, and add its row to *Security findings* in `docs/security.md` in the same PR. A pull request opened by Dependabot follows *Dependabot pull requests* in `CONTRIBUTING.md`.
 - Creating commits, publishing branches, merging PRs, or deploying must be within the authorized scope of the assignment.
 
 ### Proposals and findings
@@ -290,9 +290,12 @@ Especially important cases for UrbanPulse:
 
 1. Review the diff and remove accidental changes.
 2. Run the applicable tests, lint, build, and checks using the repository's real commands.
-3. Check the pull request against *When a pull request is done* in `CONTRIBUTING.md`: documents that describe the changed behavior, *Current Scope* in the README, the status in `docs/requirements.md`, and `CHANGELOG.md` when users can notice the change.
-4. In a relevant architectural change, update C4, ADR, and associated tests.
-5. Report what changed, how it was verified, and what decisions or limitations remain pending.
+3. Check a change to a screen in the running app, not only in its tests: the keyboard, a reload,
+   the focus and the states of its failure cases. Put the result in *Manual Evidence* of the pull
+   request description. If something cannot be checked (no Docker, no device), say what and why.
+4. Check the pull request against *When a pull request is done* in `CONTRIBUTING.md`: documents that describe the changed behavior, *Current Scope* in the README, the status in `docs/requirements.md`, and `CHANGELOG.md` when users can notice the change.
+5. In a relevant architectural change, update C4, ADR, and associated tests.
+6. Report what changed, how it was verified, and what decisions or limitations remain pending.
 
 ### Command discovery
 
@@ -325,4 +328,8 @@ The C4 draw.io file is generated from `docs/architecture/workspace.dsl`; never e
 - An ADR records context, alternatives, decision, consequences, and status. Number files consistently; a replaced decision preserves its history.
 - C4 explains structure and relationships: context and containers at the beginning; components and deployment when they provide useful information. A C4 container does not necessarily imply a Docker container.
 - Quality goals must define measurement conditions. For example, a p95 lower than 500 ms needs to specify operations, load, data, and environment; it is a proposal until accepted.
+- One topic, one owner: each topic is explained in the document the map of section 2 names, and the others link to it instead of repeating it. Moving a topic to another document changes that map in the same pull request.
+- Each guide in `docs/` starts with what it covers, a callout that says who it is for and where the rest lives, and a *Contents* index: a list with one line per section (`- **[Section](#anchor)**: what it covers.`), or a table only when it compares several columns, such as a status. A pull request that adds, renames or removes a section updates that index. Prefer lists to tables elsewhere too, unless the reader compares rows.
+- Use GitHub callouts (`> [!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]`) for what a reader must not miss: data loss, secrets, irreversible actions, something that breaks the build. Not for ordinary text.
+- A heading may start with an emoji, but not one that needs a variation selector (such as ⚙️ or 🗂️): GitHub turns it into an anchor that links do not reach. After renaming a heading, update the links to it.
 - Keep this `AGENTS.md` to rules and the map of section 2. Do not copy into it state that another document owns. It does not preserve rejected proposals as mandatory rules.

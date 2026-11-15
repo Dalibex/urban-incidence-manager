@@ -322,12 +322,12 @@ workspace "UrbanPulse" "C4 Model" {
             developer_machine.compose.tiles_service.tiles_instance -> developer_machine.vite "Writes malaga.pmtiles to frontend/apps/web/public/tiles" "Bind mount"
         }
 
-        # The deployed system decided by ADR-0011 and ADR-0017; #134 builds it. Redis is not in it
-        # until ADR-0012 says it comes in.
+        # The deployed system decided by ADR-0011 and ADR-0017: docker-compose.yaml at the
+        # repository root. Redis is not in it until ADR-0012 says it comes in.
         single_host = deploymentEnvironment "Single host" {
             server = deploymentNode "Server" "One machine runs the whole system (ADR-0011)" "Linux" {
                 compose = deploymentNode "Docker Compose" "docker-compose.yaml at the repository root" "Docker Engine" {
-                    web_service = deploymentNode "web" "The only published port, HTTP_PORT, with TLS" "Image built from frontend/Dockerfile (unprivileged nginx)" {
+                    web_service = deploymentNode "web" "The only published port, HTTP_PORT (8000 by default). HTTP only: HTTPS is not set up yet (docs/deployment.md)" "Image built from frontend/Dockerfile (unprivileged nginx)" {
                         nginx_instance = containerInstance urbanpulse.nginx
                     }
                     backend_service = deploymentNode "backend" "Internal network only" "Image built from backend/Dockerfile" {
@@ -336,13 +336,15 @@ workspace "UrbanPulse" "C4 Model" {
                     evidence_volume = deploymentNode "evidence_data" "Mounted in backend at /app/storage" "Docker named volume" {
                         evidence_instance = containerInstance urbanpulse.evidence_storage
                     }
-                    db_service = deploymentNode "db" "Internal network only" "postgis/postgis" {
+                    db_service = deploymentNode "postgres" "Internal network only" "postgis/postgis" {
                         postgres_instance = containerInstance urbanpulse.postgres
                     }
                     tiles_service = deploymentNode "tiles-builder" "Run once every 14 days" "Image built from tiles/Dockerfile" {
                         tiles_instance = containerInstance urbanpulse.tiles_builder
                     }
-                    postgres_volume = infrastructureNode "postgres-data" "Mounted in db at /var/lib/postgresql" "Docker named volume"
+                    postgres_volume = infrastructureNode "postgres-data" "Mounted in postgres at /var/lib/postgresql" "Docker named volume"
+                    tiles_volume = infrastructureNode "tiles" "The base map: written by tiles-builder at /tiles, read-only in web at /srv/tiles" "Docker named volume"
+                    sources_volume = infrastructureNode "tiles-sources" "The OpenStreetMap downloads, reused between runs" "Docker named volume"
                 }
             }
             user_browser = deploymentNode "Browser" "Runs the staff web app" "Chrome, Firefox, Edge or Safari" {
@@ -353,6 +355,9 @@ workspace "UrbanPulse" "C4 Model" {
             }
 
             server.compose.db_service.postgres_instance -> server.compose.postgres_volume "Stores the database files" "Volume mount"
+            server.compose.tiles_service.tiles_instance -> server.compose.tiles_volume "Writes malaga.pmtiles, the style, fonts and sprites" "Volume mount"
+            server.compose.tiles_service.tiles_instance -> server.compose.sources_volume "Reuses the downloads between runs" "Volume mount"
+            server.compose.web_service.nginx_instance -> server.compose.tiles_volume "Serves /tiles/ from it" "Volume mount (read-only)"
         }
     }
 
@@ -408,7 +413,7 @@ workspace "UrbanPulse" "C4 Model" {
 
         deployment urbanpulse single_host "Deployment_SingleHost" {
             title "Deployment: single host"
-            description "The deployed system decided by ADR-0011 and ADR-0017, built by #134: nginx is the only published port."
+            description "The deployed system decided by ADR-0011 and ADR-0017, docker-compose.yaml at the repository root: nginx is the only published port."
             include *
             autoLayout lr
         }
