@@ -20,6 +20,10 @@ services:
   postgres:
     # Same image as backend/docker-compose.yaml, the Testcontainers tests and the CI (lint checks it).
     image: postgis/postgis:18-3.6
+    # Docker gives a container 64 MB of /dev/shm. PostgreSQL's parallel workers share their hash
+    # tables there, and with 1,000,000 incidents concurrent aggregates (map, dashboard, reports)
+    # failed with "could not resize shared memory segment" (backend/load-tests/practice/RESULTS.md).
+    shm_size: 256mb
     restart: unless-stopped
     logging: *logging
     environment:
