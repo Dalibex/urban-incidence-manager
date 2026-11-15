@@ -18,14 +18,14 @@ How each role uses UrbanPulse: where to sign in, what each screen shows and what
 
 | Section | App | Status | What you will find |
 | --- | --- | --- | --- |
-| [🚪 Before You Start](#-before-you-start) | | | Which app each role uses, and how to get an account |
-| [🔑 Signing In and Out](#-signing-in-and-out) | Both | | Where each role lands, the sign-in messages and how long you stay signed in |
-| [📱 Citizen](#-citizen-mobile-app) | Mobile | Partial | Sign up, report an incident, add photos and follow your reports |
-| [📥 Municipal Operator](#-municipal-operator-web) | Web | Partial | The inbox, the incident detail and its actions, and the map |
-| [🔧 Technician](#-technician-web) | Web | Built | The work queue, and accepting and resolving incidents |
-| [🏢 Administrator](#-administrator-web) | Web | Built | The users and the audit log |
-| [📊 Analyst](#-analyst-web) | Web | Built | The operational reports and their CSV |
-| [📝 Keeping This Guide Up to Date](#-keeping-this-guide-up-to-date) | | | When and how this guide changes |
+| [Before You Start](#-before-you-start) | Both | — | Which app each role uses, and how to get an account |
+| [Signing In and Out](#-signing-in-and-out) | Both | — | Where each role lands, the sign-in messages and how long you stay signed in |
+| [Citizen](#-citizen-mobile-app) | Mobile | Partial | Sign up, report an incident, add photos and follow your reports |
+| [Municipal Operator](#-municipal-operator-web) | Web | Partial | The inbox, the incident detail and its actions, and the map |
+| [Technician](#-technician-web) | Web | Built | The work queue, and accepting and resolving incidents |
+| [Administrator](#-administrator-web) | Web | Built | The users and the audit log |
+| [Analyst](#-analyst-web) | Web | Built | The operational reports and their CSV |
+| [Keeping This Guide Up to Date](#-keeping-this-guide-up-to-date) | — | — | When and how this guide changes |
 
 ## 🚪 Before You Start
 
