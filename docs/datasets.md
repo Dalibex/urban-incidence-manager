@@ -143,7 +143,8 @@ or repeated, so every measurement records:
 | Result | Percentiles (p50, p95, p99), never only the average |
 | Date and commit | When and on which commit it was measured |
 
-Two kinds are recorded below: the query plans that justify each index, and the load test of QA-1.
+Three kinds are recorded below: the query plans that justify each index, the load test of QA-1, and
+the quality-attribute experiments.
 
 ### Query plans of the indexes
 
@@ -260,6 +261,42 @@ were added to each of its 100,000 incidents (200,000 entries) with an `INSERT ..
 `incident`, followed by `VACUUM ANALYZE audit_log`. Measured once each with the cache warm, on
 PostgreSQL 18.6 with PostGIS 3.6 in Docker on Linux (4 CPUs, 15 GB), on commit `284142a` plus this
 change, on 2026-11-05. The index takes 4.9 MB.
+
+#### Status and Priority
+
+`V16__incidents_index_status_priority.sql` (#176) adds `ix_incident_status_priority_reported_at`
+(`status, priority, reported_at DESC, id`), for the staff lists filtered by status and priority. The
+page of 20 already took 7 ms through `ix_incident_reported_at`; its count did not:
+
+| Query | Index | Before | After |
+| --- | --- | --- | --- |
+| Count of `REPORTED` and `VALIDATED` with priority `HIGH` (8,075 of 1,000,000) | `ix_incident_status_priority_reported_at` | 254 ms, bitmap scan of `ix_incident_status_reported_at` that reads 106,232 incidents and drops 98,157 of other priorities | 3.7 ms, index-only scan |
+
+Under load, with 10 virtual users, the filtered inbox went from a p95 of 741 ms and 22 requests per
+second to 16 ms and 827 requests per second (experiment 4 below).
+
+Conditions: `perf` profile with `PERF_INCIDENTS=1000000`, `EXPLAIN (ANALYZE)` run once after
+`VACUUM ANALYZE` with the cache warm, on PostgreSQL 18.6 with PostGIS 3.6 in Docker Desktop (12 CPUs,
+8 GB) on a developer laptop, on commit `b618646` plus this change, on 2026-11-13. With the default
+100,000 incidents the same filtered page took 28 ms at p95 without the index, so the index matters
+from about a million incidents on.
+
+### Quality-attribute experiments (#176)
+
+The four experiments of the quality-attribute practice, run with k6 and seen in Grafana next to the
+backend's metrics (the `observability` profile, [ADR-0023](adr/0023-load-test-observability.md)).
+The scripts, how to run them, every table and the analysis are in
+[`backend/load-tests/practice`](../backend/load-tests/practice/README.md) and its
+[RESULTS.md](../backend/load-tests/practice/RESULTS.md). Each configuration ran three times; the
+conditions are those of *QA-1* below (same laptop, Docker Desktop 12 CPUs and 8 GB, k6 1.0 on the
+same machine), on commit `b618646` plus that branch, on 2026-11-13.
+
+| Experiment | Load | Result |
+| --- | --- | --- |
+| 1. Slowest operations | 10 VUs per operation, 1 min, 100,000 incidents | The report (p95 309 ms), the dashboard (305 ms) and the map (231 ms) are the slowest; the detail and the history about 10 ms. All meet QA-1 |
+| 2. Capacity | `ramping-vus` 10→100, `ramping-arrival-rate` and `constant-arrival-rate` of the staff mix | About 120 requests per second within QA-1; saturation at 125–140 per second (p95 3.7 s, no errors). The 10 database connections are all busy with about 190 requests waiting while the backend uses 8 % of CPU: the limit is PostgreSQL |
+| 3. Emergency spike | Reports from 2 to 60 per second for a minute, with and without 40 users on the map | No errors; the users of the map triple the p95 of the reports (13 → 38 ms) |
+| 4. Volume of data | The same queries with 1,000 to 1,000,000 incidents | The aggregates grow with the data; with 1,000,000 they failed with `500` until PostgreSQL got 256 MB of shared memory (`shm_size`); the index above |
 
 ### Load test of QA-1
 

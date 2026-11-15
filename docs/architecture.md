@@ -80,6 +80,7 @@ same REST API and a set of TypeScript packages ([ADR-0007](adr/0007-client-appli
 | Evidence storage | Docker volume behind a storage interface | [ADR-0013](adr/0013-evidence-storage.md) | Yes, in the API (#192), the mobile upload (#193) and the web gallery (#194) |
 | Reverse proxy | nginx, the single published entry point, that also serves the web app and the base map | [ADR-0017](adr/0017-reverse-proxy.md) | Yes (#199, #200) |
 | Cache | Redis | [ADR-0022](adr/0022-redis-from-measurements.md), which supersedes [ADR-0012](adr/0012-cache-redis.md) | No, until a measurement or a second replica asks for it |
+| Load test observability | Prometheus and Grafana, with the backend's Micrometer metrics; development only | [ADR-0023](adr/0023-load-test-observability.md), *Proposed* | Yes, in the `observability` profile of the development Compose (#176) |
 
 Where to look for more:
 
@@ -87,7 +88,7 @@ Where to look for more:
   containers, the components of the backend, the web app, the mobile app and the database, the
   deployment in development and on a single host, and two dynamic views: sign-in with refresh
   rotation and reporting an incident. See *C4 Model* below.
-- **Decisions:** the [ADRs](adr/). Check each status: 0018 and 0019 are only *Proposed*.
+- **Decisions:** the [ADRs](adr/). Check each status: 0018, 0019 and 0023 are only *Proposed*.
 - **API:** the [OpenAPI contract](api/openapi.yml) and the [API guide](api.md).
 - **Deployment:** the [deployment guide](deployment.md).
 - **Data:** the [database guide](database.md) and the [datasets](datasets.md).
@@ -162,6 +163,10 @@ Both are recorded, with their conditions, in *Measurements* in the
 - **HTTP (2026-11-03, #155):** every operation of every role has a p95 under 30 ms, and no request
   failed; the slowest is the technician's list, at 27.5 ms
   ([load test](datasets.md#load-test-of-qa-1)).
+- **Quality-attribute experiments (2026-11-13, #176):** with 10 users per operation every operation
+  meets the target, the slowest being the reports, the dashboard and the map (p95 231–309 ms); the
+  staff mix stays within it up to about 120 requests per second, and past it the limit is the
+  database, not the backend ([experiments](datasets.md#quality-attribute-experiments-176)).
 
 It was measured on a developer laptop with the backend, the database and k6 on the same machine.
 QA-1 asks for the machine the demo runs on, so it must be measured again there once that machine

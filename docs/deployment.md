@@ -147,8 +147,16 @@ while you create the first administrator).
 | `EVIDENCE_MAX_FILE_SIZE` | `10MB` | `10MB` | | `backend` | Maximum size of an evidence file; a larger one answers `413`. It also bounds the upload request (the file plus 64 KB), and so does `client_max_body_size` in `frontend/nginx.conf` |
 | `EVIDENCE_MAX_FILES_PER_INCIDENT` | `5` | `5` | | `backend` | Maximum evidence files per incident; one more answers `422` |
 | `SERVER_FORWARD_HEADERS_STRATEGY` | not set | `native`, fixed in `docker-compose.yaml`, not in `.env` | | `backend` | The backend takes the client address and the public address from the `X-Forwarded-*` headers that nginx writes, only from a private address ([security guide](security.md#rate-limits)). Never set it in development, where clients reach the backend directly and could forge them |
+| `GRAFANA_ADMIN_PASSWORD` | empty | — | ✓ | `grafana` | Password of the `admin` user of Grafana, only with `--profile observability`. Empty, Grafana starts with `admin`/`admin` and asks to change it at the first sign-in |
+| `GRAFANA_PORT` | `3000` | — | | `grafana` | Port of Grafana on your machine |
+| `PROMETHEUS_PORT` | `9090` | — | | `prometheus` | Port of Prometheus on your machine |
 
 The backend does not start when an evidence limit is zero or negative.
+
+Both Compose files give PostgreSQL 256 MB of shared memory (`shm_size`) instead of Docker's 64 MB:
+with a million incidents, concurrent aggregates such as the map, the dashboard and the reports
+failed with `could not resize shared memory segment` (experiment 4 in the
+[datasets guide](datasets.md#quality-attribute-experiments-176)).
 
 PostgreSQL applies `POSTGRES_DB`, `POSTGRES_USER` and `POSTGRES_PASSWORD` only when it initializes
 an empty volume. To change them later, reset the database (see *Reset*).
@@ -288,6 +296,8 @@ Each volume name starts with its Compose project: `urbanpulse` for the developme
 | `<project>_evidence_data` | `backend`, `/app/storage` | Evidence files ([ADR-0013](adr/0013-evidence-storage.md)) | `docker compose down -v` |
 | `<project>_tiles-sources` | `tiles-builder`, `/data/sources` | OpenStreetMap downloads for the base map | `docker compose down -v` |
 | `urbanpulse-deploy_tiles` | `tiles-builder`, `/tiles`, and `web`, `/srv/tiles` (read-only) | The base map nginx serves. Deployment only | `docker compose down -v` |
+| `urbanpulse_prometheus-data` | `prometheus`, `/prometheus` | The load test results and the backend's metrics. Development only | `docker compose --profile observability down -v` |
+| `urbanpulse_grafana-data` | `grafana`, `/var/lib/grafana` | Grafana's own database; the dashboards come from `backend/observability/`. Development only | `docker compose --profile observability down -v` |
 
 In development the base map is not in a volume: the builder writes it to
 `frontend/apps/web/public/tiles/` (see *Build the Base Map*).
@@ -448,6 +458,8 @@ the two never share a container or a volume on the same machine.
 | `postgres` | `postgis/postgis` | — | `127.0.0.1:5432` (`POSTGRES_PORT`) | PostgreSQL with PostGIS ([ADR-0001](adr/0001-database.md), [ADR-0003](adr/0003-geospatial-data-management.md)) |
 | `backend` | built from `backend/Dockerfile` | `app` | `127.0.0.1:8080` (`BACKEND_PORT`) | The Spring Boot API |
 | `tiles-builder` | built from `tiles/Dockerfile` | `tiles` | — | One-off process that builds the base map (see *Build the Base Map*) |
+| `prometheus` | `prom/prometheus` | `observability` | `127.0.0.1:9090` (`PROMETHEUS_PORT`) | Stores the k6 results (remote write) and the backend's metrics (`/actuator/prometheus`) of the load tests ([ADR-0023](adr/0023-load-test-observability.md)) |
+| `grafana` | `grafana/grafana` | `observability` | `127.0.0.1:3000` (`GRAFANA_PORT`) | The two dashboards of the load tests, provisioned from `backend/observability/` |
 
 A profile keeps a service out of a plain `docker compose up`:
 
@@ -455,6 +467,10 @@ A profile keeps a service out of a plain `docker compose up`:
   from the IDE or `./mvnw`: it starts this file and gets only the database.
 - `--profile app` adds the backend.
 - `--profile tiles` is only for `docker compose run`: the base map builder runs once and exits.
+- `--profile observability` adds Prometheus and Grafana, for the load tests: with `--profile app`
+  as well, so Prometheus has a backend to read. How to run the tests with them is in
+  [`backend/load-tests/practice`](../backend/load-tests/practice/README.md). The deployment file
+  does not have them.
 
 Every port is published on `127.0.0.1`, so only your machine reaches them. A physical phone cannot;
 see *Reach the API from a Phone*.

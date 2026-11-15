@@ -84,8 +84,9 @@ constraints, the schema has these indexes:
 | `ix_assignment_incident_id` | V12 (#184) | The assignments of one incident |
 | `uq_attachment_incident_content_hash` | V13 (#192) | Integrity, not speed: one photo per content and incident, so two uploads of the same file at the same time store it once (ADR-0013). It needs no measurement |
 | `ix_audit_log_target_id` | V14 (#47) | The classification changes of one incident |
+| `ix_incident_status_priority_reported_at` | V16 (#176) | The count of the staff lists filtered by status and priority |
 
-The indexes of V10 to V14, apart from the unique one, have their measurement in the
+The indexes of V10 to V16, apart from the unique one, have their measurement in the
 [datasets guide](datasets.md#query-plans-of-the-indexes).
 
 ## 📚 Reference Data
