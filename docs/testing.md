@@ -1,7 +1,16 @@
 # 🧪 Testing Guide
 
-How the backend and client tests are organised and how to run them. What each CI job checks is in
-the [CI guide](ci.md); what to test for each kind of change is in `AGENTS.md`, section 9.
+How the backend and client tests are organised and how to run them.
+
+> [!NOTE]
+> What each CI job checks is in the [CI guide](ci.md); what to test for each kind of change, in
+> section 9 of `AGENTS.md` and in *Failure and limit cases* in the
+> [contributing guide](../CONTRIBUTING.md#failure-and-limit-cases).
+
+## 📑 Contents
+
+- **[Backend](#-backend)**: run the tests, the kinds of tests and the checks against the contract.
+- **[Clients](#-clients)**: run the tests of the apps and the shared packages.
 
 ## ☕ Backend
 

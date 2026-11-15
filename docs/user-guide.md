@@ -1,9 +1,12 @@
 # 🧭 User Guide
 
-How each role uses UrbanPulse: where to sign in, what each screen shows and what to do in it. It
-only describes screens and actions that are built; one that is not says `Planned: #N`, and what it
-will do is in *Screens per Role* of the [requirements](requirements.md). How to start the apps is in
-the [development guide](development.md) and the [demo script](demo.md).
+How each role uses UrbanPulse: where to sign in, what each screen shows and what to do in it.
+
+> [!NOTE]
+> **For** the people who use the apps. It only describes what is built; what is not says
+> `Planned: #N`, and what it will do is in *Screens per Role* of the
+> [requirements](requirements.md#-screens-per-role). How to start the apps is in the
+> [development guide](development.md) and the [demo script](demo.md).
 
 | Status | Meaning |
 | --- | --- |
@@ -11,15 +14,18 @@ the [development guide](development.md) and the [demo script](demo.md).
 | Partial | Some screens or actions work; the rest say `Planned: #N` |
 | Planned | The role can sign in, but its screens are not built |
 
-## 📋 Summary
+## 📑 Contents
 
-| Role | App | Status |
-| --- | --- | --- |
-| [Citizen](#-citizen-mobile-app) | Mobile | Built |
-| [Municipal operator](#-municipal-operator-web) | Web | Partial |
-| [Technician](#-technician-web) | Web | Partial |
-| [Administrator](#-administrator-web) | Web | Partial |
-| [Analyst](#-analyst-web) | Web | Built |
+| Section | App | Status | What you will find |
+| --- | --- | --- | --- |
+| [Before You Start](#-before-you-start) | Both | — | Which app each role uses, and how to get an account |
+| [Signing In and Out](#-signing-in-and-out) | Both | — | Where each role lands, the sign-in messages and how long you stay signed in |
+| [Citizen](#-citizen-mobile-app) | Mobile | Partial | Sign up, report an incident, add photos and follow your reports |
+| [Municipal Operator](#-municipal-operator-web) | Web | Partial | The inbox, the incident detail and its actions, and the map |
+| [Technician](#-technician-web) | Web | Built | The work queue, and accepting and resolving incidents |
+| [Administrator](#-administrator-web) | Web | Built | The users and the audit log |
+| [Analyst](#-analyst-web) | Web | Built | The operational reports and their CSV |
+| [Keeping This Guide Up to Date](#-keeping-this-guide-up-to-date) | — | — | When and how this guide changes |
 
 ## 🚪 Before You Start
 
@@ -33,7 +39,7 @@ analysts) use the **website**. Each app only lets in its own people:
   button.
 
 The API checks every permission again, so this is a convenience, not the protection (see the
-[permission matrix](security.md#permission-matrix)).
+[permission matrix](security.md#-permission-matrix)).
 
 ### Getting an account
 
@@ -42,7 +48,7 @@ The API checks every permission again, so this is a convenience, not the protect
 | Citizen | *Create an account* on the sign-in screen of the mobile app (see [Sign up](#sign-up)) |
 | Staff | An administrator creates the account with its role in *Users* (see [Administrator](#-administrator-web)) and gives you the initial password; you choose your own at the first sign-in |
 | First administrator of a new deployment | Created once by the people who run the server ([deployment guide](deployment.md#-create-the-first-administrator)) |
-| Trying the apps | The sample accounts of the [demo script](demo.md#the-story) (one per role) or of *Development Dataset* in the [development guide](development.md). A local build can show one button per demo account on the sign-in screen ([Quick Sign-In](demo.md#quick-sign-in)) |
+| Trying the apps | The sample accounts of the [demo script](demo.md#-demo-data) (one per role) or of *Development Dataset* in the [development guide](development.md). A local build can show one button per demo account on the sign-in screen ([Quick Sign-In](demo.md#quick-sign-in)) |
 
 ## 🔑 Signing In and Out
 
@@ -76,14 +82,18 @@ and the next sign-in asks again. Changing the password also ends your sessions o
 
 **How long you stay signed in:**
 
-- **Website:** while the tab is open. The session is kept in memory only, so **reloading the page,
-  opening a link in a new tab or closing the browser signs you out**. This is on purpose: no other
+- **Website:** while the tab is open. The session is kept in memory only, so reloading the page,
+  opening a link in a new tab or closing the browser signs you out. This is on purpose: no other
   script on the page can read a session that is not stored ([security guide](security.md)).
 - **Mobile app:** on that phone until you sign out from *Profile*; the session is kept in the
   phone's secure storage. If the app starts without a connection, or the server fails or takes
   more than 10 seconds to answer, it keeps the session and offers *Try again* instead of asking you
   to sign in. It asks you to sign in only when the session has ended or the phone can no longer
   read it.
+
+> [!NOTE]
+> **On the website, reloading the page signs you out.** Move between screens with the menu and
+> the links of the app instead.
 
 *Sign out* (in the top bar of the website, in *Profile* on the phone) ends the session on that
 device only; your other devices stay signed in.
@@ -169,6 +179,7 @@ Scroll down to load more. Tap a report to see:
   report shows as yours (*You*) and every other change as the *City council*'s. A rejection shows
   its **reason**. When the city needs more details, the entry shows a *Message from the city
   council*.
+- **Photos:** the photos of your report are not shown in the app yet (Planned: #279).
 
 You only see what the city shares with you: internal notes of the staff, priorities and who made
 each change are not shown to citizens.
@@ -177,7 +188,7 @@ each change are not shown to citizens.
 
 Your name and email, and *Sign out*.
 
-## 🗂️ Municipal Operator (Web)
+## 📥 Municipal Operator (Web)
 
 The menu at the top shows *Inbox* and *Map*.
 
@@ -243,8 +254,8 @@ ticked. *Clear filters* lists every incident.
     request*. The citizen sees your message in the history of their report, and the incident stays
     reported, so you can ask again or decide later.
   - When it is not an incident the city council handles, write why in *Reason for the citizen* and
-    press *Reject the incident*. Rejecting is final and the citizen sees your reason, so do not
-    write internal data in it.
+    press *Reject the incident*. The citizen sees your reason, so do not write internal data in
+    it.
   - If someone else changed the incident since you opened it, nothing is saved: press *Reload the
     incident* and check it. If the server cannot be reached or answers with an error, nothing is
     saved either. In both cases what you typed is kept.
@@ -282,6 +293,10 @@ ticked. *Clear filters* lists every incident.
 
 Dates are shown in Málaga time.
 
+> [!WARNING]
+> **Rejecting and closing are final:** the incident cannot change its status again, so check it
+> before you press *Reject the incident* or *Close the incident*.
+
 ### Map
 
 The incidents on the base map of Málaga, with the same filters as the inbox, and beside it a
@@ -298,17 +313,20 @@ below about 280 pixels of map the page scrolls instead.
   in Málaga; pressing the chosen one again removes the days. The inbox and the work queue have it
   too.
 - **Summary:** at the side of the map (under it on a screen narrower than 800 pixels), the same
-  incidents as the map, counted. How many there are, and then parts that each fold to their title:
-  how many of each priority; charts by status, category and department; and *Latest reported*, the
-  five newest incidents with their status and how long ago they were reported, as of the last
-  refresh, each opening its summary like a marker. If a refresh of that list fails, it keeps the
-  incidents you saw and says from when. The parts you fold stay folded the next time, in this browser and for
-  your user. It counts all of them, also when the map shows only the 1,000 most relevant. A count
-  from 10,000 is written short (*12.3K*), with the exact number on hover. The status bars have the
-  colours of the markers. *Not classified*, *Not assigned* and *No priority* count the incidents
-  without a category, an active assignment or a priority. It is read again with the map. If it
-  cannot be loaded, it says so with *Try again*; if a refresh fails, the counts you saw stay with a
-  warning, never as zeros. A chart that cannot be shown gives its figures as a table.
+  incidents as the map, counted. It is read again with the map.
+  - **What it shows:** how many there are, and then parts that each fold to their title: how many
+    of each priority; charts by status, category and department; and *Latest reported*, the five
+    newest incidents, as of the last refresh, with their status and how long ago they were
+    reported, each opening its
+    summary like a marker. The parts you fold stay folded the next time, in this browser and for
+    your user.
+  - **How it counts:** all the incidents, also when the map shows only the 1,000 most relevant. A
+    count from 10,000 is written short (*12.3K*), with the exact number on hover. The status bars
+    have the colours of the markers. *Not classified*, *Not assigned* and *No priority* count the
+    incidents without a category, an active assignment or a priority.
+  - **When something fails:** if it cannot be loaded, it says so with *Try again*. If a refresh
+    fails, the counts you saw stay with a warning, never as zeros, and *Latest reported* keeps the
+    incidents you saw and says from when. A chart that cannot be shown gives its figures as a table.
 - **Markers:** each incident is a dot. Its colour is its status, the same as in the lists, and its
   size is its priority: the higher, the bigger, and a *High* one also has a dark border. *Map key*,
   in the bottom-left corner of the map, explains both; it opens and folds, and stays as you left it.
@@ -389,7 +407,7 @@ server has kept the change. If it was not kept, nothing changed and your notes a
 
 An incident that is not assigned to you, opened from a link, shows *Incident not found*.
 
-## 🛡️ Administrator (Web)
+## 🏢 Administrator (Web)
 
 The menu shows *Users*, where you land, *Inbox*, *Map*, *Audit log* and *Reports*.
 
@@ -455,7 +473,7 @@ If the days are not valid, the message says why under the dates and nothing is a
 report or the file cannot be loaded, the page says so: *Try again* reloads the report, and
 *Download CSV* can be chosen again; no file is saved when the download fails.
 
-## ✍️ Keeping This Guide Up to Date
+## 📝 Keeping This Guide Up to Date
 
 A pull request that adds or changes a screen or an action updates its section here, removes its
 `Planned` mark and, when a role has all its screens, changes its status in the summary (*When a pull

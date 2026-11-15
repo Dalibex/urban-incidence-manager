@@ -1,18 +1,24 @@
-# 🛠️ Development Guide
+# 💻 Development Guide
 
-This guide explains how to run the UrbanPulse backend and clients on your machine and start working
-on them. Other guides cover the rest:
+How to run the UrbanPulse backend and clients on your machine, work on them, and fix what usually
+goes wrong.
 
-| Guide | What it covers |
-| --- | --- |
-| [Architecture](architecture.md) | The architecture drivers, a summary of the containers and the quality attribute scenarios |
-| [Deployment](deployment.md) | The deployment Compose behind nginx, the development Compose services, their variables and volumes, the backend in Docker, backups, resetting the database, the base map |
-| [Database](database.md) | Migrations, reference data and how the data profiles work |
-| [Datasets and measurements](datasets.md) | The demo and performance datasets, and the quality attribute measurements |
-| [Testing](testing.md) | Backend and client tests |
-| [CI](ci.md) | The CI jobs, the pre-commit hook and the checks to run before pushing |
-| [API](api.md) | The OpenAPI contract and how to add an endpoint |
-| [Security](security.md) | Tokens, sessions, the audit trail and the permission matrix |
+> [!TIP]
+> To try the whole system without Java or Node, use *Quick Start* in the
+> [README](../README.md#-quick-start) instead. Every other guide is listed in *Documentation* in the
+> README.
+
+## 📑 Contents
+
+- **[Prerequisites](#-prerequisites)**: what to install.
+- **[Get the Code](#-get-the-code)**: clone the repository.
+- **[Create the Local Environment File](#-create-the-local-environment-file)**: `backend/.env`, and which `.env` each way of running reads.
+- **[Run with IntelliJ IDEA (recommended)](#-run-with-intellij-idea-recommended)**: start the backend from the IDE.
+- **[Run from the Terminal](#-run-from-the-terminal)**: start the backend with Maven.
+- **[Development Dataset](#-development-dataset)**: sample users and incidents for development.
+- **[Client Workspace](#-client-workspace)**: the web and mobile apps: set up, run and check them.
+- **[Backend Structure](#-backend-structure)**: the modules and the layout of each one.
+- **[Troubleshooting](#-troubleshooting)**: common problems and their fixes.
 
 ## 🐛 Prerequisites
 
@@ -29,14 +35,15 @@ Maven does not need to be installed globally. The project includes Maven Wrapper
 
 ## 📥 Get the Code
 
-Clone the repository and enter the backend directory:
+Clone the repository and enter the backend directory. The commands of this guide say the folder they
+run from, relative to the repository root.
 
 ```bash
 git clone https://github.com/Dalibex/urban-incidence-manager.git
 cd urban-incidence-manager/backend
 ```
 
-## ⚙️ Create the Local Environment File
+## 📝 Create the Local Environment File
 
 Docker Compose reads the database settings from `backend/.env`. Without this file the variables
 are empty and PostgreSQL does not start. Create it from the versioned example:
@@ -61,14 +68,43 @@ tokens ([security guide](security.md)). The backend does not start without it. G
 openssl rand -base64 48
 ```
 
-Never commit `.env`; only `.env.example` is versioned. The backend reads `backend/.env` by itself
-when it runs from `backend/` (IDE or `./mvnw spring-boot:run`), and Docker Compose passes it to the
-container, so no other setup is needed. The backend reads `.env` as a properties file, so write
-the values without quotes (`JWT_SECRET=abc...`, not `JWT_SECRET="abc..."`): quotes would become part
-of the secret.
+> [!WARNING]
+> Never commit `.env`; only `.env.example` is versioned. Write the values without quotes
+> (`JWT_SECRET=abc...`, not `JWT_SECRET="abc..."`): the backend reads `.env` as a properties file,
+> so the quotes would become part of the secret.
 
-Every variable is described in the [deployment guide](deployment.md). Change `POSTGRES_PORT` (5432)
-or `BACKEND_PORT` (8080) only if something else on your computer already uses that port.
+The backend reads `backend/.env` by itself
+when it runs from `backend/` (IDE or `./mvnw spring-boot:run`), and Docker Compose passes it to the
+container, so no other setup is needed.
+
+Every variable is described in the [deployment guide](deployment.md). If something else on your
+computer already uses a port, change `POSTGRES_PORT` (5432) for the database. `BACKEND_PORT` (8080)
+only moves the backend container (`--profile app`); from the IDE or `./mvnw`, set `SERVER_PORT` in the
+environment of the run configuration instead, and then `API_PROXY_TARGET` for `pnpm dev:web` and the
+port in `apps/mobile/.env`.
+
+### Which `.env` each way of running reads
+
+The repository has four `.env` files, one per thing you start. None is versioned: each one is a copy
+of the `.env.example` next to it.
+
+| File | Read by | What you set in it |
+| --- | --- | --- |
+| `backend/.env` | The backend from the IDE or `./mvnw`, and the development Compose (`backend/docker-compose.yaml`) | Database, `JWT_SECRET`, `DEMO_PASSWORD`, and `TILES_BASE_URL` for the base map of development |
+| `frontend/apps/web/.env` | `pnpm dev:web` (Vite) only; the web image of the deployment ignores it | The quick sign-in of the demo, and `VITE_MAP_STYLE_URL` if the map is not on the web's own origin |
+| `frontend/apps/mobile/.env` | `pnpm dev:mobile` (Metro) | Where the app finds the API and the map, and the quick sign-in of the demo |
+| `.env` at the repository root | The deployment Compose (`docker-compose.yaml` at the root) | Everything the deployment needs ([deployment guide](deployment.md#-deploy-the-whole-system)) |
+
+The mobile app reaches a different port in each case. Use your machine's address in the local
+network, never `localhost`:
+
+| The system runs… | `EXPO_PUBLIC_API_BASE_URL` | `EXPO_PUBLIC_MAP_STYLE_URL` |
+| --- | --- | --- |
+| In development: the backend from the IDE or `./mvnw`, and `pnpm dev:web --host` | `http://<address>:8080/api/v1` | `http://<address>:5173/tiles/style.json` |
+| In the deployment Compose, behind nginx | `http://<address>:8000/api/v1` | `http://<address>:8000/tiles/style.json` |
+
+After changing `apps/mobile/.env`, start Metro with `pnpm dev:mobile --clear`, so the app reads the
+new values.
 
 ## 🍃 Run with IntelliJ IDEA (recommended)
 
@@ -111,8 +147,11 @@ by the pre-commit hook; `./mvnw spotless:apply` formats it by hand ([CI guide](c
 The `dev` Spring profile loads a shared development dataset (#83): a user of every role, incidents
 in every status of the lifecycle with their history, and the assignments, comments, attachment
 metadata, urban context, external observations, urban assets and notifications around them. Use it
-to try the API and the clients without creating data by hand. Never activate it outside a developer
-machine: production starts with no profile and no sample data.
+to try the API and the clients without creating data by hand.
+
+> [!CAUTION]
+> The `dev` and `perf` datasets publish their passwords, administrators included. Never activate them
+> on a machine other people can reach: production starts with no profile and no sample data.
 
 `application-dev.yaml` adds `classpath:db/dev-data` to the Flyway locations, and
 `db/dev-data/R__dev_data.sql` is a repeatable migration. When it reloads, why it cannot be combined
@@ -183,11 +222,10 @@ ships with Node, installs that exact pnpm version:
 corepack enable
 ```
 
-On Windows it writes to `C:\Program Files\nodejs`, so run it once from a terminal opened as
-administrator; otherwise it fails with `EPERM`. Skip it if `pnpm --version` already prints the
-version in `packageManager`.
+Skip it if `pnpm --version` already prints the version in `packageManager`. On Windows it fails with
+`EPERM` unless the terminal runs as administrator (see [Troubleshooting](#-troubleshooting)).
 
-Then, from `frontend/`:
+Then go to `frontend/`, from the repository root:
 
 ```bash
 cd frontend
@@ -281,23 +319,9 @@ and the citizen moves the pin to the incident.
 
 #### Build, install and run
 
-**On Windows**, the native build writes paths longer than 260 characters inside
-`node_modules\.pnpm`, and two tools stop there even with long paths enabled in Windows:
-
-- `cmd.exe` cannot start a batch file with a longer path: the build fails with
-  `CreateProcess error=2` on a `prefab_command.bat`. Keep the checkout in a short folder: one of
-  about 40 characters, such as `C:\GitHub\urban-incidence-manager`, works; one of 70 under
-  `C:\Users\<user>\Desktop\` is too deep. A `subst` drive does not help, because the build
-  resolves the real path again.
-- The `ninja` of the default CMake (3.22.1, ninja 1.10) fails with `Filename longer than 260
-  characters`. In Android Studio, *SDK Manager → SDK Tools*, tick *Show Package Details* and
-  install CMake 4.1.2 (ninja 1.12), then point the build at it in
-  `apps/mobile/android/local.properties`, which Git ignores. Create the file if it is missing (a
-  failed build does not always write it), and again whenever `apps/mobile/android/` is deleted:
-
-  ```properties
-  cmake.dir=C\:/Users/<user>/AppData/Local/Android/Sdk/cmake/4.1.2
-  ```
+> [!TIP]
+> **On Windows**, read *The Android build fails on Windows* in [Troubleshooting](#-troubleshooting)
+> before the first build: the checkout must be in a short folder, and the build needs a newer CMake.
 
 With the phone connected, from `frontend/`:
 
@@ -315,18 +339,17 @@ pnpm dev:mobile
 ```
 
 The phone loads the JavaScript from Metro, the API and the map from your machine, all over the
-local network. If the phone cannot reach your machine, the app stops on an error screen of the
-Expo launcher. Some routers isolate the devices of their Wi-Fi from each other: then connect the
-phone to your machine another way, for example sharing the connection over the USB cable. If
-Windows asks whether Node.js or Java may use the network, allow private networks. After adding a
-native dependency or changing `app.json`, build again with `pnpm --filter @urbanpulse/mobile android`.
+local network. If it cannot reach your machine, see *The phone cannot reach your machine* in
+[Troubleshooting](#-troubleshooting). After adding a native dependency or changing `app.json`,
+build again with `pnpm --filter @urbanpulse/mobile android`.
 
 - The mobile app only targets Android and iOS (`platforms` in `app.json`); the browser client is
   `apps/web`.
 - A phone or emulator cannot reach the backend through `localhost`: the Android emulator reaches
   your machine at `10.0.2.2`, a phone at its address in the local network. A phone cannot reach the
-  backend running in Docker, only one started from the IDE or the terminal (see *Reach the API
-  from a Phone* in the [deployment guide](deployment.md)).
+  backend of the development Compose, which only listens on `127.0.0.1`; it reaches one started
+  from the IDE or the terminal, or the deployment Compose through nginx (see *Which `.env` each way
+  of running reads* above, and *Reach the API from a Phone* in the [deployment guide](deployment.md)).
 - The mobile app keeps the session in `expo-secure-store` (Keychain on iOS, Keystore on Android),
   so it survives a restart.
 - The report form places the incident with a pin fixed in the centre of the base map: it starts on
@@ -336,7 +359,7 @@ native dependency or changing `app.json`, build again with `pnpm --filter @urban
 ### Before pushing
 
 Run the checks of the `frontend` CI job and format the code as described in
-[8.1 Before pushing](ci.md#81-before-pushing) in the CI guide. The client tests are in the [testing guide](testing.md).
+[Before pushing](ci.md#before-pushing) in the CI guide. The client tests are in the [testing guide](testing.md).
 
 ## 🔙 Backend Structure
 
@@ -378,3 +401,67 @@ The external providers proposed for weather and traffic (Open-Meteo and TomTom,
 [ADR-0018](adr/0018-weather-and-traffic-providers.md)) and for notification delivery (Brevo and
 Twilio, [ADR-0019](adr/0019-notification-delivery-providers.md)) are not decided yet: both ADRs are
 *Proposed*.
+
+## 🧯 Troubleshooting
+
+### `corepack enable` fails with `EPERM` on Windows
+
+It writes to `C:\Program Files\nodejs`. Run it once from a terminal opened as administrator.
+
+### Maven, the pre-commit hook or GitHub Desktop complain about Java
+
+Maven and the hook need JDK 25 in `JAVA_HOME`. The fixes for Windows, and the common errors such as
+`release version 25 not supported`, are in *The hook in every clone* in the
+[CI guide](ci.md#the-hook-in-every-clone).
+
+### The backend does not start
+
+- **`JWT_SECRET` is missing or too short:** fill it in `backend/.env` with at least 32 bytes
+  (*Create the Local Environment File*).
+- **The value has quotes:** the backend reads `.env` as a properties file, so the quotes become part
+  of the value. Write `JWT_SECRET=abc...`, not `JWT_SECRET="abc..."`.
+- **Flyway refuses the database after changing the data profile:** a database loaded with one
+  profile (`dev`, `demo`, `perf`) does not start with another. Reset it (*Reset* in the
+  [deployment guide](deployment.md)).
+- **The port is taken:** see the ports in *Create the Local Environment File*: `POSTGRES_PORT` for the
+  database, `SERVER_PORT` for the backend from the IDE or `./mvnw`.
+
+### The Android build fails on Windows
+
+The native build writes paths longer than 260 characters inside `node_modules\.pnpm`, and two tools
+stop there even with long paths enabled in Windows:
+
+- `cmd.exe` cannot start a batch file with a longer path: the build fails with
+  `CreateProcess error=2` on a `prefab_command.bat`. Keep the checkout in a short folder: one of
+  about 40 characters, such as `C:\GitHub\urban-incidence-manager`, works; one of 70 under
+  `C:\Users\<user>\Desktop\` is too deep. A `subst` drive does not help, because the build
+  resolves the real path again.
+- The `ninja` of the default CMake (3.22.1, ninja 1.10) fails with `Filename longer than 260
+  characters`. In Android Studio, *SDK Manager → SDK Tools*, tick *Show Package Details* and
+  install CMake 4.1.2 (ninja 1.12), then point the build at it in
+  `apps/mobile/android/local.properties`, which Git ignores. Create the file if it is missing (a
+  failed build does not always write it), and again whenever `apps/mobile/android/` is deleted:
+
+  ```properties
+  cmake.dir=C\:/Users/<user>/AppData/Local/Android/Sdk/cmake/4.1.2
+  ```
+
+### The phone cannot reach your machine
+
+The app stops on an error screen of the Expo launcher, or the lists say that UrbanPulse cannot be
+reached.
+
+- **The address:** `apps/mobile/.env` must have your machine's address in the local network, never
+  `localhost`, and the port of the way you run the system (*Which `.env` each way of running
+  reads*). Start Metro with `pnpm dev:mobile --clear` after changing it.
+- **The firewall:** if Windows asks whether Node.js, Java or Docker may use the network, allow
+  private networks.
+- **The router:** some routers isolate the devices of their Wi-Fi from each other. Connect the phone
+  to your machine another way, for example sharing the connection over the USB cable.
+
+### The map is empty or shows a notice
+
+- **The base map is not built:** run the `tiles-builder` (*Build the Base Map* in the
+  [deployment guide](deployment.md)).
+- **It was built with another address:** the address in `TILES_BASE_URL` is written into the map.
+  Build it again with the address the browser or the phone uses.
