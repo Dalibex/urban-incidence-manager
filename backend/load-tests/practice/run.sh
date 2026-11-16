@@ -10,8 +10,7 @@ cd "$(dirname "$0")"
 COMPOSE=(docker compose -p "${COMPOSE_PROJECT:-qaobs}" -f ../../docker-compose.yaml --profile app --profile observability)
 REPETITIONS="${REPETITIONS:-3}"
 # The port the stack publishes the backend on: BACKEND_PORT of backend/.env, 8080 if it is not set.
-BACKEND_PORT="${BACKEND_PORT:-$(sed -n 's/^BACKEND_PORT=//p' ../../.env 2>/dev/null | tr -d '
-')}"
+BACKEND_PORT="${BACKEND_PORT:-$(sed -n 's/^BACKEND_PORT=//p' ../../.env 2>/dev/null | tr -d '\r')}"
 export BACKEND_PORT="${BACKEND_PORT:-8080}"
 export K6_PROMETHEUS_RW_SERVER_URL="${K6_PROMETHEUS_RW_SERVER_URL:-http://localhost:9090/api/v1/write}"
 export K6_PROMETHEUS_RW_TREND_STATS="p(50),p(95),p(99),max"
