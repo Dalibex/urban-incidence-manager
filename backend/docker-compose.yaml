@@ -6,6 +6,10 @@ services:
   postgres:
     # This service is used to run a Postgres database with PostGIS extension for spatial data support.
     image: postgis/postgis:18-3.6
+    # Docker gives a container 64 MB of /dev/shm. PostgreSQL's parallel workers share their hash
+    # tables there, and with 1,000,000 incidents concurrent aggregates (map, dashboard, reports)
+    # failed with "could not resize shared memory segment" (load-tests/practice/RESULTS.md).
+    shm_size: 256mb
     environment:
       POSTGRES_DB: ${POSTGRES_DB} # The name of the database to be created when the container starts.
       POSTGRES_USER: ${POSTGRES_USER} # The username for the database.
@@ -85,7 +89,48 @@ services:
       # Downloaded sources (OSM extract, water polygons, Natural Earth), reused between runs.
       - tiles-sources:/data/sources
 
+  prometheus:
+    # Observability of the load tests (load-tests/practice/README.md). It belongs
+    # to the "observability" profile, so a plain `up` never starts it:
+    #   docker compose --profile app --profile observability up -d
+    # It scrapes the backend's /actuator/prometheus and receives the k6 results by remote write.
+    profiles: [observability]
+    image: prom/prometheus:v3.5.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      # k6 pushes its metrics with `-o experimental-prometheus-rw`.
+      - --web.enable-remote-write-receiver
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+
+  grafana:
+    profiles: [observability]
+    image: grafana/grafana:12.1.1
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      # Set it in .env. Empty, Grafana falls back to admin/admin and asks to change it at the first
+      # sign-in; the port is only published on 127.0.0.1 either way.
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      # The Prometheus data source and the two dashboards, provisioned at start-up.
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
 volumes:
   postgres-data:
   tiles-sources:
   evidence_data:
+  prometheus-data:
+  grafana-data:

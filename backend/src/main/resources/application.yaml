@@ -24,6 +24,19 @@ logging:
   pattern:
     correlation: "[%X{requestId:-}] "
 
+# Metrics for the load tests (load-tests/practice/README.md). Prometheus reads
+# /actuator/prometheus inside the Compose network; the deployment's nginx never proxies /actuator.
+# The request histogram gives Grafana the percentiles of every endpoint, not only an average.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+
 # OpenAPI documentation (ADR-0008, docs/api.md). Swagger UI renders the contract docs/api/openapi.yml,
 # copied into the jar at build time; /v3/api-docs is generated from the controllers.
 springdoc:

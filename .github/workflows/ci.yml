@@ -94,6 +94,18 @@ jobs:
           docker compose config --quiet
           echo "docker-compose.yaml is valid (only parsed, no container is started)."
 
+      # The observability profile (#176, ADR-0023) must not change what a plain `up` or the app
+      # profile starts: Prometheus and Grafana come only with --profile observability.
+      - name: Development Compose starts the same services without the observability profile
+        run: |
+          default=$(docker compose config --services | sort | paste -sd ' ')
+          app=$(docker compose --profile app config --services | sort | paste -sd ' ')
+          if [ "$default" != "postgres" ] || [ "$app" != "backend postgres" ]; then
+            echo "::error file=backend/docker-compose.yaml,title=Development Compose::Without profiles it must start only postgres (it starts: $default), and with --profile app backend and postgres (it starts: $app)."
+            exit 1
+          fi
+          echo "A plain up starts postgres, --profile app adds backend; nothing else starts by default."
+
       # The deployment Compose of ADR-0017, at the repository root, with its own .env.example.
       - name: Deployment Compose file is valid with .env.example and publishes one port (12F-III, VII)
         working-directory: .

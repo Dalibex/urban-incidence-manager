@@ -1,0 +1,10 @@
+apiVersion: 1
+
+providers:
+  - name: UrbanPulse
+    folder: UrbanPulse
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards

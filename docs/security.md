@@ -349,8 +349,15 @@ still leave none enabled: the `bootstrap-admin` profile then creates one again, 
 runs when no enabled administrator exists. A role change or a disabled account reaches the access
 tokens already issued at their next refresh, at most one access token lifetime later (ADR-0004).
 
-Outside `/api/v1` only `/actuator/health/**` and the API documentation (`/openapi.yml`,
-`/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs/**`) are public.
+Outside `/api/v1` only `/actuator/health/**`, `/actuator/prometheus` and the API documentation
+(`/openapi.yml`, `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs/**`) are public.
+`/actuator/prometheus` gives Prometheus the backend's metrics for the load tests
+(`backend/load-tests/practice/README.md`): counts and timings per endpoint, the JVM and the
+connection pool, without request data or user identifiers. It is only reachable where the
+backend's port is: `127.0.0.1` when the development Compose runs the backend, and the Compose
+network in the deployment, whose nginx does not proxy `/actuator`. A backend started from the IDE
+or with `./mvnw spring-boot:run` listens on every interface of the machine, so other devices of the
+same network can read the metrics too (nothing more, since the rest still needs a token).
 
 "own" and "assigned" are checked by the service with the data of the resource, not by the role:
 being authenticated or knowing an id never gives access to an incident (see `AGENTS.md`, section 6).
@@ -395,6 +402,7 @@ is released: before that, a row would make it public.
 | [#1](https://github.com/Dalibex/urban-incidence-manager/security/code-scanning/1) | CodeQL `java/spring-disabled-csrf-protection` | `shared/security/SecurityConfig.java` | High | Dismissed, false positive | No credential travels in a cookie, so there is nothing to forge ([CSRF](#-csrf)) | — |
 | [#2](https://github.com/Dalibex/urban-incidence-manager/security/code-scanning/2) | CodeQL `js/polynomial-redos` | `frontend/packages/api-client/src/session.ts` | High | Fixed before the merge | `/\/+$/` backtracks quadratically on a long run of slashes in the API base URL; a loop removes the trailing slashes instead | #97 |
 | [#3](https://github.com/Dalibex/urban-incidence-manager/security/code-scanning/3) | CodeQL `js/incomplete-multi-character-sanitization` | `docs/architecture/drawio/generate.mjs` | High | Fixed before the merge | A regular expression stripped tags to measure the legend of each page. Not exploitable: the generator writes that text itself and only uses its length. The legend is now built from plain text, so nothing strips tags | #154 |
+| [#4](https://github.com/Dalibex/urban-incidence-manager/security/code-scanning/4), [#5](https://github.com/Dalibex/urban-incidence-manager/security/code-scanning/5) | CodeQL `js/insecure-randomness` | `backend/load-tests/practice/lib.js` | High | Dismissed, used in tests | `Math.random()` places the incidents that the k6 load tests create at a random point of Málaga. CodeQL reads latitude and longitude as sensitive, but the value is test data sent to a development backend: it is no password, token or identifier, and nothing is gained by predicting it | #298 |
 | Dependabot [#1](https://github.com/Dalibex/urban-incidence-manager/security/dependabot/1), [#4–#14](https://github.com/Dalibex/urban-incidence-manager/security/dependabot?q=package%3Anode-forge) | Twelve `node-forge` advisories | `frontend/pnpm-lock.yaml`, through `@expo/cli` | High | Fixed, updated to 1.4.2 | Version 1.4.0 had twelve published advisories, RSA signature verification among them; 1.4.2 is past every patched version | #158 |
 | Dependabot [#2](https://github.com/Dalibex/urban-incidence-manager/security/dependabot/2) | `zod` advisory | `frontend/pnpm-lock.yaml`, through `@expo/cli` | High | Fixed, `expo` updated to 58.0.23 | `zod` 3 can exhaust memory while validating oversized collections. Only the Expo development tooling used it, and `@expo/cli` 58.1.19 no longer depends on it | #252 |
 | Dependabot [#15](https://github.com/Dalibex/urban-incidence-manager/security/dependabot/15), [#17](https://github.com/Dalibex/urban-incidence-manager/security/dependabot/17) | `glob` and `minimatch` advisories | `frontend/pnpm-lock.yaml`, through Jest, ESLint and the Expo tooling | Medium | Fixed, overridden to `glob` 14 and `minimatch` 11 in `frontend/pnpm-workspace.yaml` | The fixes are only in a major version those tools do not ask for yet, so the overrides move only the vulnerable ranges up. Remove each one once Jest, ESLint and Expo require the fixed version | #252 |

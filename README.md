@@ -34,7 +34,7 @@ What each role can do today:
 
 Every incident follows a fixed lifecycle ([ADR-0020](docs/adr/0020-incident-lifecycle-transitions.md)). Each change keeps who made it, when and why, and the citizen never sees the internal notes.
 
-Also built: the deployment of the whole system behind nginx, sample data for development, the demo and the measurements ([datasets](docs/datasets.md)), the base map, and the CI pipeline. What is not built yet says `Planned: #N` in the [requirements](docs/requirements.md).
+Also built: the deployment of the whole system behind nginx, sample data for development, the demo and the measurements ([datasets](docs/datasets.md)), load tests with k6 seen in Grafana next to the backend's metrics ([load tests](backend/load-tests/practice/README.md)), the base map, and the CI pipeline. What is not built yet says `Planned: #N` in the [requirements](docs/requirements.md).
 
 ## 🔄 How It Works
 
@@ -75,6 +75,7 @@ and administrators manage the staff accounts and read the audit log.
 | Base map | Our own vector map of Málaga, built from OpenStreetMap: no tile provider and no API key | [ADR-0016](docs/adr/0016-self-hosted-osm-base-map.md) |
 | Deployment | Docker Compose on one machine, behind nginx, the only published port | [ADR-0011](docs/adr/0011-deployment-12factor.md), [ADR-0017](docs/adr/0017-reverse-proxy.md) |
 | Quality | GitHub Actions, Testcontainers, Spotless, JaCoCo and SpotBugs | [ADR-0015](docs/adr/0015-ci-pipeline-and-pre-commit-formatting.md) |
+| Load tests | k6, with Prometheus, Grafana and the backend's Micrometer metrics in a development profile | [ADR-0023](docs/adr/0023-load-test-observability.md) |
 
 ## ⚡ Quick Start
 
