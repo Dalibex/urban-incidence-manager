@@ -230,6 +230,16 @@ class EvidenceApiIT {
         assertNothingStored(incident);
     }
 
+    // #285: PostgreSQL cannot store U+0000 in the file name, so it used to fail with a 500.
+    @Test
+    void aFileNameWithTheNullCharacterIsRefusedAndNothingIsStored() throws Exception {
+        UUID incident = incident(citizen, "REPORTED");
+
+        expectInvalidFile(upload(citizen, incident, JPEG, "street\0light.jpg", "image/jpeg"));
+
+        assertNothingStored(incident);
+    }
+
     // T5: 2 files per incident in this class.
     @Test
     void aFileOverTheLimitOfFilesPerIncidentIsRefused() throws Exception {
