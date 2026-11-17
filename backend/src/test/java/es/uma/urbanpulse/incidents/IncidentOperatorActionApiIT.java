@@ -457,6 +457,30 @@ class IncidentOperatorActionApiIT {
         assertUnchanged(incident, "REPORTED", 0, 1);
     }
 
+    // #282: a token of a user that does not exist is a 401 on every action, like reporting, and
+    // nothing changes.
+    @Test
+    void aTokenOfAnUnknownUserIsUnauthorizedOnEveryAction() throws Exception {
+        UUID incident = classified("REPORTED");
+
+        for (String action : ACTIONS) {
+            mvc.perform(
+                            post(actionPath(incident, action))
+                                    .header(
+                                            HttpHeaders.AUTHORIZATION,
+                                            tokens.bearer(
+                                                    UUID.randomUUID(), Role.MUNICIPAL_OPERATOR))
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(validBody(action, 0)))
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(
+                            content()
+                                    .contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+        }
+
+        assertUnchanged(incident, "REPORTED", 0, 1);
+    }
+
     /** An incident in {@code status} with a category and a priority. */
     private UUID classified(String status) {
         return incident(status, true, true);

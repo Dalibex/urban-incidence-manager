@@ -36,6 +36,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -193,8 +194,7 @@ class IncidentLifecycleServiceIT {
         for (var caller :
                 List.of(
                         new Caller(otherCitizen, Role.CITIZEN),
-                        new Caller(technician, Role.TECHNICIAN),
-                        new Caller(UUID.randomUUID(), Role.ANALYST))) {
+                        new Caller(technician, Role.TECHNICIAN))) {
             assertThatThrownBy(
                             () ->
                                     lifecycle.changeStatus(
@@ -206,6 +206,27 @@ class IncidentLifecycleServiceIT {
                                             caller.role()))
                     .as("%s", caller)
                     .isInstanceOf(IncidentNotFoundException.class);
+        }
+        assertThat(storedHistory()).containsExactly("REPORTED");
+        assertThat(storedVersion()).isEqualTo(read);
+    }
+
+    @Test
+    void aUserThatDoesNotExistIsNotAuthenticatedWhateverTheRole() {
+        int read = storedVersion();
+
+        for (Role role : Role.values()) {
+            assertThatThrownBy(
+                            () ->
+                                    lifecycle.changeStatus(
+                                            incident,
+                                            read,
+                                            IncidentTransition.VALIDATION,
+                                            TransitionDetails.none(),
+                                            UUID.randomUUID(),
+                                            role))
+                    .as("%s", role)
+                    .isInstanceOf(InsufficientAuthenticationException.class);
         }
         assertThat(storedHistory()).containsExactly("REPORTED");
         assertThat(storedVersion()).isEqualTo(read);
