@@ -1,15 +1,15 @@
 package es.uma.urbanpulse.identity.dto;
 
 import es.uma.urbanpulse.identity.entity.Role;
-import jakarta.validation.constraints.Size;
+import es.uma.urbanpulse.shared.text.Text;
 
 /**
  * Body of {@code updateUser}. Every property is optional: an absent one, or {@code null}, stays as
  * it is, so an administrator who only renames an account never undoes a role change another one
  * made in the meantime.
  *
- * @param name a blank name is refused by the service, not here: {@code @NotBlank} would also refuse
- *     an absent name, and a {@code \S} pattern only knows ASCII white space, so a name of Unicode
- *     spaces would pass it and be stored empty after {@code strip()}
+ * @param name {@code null} keeps the name; {@link Text} leaves it alone, unlike {@code @NotBlank},
+ *     and refuses a name of white space or no-break spaces, which would be stored empty or look
+ *     empty
  */
-public record UpdateUserRequest(@Size(max = 100) String name, Role role, Boolean enabled) {}
+public record UpdateUserRequest(@Text(max = 100) String name, Role role, Boolean enabled) {}

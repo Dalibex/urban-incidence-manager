@@ -142,6 +142,12 @@ class UserAdministrationApiIT {
                                 + "\"}"),
                 "role");
         expectFieldErrors(create(body("a".repeat(101), email, GIVEN_PASSWORD, "ANALYST")), "name");
+        // #285: the null character, no-break spaces, and a minimum counted in characters.
+        expectFieldErrors(
+                create(body("Ana\\u0000", email, "\uD83D\uDE00".repeat(4), "ANALYST")),
+                "name",
+                "password");
+        expectFieldErrors(create(body("\u00A0\u00A0", email, GIVEN_PASSWORD, "ANALYST")), "name");
 
         assertThat(countUsers(email)).isZero();
     }
@@ -292,7 +298,8 @@ class UserAdministrationApiIT {
                 .andExpect(status().isOk());
     }
 
-    // T8 and T13: a role change from or to CITIZEN, and a blank name, are 422 and change nothing.
+    // T8 and T13: a role change from or to CITIZEN, and a blank or invalid name, are 422 and change
+    // nothing.
     @Test
     void theRulesOfAChangeAreRefusedWithoutChangingAnything() throws Exception {
         var citizen = user("Ana " + marker, Role.CITIZEN, true);
@@ -302,6 +309,9 @@ class UserAdministrationApiIT {
         expectFieldErrors(update(analyst, "{\"role\":\"CITIZEN\"}"), "role");
         expectFieldErrors(update(analyst, "{\"name\":\"   \"}"), "name");
         expectFieldErrors(update(analyst, "{\"name\":\"  \"}"), "name");
+        // #285: no-break spaces look empty too, and U+0000 cannot be stored.
+        expectFieldErrors(update(analyst, "{\"name\":\"\u00A0\u00A0\"}"), "name");
+        expectFieldErrors(update(analyst, "{\"name\":\"Diego\\u0000\"}"), "name");
 
         assertThat(column(citizen, "role")).isEqualTo("CITIZEN");
         assertThat(column(analyst, "role")).isEqualTo("ANALYST");

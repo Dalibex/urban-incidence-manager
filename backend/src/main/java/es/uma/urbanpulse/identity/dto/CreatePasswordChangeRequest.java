@@ -1,10 +1,9 @@
 package es.uma.urbanpulse.identity.dto;
 
+import es.uma.urbanpulse.shared.text.Text;
 import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 
 /**
  * Body of {@code createPasswordChange}. The new password follows the rules of sign-up; the current
@@ -12,11 +11,9 @@ import jakarta.validation.constraints.Size;
  * {@code 500}.
  */
 public record CreatePasswordChangeRequest(
-        @NotBlank @Email @Size(max = 254) String email,
+        @NotNull @Email @Text(max = 254) String email,
         @NotEmpty @MaxUtf8Bytes(PasswordRules.MAX_BYTES) String currentPassword,
-        @NotNull
-                @Size(min = 8, message = "must be at least 8 characters")
-                @MaxUtf8Bytes(PasswordRules.MAX_BYTES)
+        @NotNull @Text(min = 8, visible = false) @MaxUtf8Bytes(PasswordRules.MAX_BYTES)
                 String newPassword) {
 
     /** Keeps both passwords out of logs and error messages. */

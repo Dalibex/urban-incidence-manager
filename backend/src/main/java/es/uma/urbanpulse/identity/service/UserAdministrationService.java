@@ -151,12 +151,8 @@ public class UserAdministrationService {
         var wasEnabled = Boolean.TRUE.equals(user.getEnabled());
         var changesEnabled = request.enabled() != null && request.enabled() != wasEnabled;
 
+        // A blank name, also of no-break spaces, is refused here by @Text, never stored empty.
         var errors = constraintErrors(request);
-        // strip() and isBlank() both use Character.isWhitespace, so a name of Unicode spaces is
-        // refused here instead of being stored empty.
-        if (newName != null && newName.isEmpty()) {
-            errors.add(new FieldError(NAME, "must not be blank"));
-        }
         if (changesRole && self) {
             errors.add(new FieldError(ROLE, "you cannot change your own role"));
         } else if (changesRole
