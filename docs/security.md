@@ -56,7 +56,9 @@ any user and role.
 
 - **Passwords** are hashed with bcrypt (cost 10) behind a prefix (`{bcrypt}$2a$10$...`), so a
   stronger algorithm can become the default later without resetting anyone's password. They are 8
-  characters to 72 bytes of UTF-8: bcrypt ignores anything after 72 bytes.
+  characters to 72 bytes of UTF-8: bcrypt ignores anything after 72 bytes. The minimum counts
+  characters (code points), as the contract does, so a password of 4 emoji is too short even though
+  it is 8 UTF-16 units (#285).
 - **A session is a refresh token.** The token is 256 random bits; the database only keeps its SHA-256
   hash, so a copy of the database does not give working tokens. The access token carries the id of
   its refresh token (`sid`), which is what sign-out revokes.

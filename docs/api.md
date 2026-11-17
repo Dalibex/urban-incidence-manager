@@ -101,7 +101,7 @@ Added later, together with its implementation:
 - Instants: `type: string, format: date-time`, always UTC.
 - Coordinates: WGS 84 (EPSG:4326) as two properties, `latitude` (-90..90) and `longitude` (-180..180), with their ranges in the schema. Never an array, so they cannot be swapped.
 - Optional means "may be absent". Use `type: [string, "null"]` only when `null` has its own meaning (for example, context not available yet). For a nullable `$ref`, write `oneOf: [{ $ref: ... }, { type: "null" }]` (see `category` in `IncidentResponse`).
-- A text that may not be blank has `minLength: 1` and `pattern: "\\S"`, so the clients reject `"   "` as the server's `@NotBlank` does.
+- A text that may not be blank has `minLength: 1` and `pattern: "\\S"`, so the clients reject `"   "` as the server does. The server applies one rule to every text it takes (`shared.text`, #285): the `\s` of JSON Schema patterns (ECMA-262), so a text of no-break spaces such as U+00A0 is blank too; `minLength` and `maxLength` counted in characters (code points), so an emoji is one; and no U+0000, which PostgreSQL cannot store. Each one answers `422` on its field.
 
 ### Absent and `null`
 
