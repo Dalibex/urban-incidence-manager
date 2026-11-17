@@ -10,7 +10,7 @@
   "scripts": {
     "generate": "openapi-typescript ../../../docs/api/openapi.yml --output src/schema.d.ts",
     "typecheck": "tsc --project tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run --fsModuleCachePath node_modules/.vitest-cache"
   },
   "dependencies": {
     "openapi-fetch": "^0.17.0"
