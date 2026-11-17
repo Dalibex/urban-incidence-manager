@@ -49,6 +49,15 @@ export function isInsideCoveredArea({ latitude, longitude }: Coordinates): boole
   return longitude >= west && longitude <= east && latitude >= south && latitude <= north;
 }
 
+/**
+ * Whether the pin stands for a GPS fix outside the covered area. The map stops the pin on its
+ * border, so that fix is not sent and the citizen has to place the pin (#290). The screen shows its
+ * message from this same rule, so the message and a disabled *Submit* never disagree.
+ */
+export function isGpsFixOutsideMap(gps: GpsFix | null, pin: MapPin | null): boolean {
+  return gps !== null && pin?.source === 'gpsFix' && !isInsideCoveredArea(gps);
+}
+
 export function toLngLat({ latitude, longitude }: Coordinates): LngLat {
   return [longitude, latitude];
 }
@@ -75,7 +84,7 @@ export function locationToReport(gps: GpsFix | null, pin: MapPin | null): Report
   if (pin?.source === 'startPoint' || gps === null) {
     return null;
   }
-  if (pin !== null && !isInsideCoveredArea(gps)) {
+  if (isGpsFixOutsideMap(gps, pin)) {
     return null;
   }
   return {

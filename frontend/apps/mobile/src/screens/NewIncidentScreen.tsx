@@ -23,7 +23,7 @@ import { FormMessage } from '../components/FormMessage';
 import { LocationIndicator } from '../components/LocationIndicator';
 import { TextField } from '../components/TextField';
 import { useIncidentLocation } from '../hooks/useIncidentLocation';
-import { isInsideCoveredArea, locationToReport, type MapPin } from '../location/report-location';
+import { isGpsFixOutsideMap, locationToReport, type MapPin } from '../location/report-location';
 import { incidentKeys, useCategories } from '../incidents/incident-queries';
 import type { MainTabsParamList } from '../navigation/MainTabs';
 import { ApiCallError } from '../query-client';
@@ -68,9 +68,7 @@ export function NewIncidentScreen({ navigation }: Props) {
 
   const reportedLocation = locationToReport(location.gpsFix, pin);
   const fromGps = location.gpsFix !== null && (pin === null || pin.source === 'gpsFix');
-  // The map stops the pin on its border, so the fix cannot be sent: the citizen places the pin.
-  const fixOutsideMap =
-    location.gpsFix !== null && pin?.source === 'gpsFix' && !isInsideCoveredArea(location.gpsFix);
+  const fixOutsideMap = isGpsFixOutsideMap(location.gpsFix, pin);
   // The first fix recentres the map: waiting for it keeps a report from leaving with a pin that is
   // about to move.
   const canSubmit = !location.isLoading && !isSubmitting && reportedLocation !== null;
