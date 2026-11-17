@@ -295,6 +295,17 @@ class IncidentTest {
         assertThat(rejected.getStatus()).isEqualTo(IncidentStatus.REJECTED);
     }
 
+    // #285: PostgreSQL cannot store U+0000, and saving it failed with a 500.
+    @Test
+    void aReasonWithTheNullCharacterIsRefused() {
+        assertReasonRejected(
+                fixture.in(IncidentStatus.IN_PROGRESS),
+                IncidentTransition.RESOLUTION,
+                "Fixed\u0000");
+        assertReasonRejected(
+                fixture.in(IncidentStatus.ASSIGNED), IncidentTransition.ACCEPTANCE, "\u0000");
+    }
+
     @Test
     void aReasonHasAtMostTheLengthOfTheContract() {
         var tooLong = "a".repeat(Incident.MAX_REASON_LENGTH + 1);
@@ -440,6 +451,14 @@ class IncidentTest {
                         fixture.department, fixture.technician, "\u00A0A\u00A0"),
                 LATER);
         assertThat(incident.activeAssignment().orElseThrow().getTeam()).isEqualTo("\u00A0A\u00A0");
+    }
+
+    // #285: PostgreSQL cannot store U+0000.
+    @Test
+    void aTeamWithTheNullCharacterIsRefused() {
+        assertAssignmentRejectedOn(
+                TransitionDetails.assignment(fixture.department, fixture.technician, "Crew\u0000"),
+                "team");
     }
 
     @Test
@@ -606,6 +625,17 @@ class IncidentTest {
                 .extracting(FieldError::field)
                 .containsExactly("priorityReason");
         assertThat(Incident.priorityErrors(Priority.HIGH, "\u00A0A\u00A0")).isEmpty();
+    }
+
+    // #285: PostgreSQL cannot store U+0000.
+    @Test
+    void aJustificationWithTheNullCharacterIsRefused() {
+        assertThat(Incident.priorityErrors(Priority.HIGH, "Urgent\u0000"))
+                .extracting(FieldError::field, FieldError::message)
+                .containsExactly(
+                        tuple(
+                                "priorityReason",
+                                "The justification cannot contain the null character."));
     }
 
     @Test

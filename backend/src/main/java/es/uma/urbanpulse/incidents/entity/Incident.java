@@ -58,6 +58,9 @@ public class Incident {
     /** maxLength of {@code priorityReason} in the contract ({@code UpdateIncidentRequest}). */
     public static final int MAX_PRIORITY_REASON_LENGTH = 2000;
 
+    /** PostgreSQL cannot store U+0000 in a text column. */
+    private static final String NULL_CHARACTER = "The %s cannot contain the null character.";
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
@@ -321,6 +324,8 @@ public class Incident {
             } else if (reason != null) {
                 invalid.add(new FieldError("reason", "Write the reason, or leave it out."));
             }
+        } else if (Texts.hasNullCharacter(reason)) {
+            invalid.add(new FieldError("reason", NULL_CHARACTER.formatted("reason")));
         } else if (Texts.length(reason) > MAX_REASON_LENGTH) {
             // Code points, as JSON Schema counts maxLength: an emoji is one character.
             invalid.add(
@@ -371,7 +376,9 @@ public class Incident {
         }
         // Counted in characters (code points), like maxLength in the contract, not in UTF-16 units.
         var team = details.team();
-        if (team != null
+        if (team != null && Texts.hasNullCharacter(team)) {
+            invalid.add(new FieldError("team", NULL_CHARACTER.formatted("team")));
+        } else if (team != null
                 && (Texts.onlyWhiteSpace(team)
                         || Texts.length(team) > Assignment.TEAM_MAX_LENGTH)) {
             invalid.add(
@@ -405,6 +412,10 @@ public class Incident {
         }
         if (Texts.isBlank(reason)) {
             return List.of(new FieldError("priorityReason", "A priority needs its justification."));
+        }
+        if (Texts.hasNullCharacter(reason)) {
+            return List.of(
+                    new FieldError("priorityReason", NULL_CHARACTER.formatted("justification")));
         }
         // Code points, as JSON Schema counts maxLength: an emoji is one character.
         if (Texts.length(reason) > MAX_PRIORITY_REASON_LENGTH) {
