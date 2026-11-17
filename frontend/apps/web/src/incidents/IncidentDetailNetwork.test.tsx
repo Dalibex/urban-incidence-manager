@@ -118,9 +118,21 @@ describe('incident detail without network (#276 A)', () => {
       'The server cannot be reached. Check your connection and try again.',
     );
 
-    onlineManager.setOnline(true);
+    // *Try again* asks even while the browser still says it is offline.
     server.detail = undefined;
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+
+    expect(await screen.findByRole('heading', { name: REPORTED.title })).toBeDefined();
+  });
+
+  it('loads a read that failed offline by itself when the network comes back', async () => {
+    goOffline();
+    const server: Server = { detail: NO_NETWORK, rejections: 0 };
+    renderApp(incidentPath(REPORTED.id), { role: 'MUNICIPAL_OPERATOR', fetch: api(server) });
+    await screen.findByRole('alert');
+
+    server.detail = undefined;
+    onlineManager.setOnline(true);
 
     expect(await screen.findByRole('heading', { name: REPORTED.title })).toBeDefined();
   });
