@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { act } from 'react';
 import { describe, expect, it } from 'vitest';
 
+import { createQueryClient } from '../query-client';
 import { PATHS } from '../routing/access';
 import { fakeApi, json, renderApp, userWith } from '../test-utils';
 
@@ -292,5 +293,34 @@ describe('users screen', () => {
       );
       expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
     });
+  });
+
+  // #276 B: a reload of the list in the background fails, for example when the administrator comes
+  // back to the tab with the backend down; the open editor and what was typed in it stay.
+  it('keeps the list and an open editor when a reload fails, with a notice', async () => {
+    let failing = false;
+    const queryClient = createQueryClient({ retryDelay: 0 });
+    renderApp(PATHS.users, {
+      role: 'ADMINISTRATOR',
+      fetch: fakeApi({ 'GET /users': () => (failing ? json(503, { status: 503 }) : page(USERS)) }),
+      queryClient,
+    });
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit Pedro Gómez' }));
+    const name = screen.getByLabelText('Name');
+    await userEvent.clear(name);
+    await userEvent.type(name, 'Pedro Gómez Ruiz');
+
+    failing = true;
+    await queryClient.refetchQueries({ queryKey: ['users'] });
+
+    const notice = await screen.findByRole('alert');
+    expect(notice.textContent).toContain('The users could not be refreshed.');
+    expect(screen.getByRole('table')).toBeDefined();
+    expect(screen.getByLabelText('Name')).toHaveProperty('value', 'Pedro Gómez Ruiz');
+
+    failing = false;
+    await userEvent.click(within(notice).getByRole('button', { name: 'Try again' }));
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+    expect(screen.getByLabelText('Name')).toHaveProperty('value', 'Pedro Gómez Ruiz');
   });
 });

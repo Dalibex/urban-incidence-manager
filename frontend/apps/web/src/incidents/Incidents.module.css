@@ -164,6 +164,24 @@
   border-color: color-mix(in srgb, var(--color-danger) 50%, transparent);
 }
 
+/* A reload that failed, above the data it leaves on screen (#276). */
+.warning {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 60%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
+}
+
+.warning p {
+  margin: 0;
+}
+
 .link {
   color: var(--color-primary);
   text-underline-offset: 3px;
