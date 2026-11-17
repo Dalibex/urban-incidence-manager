@@ -39,9 +39,6 @@ export function useUserPage(page: number, filters: UserFilters) {
     queryFn: () => dataOf(listUsers(api, { page, size: USERS_PAGE_SIZE, ...toListQuery(filters) })),
     // The current rows stay on screen while the next page loads, so the table does not jump.
     placeholderData: keepPreviousData,
-    // Asking while the browser says it is offline fails at once, so the screen says that the server
-    // cannot be reached and offers *Try again*, as the audit log does.
-    networkMode: 'always',
   });
 }
 
@@ -63,7 +60,6 @@ function useUserChange<TBody>(
         afterSuccess(queryClient, result.data);
       }
     },
-    networkMode: 'always',
   });
 }
 

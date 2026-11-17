@@ -27,6 +27,12 @@ interface QueryClientOptions {
 /**
  * Server state of the web app (ADR-0006). Only failures that may pass on their own are retried: the
  * API not reachable or a `5xx`. A `4xx` gives the same answer every time.
+ *
+ * Queries and mutations run even while the browser says it is offline (#276). By default React
+ * Query pauses them instead: a read stays on its loading state with no way to retry, and a change
+ * stays on "Saving…" and is sent by itself when the network comes back, even an action the user
+ * gave up on, such as a rejection, which is final. Run anyway, they fail at once, so the screen
+ * says that the server cannot be reached and offers to try again.
  */
 export function createQueryClient({ retryDelay }: QueryClientOptions = {}): QueryClient {
   return new QueryClient({
@@ -35,6 +41,10 @@ export function createQueryClient({ retryDelay }: QueryClientOptions = {}): Quer
         staleTime: 30_000,
         retry: (failureCount, error) => failureCount < MAX_RETRIES && isTransient(error),
         ...(retryDelay === undefined ? {} : { retryDelay }),
+        networkMode: 'always',
+      },
+      mutations: {
+        networkMode: 'always',
       },
     },
   });
