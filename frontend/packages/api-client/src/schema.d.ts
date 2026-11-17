@@ -1878,7 +1878,7 @@ export interface components {
              * @example 2026-11-02T09:58:47Z
              */
             capturedAt: string | null;
-            /** @description `null` while there is no weather, that is, when `status` is `PENDING`, `ERROR` or `UNAVAILABLE`. */
+            /** @description `null` while there is no weather: always when `status` is `PENDING`, `ERROR` or `UNAVAILABLE`, and with `PARTIAL` when the weather is the part that is missing. */
             weather: components["schemas"]["WeatherContext"] | null;
         };
     };

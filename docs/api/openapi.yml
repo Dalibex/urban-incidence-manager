@@ -3235,8 +3235,8 @@ components:
           examples: ["2026-11-02T09:58:47Z"]
         weather:
           description: >-
-            `null` while there is no weather, that is, when `status` is `PENDING`, `ERROR` or
-            `UNAVAILABLE`.
+            `null` while there is no weather: always when `status` is `PENDING`, `ERROR` or
+            `UNAVAILABLE`, and with `PARTIAL` when the weather is the part that is missing.
           oneOf:
             - $ref: "#/components/schemas/WeatherContext"
             - type: "null"
