@@ -82,7 +82,7 @@ constraints, the schema has these indexes:
 | `ix_assignment_active_department` | V11 (#182) | The filter by department |
 | `ix_incident_updated_at` | V11 | Sorting by `updatedAt` |
 | `ix_assignment_incident_id` | V12 (#184) | The assignments of one incident |
-| `uq_attachment_incident_content_hash` | V13 (#192) | Integrity, not speed: one photo per content and incident, so two uploads of the same file at the same time store it once (ADR-0013). It needs no measurement |
+| `uq_attachment_incident_content_hash` | V13 (#192) | Integrity, not speed: one photo per content and incident (ADR-0013). Two uploads at the same time are already serialised by a lock on the incident row (#275); the index is the database rule behind it. It needs no measurement |
 | `ix_audit_log_target_id` | V14 (#47) | The classification changes of one incident |
 | `ix_incident_status_priority_reported_at` | V16 (#176) | The count of the staff lists filtered by status and priority |
 
