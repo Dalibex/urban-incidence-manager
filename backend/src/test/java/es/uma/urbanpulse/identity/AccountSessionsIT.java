@@ -248,6 +248,22 @@ class AccountSessionsIT {
         refresh(laptop).andExpect(status().isUnauthorized());
     }
 
+    // #275 C: revoking every session (an account disabled, a password changed) also ends the
+    // tokens, so presenting one later is only refused and does not close a session opened after.
+    @Test
+    void aTokenEndedByRevokingEverySessionDoesNotCloseTheNextOne() throws Exception {
+        var rotated = signIn();
+        var phone = read(refresh(rotated).andExpect(status().isOk()), "$.refreshToken");
+        sessions.revokeAllSessions(userId());
+        var next = signIn();
+
+        refresh(phone).andExpect(status().isUnauthorized());
+        refresh(rotated).andExpect(status().isUnauthorized());
+
+        assertThat(activeSessions()).isEqualTo(1);
+        refresh(next).andExpect(status().isOk());
+    }
+
     @Test
     void theTokenOfAUserThatNoLongerExistsGets401() throws Exception {
         mvc.perform(
