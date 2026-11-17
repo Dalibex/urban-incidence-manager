@@ -15,6 +15,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 - PostgreSQL gets 256 MB of shared memory (`shm_size`) in both Compose files instead of Docker's 64 MB: with a million incidents, concurrent map, dashboard and report queries failed with `500` (#176).
 - The staff lists filtered by status and priority count their incidents with a new index (migration `V16`): from 254 ms to 4 ms with a million incidents (#176).
+- `STORAGE_BASE_PATH` in `backend/.env.example` is `./storage`, so the backend run from the IDE or `./mvnw` keeps the photos in `backend/storage/`, which Git ignores. Both Compose files fix the folder of the backend container to its volume at `/app/storage` and no longer read `STORAGE_BASE_PATH` from `.env`, so a different value can no longer leave the photos outside the volume. Change it to `./storage` in a `backend/.env` copied before (#275).
 
 ## [0.2.0] - 2026-11-14
 
