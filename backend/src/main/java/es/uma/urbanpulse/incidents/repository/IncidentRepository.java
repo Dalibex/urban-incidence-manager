@@ -1,6 +1,7 @@
 package es.uma.urbanpulse.incidents.repository;
 
 import es.uma.urbanpulse.incidents.entity.Incident;
+import jakarta.persistence.LockModeType;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -11,6 +12,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -36,6 +38,14 @@ public interface IncidentRepository
     @Override
     @EntityGraph(attributePaths = {"category", "location"})
     Optional<Incident> findOne(Specification<Incident> spec);
+
+    /**
+     * Locks the incident row until the transaction ends ({@code SELECT ... FOR UPDATE}), so two
+     * photos added at once are checked against the limit one after the other, and a status change
+     * waits for the photo or the photo sees the new status (#275).
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<Incident> findLockedById(UUID id);
 
     /**
      * The id and title of some incidents, in one query and without loading them: an entity would

@@ -10,10 +10,10 @@ import {
   withFilters,
   type IncidentFilters,
 } from './filters/incident-filters';
-import { useIncidentPage } from './incident-queries';
+import { INBOX_PAGE_SIZE, useIncidentPage } from './incident-queries';
 import styles from './Incidents.module.css';
 import { LoadFailure } from './LoadFailure';
-import { pageFrom, Pagination } from './Pagination';
+import { apiPageOf, pageFrom, Pagination } from './Pagination';
 import { PRIORITY_LABELS } from './labels';
 import { LoadingSkeleton, SkeletonLine } from './Skeleton';
 import { StatusBadge } from './StatusBadge';
@@ -48,7 +48,7 @@ export function IncidentListPage({ title, lead, noIncidents, rowAction }: Incide
   const [searchParams, setSearchParams] = useSearchParams();
   const filters = filtersFrom(searchParams);
   const page = pageFrom(searchParams.get(PAGE_PARAM));
-  const incidents = useIncidentPage(page - 1, filters);
+  const incidents = useIncidentPage(apiPageOf(page, INBOX_PAGE_SIZE), filters);
   const firstFilter = useRef<HTMLInputElement>(null);
 
   const goTo = (target: number) => {

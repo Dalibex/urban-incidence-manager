@@ -323,19 +323,6 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.body,
     textAlignVertical: 'top',
   },
-  pickerPlaceholder: {
-    minHeight: 48,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.textMuted,
-    borderRadius: 8,
-    backgroundColor: colors.surface,
-  },
-  placeholderText: {
-    color: colors.textMuted,
-    fontSize: fontSizes.body,
-  },
   categoryRow: {
     gap: spacing.xs,
     paddingVertical: spacing.xs,

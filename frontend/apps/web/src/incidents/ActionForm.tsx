@@ -6,8 +6,13 @@ import styles from './Incidents.module.css';
 
 type Incident = components['schemas']['IncidentResponse'];
 
-/** Longest reason the API accepts, in characters (`IncidentReasonRequest`). */
+/**
+ * Longest reason the API accepts, in characters (`IncidentReasonRequest`). Counted in code points
+ * before sending, like the API, so an emoji is one character. The textarea has no `maxLength`: it
+ * would count UTF-16 units, and cut a pasted reason without saying so.
+ */
 const NOTES_MAX_LENGTH = 2000;
+const NOTES_TOO_LONG = `The reason can have at most ${NOTES_MAX_LENGTH} characters.`;
 
 /** An action the API accepted: the message to announce, and the status the incident left. */
 export interface ActionDone {
@@ -105,6 +110,10 @@ export function ActionForm({
       setOutcome({ kind: 'invalid', fieldErrors: [{ field: 'reason', message: notes.missing }] });
       return;
     }
+    if (notes && Array.from(text).length > NOTES_MAX_LENGTH) {
+      setOutcome({ kind: 'invalid', fieldErrors: [{ field: 'reason', message: NOTES_TOO_LONG }] });
+      return;
+    }
     inFlight.current = true;
     setOutcome(null);
     onSending();
@@ -148,7 +157,6 @@ export function ActionForm({
             id={`${titleId}-notes-field`}
             value={text}
             rows={4}
-            maxLength={NOTES_MAX_LENGTH}
             onChange={(event) => setText(event.target.value)}
             aria-required
             aria-invalid={notesError ? true : undefined}

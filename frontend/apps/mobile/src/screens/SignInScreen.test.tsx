@@ -68,6 +68,11 @@ describe('SignInScreen', () => {
       'This account is disabled. Contact the city council.',
     ],
     [
+      'a password that must change first',
+      { kind: 'problem', status: 403, code: 'PASSWORD_CHANGE_REQUIRED' },
+      'This account must change its password first. Sign in on the UrbanPulse website to change it.',
+    ],
+    [
       'too many attempts',
       { kind: 'problem', status: 429, code: undefined },
       'Too many attempts. Wait a few minutes and try again.',
