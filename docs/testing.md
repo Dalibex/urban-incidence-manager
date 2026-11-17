@@ -74,6 +74,10 @@ It runs the `test` script of every app and package. Test files sit next to the c
   (`--fsModuleCachePath` in its `test` script). By default they would share
   `frontend/node_modules/.vitest-cache`, and when the lockfile changes every package empties it at
   once: on Windows one of them failed with `EPERM` or `ENOTEMPTY` (#292).
+  In `apps/web` the timeout per test is 20 s, not Vitest's 5 s, and `findBy` and `waitFor` wait 5 s,
+  not Testing Library's 1 s (`src/test-setup.ts`): on a busy machine or with empty caches, tests
+  failed now and then only because the screen took longer to render (#313). The wait stays below the
+  timeout, so a missing element still fails with its own error.
 - `apps/mobile` uses Jest with the `jest-expo` preset (set in the `jest` field of its
   `package.json`) and `@testing-library/react-native`. Vitest cannot load React Native, which ships
   untranspiled Flow code; `jest-expo` transforms it and mocks the native modules. `describe`, `it`,
