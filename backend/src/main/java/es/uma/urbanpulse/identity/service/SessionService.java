@@ -69,6 +69,10 @@ public class SessionService {
      * sign-out, before it expires: two parties hold it and the server cannot tell which one is the
      * user (#125). Both revocations are kept although the request fails, and the answer is the same
      * {@code 401} as for an unknown token.
+     *
+     * <p>Revoking every session also makes those tokens expire ({@link
+     * RefreshTokenRepository#endAll}), so a token revoked by a password change or a disabled
+     * account is only refused, and never closes a session opened afterwards (#275).
      */
     @Transactional(noRollbackFor = InvalidRefreshTokenException.class)
     public SessionResponse refresh(String presentedToken) {
@@ -89,7 +93,7 @@ public class SessionService {
             throw new InvalidRefreshTokenException();
         }
         if (!Boolean.TRUE.equals(user.getEnabled())) {
-            refreshTokens.revokeAllActive(user.getId(), now);
+            refreshTokens.endAll(user.getId(), now);
             throw new InvalidRefreshTokenException();
         }
         if (token.getRevokedAt() != null) {
@@ -98,7 +102,7 @@ public class SessionService {
                             + " of user {}",
                     token.getId(),
                     user.getId());
-            refreshTokens.revokeAllActive(user.getId(), now);
+            refreshTokens.endAll(user.getId(), now);
             throw new InvalidRefreshTokenException();
         }
         token.setRevokedAt(now);
@@ -112,12 +116,13 @@ public class SessionService {
     }
 
     /**
-     * Revokes every refresh token of the user, for #40 when an administrator disables an account.
-     * Access tokens already issued keep working until they expire (about 15 minutes, ADR-0004).
+     * Revokes every refresh token of the user and makes it expire, for #40 when an administrator
+     * disables an account. Access tokens already issued keep working until they expire (about 15
+     * minutes, ADR-0004).
      */
     @Transactional
     public void revokeAllSessions(UUID userId) {
-        refreshTokens.revokeAllActive(userId, now());
+        refreshTokens.endAll(userId, now());
     }
 
     private SessionResponse openSession(User user) {

@@ -77,6 +77,17 @@ The backend reads `backend/.env` by itself
 when it runs from `backend/` (IDE or `./mvnw spring-boot:run`), and Docker Compose passes it to the
 container, so no other setup is needed.
 
+The photos of the incidents go to `STORAGE_BASE_PATH`, `./storage` in the example: the folder
+`backend/storage/`, which Git ignores. A relative path is resolved
+from the folder the backend runs in, so keep `backend/` as the working directory of the run
+configuration, as `.env` already needs. The container of `--profile app` ignores this value and keeps
+the photos in its `evidence_data` volume, at `/app/storage`.
+
+> [!NOTE]
+> A `backend/.env` copied from an older example has `STORAGE_BASE_PATH=/app/storage`, the folder inside the
+> container. From the host that is `C:\app\storage` on Windows, and on macOS or Linux the upload fails
+> with `500` because a normal user cannot write to `/app`. Change it to `./storage`.
+
 Every variable is described in the [deployment guide](deployment.md). If something else on your
 computer already uses a port, change `POSTGRES_PORT` (5432) for the database. `BACKEND_PORT` (8080)
 only moves the backend container (`--profile app`); from the IDE or `./mvnw`, set `SERVER_PORT` in the

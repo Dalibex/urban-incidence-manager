@@ -51,6 +51,8 @@ frontend/apps/web/public/tiles/*
 # Back-end
 # Maven build output, wherever it is created (not only under backend/).
 target/
+# Evidence files of the backend run from the IDE or ./mvnw (STORAGE_BASE_PATH in backend/.env).
+backend/storage/
 
 # Compiled class file
 *.class

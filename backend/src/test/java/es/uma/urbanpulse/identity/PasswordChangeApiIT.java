@@ -363,6 +363,34 @@ class PasswordChangeApiIT {
         expectProblem(refresh(laptop), 401, "INVALID_REFRESH_TOKEN");
     }
 
+    // #275 C: a token the change made useless is only refused, not taken as stolen, so it does
+    // not close the session opened with the new password.
+    @Test
+    void aTokenRevokedByTheChangeDoesNotCloseTheNextSession() throws Exception {
+        staffAccount(false);
+        String otherTab = read(postSignIn(email, GIVEN_PASSWORD), "$.refreshToken");
+        changePassword(email, GIVEN_PASSWORD, NEW_PASSWORD).andExpect(status().isNoContent());
+        String newSession = read(postSignIn(email, NEW_PASSWORD), "$.refreshToken");
+
+        expectProblem(refresh(otherTab), 401, "INVALID_REFRESH_TOKEN");
+
+        refresh(newSession).andExpect(status().isOk());
+    }
+
+    // #275 C: neither does a token that a refresh had already revoked before the change.
+    @Test
+    void aTokenRotatedBeforeTheChangeDoesNotCloseTheNextSession() throws Exception {
+        staffAccount(false);
+        String rotated = read(postSignIn(email, GIVEN_PASSWORD), "$.refreshToken");
+        refresh(rotated).andExpect(status().isOk());
+        changePassword(email, GIVEN_PASSWORD, NEW_PASSWORD).andExpect(status().isNoContent());
+        String newSession = read(postSignIn(email, NEW_PASSWORD), "$.refreshToken");
+
+        expectProblem(refresh(rotated), 401, "INVALID_REFRESH_TOKEN");
+
+        refresh(newSession).andExpect(status().isOk());
+    }
+
     // T14: the audit entry fails, so the whole change rolls back.
     @Test
     void aFailedAuditEntryLeavesThePasswordAndTheSessionsAsTheyWere() throws Exception {
