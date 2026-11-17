@@ -42,7 +42,9 @@ repetitions without touching the development data. Remove them with
 ## Running the experiments
 
 `run.sh` runs each configuration three times, resets the database to the same `perf` rows before
-every repetition that creates incidents, and warms the backend up for 30 s before measuring:
+every repetition that creates incidents, and warms the backend up for 30 s before measuring. It
+starts the backend with `WEATHER_ENRICHMENT_ENABLED=false`, so the reports of a load test never call
+the real Open-Meteo ([ADR-0018](../../../docs/adr/0018-weather-and-traffic-providers.md)):
 
 ```bash
 ./run.sh exp1

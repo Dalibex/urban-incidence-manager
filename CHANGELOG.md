@@ -10,6 +10,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
 ### Added
 
 - The backend publishes its metrics in the Prometheus format at `/actuator/prometheus`, without a token, with the latency of each endpoint, the database connection pool, the JVM and the count of reported incidents (`urbanpulse_incidents_reported_total`). The rest of the actuator still needs one (#176).
+- Each new incident gets the weather at its position from Open-Meteo, some seconds after the report and without ever delaying it: the report saves a pending context, and a worker fills it every `WEATHER_ENRICHMENT_INTERVAL` (30 s), or marks it as unavailable or failed, never with a guessed value. New variables `WEATHER_ENRICHMENT_ENABLED`, `OPEN_METEO_BASE_URL`, `WEATHER_ENRICHMENT_INTERVAL`, `WEATHER_ENRICHMENT_BATCH_SIZE`, `OPEN_METEO_TIMEOUT` and `WEATHER_MAX_DELAY`; the demo incidents carry their real weather (#307).
 
 ### Changed
 

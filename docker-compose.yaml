@@ -76,6 +76,13 @@ services:
       STORAGE_BASE_PATH: /app/storage
       EVIDENCE_MAX_FILE_SIZE: ${EVIDENCE_MAX_FILE_SIZE:-10MB}
       EVIDENCE_MAX_FILES_PER_INCIDENT: ${EVIDENCE_MAX_FILES_PER_INCIDENT:-5}
+      # Weather of each incident from Open-Meteo (ADR-0018, docs/deployment.md).
+      WEATHER_ENRICHMENT_ENABLED: ${WEATHER_ENRICHMENT_ENABLED:-true}
+      OPEN_METEO_BASE_URL: ${OPEN_METEO_BASE_URL:-https://api.open-meteo.com}
+      WEATHER_ENRICHMENT_INTERVAL: ${WEATHER_ENRICHMENT_INTERVAL:-PT30S}
+      WEATHER_ENRICHMENT_BATCH_SIZE: ${WEATHER_ENRICHMENT_BATCH_SIZE:-20}
+      OPEN_METEO_TIMEOUT: ${OPEN_METEO_TIMEOUT:-PT2S}
+      WEATHER_MAX_DELAY: ${WEATHER_MAX_DELAY:-PT1H}
       # Every request comes from nginx, so Tomcat takes the client address, the scheme, the host
       # and the port from the X-Forwarded-* headers that nginx writes (frontend/nginx.conf), and
       # only from a private address. Fixed here, not in .env: development reaches the backend
