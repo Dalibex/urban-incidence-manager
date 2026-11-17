@@ -184,6 +184,33 @@ describe('users screen, acceptance of #63', () => {
     expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('Pedro G.');
   });
 
+  // #283 B: the navigation bar shows the administrator's new name without signing in again.
+  it('shows the own new name in the navigation bar once the API saved it', async () => {
+    const renamed = { ...USERS[0], name: 'Lucía M. Ruiz' };
+    let answer: (response: Response) => void = () => undefined;
+    const { fetch } = usersApi({
+      [`PATCH /users/${ME.id}`]: () =>
+        new Promise<Response>((resolve) => {
+          answer = resolve;
+        }),
+    });
+    renderApp(PATHS.users, { role: 'ADMINISTRATOR', fetch });
+    const navbar = within(screen.getByRole('button', { name: 'Sign out' }).closest('header')!);
+
+    await userEvent.click(await screen.findByRole('button', { name: `Edit ${ME.name}` }));
+    const name = screen.getByLabelText('Name');
+    await userEvent.clear(name);
+    await userEvent.type(name, renamed.name);
+    await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    // Nothing changes before the answer.
+    expect(navbar.getByText(ME.name)).toBeDefined();
+    answer(json(200, renamed));
+
+    expect(await navbar.findByText(renamed.name)).toBeDefined();
+    expect(navbar.queryByText(ME.name)).toBeNull();
+  });
+
   // T19: a double click on Create sends one account.
   it('creates one account on a double click', async () => {
     let answer: (response: Response) => void = () => undefined;
@@ -224,6 +251,54 @@ describe('users screen, acceptance of #63', () => {
     expect(screen.getByLabelText('Email').getAttribute('aria-invalid')).toBe('true');
     expect(screen.queryByText(/Account created/)).toBeNull();
     expectTheFormKept();
+  });
+
+  // #283 D: the answer that created the account was lost, so a retry finds the email taken. The
+  // form says the account may be the one just created and leads to it in the list.
+  it('says the account may exist when a retry after a lost answer finds the email taken', async () => {
+    const EMAIL_TAKEN: Answer = () =>
+      json(409, { status: 409, code: 'EMAIL_ALREADY_EXISTS', title: 'Conflict' });
+    const { fetch, queries } = usersApi({ 'POST /users': inTurn(NO_NETWORK, EMAIL_TAKEN) });
+    const router = renderApp(PATHS.users, { role: 'ADMINISTRATOR', fetch });
+    await fillCreateForm();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Create account' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Try again' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('your earlier attempt may have created');
+    expect(screen.queryByText('An account with this email already exists.')).toBeNull();
+    expect(screen.getByLabelText('Email').getAttribute('aria-invalid')).toBeNull();
+    expect(posts(fetch, '/users')).toHaveLength(2);
+
+    await userEvent.click(within(alert).getByRole('button', { name: 'Show it in the list' }));
+
+    expect(screen.queryByRole('form', { name: 'New staff account' })).toBeNull();
+    expect(new URLSearchParams(router.state.location.search).get('email')).toBe(
+      'ana.torres@example.com',
+    );
+    await waitFor(() => expect(queries.at(-1)?.get('email')).toBe('ana.torres@example.com'));
+  });
+
+  // #283 D: after a lost answer, a retry with another email that is taken is an ordinary conflict.
+  it('marks a taken email when the retry after a lost answer sends another email', async () => {
+    const { fetch } = usersApi({
+      'POST /users': inTurn(NO_NETWORK, () =>
+        json(409, { status: 409, code: 'EMAIL_ALREADY_EXISTS', title: 'Conflict' }),
+      ),
+    });
+    renderApp(PATHS.users, { role: 'ADMINISTRATOR', fetch });
+    await fillCreateForm();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Create account' }));
+    await screen.findByRole('button', { name: 'Try again' });
+    const email = screen.getByLabelText('Email');
+    await userEvent.clear(email);
+    await userEvent.type(email, 'ana.torres.ruiz@example.com');
+    await userEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+    expect(await screen.findByText('An account with this email already exists.')).toBeDefined();
+    expect(screen.queryByRole('button', { name: 'Show it in the list' })).toBeNull();
   });
 
   // T9: the text filters reach the API and the address.

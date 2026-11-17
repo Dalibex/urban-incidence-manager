@@ -32,6 +32,11 @@ interface SessionValue {
   api: ApiClient;
   signIn: (credentials: Credentials) => Promise<ApiResult<void>>;
   signOut: () => Promise<void>;
+  /**
+   * Shows a change the API accepted on an account, such as a new name, when that account is the
+   * signed-in one: the shell shows the user as they are now, without signing in again.
+   */
+  showChangedUser: (changed: SessionUser) => void;
 }
 
 const SessionContext = createContext<SessionValue | null>(null);
@@ -112,6 +117,10 @@ export function SessionProvider({ initialUser = null, fetch, children }: Session
           setUser(null);
           setExpired(false);
         }
+      },
+      showChangedUser: ({ id, name, email, role }) => {
+        // Only the fields the shell shows, never the rest of the account the API answered.
+        setUser((current) => (current?.id === id ? { id, name, email, role } : current));
       },
     }),
     [user, expired, api, tokenStore, queryClient],

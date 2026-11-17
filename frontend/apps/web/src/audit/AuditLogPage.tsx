@@ -5,11 +5,11 @@ import { Link, useSearchParams } from 'react-router';
 
 import styles from '../incidents/Incidents.module.css';
 import { LoadFailure } from '../incidents/LoadFailure';
-import { pageFrom, Pagination } from '../incidents/Pagination';
+import { apiPageOf, pageFrom, Pagination } from '../incidents/Pagination';
 import { incidentPath } from '../routing/access';
 import { filtersFrom, hasFilters, withFilters, type AuditFilters } from './audit-filters';
 import { ACTION_LABELS, fieldChanges, formatAuditValue } from './audit-labels';
-import { useAuditEntryPage } from './audit-queries';
+import { AUDIT_PAGE_SIZE, useAuditEntryPage } from './audit-queries';
 import { AuditFilterBar } from './AuditFilterBar';
 import auditStyles from './AuditLog.module.css';
 
@@ -26,7 +26,7 @@ export function AuditLogPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const filters = filtersFrom(searchParams);
   const page = pageFrom(searchParams.get(PAGE_PARAM));
-  const entries = useAuditEntryPage(page - 1, filters);
+  const entries = useAuditEntryPage(apiPageOf(page, AUDIT_PAGE_SIZE), filters);
   const firstFilter = useRef<HTMLInputElement>(null);
 
   const goTo = (target: number) => {

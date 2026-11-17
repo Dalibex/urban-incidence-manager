@@ -18,6 +18,16 @@ export function canRetry(outcome: Outcome | null): boolean {
 
 export const EMAIL_TAKEN = 'An account with this email already exists.';
 
+/** Whether the API refused the request because another account has the email. */
+export function isEmailTaken(result: FormResult<unknown>): boolean {
+  return (
+    !result.ok &&
+    result.failure.kind === 'problem' &&
+    result.failure.status === 409 &&
+    result.failure.code === 'EMAIL_ALREADY_EXISTS'
+  );
+}
+
 export function outcomeOf(result: FormResult<unknown>): Outcome {
   if (result.ok) {
     return { kind: 'saved' };
@@ -26,7 +36,7 @@ export function outcomeOf(result: FormResult<unknown>): Outcome {
   if (failure.kind === 'network') {
     return { kind: 'unreachable' };
   }
-  if (failure.status === 409 && failure.code === 'EMAIL_ALREADY_EXISTS') {
+  if (isEmailTaken(result)) {
     return { kind: 'invalid', fieldErrors: [{ field: 'email', message: EMAIL_TAKEN }] };
   }
   if (failure.status === 403) {

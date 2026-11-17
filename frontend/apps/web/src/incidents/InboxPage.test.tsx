@@ -106,3 +106,33 @@ describe('inbox filters', () => {
     expect(requests.at(-1)!.getAll('priority')).toEqual(['HIGH']);
   });
 });
+
+// #283 C: a page number far past the last page, typed or from an old link.
+describe('inbox page of the address', () => {
+  const INT32_MAX = 2_147_483_647;
+
+  it('says that a huge page has no incidents, asking only for a page the API can read', async () => {
+    const requests: URLSearchParams[] = [];
+    const fetch = fakeApi({
+      'GET /incidents': (request) => {
+        const query = new URL(request.url).searchParams;
+        requests.push(query);
+        // As the API does: an offset past an int32 is a 500, any other page past the last is empty.
+        if (Number(query.get('page')) * Number(query.get('size')) > INT32_MAX) {
+          return json(500, { status: 500 });
+        }
+        return json(200, {
+          content: [],
+          page: { number: Number(query.get('page')), size: 20, totalElements: 3, totalPages: 1 },
+        });
+      },
+      'GET /categories': () => json(200, []),
+      'GET /departments': () => json(200, []),
+    });
+    renderApp(`${PATHS.inbox}?page=9999999999`, { role: 'MUNICIPAL_OPERATOR', fetch });
+
+    expect(await screen.findByText('Page 9999999999 has no incidents.')).toBeDefined();
+    expect(screen.queryByText(/could not be loaded/)).toBeNull();
+    expect(requests.at(-1)!.get('page')).toBe(String(Math.floor(INT32_MAX / 20)));
+  });
+});
