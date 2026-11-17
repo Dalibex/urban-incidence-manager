@@ -68,6 +68,7 @@ Added later, together with its implementation:
 | Module | Operations | Implemented in |
 |---|---|---|
 | `incidents` | `getIncidentStatistics` | #177 |
+| `urbancontext` | `getIncidentUrbanContext` | #306 |
 
 ## 📏 Conventions
 
