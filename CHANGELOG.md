@@ -24,6 +24,9 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Without a connection, the web incident actions no longer stay on *Saving…* and are no longer sent on their own when the connection comes back, and the incident pages and the map no longer wait without a message: they say that the server cannot be reached, with *Try again*, and load by themselves once the connection is back (#276).
+- A failed reload of the web incident detail or of *Users*, for example when coming back to the tab, keeps the page and what was typed in its forms, with a notice that it could not be refreshed, instead of replacing it with an error (#276).
+- A request the server accepts and never answers ends after waiting 30 seconds for each attempt as *cannot be reached* on the web and the mobile app, which keep the form, instead of waiting for ever on *Sending…* (#276).
 - A lifecycle message or reason on the web, such as the rejection reason the citizen reads, is no longer cut without warning when it is pasted over 2,000 characters, or before that with emojis: the form counts characters as the API does and says when the text is too long (#283).
 - The top bar of the web shows the administrator's new name as soon as they rename themselves, instead of the old one until the next sign-in (#283).
 - A web list opened on a very large page number, such as `/inbox?page=9999999999`, says that the page has no incidents, users or entries instead of failing to load (#283).
