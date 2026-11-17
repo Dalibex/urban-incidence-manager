@@ -3,7 +3,7 @@ import { Fragment, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 
 import styles from '../incidents/Incidents.module.css';
-import { LoadFailure } from '../incidents/LoadFailure';
+import { LoadFailure, RefreshFailure } from '../incidents/LoadFailure';
 import { pageFrom, Pagination } from '../incidents/Pagination';
 import { ROLE_LABELS } from '../layout/role-labels';
 import { useSession } from '../session/SessionContext';
@@ -96,11 +96,22 @@ export function UsersPage() {
 
       <UserFilterBar filters={filters} onChange={changeFilters} firstFilterRef={firstFilter} />
 
+      {/* A failed reload keeps the list and an open editor, with what was typed in it (#276). */}
+      {users.isRefetchError && (
+        <RefreshFailure
+          what="The users"
+          error={users.error}
+          shownSince={users.dataUpdatedAt}
+          retrying={users.isFetching}
+          onRetry={() => void users.refetch()}
+        />
+      )}
+
       {users.isPending ? (
         <p className={styles.state} role="status">
           Loading the users…
         </p>
-      ) : users.isError ? (
+      ) : users.isLoadingError ? (
         <LoadFailure
           what="The users"
           error={users.error}

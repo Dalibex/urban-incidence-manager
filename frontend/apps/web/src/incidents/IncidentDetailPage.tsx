@@ -9,7 +9,7 @@ import { useIncident } from './incident-queries';
 import { ACTIONS_TITLE, IncidentActions } from './IncidentActions';
 import { IncidentTimeline } from './IncidentTimeline';
 import styles from './Incidents.module.css';
-import { LoadFailure } from './LoadFailure';
+import { LoadFailure, RefreshFailure } from './LoadFailure';
 import { isNotFound } from './not-found';
 import { PRIORITY_LABELS } from './labels';
 import { PhotoGallery } from './PhotoGallery';
@@ -53,24 +53,36 @@ export function IncidentDetailPage() {
         <LoadingSkeleton what="the incident">
           <IncidentDetailSkeleton />
         </LoadingSkeleton>
-      ) : incident.isError ? (
-        isNotFound(incident.error) ? (
-          <div className={styles.state}>
-            <h1 id="page-title" className={styles.title}>
-              Incident not found
-            </h1>
-            <p>It does not exist, or you cannot see it.</p>
-          </div>
-        ) : (
-          <LoadFailure
-            what="The incident"
-            error={incident.error}
-            retrying={incident.isFetching}
-            onRetry={() => void incident.refetch()}
-          />
-        )
+      ) : incident.isError && isNotFound(incident.error) ? (
+        // On a reload too: the incident may have been reassigned, so the user can no longer see it.
+        <div className={styles.state}>
+          <h1 id="page-title" className={styles.title}>
+            Incident not found
+          </h1>
+          <p>It does not exist, or you cannot see it.</p>
+        </div>
+      ) : incident.isLoadingError ? (
+        <LoadFailure
+          what="The incident"
+          error={incident.error}
+          retrying={incident.isFetching}
+          onRetry={() => void incident.refetch()}
+        />
       ) : (
-        <IncidentDetail incident={incident.data} />
+        <>
+          {/* A failed reload keeps the incident and the forms open on it, with what was typed
+              there (#276); the panels, such as the classification, wait for the next reload. */}
+          {incident.isRefetchError && (
+            <RefreshFailure
+              what="The incident"
+              error={incident.error}
+              shownSince={incident.dataUpdatedAt}
+              retrying={incident.isFetching}
+              onRetry={() => void incident.refetch()}
+            />
+          )}
+          <IncidentDetail incident={incident.data} />
+        </>
       )}
     </article>
   );
