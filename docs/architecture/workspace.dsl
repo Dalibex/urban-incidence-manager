@@ -85,7 +85,7 @@ workspace "UrbanPulse" "C4 Model" {
                 incidents = component "incidents" "The incident as the central entity: reporting, location, categories, priority, lifecycle with allowed transitions, audited status history, assignments, comments and evidence metadata." "Spring Web / Spring Data JPA" {
                     tags "Incidents"
                 }
-                urbancontext = component "urbancontext" "External data: adapters for Open Data Málaga, OpenStreetMap, Open-Meteo and TomTom; loading of reference data, geocoding and asynchronous enrichment of incidents with timeouts and graceful degradation." "Spring Service / Spring Data JPA" {
+                urbancontext = component "urbancontext" "External data: adapters for Open Data Málaga, OpenStreetMap and Open-Meteo (ADR-0018), and TomTom if ADR-0024 is accepted; loading of reference data, geocoding and asynchronous enrichment of incidents with timeouts and graceful degradation." "Spring Service / Spring Data JPA" {
                     tags "UrbanContext"
                     url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0009-urban-data-source.md
                 }
@@ -172,13 +172,13 @@ workspace "UrbanPulse" "C4 Model" {
         }
 
         openmeteo = softwareSystem "Open-Meteo" "Current weather by coordinates (WMO weather code, wind, precipitation). No API key." {
-            tags "ExternalAPI,Proposed"
+            tags "ExternalAPI"
             url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0018-weather-and-traffic-providers.md
         }
 
         tomtom = softwareSystem "TomTom Traffic" "Traffic Flow Segment Data: current and free-flow speed of the road nearest to a point." {
             tags "ExternalAPI,Proposed"
-            url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0018-weather-and-traffic-providers.md
+            url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0024-traffic-provider.md
         }
 
         brevo = softwareSystem "Brevo" "Transactional email API (EU-based provider)." {

@@ -71,7 +71,9 @@ services:
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
       # Evidence storage policy (ADR-0013). frontend/nginx.conf accepts requests of 10 MB plus the
       # multipart headers: change it with EVIDENCE_MAX_FILE_SIZE.
-      STORAGE_BASE_PATH: ${STORAGE_BASE_PATH:-/app/storage}
+      # Fixed to the mount point of evidence_data, not read from .env: another folder would keep
+      # the photos in the container, and they would be lost when it is recreated (#275).
+      STORAGE_BASE_PATH: /app/storage
       EVIDENCE_MAX_FILE_SIZE: ${EVIDENCE_MAX_FILE_SIZE:-10MB}
       EVIDENCE_MAX_FILES_PER_INCIDENT: ${EVIDENCE_MAX_FILES_PER_INCIDENT:-5}
       # Every request comes from nginx, so Tomcat takes the client address, the scheme, the host
