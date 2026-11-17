@@ -13,6 +13,7 @@ import java.time.Clock;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,6 +50,7 @@ public class IncidentLifecycleService {
      *     (ADR-0020). It is checked here and not with Bean Validation, which would answer before
      *     the role.
      * @return the incident after the change, with its new {@code version}
+     * @throws InsufficientAuthenticationException if the user of the token does not exist
      * @throws IncidentNotFoundException if it does not exist or the caller may not see it
      * @throws ObjectOptimisticLockingFailureException if the incident changed since the caller read
      *     it, now or while this change was being saved
@@ -76,6 +78,7 @@ public class IncidentLifecycleService {
      * @param expectedVersion as the request sent it; missing or negative is a {@code 422} on {@code
      *     version}, answered only when the transition would be allowed, as in the other overload
      * @param details looks up the data; it may throw {@link InvalidIncidentDataException}
+     * @throws InsufficientAuthenticationException if the user of the token does not exist
      */
     public IncidentResponse changeStatus(
             UUID incidentId,
@@ -84,16 +87,20 @@ public class IncidentLifecycleService {
             Supplier<TransitionDetails> details,
             UUID userId,
             Role role) {
+        // The actor first, as createIncident does: without a user there is no access to check, and
+        // a technician who no longer exists would otherwise get 404 instead of 401.
+        var actor =
+                users.findById(userId)
+                        .orElseThrow(
+                                () ->
+                                        new InsufficientAuthenticationException(
+                                                "The user does not exist"));
         var incident =
                 incidents
                         .findOne(
                                 IncidentReadAccess.visibleTo(userId, role)
                                         .and(IncidentReadAccess.withId(incidentId)))
                         .orElseThrow(() -> new IncidentNotFoundException(incidentId));
-        var actor =
-                users.findById(userId)
-                        .orElseThrow(
-                                () -> new IllegalStateException("User " + userId + " not found"));
         if (expectedVersion == null || expectedVersion < 0) {
             // Without a version there is no conflict to detect: like any other invalid data, it
             // is a 422 only if the transition itself is allowed.

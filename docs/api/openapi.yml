@@ -870,7 +870,8 @@ paths:
 
         Sortable property: `instant`. Default `instant,asc` (oldest first, as the history); `id` is
         always added as the last criterion so the order is stable between pages. An incident never
-        classified returns `200` with an empty page.
+        classified returns `200` with an empty page. An unknown parameter, or one without a value,
+        returns `400`.
 
         Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`, `TECHNICIAN` (actively assigned; any other
         technician gets `404`). `CITIZEN` and `ANALYST` get `403`.
@@ -1844,8 +1845,9 @@ components:
       in: query
       description: >-
         Only incidents reported at or after this instant (included). An RFC 3339 date-time with its
-        offset (`Z` for UTC; `+` encoded as `%2B` in the URL); without an offset it returns `400`.
-        It must be earlier than `reportedTo`, or the request returns `400`.
+        offset (`Z` for UTC; `+` encoded as `%2B` in the URL); without an offset, or outside the
+        years 1 to 9999, it returns `400`. It must be earlier than `reportedTo`, or the request
+        returns `400`.
       schema:
         type: string
         format: date-time
@@ -1879,7 +1881,9 @@ components:
     Page:
       name: page
       in: query
-      description: Page number, starting at 0.
+      description: >-
+        Page number, starting at 0. A page that starts past item 2,147,483,647 (`page` times `size`)
+        returns `400`.
       schema:
         type: integer
         format: int32

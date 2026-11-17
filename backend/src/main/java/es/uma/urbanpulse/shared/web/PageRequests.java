@@ -25,10 +25,18 @@ public final class PageRequests {
      * @param sort {@code property,asc} or {@code property,desc}; {@code null} for the default
      * @param sortable the properties the listing documents in the contract
      * @param defaultSort the order when {@code sort} is absent
-     * @throws MalformedRequestException if {@code sort} is malformed or not one of {@code sortable}
+     * @throws MalformedRequestException if {@code sort} is malformed or not one of {@code
+     *     sortable}, or the page starts past the last row a query can skip
      */
     public static PageRequest of(
             int page, int size, String sort, Set<String> sortable, Sort defaultSort) {
+        // JPA takes the first row as an int, so page × size must fit in one.
+        if ((long) page * size > Integer.MAX_VALUE) {
+            throw new MalformedRequestException(
+                    "The page is too far: page times size must not exceed "
+                            + Integer.MAX_VALUE
+                            + ".");
+        }
         return PageRequest.of(page, size, order(sort, sortable, defaultSort).and(Sort.by(ID)));
     }
 

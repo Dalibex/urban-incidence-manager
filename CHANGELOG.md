@@ -33,6 +33,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
 - A web list opened on a very large page number, such as `/inbox?page=9999999999`, says that the page has no incidents, users or entries instead of failing to load (#283).
 - Creating a staff account again after the answer of the first attempt was lost no longer says only that the email has an account: the web says the account may have been created and leads to it in the list (#283).
 - The mobile app tells a staff account that must change its password to do it on the website first, instead of "Sign-in failed. Try again in a moment." (#283).
+- `400` instead of `500` for an empty value in an incident filter (`?status=REPORTED,`), a reporting date outside the years 1 to 9999 and a page past item 2,147,483,647, `400` instead of ignoring an unknown parameter of the classification changes, and `401` instead of `500` or `404` for a lifecycle action by a user who no longer exists (#282).
 
 ## [0.2.0] - 2026-11-14
 

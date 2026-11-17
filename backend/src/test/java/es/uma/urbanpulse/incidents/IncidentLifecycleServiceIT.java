@@ -36,6 +36,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -70,6 +71,7 @@ class IncidentLifecycleServiceIT {
     private UUID otherCitizen;
     private UUID operator;
     private UUID technician;
+    private UUID analyst;
     private UUID incident;
 
     @BeforeEach
@@ -87,6 +89,7 @@ class IncidentLifecycleServiceIT {
                     otherCitizen = persistedUser(Role.CITIZEN).getId();
                     operator = staff.getId();
                     technician = persistedUser(Role.TECHNICIAN).getId();
+                    analyst = persistedUser(Role.ANALYST).getId();
 
                     var location = new Location();
                     location.setCoordinates(WGS84.createPoint(new Coordinate(-4.4214, 36.7213)));
@@ -194,7 +197,7 @@ class IncidentLifecycleServiceIT {
                 List.of(
                         new Caller(otherCitizen, Role.CITIZEN),
                         new Caller(technician, Role.TECHNICIAN),
-                        new Caller(UUID.randomUUID(), Role.ANALYST))) {
+                        new Caller(analyst, Role.ANALYST))) {
             assertThatThrownBy(
                             () ->
                                     lifecycle.changeStatus(
@@ -206,6 +209,27 @@ class IncidentLifecycleServiceIT {
                                             caller.role()))
                     .as("%s", caller)
                     .isInstanceOf(IncidentNotFoundException.class);
+        }
+        assertThat(storedHistory()).containsExactly("REPORTED");
+        assertThat(storedVersion()).isEqualTo(read);
+    }
+
+    @Test
+    void aUserThatDoesNotExistIsNotAuthenticatedWhateverTheRole() {
+        int read = storedVersion();
+
+        for (Role role : Role.values()) {
+            assertThatThrownBy(
+                            () ->
+                                    lifecycle.changeStatus(
+                                            incident,
+                                            read,
+                                            IncidentTransition.VALIDATION,
+                                            TransitionDetails.none(),
+                                            UUID.randomUUID(),
+                                            role))
+                    .as("%s", role)
+                    .isInstanceOf(InsufficientAuthenticationException.class);
         }
         assertThat(storedHistory()).containsExactly("REPORTED");
         assertThat(storedVersion()).isEqualTo(read);

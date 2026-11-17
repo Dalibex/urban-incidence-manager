@@ -275,6 +275,17 @@ class AuditLogApiIT {
                 .andExpect(jsonPath("$.page.size").value(100));
     }
 
+    // #282: page times size beyond what a query can skip is a 400, not a 500; the largest that
+    // fits is an empty page.
+    @Test
+    void aPageTooFarIsABadRequestAndTheLastOneThatFitsIsEmpty() throws Exception {
+        expectBadRequest(list("page", "21474837", "size", "100"));
+
+        list("page", "21474836", "size", "100")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(0));
+    }
+
     // T8
     @Test
     void withoutAValidTokenItIsUnauthorized() throws Exception {
