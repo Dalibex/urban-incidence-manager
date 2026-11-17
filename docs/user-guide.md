@@ -139,8 +139,8 @@ the map is back and you move it to the incident. What you wrote is kept.
 
 If the server cannot be reached, or does not answer (the app waits up to 30 seconds for each
 request), the app says *UrbanPulse cannot be reached. Check your connection and try again.* and
-keeps what you wrote, so you can tap *Submit* again. A report the server kept but whose answer was lost may then appear twice in *My
-reports* (Planned: #289).
+keeps what you wrote, so you can tap *Submit* again. A report the server kept but whose answer was
+lost may then appear twice in *My reports* (Planned: #289).
 
 The report is saved as soon as you submit it. Photos are optional, and a photo that cannot be
 uploaded never loses the report.
@@ -248,8 +248,9 @@ ticked. *Clear filters* lists every incident.
     change is never undone without you seeing it: press *Reload the incident*. The fields you did
     not change show the classification as it is now and what you typed is kept: check them and
     save again.
-  - If the server cannot be reached or answers with an error, nothing is saved and what you typed
-    is kept, so you can save again.
+  - If the server answers with an error, nothing is saved and what you typed is kept, so you can
+    save again. If it cannot be reached, what you typed is kept too, but the change may have been
+    saved anyway ([below](#when-something-fails)).
 - **Validate, request information or reject:** on a reported incident, decide what to do with
   it.
   - *Validate the incident* when it is a real incident the city council handles. Save its category
@@ -262,8 +263,9 @@ ticked. *Clear filters* lists every incident.
     press *Reject the incident*. The citizen sees your reason, so do not write internal data in
     it.
   - If someone else changed the incident since you opened it, nothing is saved: press *Reload the
-    incident* and check it. If the server cannot be reached or answers with an error, nothing is
-    saved either. In both cases what you typed is kept.
+    incident* and check it. If the server answers with an error, nothing is saved either. In both
+    cases what you typed is kept. If it cannot be reached, what you typed is kept too, but the
+    action may have been saved anyway ([below](#when-something-fails)).
 - **Assign or reassign:** on a validated or reopened incident, choose the *Department* that takes
   care of it and, if you want, a *Technician* and a *Team*, and press *Assign the incident*. Without
   a technician, it stays with the department and is in nobody's work queue. On an assigned
@@ -274,8 +276,9 @@ ticked. *Clear filters* lists every incident.
   - If someone else changed the assignment since you opened it, nothing is saved, so their change
     is never undone without you seeing it: press *Reload the incident*. The fields you did not
     change show the assignment as it is now and your choices are kept: check them and assign again.
-  - If the server cannot be reached or answers with an error, nothing is saved and your choices
-    are kept, so you can send them again. If the technicians cannot be loaded, you can still
+  - If the server answers with an error, nothing is saved and your choices are kept, so you can
+    send them again. If it cannot be reached, your choices are kept too, but the assignment may
+    have been saved anyway ([below](#when-something-fails)). If the technicians cannot be loaded, you can still
     assign the department only.
 - **Verify and close, or reopen:** on a resolved incident, check the technician's work. Press
   *Close the incident* when it is well done: closing is final, the incident shows when it was
@@ -285,12 +288,15 @@ ticked. *Clear filters* lists every incident.
   *Incident reopened: it can be assigned again.* only once the server has kept it.
   - If someone else changed the incident since you opened it, or already closed or reopened it,
     nothing is saved: press *Reload the incident* and check its status. Your reason is kept.
-  - If the server cannot be reached or answers with an error, nothing is saved and your reason is
-    kept, so you can send it again.
+  - If the server answers with an error, nothing is saved and your reason is kept, so you can send
+    it again. If it cannot be reached, your reason is kept too, but the action may have been saved
+    anyway ([below](#when-something-fails)).
 - **Comment:** a note for the other staff of the incident, such as instructions for the
   technician, in any status. Write it in *Comment text* (up to 2,000 characters) and press *Add
   comment*. The citizen never sees comments. The page says *Comment added.* only once the server has
   kept it, and then empties the text; if it was not kept, the text stays so you can send it again.
+  If the server could not be reached, the comment may have been kept anyway: check the *History*
+  before sending it again, or it may appear twice.
   The comment then shows in the *History*, without reloading the page.
 
 *Back to the inbox* returns to the list as you left it. An incident that does not exist shows
@@ -365,9 +371,15 @@ before showing it, and the filters stay as they were. If the categories or depar
 loaded, that filter says so and is disabled; the other filters keep working.
 
 Without a connection, the website does not wait for it to come back: a page says that the server
-cannot be reached with *Try again*, and an action says so in its form and keeps what you typed.
-Nothing is sent later on its own, so a rejection you gave up on is never sent once the connection
-returns.
+cannot be reached with *Try again*, and loads by itself once the connection returns. An action says
+so in its form and keeps what you typed. Nothing is sent later on its own, so a rejection you gave up
+on is never sent once the connection returns.
+
+The website waits up to 30 seconds for the server to answer. When it says that the server cannot be
+reached, the change may still have reached it, for example when the connection dropped after the
+server kept it, or the server answered late. Sending it again is safe for every action on the
+incident: if the first one was kept, the page says that the incident changed, and *Reload the
+incident* shows it. A comment has no such check, so look at the *History* before sending it again.
 
 The incident detail is read again when you come back to its tab. If that fails, the incident stays
 on screen with every form and what you typed in it, under a notice that it could not be refreshed,
@@ -413,12 +425,14 @@ The report, its photos, the location and the history, as the operator sees them 
   incident.*
 
 The page says *Incident accepted: it is now in progress.* or *Incident resolved.* only once the
-server has kept the change. If it was not kept, nothing changed and your notes are still there:
+server has kept the change. If it was not kept, your notes are still there:
 
 - Someone else changed the incident since you opened it, or it no longer allows the action:
   press *Reload the incident* and check it before trying again.
 - It is no longer assigned to you: *Reload the incident* shows *Incident not found*.
-- The server cannot be reached or answers with an error: try again.
+- The server answers with an error: nothing changed, try again.
+- The server cannot be reached: the change may have been kept anyway. Try again: if it was kept,
+  the page says that the incident changed, and *Reload the incident* shows it.
 
 An incident that is not assigned to you, opened from a link, shows *Incident not found*.
 
