@@ -80,8 +80,8 @@ or *No* (after the MVP). Whether an issue is finished is in GitHub, not here.
 | RF17 | **Zonal analysis.** Incidents and aggregated context for an area and period. | No | — |
 | RF20 | **Intelligent assistance.** Classify, prioritize, summarize and recommend with a stated confidence. | No | — |
 | RF22 | **Urban asset.** Associate an incident with a nearby urban asset. | No | — |
-| RF23 | **External context** from external sources. | No. The weather and traffic providers are only proposed (ADR-0018). | — |
-| RF24 | **Contextual view.** The operator sees the urban context of an incident. | No | — |
+| RF23 | **External context** from external sources. | No. The weather comes from Open-Meteo (ADR-0018): Planned: #304. The traffic provider is only proposed (ADR-0024). | #304 |
+| RF24 | **Contextual view.** The operator sees the urban context of an incident. | No. The weather in the incident detail: Planned: #304. | #304 |
 | RF25 | **Historical correlation** of incidents with historical urban variables. | No | — |
 
 The schema already has tables for some requirements outside the MVP (`urban_context`,
@@ -128,8 +128,8 @@ goal: Planned: #57.
   | Any but `REJECTED` and `CLOSED` | *Classify* (category and priority with a justification) | #47 |
   | Any | *Comment* (internal, for the staff of the incident) | #50 |
 
-- **Not in the MVP:** urban context, nearby urban assets and duplicate warnings in the detail
-  (RF16, RF22–RF24).
+- **Not in the MVP:** nearby urban assets, duplicate warnings and the traffic in the detail (RF16,
+  RF22–RF24). The weather of the incident: Planned: #304.
 
 ### Web: technician
 
@@ -194,7 +194,7 @@ changed.
 | Reopen | Requires a comment or new evidence; the citizen can answer a reopened incident. | Only an operator reopens, with a required reason; new evidence does not replace it. The citizen does not interact with a reopened incident. | ADR-0020, #52 |
 | Operator inbox | Prioritizes `REPORTED`, with filters by date, category, status, priority, district and department. | Opens filtered by `REPORTED`, and clearing the filters shows every incident; the district filter needs #59 (stretch). | #46, #58, #183 |
 | Notification channels | Push, email and SMS switches in the citizen's profile (RF14, Medium). | Not in the MVP: the delivery providers are only proposed. RF14 stays Medium. | ADR-0019 (proposed) |
-| Operator detail | Urban context (traffic, weather), urban assets and duplicate warnings. | Not in the MVP (RF16, RF22–RF24, Low). | ADR-0018 (proposed) |
+| Operator detail | Urban context (traffic, weather), urban assets and duplicate warnings. | Only the weather enters the MVP (Planned: #304). Traffic, urban assets and duplicate warnings do not (RF16, RF22–RF24, Low). | ADR-0018, ADR-0024 (proposed), #304 |
 | Menus | Administrator: *Users*, *Logs*, *Sources*. Operator: *Incident list*, *Incident map*. Technician: *My work queue*. Citizen: *New*, *My reports*, *Profile*. The analyst had none. | Administrator: *Users*, *Audit log*, plus the operator's screens. Operator: *Inbox*, *Map*. Technician: *Work queue*, *Map*. Analyst: *Reports*. Citizen: unchanged. | `frontend/apps/web/src/routing/sections.tsx`, #41, #42, #53, #127, #196 |
 | Priority of RF18 (audit) | Low | High. `AGENTS.md` makes auditing status changes and administrative actions a domain rule, and Sprint 1 built the audit trail for it. | #36 |
 | Priority of RF19 (reports) | Low | Medium. It is the analyst's only screen in the MVP. | #42 |

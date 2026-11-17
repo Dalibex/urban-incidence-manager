@@ -397,9 +397,10 @@ use another module's services or entities.
 
 Every package has a `package-info.java` that says what it does and which tables it owns.
 
-The external providers proposed for weather and traffic (Open-Meteo and TomTom,
-[ADR-0018](adr/0018-weather-and-traffic-providers.md)) and for notification delivery (Brevo and
-Twilio, [ADR-0019](adr/0019-notification-delivery-providers.md)) are not decided yet: both ADRs are
+The weather comes from Open-Meteo ([ADR-0018](adr/0018-weather-and-traffic-providers.md),
+accepted; Planned: #304). The providers proposed for traffic (TomTom,
+[ADR-0024](adr/0024-traffic-provider.md)) and for notification delivery (Brevo and Twilio,
+[ADR-0019](adr/0019-notification-delivery-providers.md)) are not decided yet: both ADRs are
 *Proposed*.
 
 ## 🧯 Troubleshooting

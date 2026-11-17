@@ -60,8 +60,9 @@ In the order the team prioritises them when two of them conflict:
 - **Time:** the MVP is Sprint 1 (one week, until 2026-11-03) and Sprint 2 (two weeks, until
   2026-11-17). Sprint 3, from 2026-11-18 to 2026-11-24, is for the remaining requirements, and a
   reserve week until 2026-12-01 is for delays and fixes.
-- **Data sources:** Málaga open data and OpenStreetMap, with their usage policies
-  ([ADR-0002](adr/0002-open-street-map.md), [ADR-0009](adr/0009-urban-data-source.md)).
+- **Data sources:** Málaga open data, OpenStreetMap and Open-Meteo for the weather, with their
+  usage policies ([ADR-0002](adr/0002-open-street-map.md), [ADR-0009](adr/0009-urban-data-source.md),
+  [ADR-0018](adr/0018-weather-and-traffic-providers.md)).
 
 ## 🧱 Architecture Summary
 
@@ -88,7 +89,7 @@ Where to look for more:
   containers, the components of the backend, the web app, the mobile app and the database, the
   deployment in development and on a single host, and two dynamic views: sign-in with refresh
   rotation and reporting an incident. See *C4 Model* below.
-- **Decisions:** the [ADRs](adr/). Check each status: 0018 and 0019 are only *Proposed*.
+- **Decisions:** the [ADRs](adr/). Check each status: 0019 and 0024 are only *Proposed*.
 - **API:** the [OpenAPI contract](api/openapi.yml) and the [API guide](api.md).
 - **Deployment:** the [deployment guide](deployment.md).
 - **Data:** the [database guide](database.md) and the [datasets](datasets.md).
@@ -189,8 +190,8 @@ context. It is case 1 of section 9 of `AGENTS.md`.
 
 **Status.** It holds by construction: creating an incident (`IncidentReportService`) uses only the
 database and calls no external source, because none is integrated yet. The test is written with
-the first source adapter (RF21–RF25, after the MVP), which must enrich the incident after it is
-saved, not before.
+the first source adapter, the weather from Open-Meteo (Planned: #307), which enriches the incident
+after it is saved, not before ([ADR-0018](adr/0018-weather-and-traffic-providers.md)).
 
 ### QA-3: Sign-in attempts over the limit are rejected (ADR-0004)
 
@@ -253,9 +254,9 @@ Known limits the team accepts for now. A review does not report them (*Sprint re
 
 ## 📋 ADRs Without a Measurable Evaluation
 
-ADR-0013, ADR-0014, ADR-0017, ADR-0020, ADR-0021 and ADR-0022 state a metric and a threshold,
-and ADR-0016 has thresholds for size and build time ("smooth on a mid-range phone" is not
-measurable yet). ADR-0018 and ADR-0019 are only *Proposed*, and ADR-0012 is superseded by
+ADR-0013, ADR-0014, ADR-0017, ADR-0018, ADR-0020, ADR-0021 and ADR-0022 state a metric and a
+threshold, and ADR-0016 has thresholds for size and build time ("smooth on a mid-range phone" is
+not measurable yet). ADR-0019 and ADR-0024 are only *Proposed*, and ADR-0012 is superseded by
 ADR-0022. The accepted ADRs below have no measurable evaluation; the scenario that would evaluate
 each one:
 
