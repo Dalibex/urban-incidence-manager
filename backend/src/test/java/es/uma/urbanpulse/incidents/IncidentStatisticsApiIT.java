@@ -299,6 +299,34 @@ class IncidentStatisticsApiIT {
         }
     }
 
+    // #282: an empty element of a repeatable filter is a 400.
+    @Test
+    void aFilterWithAnEmptyElementIsMalformed() throws Exception {
+        expectMalformed("status", "REPORTED,");
+        expectMalformed("priority", ",HIGH");
+        expectMalformed("categoryId", UUID.randomUUID() + ",," + UUID.randomUUID());
+        expectMalformed("departmentId", UUID.randomUUID() + ",");
+    }
+
+    // #282: a date outside the years the database holds is a 400; the last year is still valid.
+    @Test
+    void aDateOutsideTheStorableYearsIsMalformedAndYear9999Works() throws Exception {
+        expectMalformed("reportedFrom", "+300000-01-01T00:00:00Z");
+        expectMalformed("reportedTo", "+300000-01-01T00:00:00Z");
+
+        perform(STATISTICS, operator, "reportedFrom", "9999-12-31T00:00:00Z")
+                .andExpect(status().isOk());
+    }
+
+    private void expectMalformed(String... query) throws Exception {
+        var response = perform(STATISTICS, operator, query).andReturn().getResponse();
+        String what = String.join(" ", query);
+        assertThat(response.getStatus()).as("status for %s", what).isEqualTo(400);
+        assertThat((String) JsonPath.read(response.getContentAsString(), "$.code"))
+                .as("code for %s", what)
+                .isEqualTo("MALFORMED_REQUEST");
+    }
+
     // T16: filters that match nothing are a 200 with real zeros and no category or department.
     @Test
     void filtersThatMatchNothingGiveZerosAndNoCategoryOrDepartment() throws Exception {

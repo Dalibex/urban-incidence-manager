@@ -1,5 +1,6 @@
 package es.uma.urbanpulse.shared.web;
 
+import java.time.Instant;
 import java.util.Set;
 import org.springframework.util.MultiValueMap;
 
@@ -11,7 +12,30 @@ import org.springframework.util.MultiValueMap;
  */
 public final class QueryParameters {
 
+    // PostgreSQL's timestamptz cannot hold every year Java parses (+300000 is valid ISO 8601), and
+    // no query of the API is about the years outside these.
+    private static final Instant EARLIEST = Instant.parse("0001-01-01T00:00:00Z");
+    private static final Instant LATEST = Instant.parse("9999-12-31T23:59:59Z");
+
     private QueryParameters() {}
+
+    /**
+     * @param name the parameter the instant comes from, for the message
+     * @param instant {@code null} when the parameter is absent
+     * @return {@code instant}, unchanged
+     * @throws MalformedRequestException if {@code instant} is outside the years 1 to 9999
+     */
+    public static Instant requireStorable(String name, Instant instant) {
+        if (instant != null && (instant.isBefore(EARLIEST) || instant.isAfter(LATEST))) {
+            throw invalidValue(name);
+        }
+        return instant;
+    }
+
+    /** The {@code 400} of a parameter whose value cannot be read. */
+    public static MalformedRequestException invalidValue(String name) {
+        return new MalformedRequestException("Invalid value of the parameter " + name + ".");
+    }
 
     /**
      * @param parameters every parameter of the request, as {@code @RequestParam MultiValueMap}
