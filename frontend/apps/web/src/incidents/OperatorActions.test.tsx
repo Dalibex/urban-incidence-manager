@@ -157,6 +157,38 @@ describe('close or reopen a resolved incident (#52)', () => {
     expect(screen.getByRole('form', { name: 'Classification' })).toBeDefined();
   });
 
+  // A pasted reason is never cut (#283 A): one over the limit is refused before sending, with the
+  // reason, and the text stays as it was pasted.
+  it('refuses a reason of more than 2000 characters before sending anything', async () => {
+    const server = newServer();
+    renderApp(incidentPath(RESOLVED.id), { role: 'MUNICIPAL_OPERATOR', fetch: api(server) });
+    const panel = await actions();
+    const tooLong = 'a'.repeat(2001);
+
+    await userEvent.click(panel.getByLabelText('Reason for reopening'));
+    await userEvent.paste(tooLong);
+    await userEvent.click(panel.getByRole('button', { name: 'Reopen the incident' }));
+
+    expect(await panel.findByText('The reason can have at most 2000 characters.')).toBeDefined();
+    expect(panel.getByLabelText('Reason for reopening')).toHaveProperty('value', tooLong);
+    expect(server.reopened).toEqual([]);
+  });
+
+  it('counts an emoji of the reason as one character, as the API does', async () => {
+    const server = newServer();
+    renderApp(incidentPath(RESOLVED.id), { role: 'MUNICIPAL_OPERATOR', fetch: api(server) });
+    const panel = await actions();
+    // 2000 characters, 4000 UTF-16 units.
+    const emojis = '🌳'.repeat(2000);
+
+    await userEvent.click(panel.getByLabelText('Reason for reopening'));
+    await userEvent.paste(emojis);
+    await userEvent.click(panel.getByRole('button', { name: 'Reopen the incident' }));
+
+    expect(await screen.findByText('Incident reopened: it can be assigned again.')).toBeDefined();
+    expect(server.reopened).toEqual([{ version: RESOLVED.version, reason: emojis }]);
+  });
+
   // T12: a double click sends one request, nothing says success before the answer, and a 409
   // offers to reload the incident.
   it('sends one request on a double click, and offers to reload after a 409', async () => {
