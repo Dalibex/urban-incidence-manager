@@ -16,6 +16,14 @@ and this project follows [Semantic Versioning](https://semver.org/).
 - PostgreSQL gets 256 MB of shared memory (`shm_size`) in both Compose files instead of Docker's 64 MB: with a million incidents, concurrent map, dashboard and report queries failed with `500` (#176).
 - The staff lists filtered by status and priority count their incidents with a new index (migration `V16`): from 254 ms to 4 ms with a million incidents (#176).
 
+### Fixed
+
+- A lifecycle message or reason on the web, such as the rejection reason the citizen reads, is no longer cut without warning when it is pasted over 2,000 characters, or before that with emojis: the form counts characters as the API does and says when the text is too long (#283).
+- The top bar of the web shows the administrator's new name as soon as they rename themselves, instead of the old one until the next sign-in (#283).
+- A web list opened on a very large page number, such as `/inbox?page=9999999999`, says that the page has no incidents, users or entries instead of failing to load (#283).
+- Creating a staff account again after the answer of the first attempt was lost no longer says only that the email has an account: the web says the account may have been created and leads to it in the list (#283).
+- The mobile app tells a staff account that must change its password to do it on the website first, instead of "Sign-in failed. Try again in a moment." (#283).
+
 ## [0.2.0] - 2026-11-14
 
 This version covers the full life of an incident. Operators classify reports on the web and validate them, reject them or ask for more information, then assign them to a department and a technician; technicians accept and resolve their work from a work queue; operators close or reopen the result. Citizens place their report with a pin on the map of Málaga, attach photos and follow its progress on a timeline in the mobile app. It also adds a live incident map with a dashboard, internal comments, user administration, an audit log and operational reports, and a production deployment behind nginx with a single Compose file.
