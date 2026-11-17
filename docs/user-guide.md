@@ -137,6 +137,11 @@ If the map cannot load, a notice replaces it and *Try again* loads it again. Mea
 uses your GPS position; without it, *Submit* stays disabled until your position is back, or until
 the map is back and you move it to the incident. What you wrote is kept.
 
+If the server cannot be reached, or does not answer (the app waits up to 30 seconds for each
+request), the app says *UrbanPulse cannot be reached. Check your connection and try again.* and
+keeps what you wrote, so you can tap *Submit* again. A report the server kept but whose answer was lost may then appear twice in *My
+reports* (Planned: #289).
+
 The report is saved as soon as you submit it. Photos are optional, and a photo that cannot be
 uploaded never loses the report.
 
@@ -359,6 +364,16 @@ server could not be reached or answered with an error. The app retries a few tim
 before showing it, and the filters stay as they were. If the categories or departments cannot be
 loaded, that filter says so and is disabled; the other filters keep working.
 
+Without a connection, the website does not wait for it to come back: a page says that the server
+cannot be reached with *Try again*, and an action says so in its form and keeps what you typed.
+Nothing is sent later on its own, so a rejection you gave up on is never sent once the connection
+returns.
+
+The incident detail is read again when you come back to its tab. If that fails, the incident stays
+on screen with every form and what you typed in it, under a notice that it could not be refreshed,
+with the time it was read and *Try again*. Only the first load of the page shows the failure
+instead of the incident.
+
 In the incident detail, if the photos cannot be listed, the *Photos* section says so with *Try
 again* and the rest of the detail stays. If one photo cannot be loaded, its tile says *This photo
 could not be loaded.* with its own *Try again*, and the other photos still show.
@@ -434,6 +449,8 @@ The menu shows *Users*, where you land, *Inbox*, *Map*, *Audit log* and *Reports
   - Every change appears in the *Audit log*; a name change records that the name changed, not the
     name.
   - If the server cannot be reached, the form says so with *Try again* and keeps what you typed.
+  - If the list cannot be read again, for example when you come back to the tab, it stays on screen
+    with an open account and what you typed in it, under a notice with *Try again*.
 - **Audit log:** who did what and when, newest first, 20 entries per page. Each row shows the
   actor, the action, the record it was about and the values the change replaced and set
   (`role: TECHNICIAN → MUNICIPAL_OPERATOR`). Names and incident titles are the current ones; a
