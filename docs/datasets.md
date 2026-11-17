@@ -45,6 +45,12 @@ PostGIS container.
   again with the new value.
 - Restarting keeps what was created during the demo; only a change to `R__demo_data.sql` or a
   reset inserts the demo data again.
+- Each demo incident has its weather (`urban_context` `COMPLETE`, with its three observations): the
+  real values of Open-Meteo for its position and the 15-minute step of its report, taken once
+  from Open-Meteo's historical data, so the demo needs no call to Open-Meteo. The data is licensed
+  CC BY 4.0, and wherever the weather is shown it says "Weather data by Open-Meteo.com"
+  ([ADR-0018](adr/0018-weather-and-traffic-providers.md)). A report made during the demo gets its
+  weather from Open-Meteo, which needs internet.
 
 ## 📈 Performance Dataset
 

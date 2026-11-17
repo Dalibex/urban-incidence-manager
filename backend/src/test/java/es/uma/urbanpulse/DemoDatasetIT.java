@@ -54,18 +54,13 @@ class DemoDatasetIT {
                     Map.entry("incident", new DatasetRows("e1000000-", 15)),
                     Map.entry("status_change", new DatasetRows("e2000000-", 48)),
                     Map.entry("location", new DatasetRows("e3000000-", 15)),
-                    Map.entry("assignment", new DatasetRows("e4000000-", 8)));
+                    Map.entry("assignment", new DatasetRows("e4000000-", 8)),
+                    Map.entry("urban_context", new DatasetRows("e7000000-", 15)),
+                    Map.entry("external_observation", new DatasetRows("e8000000-", 45)));
 
     /** Tables the story does not use; the dataset empties them like the incident tables. */
     private static final List<String> EMPTY_TABLES =
-            List.of(
-                    "comment",
-                    "attachment",
-                    "urban_context",
-                    "external_observation",
-                    "incident_asset",
-                    "notification",
-                    "audit_log");
+            List.of("comment", "attachment", "incident_asset", "notification", "audit_log");
 
     @Autowired private JdbcTemplate jdbc;
     @Autowired private DataSource dataSource;
