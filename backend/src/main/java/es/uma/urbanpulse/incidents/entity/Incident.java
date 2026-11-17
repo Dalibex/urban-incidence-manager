@@ -3,6 +3,7 @@ package es.uma.urbanpulse.incidents.entity;
 import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.identity.entity.User;
 import es.uma.urbanpulse.shared.error.FieldError;
+import es.uma.urbanpulse.shared.text.Texts;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -314,13 +315,13 @@ public class Incident {
     private void requireData(IncidentTransition transition, TransitionDetails details) {
         var invalid = new ArrayList<FieldError>();
         var reason = details.reason();
-        if (isBlank(reason)) {
+        if (Texts.isBlank(reason)) {
             if (transition.requiresReason()) {
                 invalid.add(new FieldError("reason", "This change needs a reason."));
             } else if (reason != null) {
                 invalid.add(new FieldError("reason", "Write the reason, or leave it out."));
             }
-        } else if (reason.codePointCount(0, reason.length()) > MAX_REASON_LENGTH) {
+        } else if (Texts.length(reason) > MAX_REASON_LENGTH) {
             // Code points, as JSON Schema counts maxLength: an emoji is one character.
             invalid.add(
                     new FieldError(
@@ -371,8 +372,8 @@ public class Incident {
         // Counted in characters (code points), like maxLength in the contract, not in UTF-16 units.
         var team = details.team();
         if (team != null
-                && (onlyWhiteSpace(team)
-                        || team.codePointCount(0, team.length()) > Assignment.TEAM_MAX_LENGTH)) {
+                && (Texts.onlyWhiteSpace(team)
+                        || Texts.length(team) > Assignment.TEAM_MAX_LENGTH)) {
             invalid.add(
                     new FieldError(
                             "team",
@@ -402,11 +403,11 @@ public class Incident {
                                     "priorityReason",
                                     "Send the justification together with a priority."));
         }
-        if (reason == null || onlyWhiteSpace(reason)) {
+        if (Texts.isBlank(reason)) {
             return List.of(new FieldError("priorityReason", "A priority needs its justification."));
         }
         // Code points, as JSON Schema counts maxLength: an emoji is one character.
-        if (reason.codePointCount(0, reason.length()) > MAX_PRIORITY_REASON_LENGTH) {
+        if (Texts.length(reason) > MAX_PRIORITY_REASON_LENGTH) {
             return List.of(
                     new FieldError(
                             "priorityReason",
@@ -460,30 +461,6 @@ public class Incident {
 
     private static boolean sameUser(User one, User other) {
         return one != null && one.getId() != null && one.getId().equals(other.getId());
-    }
-
-    /**
-     * Whether a reason or a justification is missing: {@code null}, or nothing that the {@code
-     * pattern: "\\S"} of the contract accepts, so a text of no-break spaces is blank too.
-     */
-    private static boolean isBlank(String text) {
-        return text == null || onlyWhiteSpace(text);
-    }
-
-    /**
-     * Whether the text has no character that the {@code pattern: "\\S"} of the contract accepts.
-     * JSON Schema patterns use the {@code \s} of ECMA-262, which also counts no-break spaces such
-     * as U+00A0 and U+FEFF; {@link String#isBlank} does not.
-     */
-    private static boolean onlyWhiteSpace(String text) {
-        return text.codePoints()
-                .allMatch(
-                        c ->
-                                Character.getType(c) == Character.SPACE_SEPARATOR
-                                        || (c >= '\t' && c <= '\r')
-                                        || c == 0x2028
-                                        || c == 0x2029
-                                        || c == 0xFEFF);
     }
 
     private static OffsetDateTime utc(Instant instant) {
