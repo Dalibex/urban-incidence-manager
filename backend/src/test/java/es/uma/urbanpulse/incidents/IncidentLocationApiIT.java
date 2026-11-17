@@ -304,6 +304,24 @@ class IncidentLocationApiIT {
         }
     }
 
+    // #282: an empty element of a repeatable filter is a 400.
+    @Test
+    void aFilterWithAnEmptyElementIsMalformed() throws Exception {
+        expectMalformed("status", "REPORTED,");
+        expectMalformed("priority", ",HIGH");
+        expectMalformed("categoryId", category + ",," + category);
+        expectMalformed("departmentId", UUID.randomUUID() + ",");
+    }
+
+    // #282: a date outside the years the database holds is a 400; the last year is still valid.
+    @Test
+    void aDateOutsideTheStorableYearsIsMalformedAndYear9999Works() throws Exception {
+        expectMalformed("reportedFrom", "+300000-01-01T00:00:00Z");
+        expectMalformed("reportedTo", "+300000-01-01T00:00:00Z");
+
+        locations(operator, "reportedFrom", "9999-12-31T00:00:00Z").andExpect(status().isOk());
+    }
+
     private UUID user(Role role) {
         return jdbc.queryForObject(
                 "INSERT INTO users (name, email, password_hash, role)"

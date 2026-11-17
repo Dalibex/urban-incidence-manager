@@ -525,6 +525,21 @@ class IncidentClassificationApiIT {
         changes(operator, UUID.randomUUID(), "").andExpect(status().isNotFound());
     }
 
+    // #282: like every other listing, an unknown or empty parameter is a 400, not the default page.
+    @Test
+    void anUnknownOrEmptyParameterOfTheChangesIsMalformed() throws Exception {
+        UUID incident = classifiedIncident("REPORTED");
+
+        for (String query : new String[] {"?sizee=5", "?size=", "?page=", "?colour=red"}) {
+            changes(operator, incident, query)
+                    .andExpect(status().isBadRequest())
+                    .andExpect(
+                            content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                    .andExpect(jsonPath("$.code").value("MALFORMED_REQUEST"));
+        }
+        changes(operator, incident, "?page=0&size=5&sort=instant,asc").andExpect(status().isOk());
+    }
+
     // T18
     @Test
     void anIncidentNeverClassifiedHasAnEmptyPage() throws Exception {

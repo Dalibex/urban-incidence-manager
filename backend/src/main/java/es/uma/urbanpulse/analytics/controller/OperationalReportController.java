@@ -55,11 +55,6 @@ class OperationalReportController {
                     ", ",
                     Arrays.stream(ReportGrouping.values()).map(ReportGrouping::parameter).toList());
 
-    // PostgreSQL's timestamptz cannot hold every year Java parses (+300000 is valid ISO 8601), and
-    // no report is about the years outside these.
-    private static final Instant EARLIEST = Instant.parse("0001-01-01T00:00:00Z");
-    private static final Instant LATEST = Instant.parse("9999-12-31T23:59:59Z");
-
     private final OperationalReportService reports;
 
     OperationalReportController(OperationalReportService reports) {
@@ -109,12 +104,9 @@ class OperationalReportController {
             instant =
                     OffsetDateTime.parse(value, DateTimeFormatter.ISO_OFFSET_DATE_TIME).toInstant();
         } catch (DateTimeParseException e) {
-            throw invalidValue(name);
+            throw QueryParameters.invalidValue(name);
         }
-        if (instant.isBefore(EARLIEST) || instant.isAfter(LATEST)) {
-            throw invalidValue(name);
-        }
-        return instant;
+        return QueryParameters.requireStorable(name, instant);
     }
 
     private static String single(MultiValueMap<String, String> parameters, String name) {
@@ -126,9 +118,5 @@ class OperationalReportController {
             throw new MalformedRequestException("The parameter " + name + " is repeated.");
         }
         return values.getFirst();
-    }
-
-    private static MalformedRequestException invalidValue(String name) {
-        return new MalformedRequestException("Invalid value of the parameter " + name + ".");
     }
 }

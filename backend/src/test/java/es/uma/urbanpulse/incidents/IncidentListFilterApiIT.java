@@ -275,6 +275,42 @@ class IncidentListFilterApiIT {
         }
     }
 
+    // #282: a repeatable filter with an empty element (a trailing or doubled comma) is a 400.
+    @Test
+    void aFilterWithAnEmptyElementIsABadRequest() throws Exception {
+        String[][] invalid = {
+            {"status", "REPORTED,"},
+            {"status", ",REPORTED"},
+            {"priority", "HIGH,"},
+            {"categoryId", lighting + ",," + potholes},
+            {"departmentId", streetLighting + ","}
+        };
+        for (String[] query : invalid) {
+            expectMalformed(operator, query);
+        }
+    }
+
+    // #282: a date outside the years the database holds is a 400; the last year is still valid.
+    @Test
+    void aDateOutsideTheStorableYearsIsABadRequestAndYear9999Works() throws Exception {
+        expectMalformed(operator, "reportedFrom", "+300000-01-01T00:00:00Z");
+        expectMalformed(operator, "reportedTo", "+300000-01-01T00:00:00Z");
+        expectMalformed(operator, "reportedFrom", "-0001-01-01T00:00:00Z");
+
+        list(operator, "reportedFrom", "9999-12-31T00:00:00Z").andExpect(status().isOk());
+    }
+
+    // #282: page times size beyond what a query can skip is a 400, not a 500; the largest that
+    // fits is an empty page.
+    @Test
+    void aPageTooFarIsABadRequestAndTheLastOneThatFitsIsEmpty() throws Exception {
+        expectMalformed(operator, "page", "21474837", "size", "100");
+
+        list(operator, "page", "21474836", "size", "100")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(0));
+    }
+
     // T10: values that cannot be read are a 400, never a 500 or a silent default.
     @Test
     void invalidFilterValuesAreABadRequest() throws Exception {
