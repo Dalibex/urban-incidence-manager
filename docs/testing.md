@@ -70,6 +70,10 @@ It runs the `test` script of every app and package. Test files sit next to the c
 
 - `apps/web` and `packages/*` use Vitest, with Testing Library (`@testing-library/react`) for the
   web components. Import `describe`, `it`, `expect` and `vi` from `vitest`.
+  Each one keeps its Vitest module cache in its own `node_modules/.vitest-cache`
+  (`--fsModuleCachePath` in its `test` script). By default they would share
+  `frontend/node_modules/.vitest-cache`, and when the lockfile changes every package empties it at
+  once: on Windows one of them failed with `EPERM` or `ENOTEMPTY` (#292).
 - `apps/mobile` uses Jest with the `jest-expo` preset (set in the `jest` field of its
   `package.json`) and `@testing-library/react-native`. Vitest cannot load React Native, which ships
   untranspiled Flow code; `jest-expo` transforms it and mocks the native modules. `describe`, `it`,
