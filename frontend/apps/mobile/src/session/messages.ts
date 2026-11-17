@@ -15,6 +15,9 @@ export function signInMessage(failure: ApiFailure): string {
       return 'The email or the password is not correct.';
     case 'ACCOUNT_DISABLED':
       return 'This account is disabled. Contact the city council.';
+    case 'PASSWORD_CHANGE_REQUIRED':
+      // Only a staff account created by an administrator gets it, and its screens are on the web.
+      return 'This account must change its password first. Sign in on the UrbanPulse website to change it.';
   }
   return failure.status === 429 ? TOO_MANY : 'Sign-in failed. Try again in a moment.';
 }
