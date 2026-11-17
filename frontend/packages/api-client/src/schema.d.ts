@@ -426,7 +426,8 @@ export interface paths {
          *
          *     Sortable property: `instant`. Default `instant,asc` (oldest first, as the history); `id` is
          *     always added as the last criterion so the order is stable between pages. An incident never
-         *     classified returns `200` with an empty page.
+         *     classified returns `200` with an empty page. An unknown parameter, or one without a value,
+         *     returns `400`.
          *
          *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`, `TECHNICIAN` (actively assigned; any other
          *     technician gets `404`). `CITIZEN` and `ANALYST` get `403`.
@@ -2010,13 +2011,13 @@ export interface components {
         CategoryIdFilter: string[];
         /** @description Only incidents with one of these priorities. Repeat it for several values. */
         PriorityFilter: components["schemas"]["Priority"][];
-        /** @description Only incidents reported at or after this instant (included). An RFC 3339 date-time with its offset (`Z` for UTC; `+` encoded as `%2B` in the URL); without an offset it returns `400`. It must be earlier than `reportedTo`, or the request returns `400`. */
+        /** @description Only incidents reported at or after this instant (included). An RFC 3339 date-time with its offset (`Z` for UTC; `+` encoded as `%2B` in the URL); without an offset, or outside the years 1 to 9999, it returns `400`. It must be earlier than `reportedTo`, or the request returns `400`. */
         ReportedFromFilter: string;
         /** @description Only incidents reported before this instant (excluded). The same format as `reportedFrom`. */
         ReportedToFilter: string;
         /** @description Only incidents whose active assignment is in one of these departments. Repeat it for several values. A previous assignment does not count. */
         DepartmentIdFilter: string[];
-        /** @description Page number, starting at 0. */
+        /** @description Page number, starting at 0. A page that starts past item 2,147,483,647 (`page` times `size`) returns `400`. */
         Page: number;
         /** @description Items per page. A value over 100 returns `400`; it is never silently reduced. */
         Size: number;
@@ -2297,7 +2298,7 @@ export interface operations {
     listUsers: {
         parameters: {
             query?: {
-                /** @description Page number, starting at 0. */
+                /** @description Page number, starting at 0. A page that starts past item 2,147,483,647 (`page` times `size`) returns `400`. */
                 page?: components["parameters"]["Page"];
                 /** @description Items per page. A value over 100 returns `400`; it is never silently reduced. */
                 size?: components["parameters"]["Size"];
@@ -2469,7 +2470,7 @@ export interface operations {
     listAuditEntries: {
         parameters: {
             query?: {
-                /** @description Page number, starting at 0. */
+                /** @description Page number, starting at 0. A page that starts past item 2,147,483,647 (`page` times `size`) returns `400`. */
                 page?: components["parameters"]["Page"];
                 /** @description Items per page. A value over 100 returns `400`; it is never silently reduced. */
                 size?: components["parameters"]["Size"];
@@ -2530,7 +2531,7 @@ export interface operations {
     listIncidents: {
         parameters: {
             query?: {
-                /** @description Page number, starting at 0. */
+                /** @description Page number, starting at 0. A page that starts past item 2,147,483,647 (`page` times `size`) returns `400`. */
                 page?: components["parameters"]["Page"];
                 /** @description Items per page. A value over 100 returns `400`; it is never silently reduced. */
                 size?: components["parameters"]["Size"];
@@ -2542,7 +2543,7 @@ export interface operations {
                 categoryId?: components["parameters"]["CategoryIdFilter"];
                 /** @description Only incidents with one of these priorities. Repeat it for several values. */
                 priority?: components["parameters"]["PriorityFilter"];
-                /** @description Only incidents reported at or after this instant (included). An RFC 3339 date-time with its offset (`Z` for UTC; `+` encoded as `%2B` in the URL); without an offset it returns `400`. It must be earlier than `reportedTo`, or the request returns `400`. */
+                /** @description Only incidents reported at or after this instant (included). An RFC 3339 date-time with its offset (`Z` for UTC; `+` encoded as `%2B` in the URL); without an offset, or outside the years 1 to 9999, it returns `400`. It must be earlier than `reportedTo`, or the request returns `400`. */
                 reportedFrom?: components["parameters"]["ReportedFromFilter"];
                 /** @description Only incidents reported before this instant (excluded). The same format as `reportedFrom`. */
                 reportedTo?: components["parameters"]["ReportedToFilter"];
@@ -2666,7 +2667,7 @@ export interface operations {
     listIncidentClassificationChanges: {
         parameters: {
             query?: {
-                /** @description Page number, starting at 0. */
+                /** @description Page number, starting at 0. A page that starts past item 2,147,483,647 (`page` times `size`) returns `400`. */
                 page?: components["parameters"]["Page"];
                 /** @description Items per page. A value over 100 returns `400`; it is never silently reduced. */
                 size?: components["parameters"]["Size"];
@@ -2973,7 +2974,7 @@ export interface operations {
     listIncidentComments: {
         parameters: {
             query?: {
-                /** @description Page number, starting at 0. */
+                /** @description Page number, starting at 0. A page that starts past item 2,147,483,647 (`page` times `size`) returns `400`. */
                 page?: components["parameters"]["Page"];
                 /** @description Items per page. A value over 100 returns `400`; it is never silently reduced. */
                 size?: components["parameters"]["Size"];
@@ -3174,7 +3175,7 @@ export interface operations {
                 categoryId?: components["parameters"]["CategoryIdFilter"];
                 /** @description Only incidents with one of these priorities. Repeat it for several values. */
                 priority?: components["parameters"]["PriorityFilter"];
-                /** @description Only incidents reported at or after this instant (included). An RFC 3339 date-time with its offset (`Z` for UTC; `+` encoded as `%2B` in the URL); without an offset it returns `400`. It must be earlier than `reportedTo`, or the request returns `400`. */
+                /** @description Only incidents reported at or after this instant (included). An RFC 3339 date-time with its offset (`Z` for UTC; `+` encoded as `%2B` in the URL); without an offset, or outside the years 1 to 9999, it returns `400`. It must be earlier than `reportedTo`, or the request returns `400`. */
                 reportedFrom?: components["parameters"]["ReportedFromFilter"];
                 /** @description Only incidents reported before this instant (excluded). The same format as `reportedFrom`. */
                 reportedTo?: components["parameters"]["ReportedToFilter"];
@@ -3219,7 +3220,7 @@ export interface operations {
                 categoryId?: components["parameters"]["CategoryIdFilter"];
                 /** @description Only incidents with one of these priorities. Repeat it for several values. */
                 priority?: components["parameters"]["PriorityFilter"];
-                /** @description Only incidents reported at or after this instant (included). An RFC 3339 date-time with its offset (`Z` for UTC; `+` encoded as `%2B` in the URL); without an offset it returns `400`. It must be earlier than `reportedTo`, or the request returns `400`. */
+                /** @description Only incidents reported at or after this instant (included). An RFC 3339 date-time with its offset (`Z` for UTC; `+` encoded as `%2B` in the URL); without an offset, or outside the years 1 to 9999, it returns `400`. It must be earlier than `reportedTo`, or the request returns `400`. */
                 reportedFrom?: components["parameters"]["ReportedFromFilter"];
                 /** @description Only incidents reported before this instant (excluded). The same format as `reportedFrom`. */
                 reportedTo?: components["parameters"]["ReportedToFilter"];

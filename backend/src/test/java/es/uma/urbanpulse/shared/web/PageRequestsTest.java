@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.data.domain.Sort;
 
@@ -43,5 +44,26 @@ class PageRequestsTest {
                             assertThat(ex.status().value()).isEqualTo(400);
                             assertThat(ex.code()).contains("MALFORMED_REQUEST");
                         });
+    }
+
+    @ParameterizedTest
+    @CsvSource({"21474837, 100", "2147483647, 2", "46341, 46341"})
+    void aPageWhoseFirstRowDoesNotFitAnIntIsABadRequest(int page, int size) {
+        assertThatThrownBy(() -> PageRequests.of(page, size, null, SORTABLE, NEWEST_FIRST))
+                .isInstanceOfSatisfying(
+                        MalformedRequestException.class,
+                        ex -> {
+                            assertThat(ex.status().value()).isEqualTo(400);
+                            assertThat(ex.code()).contains("MALFORMED_REQUEST");
+                        });
+    }
+
+    @ParameterizedTest
+    @CsvSource({"21474836, 100", "46340, 46340", "0, 100", "2147483647, 1"})
+    void aPageWhoseFirstRowFitsAnIntIsAccepted(int page, int size) {
+        var request = PageRequests.of(page, size, null, SORTABLE, NEWEST_FIRST);
+
+        assertThat(request.getPageNumber()).isEqualTo(page);
+        assertThat(request.getPageSize()).isEqualTo(size);
     }
 }

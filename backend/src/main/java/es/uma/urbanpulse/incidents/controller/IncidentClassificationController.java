@@ -7,6 +7,7 @@ import es.uma.urbanpulse.incidents.service.IncidentClassificationService;
 import es.uma.urbanpulse.shared.security.AuthenticatedUser;
 import es.uma.urbanpulse.shared.web.PageRequests;
 import es.uma.urbanpulse.shared.web.PageResponse;
+import es.uma.urbanpulse.shared.web.QueryParameters;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import java.util.Set;
@@ -14,6 +15,7 @@ import java.util.UUID;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -36,6 +38,10 @@ class IncidentClassificationController {
     private static final Set<String> SORTABLE = Set.of("instant");
     private static final Sort OLDEST_FIRST = Sort.by(Sort.Direction.ASC, "instant");
 
+    // Every query parameter of listIncidentClassificationChanges in the contract; any other one is
+    // a 400.
+    private static final Set<String> LIST_PARAMETERS = Set.of("page", "size", "sort");
+
     private final IncidentClassificationService classification;
 
     IncidentClassificationController(IncidentClassificationService classification) {
@@ -56,9 +62,11 @@ class IncidentClassificationController {
     PageResponse<ClassificationChangeResponse> changes(
             @AuthenticationPrincipal AuthenticatedUser user,
             @PathVariable UUID incidentId,
+            @RequestParam MultiValueMap<String, String> parameters,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
             @RequestParam(required = false) String sort) {
+        QueryParameters.requireKnownAndFilled(parameters, LIST_PARAMETERS);
         return classification.changes(
                 incidentId,
                 user.id(),
