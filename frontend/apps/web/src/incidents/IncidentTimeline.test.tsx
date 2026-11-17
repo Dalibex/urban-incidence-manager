@@ -190,10 +190,7 @@ describe('incident timeline', () => {
       fetch: api(server([REPORTED, INFORMATION_REQUEST, VALIDATED], [RECLASSIFIED, CLASSIFIED])),
     });
 
-    // The first test of the file pays the first render of the whole detail (about 300 ms alone,
-    // three times the others), so on a loaded CI runner it can pass the default 1,000 ms (#272).
-    // The limit stays below the 5 s of the test.
-    await waitFor(async () => expect(await entries()).toHaveLength(5), { timeout: 3_000 });
+    await waitFor(async () => expect(await entries()).toHaveLength(5));
     const [reported, informationRequest, classified, reclassified, validated] = await entries();
 
     expect(reported).toContain('Reported');
