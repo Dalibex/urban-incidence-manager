@@ -75,9 +75,11 @@ export function useCreateUser() {
  * Changes the name or role of a user, or deactivates or reactivates the account (#191). The row is
  * replaced in every cached page, but the lists do not reload yet: a change that takes the row out
  * of the filters would unmount the panel that is showing the result. The screen reloads them when
- * the panel closes ({@link useReloadUsers}).
+ * the panel closes ({@link useReloadUsers}). A change of the administrator's own name shows at once
+ * in the navigation bar too.
  */
 export function useUpdateUser(userId: string) {
+  const { showChangedUser } = useSession();
   return useUserChange(
     (api, body: components['schemas']['UpdateUserRequest']) => updateUser(api, userId, body),
     (queryClient, user) => {
@@ -90,6 +92,7 @@ export function useUpdateUser(userId: string) {
           },
       );
       void queryClient.invalidateQueries({ queryKey: USERS_KEY, refetchType: 'none' });
+      showChangedUser(user);
     },
   );
 }

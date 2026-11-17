@@ -69,6 +69,7 @@ What the sign-in messages mean:
 | *The email or the password is not correct.* | Check both; the message does not say which one is wrong, on purpose |
 | *Too many attempts. Wait a few minutes and try again.* | Too many failed attempts with one email; wait and try again ([rate limits](security.md#rate-limits)) |
 | *This account is disabled.* | Ask an administrator (staff) or the city council (citizens) to enable it |
+| *This account must change its password first.* | A new staff account signing in on the phone: sign in on the website first to choose your password (see *First sign-in of a staff account* below) |
 | *UrbanPulse cannot be reached. Check your connection and try again.* | The device has no connection, or the server is down |
 | *Your session has expired. Sign in again.* | The session ended; sign in again, nothing you saved is lost |
 | *Your session could not be checked. Try again in a moment.* | The phone app started, but the saved session could not be checked: the server answered with an error, or the connection dropped while the session was being renewed. You are still signed in; press *Try again* |
@@ -214,7 +215,8 @@ ticked. *Clear filters* lists every incident.
 - *Previous* and *Next* change the page. The filters and the page are part of the address
   (`/inbox?status=REPORTED&page=2`), so you can bookmark them or send them to a colleague. If the
   link or a reload asks you to sign in first, the inbox opens with those filters afterwards. A value
-  in the address that is not valid, such as an unknown status, is left out.
+  in the address that is not valid, such as an unknown status, is left out. A page past the last
+  one, however large its number, says that it has no incidents and offers *Go to the first page*.
 - *Manage* opens the detail of that incident, and *Back to the inbox* returns to the same filters
   and page.
 - When no incident matches, the page says so and offers *Clear filters*.
@@ -262,6 +264,8 @@ ticked. *Clear filters* lists every incident.
   - When it is not an incident the city council handles, write why in *Reason for the citizen* and
     press *Reject the incident*. The citizen sees your reason, so do not write internal data in
     it.
+  - A message or a reason has at most 2,000 characters, an emoji counting as one. A longer one,
+    typed or pasted, is never cut: nothing is sent, and the form says so and keeps your text.
   - If someone else changed the incident since you opened it, nothing is saved: press *Reload the
     incident* and check it. If the server answers with an error, nothing is saved either. In both
     cases what you typed is kept. If it cannot be reached, what you typed is kept too, but the
@@ -451,11 +455,14 @@ The menu shows *Users*, where you land, *Inbox*, *Map*, *Audit log* and *Reports
     (operator, technician, analyst or administrator; citizens create their own account in the
     mobile app). Give the person the password in a safe way: at their first sign-in they must
     choose their own, so the one you typed stops working. An email that already has an account
-    is refused under *Email*.
+    is refused under *Email*. If the server could not be reached and *Try again* then finds the
+    email taken, the first attempt may have created the account before its answer was lost: the
+    form says so, and *Show it in the list* filters the list by that email.
   - **Edit** opens the account under its row: change the name or the role and select *Save changes*.
     Only what you changed is sent, so a change another administrator made to a different field at
     the same time is kept; if you both change the same field, the last save wins. A role change
-    reaches the person at the latest about 15 minutes later, when their session refreshes.
+    reaches the person at the latest about 15 minutes later, when their session refreshes. Your
+    own new name shows in the top bar as soon as it is saved.
   - *Deactivate account* asks you to confirm. The person cannot sign in any more, and their open
     sessions end within about 15 minutes. Accounts are never deleted: incidents and the audit log
     keep referring to them. *Reactivate account* lets them sign in again.
