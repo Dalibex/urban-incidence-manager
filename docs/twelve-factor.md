@@ -106,8 +106,10 @@ deployed ([demo script](demo.md)).
 **Done.** PostgreSQL is an attached resource: the backend gets it from `SPRING_DATASOURCE_URL` and
 its credentials (locally, Spring Boot infers them from Compose). The evidence folder is
 `STORAGE_BASE_PATH`. PostgreSQL is the only backing service today: Redis enters only when a
-measurement or a second replica asks for it ([ADR-0022](adr/0022-redis-from-measurements.md)), and
-the external data sources are not built.
+measurement or a second replica asks for it ([ADR-0022](adr/0022-redis-from-measurements.md)).
+Open-Meteo, the source of the weather, is attached the same way: `OPEN_METEO_BASE_URL` says where it
+answers, so the tests point it to a fake server with no change to the code
+([ADR-0018](adr/0018-weather-and-traffic-providers.md)).
 
 - **It would break if:** moving to another database host meant changing code.
 - **Check:** the smoke test of the `build` job ([CI guide](ci.md), *`build`*) starts the image

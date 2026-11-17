@@ -408,8 +408,11 @@ use another module's services or entities.
 
 Every package has a `package-info.java` that says what it does and which tables it owns.
 
-The weather comes from Open-Meteo ([ADR-0018](adr/0018-weather-and-traffic-providers.md),
-accepted; Planned: #304). The providers proposed for traffic (TomTom,
+The weather of each new incident comes from Open-Meteo ([ADR-0018](adr/0018-weather-and-traffic-providers.md)):
+the report only inserts its `PENDING` `urban_context`, and a scheduled worker of `urbancontext`
+fills it every 30 seconds. The backend run from the IDE calls Open-Meteo too, so it needs
+internet; without it, set `WEATHER_ENRICHMENT_ENABLED=false` in `backend/.env` and the weather
+stays pending. The tests never call it. The providers proposed for traffic (TomTom,
 [ADR-0024](adr/0024-traffic-provider.md)) and for notification delivery (Brevo and Twilio,
 [ADR-0019](adr/0019-notification-delivery-providers.md)) are not decided yet: both ADRs are
 *Proposed*.

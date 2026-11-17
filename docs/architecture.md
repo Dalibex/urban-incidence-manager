@@ -189,9 +189,10 @@ exists.
 context. It is case 1 of section 9 of `AGENTS.md`.
 
 **Status.** It holds by construction: creating an incident (`IncidentReportService`) uses only the
-database and calls no external source, because none is integrated yet. The test is written with
-the first source adapter, the weather from Open-Meteo (Planned: #307), which enriches the incident
-after it is saved, not before ([ADR-0018](adr/0018-weather-and-traffic-providers.md)).
+database. It inserts the `PENDING` urban context in its transaction, and the weather worker of
+`urbancontext` calls Open-Meteo afterwards, outside any report
+([ADR-0018](adr/0018-weather-and-traffic-providers.md)). The test with Open-Meteo down or slow is
+T4 and T15 of #309: Planned: #309.
 
 ### QA-3: Sign-in attempts over the limit are rejected (ADR-0004)
 

@@ -85,7 +85,7 @@ workspace "UrbanPulse" "C4 Model" {
                 incidents = component "incidents" "The incident as the central entity: reporting, location, categories, priority, lifecycle with allowed transitions, audited status history, assignments, comments and evidence metadata." "Spring Web / Spring Data JPA" {
                     tags "Incidents"
                 }
-                urbancontext = component "urbancontext" "External data: adapters for Open Data Málaga, OpenStreetMap and Open-Meteo (ADR-0018), and TomTom if ADR-0024 is accepted; loading of reference data, geocoding and asynchronous enrichment of incidents with timeouts and graceful degradation." "Spring Service / Spring Data JPA" {
+                urbancontext = component "urbancontext" "External data: adapters for Open Data Málaga, OpenStreetMap and Open-Meteo (ADR-0018), and TomTom if ADR-0024 is accepted; loading of reference data, geocoding, and a scheduled worker that fills the weather of the pending contexts after the report, with timeouts and graceful degradation." "Spring Service / Spring Data JPA" {
                     tags "UrbanContext"
                     url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0009-urban-data-source.md
                 }
@@ -102,9 +102,7 @@ workspace "UrbanPulse" "C4 Model" {
                 }
 
                 incidents -> identity "Checks users and roles; writes audit entries in the same transaction"
-                incidents -> urbancontext "Requests context enrichment; it runs asynchronously and never blocks the report (ADR-0009)" "@Async service call" {
-                    tags "Async"
-                }
+                incidents -> urbancontext "Creates the PENDING urban context of a new incident in the report's transaction; the worker fills it afterwards, so the report never waits (ADR-0018)" "Direct service call"
                 incidents -> notifications "Creates notifications on status changes"
                 incidents -> geospatial "Spatial filters on incident locations (radius, district)"
                 urbancontext -> geospatial "Loads reference data; resolves district and nearest asset"
@@ -253,7 +251,7 @@ workspace "UrbanPulse" "C4 Model" {
         urbanpulse.backend.geospatial -> urbanpulse.postgres "urban_asset, incident_asset; PostGIS spatial queries" "JPA/JDBC"
         urbanpulse.backend.notifications -> urbanpulse.postgres "notification" "JPA/JDBC"
         urbanpulse.backend.analytics -> urbanpulse.postgres "Aggregate queries" "Read-only"
-        urbanpulse.backend.urbancontext -> urbanpulse.redis "Caches external responses (TTL)"
+        urbanpulse.backend.urbancontext -> urbanpulse.redis "Caches external responses (TTL), only when a measurement asks for it (ADR-0018, ADR-0022)"
         urbanpulse.backend.geospatial -> urbanpulse.redis "Caches resolved geodata per zone (TTL)"
         urbanpulse.backend.analytics -> urbanpulse.redis "Caches dashboard aggregates (TTL)"
         urbanpulse.backend.incidents -> urbanpulse.evidence_storage "Stores and reads evidence binaries through StorageService"
@@ -447,12 +445,13 @@ workspace "UrbanPulse" "C4 Model" {
 
         dynamic urbanpulse.backend "Dynamic_ReportIncident" {
             title "Reporting an incident from the mobile app"
-            description "RF03 and RF26: the report is saved without urban context, so no external source can block it. The enrichment that follows (ADR-0009) is asynchronous, not built yet, and not shown."
+            description "RF03 and RF26: the report saves only a PENDING urban context, so no external source can block it. The scheduled worker of urbancontext fills its weather from Open-Meteo afterwards (ADR-0018), and is not shown."
             citizen -> urbanpulse.frontend_mobile "Writes a title and description, picks an optional category and confirms the position"
             urbanpulse.frontend_mobile -> urbanpulse.nginx "POST /api/v1/incidents with the access token"
             urbanpulse.nginx -> urbanpulse.backend.incidents "Proxies the request; shared.security validates the token"
             urbanpulse.backend.incidents -> urbanpulse.backend.identity "Loads the reporter"
-            urbanpulse.backend.incidents -> urbanpulse.postgres "In one transaction: the incident, its location and the REPORTED status change"
+            urbanpulse.backend.incidents -> urbanpulse.backend.urbancontext "Creates the PENDING urban context of the incident"
+            urbanpulse.backend.incidents -> urbanpulse.postgres "In one transaction: the incident, its location, the REPORTED status change and, through urbancontext, the PENDING context"
             urbanpulse.backend.incidents -> urbanpulse.nginx "201: the new incident"
             urbanpulse.nginx -> urbanpulse.frontend_mobile "Returns the incident, which appears in My reports"
             autoLayout lr
@@ -555,9 +554,6 @@ workspace "UrbanPulse" "C4 Model" {
             relationship "Relationship" {
                 color "#6b7280"
                 dashed false
-            }
-            relationship "Async" {
-                dashed true
             }
             relationship "Future" {
                 style dotted
