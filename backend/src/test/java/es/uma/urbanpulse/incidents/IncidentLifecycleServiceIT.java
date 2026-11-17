@@ -71,6 +71,7 @@ class IncidentLifecycleServiceIT {
     private UUID otherCitizen;
     private UUID operator;
     private UUID technician;
+    private UUID analyst;
     private UUID incident;
 
     @BeforeEach
@@ -88,6 +89,7 @@ class IncidentLifecycleServiceIT {
                     otherCitizen = persistedUser(Role.CITIZEN).getId();
                     operator = staff.getId();
                     technician = persistedUser(Role.TECHNICIAN).getId();
+                    analyst = persistedUser(Role.ANALYST).getId();
 
                     var location = new Location();
                     location.setCoordinates(WGS84.createPoint(new Coordinate(-4.4214, 36.7213)));
@@ -194,7 +196,8 @@ class IncidentLifecycleServiceIT {
         for (var caller :
                 List.of(
                         new Caller(otherCitizen, Role.CITIZEN),
-                        new Caller(technician, Role.TECHNICIAN))) {
+                        new Caller(technician, Role.TECHNICIAN),
+                        new Caller(analyst, Role.ANALYST))) {
             assertThatThrownBy(
                             () ->
                                     lifecycle.changeStatus(
