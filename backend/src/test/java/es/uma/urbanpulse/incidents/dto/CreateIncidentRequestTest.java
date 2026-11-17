@@ -65,6 +65,48 @@ class CreateIncidentRequestTest {
                 .containsExactly("description");
     }
 
+    // #285: no-break spaces look empty, as the \S of the contract says.
+    @Test
+    void aTitleOrDescriptionOfNoBreakSpacesIsRejected() {
+        var spaces = "\u00A0\u00A0\u00A0";
+        assertThat(paths(request(spaces, spaces, location(36.7213, -4.4214, 12.5))))
+                .containsExactlyInAnyOrder("title", "description");
+    }
+
+    // #285: PostgreSQL cannot store U+0000.
+    @Test
+    void aTitleOrDescriptionWithTheNullCharacterIsRejected() {
+        assertThat(
+                        paths(
+                                request(
+                                        "Street\u0000light",
+                                        "Off\u0000",
+                                        location(36.7213, -4.4214, 12.5))))
+                .containsExactlyInAnyOrder("title", "description");
+    }
+
+    // #285: the limits count characters, as maxLength does, so an emoji is one.
+    @Test
+    void theLimitsCountEmojiAsOneCharacter() {
+        var emoji = "\uD83D\uDE00";
+        var at = location(36.7213, -4.4214, 12.5);
+        assertThat(validator.validate(request(emoji.repeat(120), emoji.repeat(2000), at)))
+                .isEmpty();
+        assertThat(paths(request(emoji.repeat(121), emoji.repeat(2001), at)))
+                .containsExactlyInAnyOrder("title", "description");
+    }
+
+    @Test
+    void lettersBetweenNoBreakSpacesAreAccepted() {
+        assertThat(
+                        validator.validate(
+                                request(
+                                        "\u00A0Street light off\u00A0",
+                                        VALID_DESCRIPTION,
+                                        location(36.7213, -4.4214, 12.5))))
+                .isEmpty();
+    }
+
     @Test
     void aMissingLocationAndMissingCoordinatesAreRejected() {
         assertThat(paths(request(VALID_TITLE, VALID_DESCRIPTION, null)))
