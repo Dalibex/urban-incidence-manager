@@ -4,12 +4,12 @@ import { useSearchParams } from 'react-router';
 
 import styles from '../incidents/Incidents.module.css';
 import { LoadFailure } from '../incidents/LoadFailure';
-import { pageFrom, Pagination } from '../incidents/Pagination';
+import { apiPageOf, pageFrom, Pagination } from '../incidents/Pagination';
 import { ROLE_LABELS } from '../layout/role-labels';
 import { useSession } from '../session/SessionContext';
 import { CreateUserForm } from './CreateUserForm';
 import { filtersFrom, hasFilters, withFilters, type UserFilters } from './user-filters';
-import { useReloadUsers, useUserPage } from './user-queries';
+import { USERS_PAGE_SIZE, useReloadUsers, useUserPage } from './user-queries';
 import { UserEditor } from './UserEditor';
 import { UserFilterBar } from './UserFilterBar';
 import userStyles from './Users.module.css';
@@ -28,12 +28,13 @@ export function UsersPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const filters = filtersFrom(searchParams);
   const page = pageFrom(searchParams.get(PAGE_PARAM));
-  const users = useUserPage(page - 1, filters);
+  const users = useUserPage(apiPageOf(page, USERS_PAGE_SIZE), filters);
   const { user: signedIn } = useSession();
   const firstFilter = useRef<HTMLInputElement>(null);
   const newAccountButton = useRef<HTMLButtonElement>(null);
   const [creating, setCreating] = useState(false);
   const keepFocusAfterReload = useRef(false);
+  const reload = useReloadUsers();
 
   // The reload after a closed panel can remove the row whose button had the focus. The filters are
   // the nearest control left, so a keyboard user does not start again from the top of the page.
@@ -63,6 +64,12 @@ export function UsersPage() {
     setSearchParams(params);
   };
 
+  const closeCreateForm = () => {
+    setCreating(false);
+    // The button was disabled while the form was open and gets the focus back.
+    requestAnimationFrame(() => newAccountButton.current?.focus());
+  };
+
   return (
     <section className={styles.page} aria-labelledby="page-title">
       <header className={`${styles.header} ${userStyles.header}`}>
@@ -86,10 +93,12 @@ export function UsersPage() {
 
       {creating && (
         <CreateUserForm
-          onClose={() => {
-            setCreating(false);
-            // The button was disabled while the form was open and gets the focus back.
-            requestAnimationFrame(() => newAccountButton.current?.focus());
+          onClose={closeCreateForm}
+          onShowInList={(email) => {
+            closeCreateForm();
+            changeFilters({ email });
+            // The list may be cached from before the account was created.
+            void reload();
           }}
         />
       )}
