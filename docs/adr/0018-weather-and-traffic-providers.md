@@ -208,8 +208,9 @@ version of this ADR said, which adds a service with no measured need.
   - With the defaults, the worker keeps up with 40 reports a minute; above that, a backlog builds
     and the weather arrives later.
   - In an outage the worker makes two calls per run instead of one: with the defaults, four a
-    minute, about 5,800 in a whole day without Open-Meteo, under its 10,000 but over the
-    threshold below.
+    minute, about 5,800 in a whole day without Open-Meteo, under its 10,000 a day. The threshold
+    below leaves those days out, because a cache would not save these calls: they retry the same
+    contexts until Open-Meteo answers.
   - A context whose call always fails with a timeout or a `5xx` costs one wasted call per run
     until it reaches `WEATHER_MAX_DELAY`: 120 calls with the defaults.
   - The oldest pending contexts go first, so two contexts in a row at the head of the queue whose
@@ -235,7 +236,9 @@ version of this ADR said, which adds a service with no measured need.
 - **Threshold:**
   - at least 90 % `COMPLETE` within 60 seconds of the report;
   - the p95 of the report stays under QA-1's 500 ms;
-  - calls under 10 % of each free limit: fewer than 60 a minute, 500 an hour and 1,000 a day.
+  - calls under 10 % of each free limit, counted only in the minutes, hours and days in which
+    Open-Meteo answers: fewer than 60 a minute, 500 an hour and 1,000 a day. During an outage the
+    worker bounds them instead, at two calls per run.
 - **Review:** at the first measurement on the demo machine, before a second backend replica, and
   when traffic is decided ([ADR-0024](0024-traffic-provider.md)). If the calls go over their
   threshold, the cache trigger of ADR-0022 is evaluated; if the 90 % is missed, this ADR is.
