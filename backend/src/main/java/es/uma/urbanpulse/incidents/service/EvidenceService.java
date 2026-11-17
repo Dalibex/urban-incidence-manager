@@ -18,9 +18,10 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -34,6 +35,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  */
 @Service
 public class EvidenceService {
+
+    private static final Logger log = LoggerFactory.getLogger(EvidenceService.class);
 
     private final IncidentRepository incidents;
     private final AttachmentRepository attachments;
@@ -83,9 +86,11 @@ public class EvidenceService {
      * (AGENTS.md, section 6), and writes its row in a second one: if the storage fails, no row is
      * written.
      *
-     * <p>Two uploads of the same content at the same time both pass the lookup; the unique index of
-     * {@code V13} keeps only the first row, and the second request removes its file and answers
-     * with the first photo, as a retry.
+     * <p>Another upload or a status change may commit while the file is being stored, so the second
+     * transaction locks the incident and repeats the checks before writing the row (#275). Of two
+     * uploads at once, the second one waits for the first and then finds the same content, which it
+     * answers as a retry, or no room left; if the incident left {@code REPORTED}, a citizen's
+     * upload is refused. In every case the file it stored is removed.
      *
      * @throws IncidentNotFoundException if it does not exist or the caller may not see it
      * @throws AttachmentNotAllowedException if a citizen adds it after {@code REPORTED}
@@ -101,18 +106,28 @@ public class EvidenceService {
 
         var content = checked.content();
         String key = storage.put(content.bytes());
+        Upload upload;
         try {
-            return new Upload(
-                    inTransaction(() -> insert(incidentId, userId, fileName, content, key)), true);
+            upload = inTransaction(() -> insert(incidentId, userId, role, fileName, content, key));
         } catch (RuntimeException e) {
             discard(key, e);
-            if (e instanceof DataIntegrityViolationException) {
-                var winner = inTransaction(() -> existing(incidentId, content.sha256()));
-                if (winner != null) {
-                    return new Upload(winner, false);
-                }
-            }
             throw e;
+        }
+        if (!upload.created()) {
+            removeUnusedFile(key);
+        }
+        return upload;
+    }
+
+    /**
+     * Removes the file of an upload answered with the photo another upload stored. The answer is
+     * already right, so a failure only leaves a file no row points to, which is logged.
+     */
+    private void removeUnusedFile(String key) {
+        try {
+            storage.delete(key);
+        } catch (RuntimeException e) {
+            log.warn("Could not remove the unused evidence file {}", key, e);
         }
     }
 
@@ -121,9 +136,7 @@ public class EvidenceService {
 
     private Checked check(UUID incidentId, UUID userId, Role role, byte[] bytes) {
         var incident = visibleIncident(incidentId, userId, role);
-        if (role == Role.CITIZEN && incident.getStatus() != IncidentStatus.REPORTED) {
-            throw new AttachmentNotAllowedException();
-        }
+        requireOpenTo(role, incident);
         if (bytes.length > limits.maxFileSize().toBytes()) {
             throw new FileTooLargeException();
         }
@@ -132,19 +145,35 @@ public class EvidenceService {
         if (existing != null) {
             return new Checked(content, existing);
         }
-        if (attachments.countByIncidentId(incidentId) >= limits.maxFilesPerIncident()) {
-            throw InvalidIncidentDataException.tooManyFiles(limits.maxFilesPerIncident());
-        }
+        requireRoomIn(incidentId);
         if (!users.existsById(userId)) {
             throw new InsufficientAuthenticationException("The user does not exist");
         }
         return new Checked(content, null);
     }
 
-    private AttachmentResponse insert(
-            UUID incidentId, UUID userId, String fileName, EvidenceContent content, String key) {
+    /** Writes the row of a stored file, after locking the incident and repeating the checks. */
+    private Upload insert(
+            UUID incidentId,
+            UUID userId,
+            Role role,
+            String fileName,
+            EvidenceContent content,
+            String key) {
+        var incident =
+                incidents
+                        .findLockedById(incidentId)
+                        .filter(locked -> isVisible(incidentId, userId, role))
+                        .orElseThrow(() -> new IncidentNotFoundException(incidentId));
+        requireOpenTo(role, incident);
+        var existing = existing(incidentId, content.sha256());
+        if (existing != null) {
+            return new Upload(existing, false);
+        }
+        requireRoomIn(incidentId);
+
         var attachment = new Attachment();
-        attachment.setIncident(incidents.getReferenceById(incidentId));
+        attachment.setIncident(incident);
         attachment.setUploader(users.getReferenceById(userId));
         attachment.setFileName(fileName);
         attachment.setFileType(content.contentType());
@@ -152,7 +181,20 @@ public class EvidenceService {
         attachment.setContentHash(content.sha256());
         attachment.setStorageKey(key);
         attachment.setUploadedAt(OffsetDateTime.now(clock));
-        return AttachmentResponse.of(attachments.saveAndFlush(attachment));
+        return new Upload(AttachmentResponse.of(attachments.saveAndFlush(attachment)), true);
+    }
+
+    /** A citizen may only add photos while the incident is {@code REPORTED}. */
+    private static void requireOpenTo(Role role, Incident incident) {
+        if (role == Role.CITIZEN && incident.getStatus() != IncidentStatus.REPORTED) {
+            throw new AttachmentNotAllowedException();
+        }
+    }
+
+    private void requireRoomIn(UUID incidentId) {
+        if (attachments.countByIncidentId(incidentId) >= limits.maxFilesPerIncident()) {
+            throw InvalidIncidentDataException.tooManyFiles(limits.maxFilesPerIncident());
+        }
     }
 
     /** The photo of the incident with this content, or {@code null}. */

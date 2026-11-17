@@ -96,6 +96,50 @@ export function hasSessionEnded(mark: SessionMark): boolean {
 
 const REFRESH_PATH = '/sessions/refresh';
 
+/**
+ * How long a request waits for the API to start answering (#276). Without a limit, a server that
+ * accepts the connection and never answers, such as a paused container, leaves the screen on
+ * "Sending…" for good: React Native sets no read timeout on Android. Only the wait for the answer
+ * is limited, not the reading of its body, so a photo that keeps arriving on a slow network is not
+ * cut. A refresh after a `401` and the repeated request each have their own limit.
+ */
+export const RESPONSE_TIMEOUT_MS = 30_000;
+
+/**
+ * Sends the request and rejects as a network failure, a `TypeError` like the browser's, when the API
+ * has not answered within {@link RESPONSE_TIMEOUT_MS}. The request is aborted too, but the limit does
+ * not count on it: a runtime that ignores the signal still ends here. An abort asked by the caller
+ * still reaches `fetch`.
+ */
+function sendWithinTime(
+  send: (request: Request) => Promise<Response>,
+  request: Request,
+): Promise<Response> {
+  const controller = new AbortController();
+  const callerSignal = request.signal;
+  const abortWithCaller = () => controller.abort(callerSignal.reason);
+  if (callerSignal.aborted) {
+    abortWithCaller();
+  } else {
+    callerSignal.addEventListener('abort', abortWithCaller, { once: true });
+  }
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => {
+      reject(new TypeError(`The API did not answer within ${RESPONSE_TIMEOUT_MS} ms`));
+      controller.abort();
+    }, RESPONSE_TIMEOUT_MS);
+  });
+  // Started inside the chain, so a `send` that throws at once still clears the timer and listener.
+  const answer = Promise.resolve().then(() =>
+    send(new Request(request, { signal: controller.signal })),
+  );
+  return Promise.race([answer, timeout]).finally(() => {
+    clearTimeout(timer);
+    callerSignal.removeEventListener('abort', abortWithCaller);
+  });
+}
+
 // A 401 from these operations means wrong credentials or a spent refresh token, never an expired
 // access token, so it must not trigger a refresh.
 const PATHS_WITHOUT_REFRESH = new Set(['/sessions', REFRESH_PATH, '/registrations']);
@@ -107,7 +151,8 @@ const PATHS_WITHOUT_REFRESH = new Set(['/sessions', REFRESH_PATH, '/registration
  */
 export function createSessionFetch(baseUrl: string, options: SessionOptions) {
   const { tokenStore, onSessionExpired } = options;
-  const send = (request: Request) => (options.fetch ?? globalThis.fetch)(request);
+  const send = (request: Request) =>
+    sendWithinTime((limited) => (options.fetch ?? globalThis.fetch)(limited), request);
   // The placeholder origin only lets a relative base URL ("/api/v1") be parsed.
   const basePath = withoutTrailingSlashes(new URL(baseUrl, 'http://placeholder').pathname);
   // The last refresh and the access token it replaced. Requests rejected with that token wait for

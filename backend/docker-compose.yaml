@@ -61,8 +61,9 @@ services:
       BOOTSTRAP_ADMIN_NAME: ${BOOTSTRAP_ADMIN_NAME:-}
       BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
-      # Evidence storage policy (ADR-0013)
-      STORAGE_BASE_PATH: ${STORAGE_BASE_PATH:-/app/storage}
+      # Evidence storage policy (ADR-0013). Fixed to the mount point of evidence_data: the
+      # STORAGE_BASE_PATH of .env is the folder of the backend run from the IDE (#275).
+      STORAGE_BASE_PATH: /app/storage
       EVIDENCE_MAX_FILE_SIZE: ${EVIDENCE_MAX_FILE_SIZE:-10MB}
       EVIDENCE_MAX_FILES_PER_INCIDENT: ${EVIDENCE_MAX_FILES_PER_INCIDENT:-5}
     ports:

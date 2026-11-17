@@ -73,6 +73,12 @@ any user and role.
   - **The answer** is the same `401 INVALID_REFRESH_TOKEN` as for an unknown or expired token, so it
     does not tell the client what happened. An expired token is only rejected, even if it had been
     revoked.
+  - **Only a refresh or a sign-out** leaves a revoked token that counts as reused. Revoking every
+    session at once (a password change, a disabled account, or a reuse itself) also makes every
+    token of the user that has not expired expire at that instant, including those a refresh had
+    already revoked (`RefreshTokenRepository.endAll`). Presenting one of them later is only
+    rejected, so it never closes the sessions opened afterwards, such as the one opened with the
+    new password (#275).
   - **The price** is a false alarm when the answer of a refresh is lost (the network drops after the
     server rotated the token, or the app is closed before it saves the new pair): the client still
     holds the spent token, and the user is signed out of every device at its next refresh.
@@ -100,8 +106,9 @@ any user and role.
   backend replica (ADR-0011); with more, each one would run it, which only deletes the same rows.
 - **Sign-out** revokes only that session; other devices stay signed in. A disabled account loses
   every session at its next refresh, and `SessionService.revokeAllSessions` revokes every refresh
-  token at once. In both cases the access tokens already issued keep working until they expire
-  (about 15 minutes): that is the price of not checking the database on every request (ADR-0004).
+  token at once and makes it expire. In both cases the access tokens already issued keep working
+  until they expire (about 15 minutes): that is the price of not checking the database on every
+  request (ADR-0004).
 - **Sign-in with an unknown email** still compares the password against a hash, so it takes as long
   as a wrong password and the response time does not reveal which emails have an account.
 - **Forced change at the first sign-in (#165).** An account with `password_change_required` gets

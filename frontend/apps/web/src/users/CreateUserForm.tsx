@@ -6,7 +6,14 @@ import styles from '../incidents/Incidents.module.css';
 import { ROLE_LABELS } from '../layout/role-labels';
 import { FormField } from './FormField';
 import { EMAIL_MAX_LENGTH, NAME_MAX_LENGTH, passwordTooLong, STAFF_ROLES } from './user-changes';
-import { canRetry, fieldErrorOf, OutcomeMessage, outcomeOf, type Outcome } from './user-outcome';
+import {
+  canRetry,
+  fieldErrorOf,
+  isEmailTaken,
+  OutcomeMessage,
+  outcomeOf,
+  type Outcome,
+} from './user-outcome';
 import { useCreateUser } from './user-queries';
 import userStyles from './Users.module.css';
 
@@ -17,14 +24,20 @@ export const PASSWORD_MIN_LENGTH = 8;
 
 interface CreateUserFormProps {
   onClose: () => void;
+  /** Closes the form and shows in the list the accounts with this email. */
+  onShowInList: (email: string) => void;
 }
 
 /**
  * Creates a staff account (#191). The form keeps what was typed whatever the answer: after a
  * network failure or a `5xx` the administrator sends it again. It says "created" only once the API
  * answered, and a second click while sending creates nothing more (#63, T18 and T19).
+ *
+ * A failure without an answer may come after the API created the account, so a retry with the same
+ * email that the API refuses because the email has an account says that the account may be the
+ * one just created, and leads to the list, instead of marking the email as taken (#283 D).
  */
-export function CreateUserForm({ onClose }: CreateUserFormProps) {
+export function CreateUserForm({ onClose, onShowInList }: CreateUserFormProps) {
   const titleId = useId();
   const create = useCreateUser();
   const sending = useRef(false);
@@ -36,6 +49,10 @@ export function CreateUserForm({ onClose }: CreateUserFormProps) {
   const [role, setRole] = useState<Role | ''>('');
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // The email of the last request whose answer did not arrive, which may have created the account.
+  const unansweredEmail = useRef<string | null>(null);
+  // The email a retry found taken after such a request.
+  const [maybeCreated, setMaybeCreated] = useState<string | null>(null);
 
   // The form appears on a click, so the keyboard user starts typing in it.
   useEffect(() => {
@@ -63,8 +80,16 @@ export function CreateUserForm({ onClose }: CreateUserFormProps) {
     if (!canRetry(outcome)) {
       setOutcome(null);
     }
+    setMaybeCreated(null);
     try {
-      const result = outcomeOf(await create.mutateAsync(body));
+      const answer = await create.mutateAsync(body);
+      if (isEmailTaken(answer) && sameEmail(unansweredEmail.current, body.email)) {
+        setOutcome(null);
+        setMaybeCreated(body.email);
+        return;
+      }
+      const result = outcomeOf(answer);
+      unansweredEmail.current = canRetry(result) ? body.email : null;
       setOutcome(result);
       if (result.kind === 'saved') {
         setName('');
@@ -74,6 +99,7 @@ export function CreateUserForm({ onClose }: CreateUserFormProps) {
         firstField.current?.focus();
       }
     } catch {
+      unansweredEmail.current = body.email;
       setOutcome({ kind: 'failed' });
     } finally {
       sending.current = false;
@@ -164,13 +190,31 @@ export function CreateUserForm({ onClose }: CreateUserFormProps) {
           )}
         </FormField>
       </div>
-      <OutcomeMessage
-        outcome={outcome}
-        saved="Account created. Share the initial password with the person in a safe way."
-        failed="The account could not be created."
-        onRetry={() => void send()}
-        retrying={submitting}
-      />
+      {maybeCreated === null ? (
+        <OutcomeMessage
+          outcome={outcome}
+          saved="Account created. Share the initial password with the person in a safe way."
+          failed="The account could not be created."
+          onRetry={() => void send()}
+          retrying={submitting}
+        />
+      ) : (
+        <div role="alert" className={`${styles.formMessage} ${styles.formError}`}>
+          <p>
+            This email already has an account, which your earlier attempt may have created before
+            its answer was lost. Check it in the list before creating another account.
+          </p>
+          <p>
+            <button
+              type="button"
+              className={styles.button}
+              onClick={() => onShowInList(maybeCreated)}
+            >
+              Show it in the list
+            </button>
+          </p>
+        </div>
+      )}
       <div className={userStyles.buttons}>
         <button type="submit" className={styles.primaryButton} disabled={submitting}>
           {submitting ? 'Creating…' : 'Create account'}
@@ -181,6 +225,11 @@ export function CreateUserForm({ onClose }: CreateUserFormProps) {
       </div>
     </form>
   );
+}
+
+/** Whether two emails are the same address; the case of the letters does not tell them apart. */
+function sameEmail(first: string | null, second: string): boolean {
+  return first !== null && first.toLowerCase() === second.toLowerCase();
 }
 
 /** What is wrong before sending, so an empty field does not cost a request. */
