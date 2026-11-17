@@ -10,6 +10,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
 ### Added
 
 - The backend publishes its metrics in the Prometheus format at `/actuator/prometheus`, without a token, with the latency of each endpoint, the database connection pool, the JVM and the count of reported incidents (`urbanpulse_incidents_reported_total`). The rest of the actuator still needs one (#176).
+- `GET /incidents/{incidentId}/urban-context` gives operators, administrators and the assigned technician the urban context of an incident: its status and, once it is there, its weather with the Open-Meteo attribution. Until the weather enrichment is built, nothing fills it, so an incident answers `UNAVAILABLE`. Citizens and analysts get `403`, and a technician gets `404` for an incident not assigned to them (#306).
 
 ### Changed
 
