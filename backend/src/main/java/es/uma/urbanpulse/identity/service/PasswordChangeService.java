@@ -84,8 +84,7 @@ public class PasswordChangeService {
         var wasRequired = Boolean.TRUE.equals(user.getPasswordChangeRequired());
         user.setPasswordHash(newHash);
         user.setPasswordChangeRequired(false);
-        refreshTokens.revokeAllActive(
-                userId, OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC));
+        refreshTokens.endAll(userId, OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC));
         // The account is its own actor: it is the only one who knows the password.
         audit.record(
                 userId,
