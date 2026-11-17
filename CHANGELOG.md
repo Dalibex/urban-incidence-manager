@@ -15,6 +15,12 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 - PostgreSQL gets 256 MB of shared memory (`shm_size`) in both Compose files instead of Docker's 64 MB: with a million incidents, concurrent map, dashboard and report queries failed with `500` (#176).
 - The staff lists filtered by status and priority count their incidents with a new index (migration `V16`): from 254 ms to 4 ms with a million incidents (#176).
+- `STORAGE_BASE_PATH` in `backend/.env.example` is `./storage`, so the backend run from the IDE or `./mvnw` keeps the photos in `backend/storage/`, which Git ignores. Both Compose files fix the folder of the backend container to its volume at `/app/storage` and no longer read `STORAGE_BASE_PATH` from `.env`, so a different value can no longer leave the photos outside the volume. Change it to `./storage` in a `backend/.env` copied before (#275).
+
+### Fixed
+
+- Two photos uploaded at the same time to an incident with one place left could both be saved and go over `EVIDENCE_MAX_FILES_PER_INCIDENT`, and a citizen's photo uploaded while an operator validated the incident could be saved after it left `REPORTED`. Now the second one answers `422` or `409` and its file is removed (#275).
+- After a password change, or after an account was disabled and enabled again, an old refresh token sent by another tab or device was taken as stolen and closed every session of the user, including the one just opened with the new password. Now it only gets `401` (#275).
 
 ### Fixed
 

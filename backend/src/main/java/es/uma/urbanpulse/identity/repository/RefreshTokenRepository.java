@@ -41,9 +41,17 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
                     + " WHERE t.id = :id AND t.revokedAt IS NULL")
     int revokeIfActive(@Param("id") UUID id, @Param("now") OffsetDateTime now);
 
+    /**
+     * Ends every token of the user that has not expired: revokes it, keeping the instant of an
+     * earlier revocation, and makes it expire now. An expired token is only refused, so a token
+     * ended here never triggers the reuse detection of {@code SessionService.refresh}, which would
+     * close the sessions opened afterwards (#275). Only a token revoked by a refresh or a sign-out
+     * keeps its expiry and stays a sign of reuse.
+     */
     @Modifying(flushAutomatically = true)
     @Query(
-            "UPDATE RefreshToken t SET t.revokedAt = :now"
-                    + " WHERE t.user.id = :userId AND t.revokedAt IS NULL")
-    int revokeAllActive(@Param("userId") UUID userId, @Param("now") OffsetDateTime now);
+            "UPDATE RefreshToken t SET t.revokedAt = COALESCE(t.revokedAt, :now),"
+                    + " t.expiresAt = :now"
+                    + " WHERE t.user.id = :userId AND t.expiresAt > :now")
+    int endAll(@Param("userId") UUID userId, @Param("now") OffsetDateTime now);
 }
