@@ -32,7 +32,9 @@ interface QueryClientOptions {
  * Query pauses them instead: a read stays on its loading state with no way to retry, and a change
  * stays on "Saving…" and is sent by itself when the network comes back, even an action the user
  * gave up on, such as a rejection, which is final. Run anyway, they fail at once, so the screen
- * says that the server cannot be reached and offers to try again.
+ * says that the server cannot be reached and offers to try again. That mode turns off the reload
+ * when the connection comes back, so it is turned on again: a screen that could not be read loads
+ * by itself once the network is back.
  */
 export function createQueryClient({ retryDelay }: QueryClientOptions = {}): QueryClient {
   return new QueryClient({
@@ -42,6 +44,7 @@ export function createQueryClient({ retryDelay }: QueryClientOptions = {}): Quer
         retry: (failureCount, error) => failureCount < MAX_RETRIES && isTransient(error),
         ...(retryDelay === undefined ? {} : { retryDelay }),
         networkMode: 'always',
+        refetchOnReconnect: true,
       },
       mutations: {
         networkMode: 'always',

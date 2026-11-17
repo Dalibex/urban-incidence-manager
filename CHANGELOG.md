@@ -18,7 +18,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
-- Without a connection, the web incident actions no longer stay on *Saving…* and are no longer sent on their own when the connection comes back, and the incident pages and the map no longer wait without a message: they say that the server cannot be reached, with *Try again* (#276).
+- Without a connection, the web incident actions no longer stay on *Saving…* and are no longer sent on their own when the connection comes back, and the incident pages and the map no longer wait without a message: they say that the server cannot be reached, with *Try again*, and load by themselves once the connection is back (#276).
 - A failed reload of the web incident detail or of *Users*, for example when coming back to the tab, keeps the page and what was typed in its forms, with a notice that it could not be refreshed, instead of replacing it with an error (#276).
 - A request the server accepts and never answers ends after waiting 30 seconds for each attempt as *cannot be reached* on the web and the mobile app, which keep the form, instead of waiting for ever on *Sending…* (#276).
 
