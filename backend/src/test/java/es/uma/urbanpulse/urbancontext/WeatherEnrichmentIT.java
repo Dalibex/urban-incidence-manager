@@ -13,6 +13,8 @@ import es.uma.urbanpulse.TestcontainersConfiguration;
 import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.shared.security.TestTokens;
 import es.uma.urbanpulse.urbancontext.service.WeatherEnrichmentWorker;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Duration;
@@ -20,6 +22,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -94,6 +97,7 @@ class WeatherEnrichmentIT {
     @Autowired private TestTokens tokens;
     @Autowired private WeatherEnrichmentWorker worker;
     @Autowired private MutableClock clock;
+    @Autowired private MeterRegistry meters;
 
     private final List<UUID> createdIncidents = new ArrayList<>();
     private UUID citizen;
@@ -230,28 +234,26 @@ class WeatherEnrichmentIT {
     }
 
     // T4: the report does not wait for Open-Meteo: with Open-Meteo slower than its timeout, POST
-    // /incidents answers before Open-Meteo would, and makes no call to it.
+    // /incidents makes no call to it, so nothing in its transaction can wait. No wall-clock time is
+    // measured: on a busy CI runner that would fail for reasons unrelated to Open-Meteo.
     @Test
     void theReportDoesNotWaitForOpenMeteo() throws Exception {
         OPEN_METEO.answerEveryCall(current(61, 10.0, 0.4).after(SLOWER_THAN_THE_TIMEOUT));
-        // A first report warms up the request path, so the time measured is the usual one.
-        report();
 
-        long start = System.nanoTime();
         UUID incident = report();
-        Duration took = Duration.ofNanos(System.nanoTime() - start);
 
-        assertThat(took).isLessThan(SLOWER_THAN_THE_TIMEOUT);
         assertThat(OPEN_METEO.calls()).isZero();
         assertThat(context(incident)).containsEntry("status", "PENDING");
     }
 
-    // T9: a call past the timeout leaves its context PENDING for the next run, and one failure does
-    // not stop the run: the next pending incident is still enriched.
+    // T9: a call past the timeout leaves its context PENDING for the next run, and the incident
+    // itself as it was; one failure does not stop the run: the next pending incident is still
+    // enriched.
     @Test
     void aTimeoutLeavesTheContextPendingAndTheRunGoesOn() {
         UUID older = pendingIncident(minutesAgo(20));
         UUID newer = pendingIncident(minutesAgo(10));
+        Map<String, Object> olderBefore = incidentRow(older);
         OPEN_METEO.answerNext(current(61, 10.0, 0.4).after(SLOWER_THAN_THE_TIMEOUT));
 
         worker.enrichPending();
@@ -260,6 +262,7 @@ class WeatherEnrichmentIT {
                 .containsEntry("status", "PENDING")
                 .containsEntry("weather", null);
         assertThat(observations(older)).isEmpty();
+        assertThat(incidentRow(older)).isEqualTo(olderBefore);
         assertThat(context(newer)).containsEntry("status", "COMPLETE");
 
         worker.enrichPending();
@@ -293,14 +296,17 @@ class WeatherEnrichmentIT {
     }
 
     // T11: an answer without a WMO code or with a code outside the table is UNAVAILABLE; a body
-    // that
-    // cannot be read or a 400 is ERROR. None stores a value, and none is retried.
+    // that cannot be read or a 400 is ERROR. None stores a value, none changes the incident, and
+    // none is retried.
     @Test
     void aMalformedAnswerNeverStoresAValue() {
         UUID withoutCode = pendingIncident(minutesAgo(40));
         UUID unknownCode = pendingIncident(minutesAgo(30));
         UUID unreadable = pendingIncident(minutesAgo(20));
         UUID refused = pendingIncident(minutesAgo(10));
+        List<UUID> all = List.of(withoutCode, unknownCode, unreadable, refused);
+        Map<UUID, Map<String, Object>> before = new HashMap<>();
+        all.forEach(incident -> before.put(incident, incidentRow(incident)));
         OPEN_METEO.answerNext(
                 json("\"wind_speed_10m\": 5.0, \"precipitation\": 0.0"),
                 current(4, 5.0, 0.0),
@@ -313,11 +319,12 @@ class WeatherEnrichmentIT {
         assertThat(context(unknownCode)).containsEntry("status", "UNAVAILABLE");
         assertThat(context(unreadable)).containsEntry("status", "ERROR");
         assertThat(context(refused)).containsEntry("status", "ERROR");
-        for (UUID incident : List.of(withoutCode, unknownCode, unreadable, refused)) {
+        for (UUID incident : all) {
             assertThat(context(incident))
                     .containsEntry("weather", null)
                     .containsEntry("captured_at", null);
             assertThat(observations(incident)).isEmpty();
+            assertThat(incidentRow(incident)).isEqualTo(before.get(incident));
         }
 
         worker.enrichPending();
@@ -371,11 +378,12 @@ class WeatherEnrichmentIT {
         }
     }
 
-    // T14: two runs at once take the same pending incident and both call Open-Meteo, but only one
-    // writes it: one context and one set of observations.
+    // T14: two runs at once take the same pending incident and both get Open-Meteo's answer, but
+    // only one writes it: one context and one set of observations.
     @Test
     void twoRunsAtOnceStoreOneContextAndOneSetOfObservations() {
         UUID incident = pendingIncident(minutesAgo(5));
+        double answeredBefore = answeredCalls();
         // Neither call is answered until both runs have asked, so both took it as PENDING.
         OPEN_METEO.holdAnswersUntil(2);
 
@@ -385,6 +393,9 @@ class WeatherEnrichmentIT {
                 .join();
 
         assertThat(OPEN_METEO.calls()).isEqualTo(2);
+        // Both calls were answered within the client's timeout, so both runs really raced to
+        // write it; a timed-out call would leave the other run alone.
+        assertThat(answeredCalls() - answeredBefore).isEqualTo(2);
         assertThat(
                         jdbc.queryForObject(
                                 "SELECT count(*) FROM urban_context WHERE incident_id = ?",
@@ -393,6 +404,25 @@ class WeatherEnrichmentIT {
                 .isEqualTo(1);
         assertThat(context(incident)).containsEntry("status", "COMPLETE");
         assertThat(observations(incident)).hasSize(3);
+    }
+
+    /** Calls to Open-Meteo that got an answer, from the metric of the worker (ADR-0018). */
+    private double answeredCalls() {
+        Timer answered =
+                meters.find("urbanpulse.weather.requests").tag("outcome", "answered").timer();
+        return answered == null ? 0 : answered.count();
+    }
+
+    /**
+     * What the worker must never change in the incident: its status, classification, version and
+     * last change, and its history.
+     */
+    private Map<String, Object> incidentRow(UUID incident) {
+        return jdbc.queryForMap(
+                "SELECT i.status, i.category_id, i.priority, i.version, i.updated_at,"
+                        + " (SELECT count(*) FROM status_change s WHERE s.incident_id = i.id)"
+                        + " AS history FROM incident i WHERE i.id = ?",
+                incident);
     }
 
     /** Reports an incident through the API as the citizen, and returns its id. */
