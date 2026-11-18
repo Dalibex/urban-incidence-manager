@@ -27,7 +27,7 @@ What each role can do today:
 | Who | App | What they can do |
 | --- | --- | --- |
 | Citizen | Mobile | Sign up, report an incident by placing it on the map, add photos, and follow their reports and what the city answers |
-| Municipal operator | Web | Review new reports in an inbox with filters or on a live map with a dashboard; classify, validate, reject or ask for more information; assign to a department and a technician; close or reopen the result |
+| Municipal operator | Web | Review new reports in an inbox with filters or on a live map with a dashboard, with the weather when each one was reported; classify, validate, reject or ask for more information; assign to a department and a technician; close or reopen the result |
 | Technician | Web | Accept the incidents assigned to them and resolve them with their notes |
 | Administrator | Web | Everything an operator does, plus managing the staff accounts and reading the audit log |
 | Analyst | Web | Operational reports for a period, on screen or as CSV |
