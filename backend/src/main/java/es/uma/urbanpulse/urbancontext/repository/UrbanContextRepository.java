@@ -5,6 +5,7 @@ import es.uma.urbanpulse.urbancontext.entity.UrbanContextStatus;
 import es.uma.urbanpulse.urbancontext.entity.Weather;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,6 +14,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface UrbanContextRepository extends JpaRepository<UrbanContext, UUID> {
+
+    /** Empty for an incident reported before the enrichment existed (ADR-0018). */
+    Optional<UrbanContext> findByIncidentId(UUID incidentId);
 
     /** The oldest reports first, as the worker of ADR-0018 takes them. */
     @Query(

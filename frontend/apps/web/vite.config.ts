@@ -11,6 +11,9 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
+    // Vitest's 5 s default is too tight on a busy machine or with empty caches (#313). It stays
+    // above the wait of `findBy` in `test-setup.ts`, so a missing element fails with its own error.
+    testTimeout: 20_000,
     // Node cannot build a request from a relative URL, as the browser does with `/api/v1`.
     // Quick sign-in off, whatever the local .env says; a test turns it on with `vi.stubEnv`.
     env: {

@@ -114,6 +114,21 @@ public class IncidentQueryService {
                 .toList();
     }
 
+    /**
+     * For the reads of other modules about one incident, such as its urban context, so they apply
+     * the same access rule without loading it.
+     *
+     * @throws IncidentNotFoundException if it does not exist or the caller may not see it
+     */
+    public void requireVisible(UUID incidentId, UUID userId, Role role) {
+        var visible =
+                IncidentReadAccess.visibleTo(userId, role)
+                        .and(IncidentReadAccess.withId(incidentId));
+        if (!incidents.exists(visible)) {
+            throw new IncidentNotFoundException(incidentId);
+        }
+    }
+
     private Incident visibleIncident(UUID incidentId, UUID userId, Role role) {
         return incidents
                 .findOne(

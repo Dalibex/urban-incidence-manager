@@ -3,6 +3,9 @@ package es.uma.urbanpulse.incidents.controller;
 import es.uma.urbanpulse.incidents.entity.IncidentStatus;
 import es.uma.urbanpulse.incidents.entity.Priority;
 import es.uma.urbanpulse.incidents.service.IncidentFilter;
+import es.uma.urbanpulse.shared.web.MalformedRequestException;
+import es.uma.urbanpulse.shared.web.QueryParameters;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -27,7 +30,12 @@ final class IncidentFilterParameters {
 
     private IncidentFilterParameters() {}
 
-    /** Every argument is {@code null} when its parameter is absent. */
+    /**
+     * Every argument is {@code null} when its parameter is absent.
+     *
+     * @throws MalformedRequestException if a list has an empty element, or a date is outside the
+     *     years 1 to 9999
+     */
     static IncidentFilter toFilter(
             List<IncidentStatus> status,
             List<UUID> categoryId,
@@ -36,16 +44,27 @@ final class IncidentFilterParameters {
             OffsetDateTime reportedTo,
             List<UUID> departmentId) {
         return new IncidentFilter(
-                asSet(status),
-                asSet(categoryId),
-                asSet(priority),
-                reportedFrom == null ? null : reportedFrom.toInstant(),
-                reportedTo == null ? null : reportedTo.toInstant(),
-                asSet(departmentId));
+                asSet("status", status),
+                asSet("categoryId", categoryId),
+                asSet("priority", priority),
+                storable("reportedFrom", reportedFrom),
+                storable("reportedTo", reportedTo),
+                asSet("departmentId", departmentId));
     }
 
-    // An absent repeatable parameter arrives as null.
-    private static <T> Set<T> asSet(Collection<T> values) {
-        return values == null ? Set.of() : Set.copyOf(values);
+    // An absent repeatable parameter arrives as null. Spring splits a value on commas and turns an
+    // empty piece (?status=REPORTED, or ?categoryId=a,,b) into a null element.
+    private static <T> Set<T> asSet(String name, Collection<T> values) {
+        if (values == null) {
+            return Set.of();
+        }
+        if (values.contains(null)) {
+            throw new MalformedRequestException("The parameter " + name + " has an empty value.");
+        }
+        return Set.copyOf(values);
+    }
+
+    private static Instant storable(String name, OffsetDateTime value) {
+        return QueryParameters.requireStorable(name, value == null ? null : value.toInstant());
     }
 }

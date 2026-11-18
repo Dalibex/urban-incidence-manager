@@ -375,6 +375,32 @@ class IncidentTechnicianActionApiIT {
         assertUnchanged(incident, "ASSIGNED", 0, 2);
     }
 
+    // A token of a user that no longer exists is 401 before any incident lookup, which for a
+    // technician would otherwise answer 404 (the incident is only visible to the assigned one).
+    @Test
+    void aTokenOfAnUnknownUserIsUnauthorizedOnEveryAction() throws Exception {
+        UUID toAccept = assignedTo(technician, "ASSIGNED");
+        UUID toResolve = assignedTo(technician, "IN_PROGRESS");
+
+        for (String action : ACTIONS) {
+            UUID incident = ACCEPTANCE.equals(action) ? toAccept : toResolve;
+            mvc.perform(
+                            post(actionPath(incident, action))
+                                    .header(
+                                            HttpHeaders.AUTHORIZATION,
+                                            tokens.bearer(UUID.randomUUID(), Role.TECHNICIAN))
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(body(0, RESOLUTION_NOTES)))
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(
+                            content()
+                                    .contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+        }
+
+        assertUnchanged(toAccept, "ASSIGNED", 0, 2);
+        assertUnchanged(toResolve, "IN_PROGRESS", 0, 2);
+    }
+
     /**
      * An incident in {@code status}, actively assigned to {@code assignee}, with two history
      * entries: the report and the last change, which leaves it in {@code status}. Only the status

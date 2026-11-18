@@ -43,6 +43,21 @@ export const MALAGA_CENTER: Coordinates = { latitude: 36.72, longitude: -4.42 };
  */
 export const COVERED_AREA: LngLatBounds = [-5.62, 36.28, -3.75, 37.3];
 
+/** Whether a position is inside the covered area; its border counts as inside. */
+export function isInsideCoveredArea({ latitude, longitude }: Coordinates): boolean {
+  const [west, south, east, north] = COVERED_AREA;
+  return longitude >= west && longitude <= east && latitude >= south && latitude <= north;
+}
+
+/**
+ * Whether the pin stands for a GPS fix outside the covered area. The map stops the pin on its
+ * border, so that fix is not sent and the citizen has to place the pin (#290). The screen shows its
+ * message from this same rule, so the message and a disabled *Submit* never disagree.
+ */
+export function isGpsFixOutsideMap(gps: GpsFix | null, pin: MapPin | null): boolean {
+  return gps !== null && pin?.source === 'gpsFix' && !isInsideCoveredArea(gps);
+}
+
 export function toLngLat({ latitude, longitude }: Coordinates): LngLat {
   return [longitude, latitude];
 }
@@ -56,14 +71,20 @@ export function fromLngLat([longitude, latitude]: readonly [number, number]): Co
  * or the citizen moved it: the start point the map opens on without a fix is nobody's position, and
  * sending it would send someone to the wrong place (AGENTS.md section 3, unknown data is not
  * presented as known). The accuracy goes only while the pin is on the GPS fix, because a radius
- * measured by the device says nothing about a position the citizen chose. Without the map it is the
- * GPS fix. With nothing known there is nothing to send, and the result is `null`.
+ * measured by the device says nothing about a position the citizen chose. A GPS fix outside the
+ * covered area is not sent while the map is on screen: the map stops the pin on its border, so the
+ * citizen would see one place and send another, and the border is nobody's position either (#290).
+ * Without the map it is the GPS fix. With nothing known there is nothing to send, and the result is
+ * `null`.
  */
 export function locationToReport(gps: GpsFix | null, pin: MapPin | null): ReportedLocation | null {
   if (pin?.source === 'citizen') {
     return { latitude: pin.latitude, longitude: pin.longitude };
   }
   if (pin?.source === 'startPoint' || gps === null) {
+    return null;
+  }
+  if (isGpsFixOutsideMap(gps, pin)) {
     return null;
   }
   return {

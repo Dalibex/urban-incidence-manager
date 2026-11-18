@@ -106,6 +106,7 @@ workspace "UrbanPulse" "C4 Model" {
                 incidents -> notifications "Creates notifications on status changes"
                 incidents -> geospatial "Spatial filters on incident locations (radius, district)"
                 urbancontext -> geospatial "Loads reference data; resolves district and nearest asset"
+                urbancontext -> incidents "Checks that the caller may see the incident before reading its context" "Direct service call"
                 notifications -> identity "Gets recipients"
                 identity -> incidents "Reads incident titles for the audit log" "Read-only"
                 analytics -> incidents "Reads incident data" "Read-only"
