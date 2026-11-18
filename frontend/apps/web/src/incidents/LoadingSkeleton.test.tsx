@@ -157,9 +157,12 @@ describe('incident detail while it loads (#174)', () => {
     for (const title of ['Actions', 'Report', 'Location']) {
       expect(within(skeleton).getByText(title)).toBeDefined();
     }
-    // Only the status is read: the shape and its titles are hidden from screen readers.
+    // Only the status and the name of the page are read (#180): the shape and its titles are
+    // hidden from screen readers.
     expect(skeleton.getAttribute('aria-hidden')).toBe('true');
-    expect(screen.queryByRole('heading')).toBeNull();
+    expect(screen.getAllByRole('heading').map((heading) => heading.textContent)).toEqual([
+      'Incident',
+    ]);
     // The way back does not wait for the incident.
     expect(screen.getByRole('link', { name: 'Back to the inbox' })).toBeDefined();
   });
