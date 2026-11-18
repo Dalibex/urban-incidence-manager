@@ -160,6 +160,12 @@ in every status of the lifecycle with their history, and the assignments, commen
 metadata, urban context, external observations, urban assets and notifications around them. Use it
 to try the API and the clients without creating data by hand.
 
+Its urban contexts cover every status of the schema, but the `PENDING` one belongs to an incident
+reported weeks ago: the first run of the weather worker, 30 seconds after start-up, marks it
+`UNAVAILABLE` because it is past `WEATHER_MAX_DELAY` (ADR-0018), and it stays so until the dataset
+reloads. To keep it `PENDING`, for example to try how the web shows it, start the backend with
+`WEATHER_ENRICHMENT_ENABLED=false`.
+
 > [!CAUTION]
 > The `dev` and `perf` datasets publish their passwords, administrators included. Never activate them
 > on a machine other people can reach: production starts with no profile and no sample data.
@@ -387,7 +393,7 @@ backend/
     |   |-- UrbanpulseApplication.java
     |   |-- identity/        users, roles, sign-up and sessions, access and refresh tokens, audit trail
     |   |-- incidents/       incidents, location, categories, lifecycle, assignments, comments, attachments
-    |   |-- urbancontext/    external context of an incident (no provider integrated yet)
+    |   |-- urbancontext/    external context of an incident: its weather from Open-Meteo, after the report
     |   |-- geospatial/      districts, neighbourhoods, urban assets (PostGIS)
     |   |-- notifications/   notifications (no delivery provider integrated yet)
     |   |-- analytics/       read-only reports over the incidents (operational report)
