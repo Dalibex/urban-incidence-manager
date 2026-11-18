@@ -20,6 +20,8 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- The database refuses to rewrite the history of an incident (`status_change`, migration `V17`), as it already did for the audit log, and two entries of the same instant keep the order of the timeline (#180).
+- Screen readers find the heading of the web incident detail while it loads or after it failed to load, and read "Getting your location…" on the mobile report as one progress element (#180).
 - Two photos uploaded at the same time to an incident with one place left could both be saved and go over `EVIDENCE_MAX_FILES_PER_INCIDENT`, and a citizen's photo uploaded while an operator validated the incident could be saved after it left `REPORTED`. Now the second one answers `422` or `409` and its file is removed (#275).
 - After a password change, or after an account was disabled and enabled again, an old refresh token sent by another tab or device was taken as stolen and closed every session of the user, including the one just opened with the new password. Now it only gets `401` (#275).
 
