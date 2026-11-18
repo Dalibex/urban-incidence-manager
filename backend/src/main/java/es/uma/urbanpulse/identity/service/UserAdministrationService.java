@@ -8,6 +8,7 @@ import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.identity.entity.User;
 import es.uma.urbanpulse.identity.repository.UserRepository;
 import es.uma.urbanpulse.shared.error.FieldError;
+import es.uma.urbanpulse.shared.text.Texts;
 import es.uma.urbanpulse.shared.web.PageResponse;
 import jakarta.validation.Validator;
 import java.util.ArrayList;
@@ -98,7 +99,7 @@ public class UserAdministrationService {
             throw new EmailAlreadyExistsException();
         }
         var user = new User();
-        user.setName(request.name().strip());
+        user.setName(Texts.strip(request.name()));
         user.setEmail(email);
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setRole(request.role());
@@ -145,7 +146,7 @@ public class UserAdministrationService {
                 users.findLockedById(userId).orElseThrow(() -> new UserNotFoundException(userId));
         var self = user.getId().equals(administratorId);
 
-        var newName = request.name() == null ? null : request.name().strip();
+        var newName = request.name() == null ? null : Texts.strip(request.name());
         var renames = newName != null && !newName.equals(user.getName());
         var changesRole = request.role() != null && request.role() != user.getRole();
         var wasEnabled = Boolean.TRUE.equals(user.getEnabled());

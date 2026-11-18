@@ -5,6 +5,7 @@ import es.uma.urbanpulse.identity.dto.UserResponse;
 import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.identity.entity.User;
 import es.uma.urbanpulse.identity.repository.UserRepository;
+import es.uma.urbanpulse.shared.text.Texts;
 import java.time.Clock;
 import java.util.Optional;
 import java.util.UUID;
@@ -46,7 +47,7 @@ public class AccountService {
             throw new EmailAlreadyExistsException();
         }
         var user = new User();
-        user.setName(request.name().strip());
+        user.setName(Texts.strip(request.name()));
         user.setEmail(email);
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setRole(Role.CITIZEN);

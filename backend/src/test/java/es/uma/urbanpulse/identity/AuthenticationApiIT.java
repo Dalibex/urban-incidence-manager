@@ -310,6 +310,15 @@ class AuthenticationApiIT {
         assertThat(usersWithEmail(email)).isZero();
     }
 
+    // #322: String.strip also removes U+001C to U+001F, which the \S of the contract counts as
+    // visible, so such a name passed the check and was stored empty.
+    @Test
+    void aNameOfControlCharactersIsNotStoredEmpty() throws Exception {
+        signUpNamed("\\u001F\\u001C", email, VALID_PASSWORD)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("\u001F\u001C"));
+    }
+
     // #285: the limits count characters, so 100 emoji are a valid name and 101 are not.
     @Test
     void theNameLimitCountsEmojiAsOneCharacter() throws Exception {

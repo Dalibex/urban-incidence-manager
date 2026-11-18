@@ -152,6 +152,20 @@ class UserAdministrationApiIT {
         assertThat(countUsers(email)).isZero();
     }
 
+    // #322: String.strip also removes U+001C to U+001F, which the \S of the contract counts as
+    // visible, so such a name passed the check and was stored empty, on creation and on a rename.
+    @Test
+    void aNameOfControlCharactersIsNotStoredEmpty() throws Exception {
+        var email = "control." + marker + "@example.com";
+        create(body("\\u001F\\u001C", email, GIVEN_PASSWORD, "ANALYST"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("\u001F\u001C"));
+
+        var analyst = user("Diego " + marker, Role.ANALYST, true);
+        update(analyst, "{\"name\":\"\\u001F\\u001C\"}").andExpect(status().isOk());
+        assertThat(column(analyst, "name")).isEqualTo("\u001F\u001C");
+    }
+
     // T8: an email already used, in any case, is 409 and creates nothing.
     @Test
     void aDuplicateEmailIsAConflict() throws Exception {
