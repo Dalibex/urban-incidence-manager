@@ -36,6 +36,23 @@ public final class Texts {
         return text.codePointCount(0, text.length());
     }
 
+    /**
+     * The text without the white space of the contract at both ends. {@link String#strip} also
+     * removes U+001C to U+001F, which the {@code \S} of the contract counts as visible, so a name
+     * that passes {@link Text} could be stored empty.
+     */
+    public static String strip(String text) {
+        int start = 0;
+        int end = text.length();
+        while (start < end && isWhiteSpace(text.codePointAt(start))) {
+            start += Character.charCount(text.codePointAt(start));
+        }
+        while (end > start && isWhiteSpace(text.codePointBefore(end))) {
+            end -= Character.charCount(text.codePointBefore(end));
+        }
+        return text.substring(start, end);
+    }
+
     private static boolean isWhiteSpace(int c) {
         return Character.getType(c) == Character.SPACE_SEPARATOR
                 || (c >= '\t' && c <= '\r')

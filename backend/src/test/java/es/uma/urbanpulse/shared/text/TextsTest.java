@@ -38,4 +38,13 @@ class TextsTest {
         assertThat(Texts.length("😀😀")).isEqualTo(2);
         assertThat(Texts.length("ñandú")).isEqualTo(5);
     }
+
+    @Test
+    void stripRemovesOnlyTheWhiteSpaceOfTheContract() {
+        assertThat(Texts.strip(" \u00A0Ana\u3000\t")).isEqualTo("Ana");
+        // String.strip would remove these, but the \S of the contract counts them as visible.
+        assertThat(Texts.strip("\u001F\u001F")).isEqualTo("\u001F\u001F");
+        assertThat(Texts.strip("\u00A0\u00A0")).isEmpty();
+        assertThat(Texts.strip("\uD83D\uDE00")).isEqualTo("\uD83D\uDE00");
+    }
 }
