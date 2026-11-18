@@ -147,6 +147,9 @@ function api(state: Server, extra: Parameters<typeof fakeApi>[0] = {}) {
     'GET /departments': () => json(200, []),
     'GET /technicians': () => json(200, []),
     [`GET /incidents/${INCIDENT.id}/attachments`]: () => json(200, []),
+    // The weather of the Context section (#308); these tests do not look at it.
+    [`GET /incidents/${INCIDENT.id}/urban-context`]: () =>
+      json(200, { status: 'UNAVAILABLE', capturedAt: null, weather: null }),
     [`GET /incidents/${INCIDENT.id}/status-changes`]: () => state.history(),
     [`GET /incidents/${INCIDENT.id}/classification-changes`]: (request) => {
       state.classificationReads++;

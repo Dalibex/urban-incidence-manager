@@ -81,6 +81,9 @@ function api(
     [`GET /incidents/${ASSIGNED.id}/comments`]: () =>
       json(200, { content: [], page: { number: 0, size: 100, totalElements: 0, totalPages: 0 } }),
     [`GET /incidents/${ASSIGNED.id}/attachments`]: () => json(200, []),
+    // The weather of the Context section (#308); these tests do not look at it.
+    [`GET /incidents/${ASSIGNED.id}/urban-context`]: () =>
+      json(200, { status: 'UNAVAILABLE', capturedAt: null, weather: null }),
     [`GET /incidents/${OTHER_INCIDENT_ID}`]: () =>
       json(404, { status: 404, code: 'NOT_FOUND', title: 'Not Found' }),
     [`POST /incidents/${ASSIGNED.id}/acceptance`]: async (request) => {

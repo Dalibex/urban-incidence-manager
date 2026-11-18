@@ -62,6 +62,9 @@ function api(server: Server) {
     [`GET /incidents/${REPORTED.id}`]: () => server.detail?.() ?? json(200, REPORTED),
     [`GET /incidents/${REPORTED.id}/status-changes`]: () => json(200, []),
     [`GET /incidents/${REPORTED.id}/attachments`]: () => json(200, []),
+    // The weather of the Context section (#308); these tests do not look at it.
+    [`GET /incidents/${REPORTED.id}/urban-context`]: () =>
+      json(200, { status: 'UNAVAILABLE', capturedAt: null, weather: null }),
     [`GET /incidents/${REPORTED.id}/classification-changes`]: () => json(200, EMPTY_PAGE),
     [`GET /incidents/${REPORTED.id}/comments`]: () => json(200, EMPTY_PAGE),
     [`POST /incidents/${REPORTED.id}/rejection`]: () => {
