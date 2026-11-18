@@ -59,9 +59,10 @@ jobs.
 - Rolling back an image does not roll back its migrations. A wrong migration is fixed with a new
   one that rolls forward.
 - Two tables hold history, and triggers stop native SQL from rewriting it: `audit_log` refuses
-  `UPDATE`, `DELETE` and `TRUNCATE` (V8), and `status_change` refuses `UPDATE` (V17). A dataset may
-  still empty `status_change` together with `incident`, because the history goes with its
-  incident.
+  `UPDATE`, `DELETE` and `TRUNCATE` (V8), and `status_change` refuses `UPDATE` and `DELETE` (V17).
+  `TRUNCATE` of `status_change` stays allowed, because the datasets empty it together with
+  `incident` before they load it again. The integration tests remove the history they wrote with
+  `TestHistories`, which turns the triggers off for its own transaction.
 
 ## 📇 Indexes
 

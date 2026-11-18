@@ -3,6 +3,7 @@ package es.uma.urbanpulse.incidents;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import es.uma.urbanpulse.TestHistories;
 import es.uma.urbanpulse.TestcontainersConfiguration;
 import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.incidents.dto.CreateAssignmentRequest;
@@ -82,7 +83,7 @@ class IncidentAssignmentServiceIT {
 
     @AfterEach
     void deleteTheRowsOfTheTest() {
-        jdbc.update("DELETE FROM status_change WHERE incident_id = ?", incident);
+        TestHistories.delete(jdbc, "incident_id = ?", incident);
         jdbc.update("DELETE FROM assignment WHERE incident_id = ?", incident);
         jdbc.update("DELETE FROM location WHERE incident_id = ?", incident);
         jdbc.update("DELETE FROM incident WHERE id = ?", incident);

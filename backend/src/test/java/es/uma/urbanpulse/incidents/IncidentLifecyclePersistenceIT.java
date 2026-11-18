@@ -97,7 +97,25 @@ class IncidentLifecyclePersistenceIT extends PersistenceTestSupport {
                                         UUID.class,
                                         id))
                 .isInstanceOf(DataAccessException.class)
-                .hasMessageContaining("status_change is never rewritten: UPDATE");
+                .hasMessageContaining("status_change is append-only: UPDATE");
+    }
+
+    // #323: nor cut, one entry at a time.
+    @Test
+    void theDatabaseRefusesToDeleteAnEntryOfTheHistory() {
+        Incident incident = incidents.save(reported(persistedUser(Role.CITIZEN)));
+        UUID id = incident.getId();
+        flushAndClear();
+
+        assertThatThrownBy(
+                        () ->
+                                queryNative(
+                                        "DELETE FROM status_change WHERE incident_id = ?"
+                                                + " RETURNING id",
+                                        UUID.class,
+                                        id))
+                .isInstanceOf(DataAccessException.class)
+                .hasMessageContaining("status_change is append-only: DELETE");
     }
 
     // #180: entries of the same instant come in the order of the timeline (instant, then id), not

@@ -3,6 +3,7 @@ package es.uma.urbanpulse.incidents;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import es.uma.urbanpulse.TestHistories;
 import es.uma.urbanpulse.TestcontainersConfiguration;
 import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.identity.entity.User;
@@ -56,9 +57,7 @@ class IncidentReportCounterIT {
     @AfterEach
     void deleteTheRowsOfTheTest() {
         var reported = "SELECT id FROM incident WHERE reporter_id = ?";
-        jdbc.update(
-                "DELETE FROM status_change WHERE incident_id IN (" + reported + ")",
-                citizen.getId());
+        TestHistories.delete(jdbc, "incident_id IN (" + reported + ")", citizen.getId());
         jdbc.update(
                 "DELETE FROM location WHERE incident_id IN (" + reported + ")", citizen.getId());
         jdbc.update("DELETE FROM incident WHERE reporter_id = ?", citizen.getId());
