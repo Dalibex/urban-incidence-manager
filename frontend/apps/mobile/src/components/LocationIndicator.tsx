@@ -6,6 +6,8 @@ import { Button } from './Button';
 
 export const PLACED_BY_HAND = 'Position chosen on the map.';
 
+const GETTING_LOCATION = 'Getting your location…';
+
 export interface LocationIndicatorProps {
   /** What the report will send; `null` when there is nothing to send yet. */
   location: ReportedLocation | null;
@@ -30,9 +32,16 @@ export function LocationIndicator({
 }: LocationIndicatorProps) {
   if (isLoading) {
     return (
-      <View style={styles.row} accessibilityRole="progressbar">
+      // One element with its name, like the loading skeletons: without `accessible`, the role is
+      // lost and screen readers read the spinner and the text one by one.
+      <View
+        style={styles.row}
+        accessible
+        accessibilityRole="progressbar"
+        accessibilityLabel={GETTING_LOCATION}
+      >
         <ActivityIndicator />
-        <Text style={styles.text}>Getting your location…</Text>
+        <Text style={styles.text}>{GETTING_LOCATION}</Text>
       </View>
     );
   }
