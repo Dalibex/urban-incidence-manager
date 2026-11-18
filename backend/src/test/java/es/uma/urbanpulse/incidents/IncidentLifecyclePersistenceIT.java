@@ -1,6 +1,7 @@
 package es.uma.urbanpulse.incidents;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import es.uma.urbanpulse.PersistenceTestSupport;
 import es.uma.urbanpulse.identity.entity.Role;
@@ -21,6 +22,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Coordinate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessException;
 
 /**
  * The history and the assignments that {@link Incident} creates are saved with it, by cascade, so
@@ -76,6 +78,34 @@ class IncidentLifecyclePersistenceIT extends PersistenceTestSupport {
                                 String.class,
                                 id))
                 .isEqualTo(technician.getId().toString());
+    }
+
+    // #180: the history is never rewritten, not even with native SQL (V17).
+    @Test
+    void theDatabaseRefusesToRewriteTheHistory() {
+        Incident incident = incidents.save(reported(persistedUser(Role.CITIZEN)));
+        UUID id = incident.getId();
+        flushAndClear();
+
+        assertThatThrownBy(
+                        () ->
+                                queryNative(
+                                        "UPDATE status_change SET reason = 'Rewritten'"
+                                                + " WHERE incident_id = ? RETURNING id",
+                                        UUID.class,
+                                        id))
+                .isInstanceOf(DataAccessException.class)
+                .hasMessageContaining("status_change is never rewritten: UPDATE");
+    }
+
+    private Incident reported(User citizen) {
+        return Incident.report(
+                citizen,
+                "Street light off",
+                "Off since Monday.",
+                null,
+                locationAt(36.7213, -4.4214),
+                REPORTED_AT);
     }
 
     private User persistedUser(Role role) {

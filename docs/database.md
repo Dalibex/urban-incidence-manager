@@ -58,6 +58,10 @@ jobs.
   ([deployment guide](deployment.md)) so Flyway applies it again from scratch.
 - Rolling back an image does not roll back its migrations. A wrong migration is fixed with a new
   one that rolls forward.
+- Two tables hold history, and triggers stop native SQL from rewriting it: `audit_log` refuses
+  `UPDATE`, `DELETE` and `TRUNCATE` (V8), and `status_change` refuses `UPDATE` (V17). A dataset may
+  still empty `status_change` together with `incident`, because the history goes with its
+  incident.
 
 ## 📇 Indexes
 
