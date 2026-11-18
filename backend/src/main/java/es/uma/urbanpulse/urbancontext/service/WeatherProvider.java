@@ -2,7 +2,8 @@ package es.uma.urbanpulse.urbancontext.service;
 
 /**
  * The current weather at a point (ADR-0018). Open-Meteo is the only implementation; changing to
- * another source, such as AEMET, replaces it and nothing else.
+ * another source, such as AEMET, replaces it and its {@code ContextSource}, whose name is the
+ * stored {@code source}.
  */
 public interface WeatherProvider {
 

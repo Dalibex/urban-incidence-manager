@@ -1,5 +1,6 @@
 package es.uma.urbanpulse.urbancontext.client;
 
+import es.uma.urbanpulse.urbancontext.dto.ContextSource;
 import es.uma.urbanpulse.urbancontext.service.WeatherAnswerRejectedException;
 import es.uma.urbanpulse.urbancontext.service.WeatherEnrichmentProperties;
 import es.uma.urbanpulse.urbancontext.service.WeatherProvider;
@@ -28,8 +29,6 @@ import tools.jackson.databind.json.JsonMapper;
 @Component
 class OpenMeteoClient implements WeatherProvider {
 
-    static final String SOURCE = "Open-Meteo";
-
     private static final String CURRENT = "weather_code,wind_speed_10m,precipitation";
     private static final int TOO_MANY_REQUESTS = 429;
 
@@ -51,7 +50,7 @@ class OpenMeteoClient implements WeatherProvider {
 
     @Override
     public String source() {
-        return SOURCE;
+        return ContextSource.OPEN_METEO.name();
     }
 
     @Override
