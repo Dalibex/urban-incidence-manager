@@ -17,6 +17,7 @@ import es.uma.urbanpulse.incidents.entity.PrioritySource;
 import es.uma.urbanpulse.incidents.entity.StatusChange;
 import es.uma.urbanpulse.incidents.entity.TransitionDetails;
 import es.uma.urbanpulse.incidents.repository.IncidentRepository;
+import es.uma.urbanpulse.incidents.repository.StatusChangeRepository;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -34,6 +35,7 @@ class IncidentLifecyclePersistenceIT extends PersistenceTestSupport {
     private static final Instant LATER = Instant.parse("2026-11-02T10:00:00Z");
 
     @Autowired private IncidentRepository incidents;
+    @Autowired private StatusChangeRepository statusChanges;
 
     @Test
     void savingTheIncidentWritesItsHistoryAndAssignment() {
@@ -60,7 +62,7 @@ class IncidentLifecyclePersistenceIT extends PersistenceTestSupport {
                 IncidentTransition.ASSIGNMENT,
                 operator,
                 TransitionDetails.assignment(department, technician),
-                LATER);
+                LATER.plusSeconds(60));
         UUID id = incident.getId();
         flushAndClear();
 
@@ -96,6 +98,32 @@ class IncidentLifecyclePersistenceIT extends PersistenceTestSupport {
                                         id))
                 .isInstanceOf(DataAccessException.class)
                 .hasMessageContaining("status_change is never rewritten: UPDATE");
+    }
+
+    // #180: entries of the same instant come in the order of the timeline (instant, then id), not
+    // in whatever order the database returns them.
+    @Test
+    void entriesOfTheSameInstantKeepTheOrderOfTheTimeline() {
+        User operator = persistedUser(Role.MUNICIPAL_OPERATOR);
+        Incident incident = reported(persistedUser(Role.CITIZEN));
+        incident.classify(persistedCategory(), REPORTED_AT);
+        incident.prioritize(
+                Priority.LOW, "Side street", PrioritySource.MANUAL, operator, REPORTED_AT);
+        incident = incidents.save(incident);
+        incident.changeStatus(
+                IncidentTransition.VALIDATION, operator, TransitionDetails.none(), LATER);
+        incident.changeStatus(
+                IncidentTransition.ASSIGNMENT,
+                operator,
+                TransitionDetails.assignment(persistedDepartment(), null),
+                LATER);
+        UUID id = incident.getId();
+        flushAndClear();
+
+        assertThat(incidents.findById(id).orElseThrow().getStatusChanges())
+                .extracting(StatusChange::getId)
+                .containsExactlyElementsOf(
+                        statusChanges.findHistory(id).stream().map(StatusChange::getId).toList());
     }
 
     private Incident reported(User citizen) {
