@@ -260,6 +260,12 @@
   margin: 0;
 }
 
+/* The licence of Open-Meteo (CC BY 4.0) asks for it wherever the weather is shown (ADR-0018). */
+.attribution {
+  margin: var(--space-xs) 0 0;
+  font-size: 14px;
+}
+
 .actions {
   background: var(--color-surface);
 }
