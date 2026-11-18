@@ -10,7 +10,7 @@ import { fakeApi, json, renderApp } from '../test-utils';
 import { PENDING_CONTEXT_CHECKS, PENDING_CONTEXT_INTERVAL_MS } from './incident-queries';
 
 type UrbanContext = components['schemas']['UrbanContextResponse'];
-type Answer = () => Response;
+type Answer = () => Response | Promise<Response>;
 
 /** The Context section of the incident detail (#308, ADR-0018). */
 
@@ -68,6 +68,11 @@ const NO_NETWORK: Answer = () => {
   throw new TypeError('Failed to fetch');
 };
 const NOT_AVAILABLE_TEXT = 'The weather is not available for this incident.';
+
+// RESPONSE_TIMEOUT_MS of the API client (packages/api-client/src/session.ts), which it does not
+// export, and the retries of a transient failure in query-client.ts.
+const NO_ANSWER_TIMEOUT_MS = 30_000;
+const CLIENT_RETRIES = 2;
 
 /** The detail of `INCIDENT`; `context` answers each read of its urban context. */
 function detailApi(context: Answer) {
@@ -147,7 +152,52 @@ describe('context section in the incident detail (#308)', () => {
     expect(within(panel).getByRole('heading', { level: 2, name: 'Context' })).toBeTruthy();
   });
 
-  // T19 and T20: the weather is not there, and an unknown weather is never shown as a value.
+  // T6 (#309): every staff role that opens the detail sees the weather, not only the operator.
+  it.each(['ADMINISTRATOR', 'TECHNICIAN'] as const)(
+    'shows the weather to the %s too',
+    async (role) => {
+      renderApp(incidentPath(INCIDENT.id), { role, fetch: detailApi(() => json(200, RAINY)) });
+
+      const panel = within(await findContextPanel());
+
+      expect(await panel.findByText('Rainy')).toBeTruthy();
+      expect(panel.getByRole('link', { name: /Weather data by Open-Meteo\.com/ })).toBeTruthy();
+    },
+  );
+
+  // T6 (#309): each condition of the contract has its own words, none is left as its code.
+  it.each([
+    ['SUNNY', 'Clear'],
+    ['PARTLY_CLOUDY', 'Partly cloudy'],
+    ['CLOUDY', 'Cloudy'],
+    ['FOGGY', 'Foggy'],
+    ['RAINY', 'Rainy'],
+    ['SNOWY', 'Snowy'],
+    ['STORMY', 'Stormy'],
+    ['WINDY', 'Windy'],
+  ] as const)('shows %s as "%s"', async (condition, label) => {
+    openDetail(() => json(200, { ...RAINY, weather: { ...RAINY.weather!, condition } }));
+
+    const panel = within(await findContextPanel());
+
+    expect(await panel.findByText(label)).toBeTruthy();
+    expect(panel.queryByText(condition)).toBeNull();
+  });
+
+  // T19 (#309): a condition the API adds before this app knows it is never a blank value.
+  it('shows a condition it does not know as not available, never blank', async () => {
+    openDetail(() =>
+      json(200, { ...RAINY, weather: { ...RAINY.weather!, condition: 'HAIL' as 'RAINY' } }),
+    );
+
+    const panel = within(await findContextPanel());
+    const value = (await panel.findByText('Weather')).nextElementSibling;
+
+    expect(value?.textContent?.trim()).not.toBe('');
+    expect(value?.textContent).not.toContain('HAIL');
+  });
+
+  // T19 (#309): the weather is not there, and an unknown weather is never shown as a value.
   it.each([
     [
       'ERROR',
@@ -297,7 +347,7 @@ describe('context section in the incident detail (#308)', () => {
     });
   });
 
-  // T19: the endpoint fails.
+  // T20 (#309): the endpoint fails.
   it('shows an alert with a retry when the weather fails, and keeps the rest of the detail', async () => {
     let fails = true;
     openDetail(() => (fails ? SERVER_ERROR() : json(200, RAINY)));
@@ -327,7 +377,35 @@ describe('context section in the incident detail (#308)', () => {
     expect(screen.getByRole('heading', { name: 'Street light off' })).toBeTruthy();
   });
 
-  // T20: the role or the incident is refused; asking again gives the same answer.
+  // T20 (#309): the endpoint never answers, as a paused server does. The client gives up after its
+  // response timeout and every retry, and the section says so with a retry while the rest works.
+  it('shows an alert with a retry when the weather never answers, and keeps the rest of the detail', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let hangs = true;
+    openDetail(() => (hangs ? new Promise<Response>(() => {}) : json(200, RAINY)));
+
+    const panel = within(await findContextPanel());
+    expect(screen.getByRole('heading', { name: 'Street light off' })).toBeTruthy();
+    expect(panel.getByText('Loading the weather…')).toBeTruthy();
+
+    // The first read and its retries each wait for the client's response timeout.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(NO_ANSWER_TIMEOUT_MS * (CLIENT_RETRIES + 1));
+    });
+
+    expect((await panel.findByRole('alert')).textContent).toContain(
+      'The server cannot be reached. Check your connection and try again.',
+    );
+    expect(screen.getByRole('region', { name: 'Report' })).toBeTruthy();
+
+    hangs = false;
+    await userEvent.click(panel.getByRole('button', { name: 'Try again' }));
+
+    expect(await panel.findByText('Rainy')).toBeTruthy();
+    expect(panel.queryByRole('alert')).toBeNull();
+  });
+
+  // The role or the incident is refused; asking again gives the same answer.
   it.each([403, 404])(
     'says the weather is not available on a %i, with nothing to retry',
     async (status) => {
