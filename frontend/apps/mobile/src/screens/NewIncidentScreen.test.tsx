@@ -14,6 +14,7 @@ import {
   MAP_HINT_WITH_GPS,
   MAP_HINT_WITHOUT_GPS,
   NewIncidentScreen,
+  OUTSIDE_COVERED_AREA,
 } from './NewIncidentScreen';
 
 jest.mock('@urbanpulse/api-client', () => ({
@@ -234,6 +235,38 @@ describe('NewIncidentScreen', () => {
       expect(mockedCreateIncident.mock.lastCall?.[1].location).toEqual({
         latitude: 36.7301,
         longitude: -4.4102,
+      });
+    });
+
+    it('asks to place the pin when the GPS fix is outside the map, and sends where the pin is (#290)', async () => {
+      mockedLocation.mockReturnValue({
+        ...LOCATED,
+        gpsFix: { latitude: 40.4168, longitude: -3.7038, accuracy: 10 },
+      });
+      mockedCreateIncident.mockResolvedValue(CREATED);
+      await renderScreen();
+      await act(() => map().props.onDidFinishLoadingMap());
+      // MapLibre keeps the camera inside its bounds: the pin ends on the border, not on Madrid.
+      await act(() =>
+        map().props.onRegionDidChange({
+          nativeEvent: { center: [-3.75, 37.3], userInteraction: false },
+        }),
+      );
+      await fillIn('Street light off', 'Off for three days.');
+
+      expect(screen.getByText(OUTSIDE_COVERED_AREA)).toBeOnTheScreen();
+      expect(screen.queryByText(/Your GPS position/)).not.toBeOnTheScreen();
+      expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled();
+
+      await moveMapTo(-4.4246, 36.7187);
+
+      expect(screen.queryByText(OUTSIDE_COVERED_AREA)).not.toBeOnTheScreen();
+      expect(screen.getByText(PLACED_BY_HAND)).toBeOnTheScreen();
+      await fireEvent.press(screen.getByRole('button', { name: 'Submit' }));
+      await waitFor(() => expect(mockedCreateIncident).toHaveBeenCalledTimes(1));
+      expect(mockedCreateIncident.mock.lastCall?.[1].location).toEqual({
+        latitude: 36.7187,
+        longitude: -4.4246,
       });
     });
 

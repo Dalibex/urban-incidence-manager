@@ -23,7 +23,7 @@ import { FormMessage } from '../components/FormMessage';
 import { LocationIndicator } from '../components/LocationIndicator';
 import { TextField } from '../components/TextField';
 import { useIncidentLocation } from '../hooks/useIncidentLocation';
-import { locationToReport, type MapPin } from '../location/report-location';
+import { isGpsFixOutsideMap, locationToReport, type MapPin } from '../location/report-location';
 import { incidentKeys, useCategories } from '../incidents/incident-queries';
 import type { MainTabsParamList } from '../navigation/MainTabs';
 import { ApiCallError } from '../query-client';
@@ -41,6 +41,8 @@ export const MAP_HINT_WITHOUT_GPS =
   'Without the map, the incident needs your GPS position: try again or allow the location.';
 export const MAP_HINT_GPS_FAILED =
   'Without the map, the incident needs your GPS position: try again or tap "Use my position".';
+export const OUTSIDE_COVERED_AREA =
+  'Your position is outside the area the map covers. Move the map to put the pin on the incident.';
 
 /**
  * Main screen for reporting an incident (RF03, RF04). The position is the pin in the centre of the
@@ -66,6 +68,7 @@ export function NewIncidentScreen({ navigation }: Props) {
 
   const reportedLocation = locationToReport(location.gpsFix, pin);
   const fromGps = location.gpsFix !== null && (pin === null || pin.source === 'gpsFix');
+  const fixOutsideMap = isGpsFixOutsideMap(location.gpsFix, pin);
   // The first fix recentres the map: waiting for it keeps a report from leaving with a pin that is
   // about to move.
   const canSubmit = !location.isLoading && !isSubmitting && reportedLocation !== null;
@@ -175,7 +178,7 @@ export function NewIncidentScreen({ navigation }: Props) {
           location={reportedLocation}
           fromGps={fromGps}
           isLoading={location.isLoading}
-          error={location.error}
+          error={location.error ?? (fixOutsideMap ? OUTSIDE_COVERED_AREA : null)}
           permissionDenied={location.permissionDenied}
           onUseMyPosition={() => void location.refreshLocation()}
           onOpenSettings={() => void location.openSettings()}

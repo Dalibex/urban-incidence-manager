@@ -126,7 +126,9 @@ If the email already has an account, the app says so: sign in instead.
    of Málaga it covers. Under the map, *Your GPS position* shows the accuracy the phone reported
    (for example *Accuracy: 12 m*; outdoors it is usually a few metres, indoors much worse). Once
    you move the map it says *Position chosen on the map*, and no accuracy is sent with the report.
-   *Use my position* reads your position again and puts the pin back on it.
+   *Use my position* reads your position again and puts the pin back on it. If your position is
+   outside that area, the map stops at its border and says so: *Submit* stays disabled until you
+   move the map to the incident.
 3. Write a **title** (a short summary) and a **description** (what happens and where). Both are
    required.
 4. Choose a **category** if one fits. It is optional: staff classify the report if you leave it
