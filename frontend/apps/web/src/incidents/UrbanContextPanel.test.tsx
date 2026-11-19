@@ -256,8 +256,8 @@ describe('context section in the incident detail (#308)', () => {
       expect(await panel.findByText('Rainy')).toBeTruthy();
       // The same region, so a screen reader hears the change instead of a new element.
       expect(panel.getByRole('status')).toBe(status);
-      expect(status.textContent).toContain('Rainy');
-      expect(status.textContent).not.toContain('Getting the weather…');
+      // T21 (#309): one sentence with the weather and its time; Narrator read a list without them.
+      expect(status.textContent).toBe(`Weather: Rainy, recorded ${formatInstant(CAPTURED_AT)}.`);
       expect(contextReads(fetch)).toBe(2);
     });
 

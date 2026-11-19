@@ -17,12 +17,15 @@ type WeatherContext = components['schemas']['WeatherContext'];
  *
  * The state lives in one status region that stays mounted, so a screen reader hears when the
  * weather arrives or the wait ends; a region inserted with its text already in it is often not read.
+ * The region holds one sentence: Narrator read a list in it without its values (#309, T21), so the
+ * visible list of the weather sits after the region.
  */
 export function UrbanContextPanel({ incidentId }: { incidentId: string }) {
   const { context, stoppedWaiting } = useIncidentUrbanContext(incidentId);
   const heading = useRef<HTMLHeadingElement>(null);
   const checkedByUser = useRef(false);
   const failed = context.isError && !isRefused(context.error);
+  const weather = context.isSuccess ? context.data.weather : null;
 
   // *Check again* disappears when the weather arrives: keep the keyboard on the section.
   useEffect(() => {
@@ -58,6 +61,7 @@ export function UrbanContextPanel({ incidentId }: { incidentId: string }) {
           />
         )}
       </div>
+      {weather && <Weather weather={weather} capturedAt={context.data?.capturedAt ?? null} />}
       {failed && (
         <LoadFailure
           what="The weather"
@@ -79,7 +83,12 @@ interface ContextStateProps {
 
 function ContextState({ context, stoppedWaiting, checking, onCheck }: ContextStateProps) {
   if (context.weather) {
-    return <Weather weather={context.weather} capturedAt={context.capturedAt} />;
+    // Only for a screen reader: the same facts are shown after the region.
+    return (
+      <p className={styles.visuallyHidden}>
+        {weatherAnnouncement(context.weather, context.capturedAt)}
+      </p>
+    );
   }
   switch (context.status) {
     case 'PENDING':
@@ -111,13 +120,22 @@ function ContextState({ context, stoppedWaiting, checking, onCheck }: ContextSta
   }
 }
 
+/** A condition added to the API before this app knows it is not left blank. */
+function weatherLabel(weather: WeatherContext): string {
+  return WEATHER_LABELS[weather.condition] ?? NOT_AVAILABLE;
+}
+
+function weatherAnnouncement(weather: WeatherContext, capturedAt: string | null): string {
+  const recorded = capturedAt ? `, recorded ${formatInstant(capturedAt)}` : '';
+  return `Weather: ${weatherLabel(weather)}${recorded}.`;
+}
+
 function Weather({ weather, capturedAt }: { weather: WeatherContext; capturedAt: string | null }) {
   return (
     <>
       <dl className={styles.facts}>
         <dt>Weather</dt>
-        {/* A condition added to the API before this app knows it is not left blank. */}
-        <dd>{WEATHER_LABELS[weather.condition] ?? NOT_AVAILABLE}</dd>
+        <dd>{weatherLabel(weather)}</dd>
         {capturedAt && (
           <>
             <dt>Recorded</dt>
