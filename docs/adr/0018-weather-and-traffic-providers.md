@@ -3,6 +3,7 @@
 - **Status:** Accepted
 - **Decision Makers:** Project Team
 - **Date:** 2026-11-17 (proposed on 2026-10-25 together with traffic)
+- **Amended:** 2026-11-19 (see *Amendments*)
 
 ## Context
 
@@ -136,6 +137,9 @@ the [deployment guide](../deployment.md) and to `.env.example`.
 | `OPEN_METEO_TIMEOUT` | `PT2S` | Connection and read timeout of each call |
 | `WEATHER_MAX_DELAY` | `PT1H` | From this age of the report on, the current weather does not stand for the weather at the report |
 
+A seventh variable, `OPEN_METEO_PROXY`, came with the egress proxy of the deployment (see
+*Amendments*).
+
 `data_source_config` is not used for Open-Meteo: it is for the *Sources* screen of the
 administrator, which is not in the MVP.
 
@@ -257,3 +261,14 @@ QA-2 in the [architecture overview](../architecture.md) covers the outage of the
 - Migration `V4__urbancontext_create_context_tables.sql` (`urban_context`, `external_observation`)
 - C4 model: external system `Open-Meteo`, used by the `urbancontext` component
 - Open-Meteo: https://open-meteo.com/ (terms: https://open-meteo.com/en/terms)
+
+## Amendments
+
+- **2026-11-19** ([#307](https://github.com/Dalibex/urban-incidence-manager/issues/307)). The
+  decision does not change. The deployed backend has no route to the internet and calls Open-Meteo
+  through the egress proxy of [ADR-0011](0011-deployment-12factor.md) (*Amendments*), which only
+  lets it reach `api.open-meteo.com`. A seventh variable configures it:
+
+  | Variable | Default | Meaning |
+  |---|---|---|
+  | `OPEN_METEO_PROXY` | empty: direct calls | The HTTP forward proxy of the calls to Open-Meteo, with a host and a port. The deployment Compose fixes it to `http://egress-proxy:3128`; development and the tests leave it empty |

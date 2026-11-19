@@ -1831,9 +1831,9 @@ export interface components {
             rows: components["schemas"]["IncidentReportRow"][];
         };
         /**
-         * @description Whether the urban context of an incident is there (ADR-0018). Until the enrichment is
-         *     built (Planned: #307), nothing writes a context, so an incident answers `UNAVAILABLE`;
-         *     only the `dev` dataset has a context of each status.
+         * @description Whether the urban context of an incident is there (ADR-0018). A new incident starts
+         *     `PENDING`, and the enrichment ends it as `COMPLETE`, `ERROR` or `UNAVAILABLE`; only the
+         *     `dev` dataset has a context of each status.
          *
          *     - `PENDING`: the incident is waiting for its weather.
          *     - `COMPLETE`: the weather is there.

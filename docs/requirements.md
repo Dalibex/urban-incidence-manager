@@ -80,7 +80,7 @@ or *No* (after the MVP). Whether an issue is finished is in GitHub, not here.
 | RF17 | **Zonal analysis.** Incidents and aggregated context for an area and period. | No | — |
 | RF20 | **Intelligent assistance.** Classify, prioritize, summarize and recommend with a stated confidence. | No | — |
 | RF22 | **Urban asset.** Associate an incident with a nearby urban asset. | No | — |
-| RF23 | **External context** from external sources. | No. The weather comes from Open-Meteo (ADR-0018): Planned: #304. The traffic provider is only proposed (ADR-0024). | #304 |
+| RF23 | **External context** from external sources. | Partly. The backend stores the weather of each new incident from Open-Meteo (ADR-0018, #307), staff read it through the API (#306) and see it in the *Context* section of the incident detail (#308). The traffic provider is only proposed (ADR-0024). | #304, #306, #307, #308 |
 | RF24 | **Contextual view.** The operator sees the urban context of an incident. | Partly. Operators, administrators and the assigned technician see the weather of the incident in the *Context* section of its detail (#308); traffic and assets are not built. | #304, #308 |
 | RF25 | **Historical correlation** of incidents with historical urban variables. | No | — |
 

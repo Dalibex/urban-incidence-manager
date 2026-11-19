@@ -16,6 +16,60 @@ x-logging: &logging
     max-size: 10m
     max-file: "3"
 
+# The image, the logging and the environment of the backend, shared by the backend service and
+# the bootstrap-admin one-off process, which must run the same code with the same settings
+# (12-factor XII).
+x-backend: &backend
+  # One tag for both services: `up --build` rebuilds it for the backend, and bootstrap-admin then
+  # runs that same image, never an older one of its own. It is the name Compose would give the
+  # backend's image anyway.
+  image: urbanpulse-deploy-backend
+  build:
+    context: backend
+    additional_contexts:
+      # The build copies the OpenAPI contract into the jar (see backend/Dockerfile).
+      contract: docs/api
+  logging: *logging
+  environment: &backend-environment
+    SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+    SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+    SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+    # Access tokens (docs/security.md). Without JWT_SECRET the backend does not start.
+    JWT_SECRET: ${JWT_SECRET}
+    JWT_ACCESS_TOKEN_TTL: ${JWT_ACCESS_TOKEN_TTL:-PT15M}
+    REFRESH_TOKEN_TTL: ${REFRESH_TOKEN_TTL:-P14D}
+    REFRESH_TOKEN_RETENTION: ${REFRESH_TOKEN_RETENTION:-P30D}
+    # Data profile (docs/datasets.md): empty in a real deployment, demo for the demo.
+    SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-}
+    DEMO_PASSWORD: ${DEMO_PASSWORD:-}
+    PERF_INCIDENTS: ${PERF_INCIDENTS:-100000}
+    # Evidence storage policy (ADR-0013). frontend/nginx.conf accepts requests of 10 MB plus the
+    # multipart headers: change it with EVIDENCE_MAX_FILE_SIZE.
+    # Fixed to the mount point of evidence_data, not read from .env: another folder would keep
+    # the photos in the container, and they would be lost when it is recreated (#275).
+    STORAGE_BASE_PATH: /app/storage
+    EVIDENCE_MAX_FILE_SIZE: ${EVIDENCE_MAX_FILE_SIZE:-10MB}
+    EVIDENCE_MAX_FILES_PER_INCIDENT: ${EVIDENCE_MAX_FILES_PER_INCIDENT:-5}
+    # Weather of each incident from Open-Meteo (ADR-0018, docs/deployment.md).
+    WEATHER_ENRICHMENT_ENABLED: ${WEATHER_ENRICHMENT_ENABLED:-true}
+    OPEN_METEO_BASE_URL: ${OPEN_METEO_BASE_URL:-https://api.open-meteo.com}
+    WEATHER_ENRICHMENT_INTERVAL: ${WEATHER_ENRICHMENT_INTERVAL:-PT30S}
+    WEATHER_ENRICHMENT_BATCH_SIZE: ${WEATHER_ENRICHMENT_BATCH_SIZE:-20}
+    OPEN_METEO_TIMEOUT: ${OPEN_METEO_TIMEOUT:-PT2S}
+    WEATHER_MAX_DELAY: ${WEATHER_MAX_DELAY:-PT1H}
+    # The backend has no route to the internet: its calls to Open-Meteo go through egress-proxy,
+    # which only lets it reach the hosts of egress-proxy/squid.conf. Fixed here, not in .env.
+    OPEN_METEO_PROXY: http://egress-proxy:3128
+    # Every request comes from nginx, so Tomcat takes the client address, the scheme, the host
+    # and the port from the X-Forwarded-* headers that nginx writes (frontend/nginx.conf). Fixed
+    # here, not in .env: development reaches the backend without nginx and must ignore those
+    # headers (docs/security.md, Rate limits).
+    SERVER_FORWARD_HEADERS_STRATEGY: native
+    # ...and only from nginx: its fixed address on internal, as a regular expression. Any other
+    # peer (a process on the host, a container added later) keeps its own address and cannot
+    # forge the headers. Must match the ipv4_address of web, which the lint job checks.
+    SERVER_TOMCAT_REMOTEIP_INTERNALPROXIES: '10\.203\.217\.10'
+
 services:
   postgres:
     # Same image as backend/docker-compose.yaml, the Testcontainers tests and the CI (lint checks it).
@@ -44,52 +98,67 @@ services:
     networks: [internal]
 
   backend:
-    build:
-      context: backend
-      additional_contexts:
-        # The build copies the OpenAPI contract into the jar (see backend/Dockerfile).
-        contract: docs/api
+    <<: *backend
     restart: unless-stopped
-    logging: *logging
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
-      # Access tokens (docs/security.md). Without JWT_SECRET the backend does not start.
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_ACCESS_TOKEN_TTL: ${JWT_ACCESS_TOKEN_TTL:-PT15M}
-      REFRESH_TOKEN_TTL: ${REFRESH_TOKEN_TTL:-P14D}
-      REFRESH_TOKEN_RETENTION: ${REFRESH_TOKEN_RETENTION:-P30D}
-      # Data profile (docs/datasets.md): empty in a real deployment, demo for the demo.
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-}
-      DEMO_PASSWORD: ${DEMO_PASSWORD:-}
-      PERF_INCIDENTS: ${PERF_INCIDENTS:-100000}
-      # Only read by the one-off process that creates the first administrator (docs/deployment.md):
-      #   docker compose run --rm backend --spring.profiles.include=bootstrap-admin
-      BOOTSTRAP_ADMIN_NAME: ${BOOTSTRAP_ADMIN_NAME:-}
-      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
-      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
-      # Evidence storage policy (ADR-0013). frontend/nginx.conf accepts requests of 10 MB plus the
-      # multipart headers: change it with EVIDENCE_MAX_FILE_SIZE.
-      # Fixed to the mount point of evidence_data, not read from .env: another folder would keep
-      # the photos in the container, and they would be lost when it is recreated (#275).
-      STORAGE_BASE_PATH: /app/storage
-      EVIDENCE_MAX_FILE_SIZE: ${EVIDENCE_MAX_FILE_SIZE:-10MB}
-      EVIDENCE_MAX_FILES_PER_INCIDENT: ${EVIDENCE_MAX_FILES_PER_INCIDENT:-5}
-      # Every request comes from nginx, so Tomcat takes the client address, the scheme, the host
-      # and the port from the X-Forwarded-* headers that nginx writes (frontend/nginx.conf), and
-      # only from a private address. Fixed here, not in .env: development reaches the backend
-      # without nginx and must ignore those headers (docs/security.md, Rate limits).
-      SERVER_FORWARD_HEADERS_STRATEGY: native
     depends_on:
       postgres:
         condition: service_healthy
+      # Not a health condition: without the proxy the reports are still created, and their weather
+      # waits as PENDING until it answers (ADR-0018).
+      egress-proxy:
+        condition: service_started
     volumes:
       - evidence_data:/app/storage
     # Spring Boot waits up to 30 s for the requests in progress on SIGTERM; Docker's default is 10.
     stop_grace_period: 30s
-    # No ports: the browser and the phones reach it only through nginx, on /api/ (ADR-0017).
+    # No ports: the browser and the phones reach it only through nginx, on /api/ (ADR-0017). Only
+    # internal, with no route to the internet; its fixed address is the only one egress-proxy serves.
+    networks:
+      internal:
+        ipv4_address: 10.203.217.11
+
+  bootstrap-admin:
+    # One-off admin process (12-factor XII) that creates the first administrator from the
+    # BOOTSTRAP_ADMIN_* variables and exits (docs/deployment.md). It belongs to the "admin" profile,
+    # so `up` never starts it:
+    #   docker compose --profile admin run --rm bootstrap-admin
+    # Not `run backend`: that copies the fixed address of the backend, which the running backend
+    # holds. It needs the database only: no fixed address, no proxy, no way out.
+    <<: *backend
+    profiles: [admin]
+    command: ["--spring.profiles.include=bootstrap-admin"]
+    # The settings of the backend plus the first administrator. Only this process gets them, so the
+    # running backend never holds that password in its environment.
+    environment:
+      <<: *backend-environment
+      BOOTSTRAP_ADMIN_NAME: ${BOOTSTRAP_ADMIN_NAME:-}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks: [internal]
+
+  egress-proxy:
+    # The backend's only way out to the internet (ADR-0011, Amendments): a Squid forward proxy that
+    # lets it open an HTTPS tunnel to api.open-meteo.com and to nothing else (egress-proxy/squid.conf).
+    # It never sees the content: TLS goes end to end between the backend and Open-Meteo.
+    build: egress-proxy
+    restart: unless-stopped
+    logging: *logging
+    # Nothing to write but its pid and state, in memory; no Linux capability, no privilege gain.
+    read_only: true
+    tmpfs:
+      - /run/squid:uid=31,gid=31
+      - /var/cache/squid:uid=31,gid=31
+      - /var/log/squid:uid=31,gid=31
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    # No ports. internal: the backend reaches it at a fixed address; egress: its route to the internet.
+    networks:
+      internal:
+        ipv4_address: 10.203.217.12
+      egress:
 
   web:
     build: frontend
@@ -103,8 +172,12 @@ services:
       - tiles:/srv/tiles:ro
     depends_on:
       - backend
-    # edge publishes the port; internal reaches the backend.
-    networks: [edge, internal]
+    # edge publishes the port; internal reaches the backend, from the one address the backend trusts
+    # with the X-Forwarded-* headers (SERVER_TOMCAT_REMOTEIP_INTERNALPROXIES).
+    networks:
+      edge:
+      internal:
+        ipv4_address: 10.203.217.10
 
   tiles-builder:
     # One-off admin process (12-factor XII, ADR-0016) that builds the base map into the tiles
@@ -124,9 +197,28 @@ services:
 
 networks:
   edge:
-  # No published port and no route to the internet (ADR-0011).
+  # No published port and no route to the internet (ADR-0011). A fixed subnet so web, backend and
+  # egress-proxy have fixed addresses, which the backend (trusted proxy) and squid.conf (allowed
+  # client) rely on. 10.x is outside Docker's default pools, so no network Docker creates can overlap
+  # it. If it overlaps a network of the server, change every address of this subnet together
+  # (docs/deployment.md, Networks); the lint job checks they agree. Docker gives the other services
+  # addresses from ip_range only, so none can take a fixed one.
   internal:
     internal: true
+    # No address of the host on this network: the host cannot reach the services here, nor they the
+    # host or anything it listens on, so the backend's only way out stays egress-proxy (Docker
+    # Engine 28.0).
+    driver_opts:
+      com.docker.network.bridge.gateway_mode_ipv4: isolated
+    ipam:
+      config:
+        - subnet: 10.203.217.0/28
+          ip_range: 10.203.217.0/29
+  # The route to the internet, for egress-proxy alone: no published port, and containers in it cannot
+  # reach each other (ADR-0011, Amendments).
+  egress:
+    driver_opts:
+      com.docker.network.bridge.enable_icc: "false"
 
 volumes:
   postgres-data:

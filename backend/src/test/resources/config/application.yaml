@@ -7,3 +7,8 @@ urbanpulse:
       secret: test-secret-for-integration-tests-only-0123456789
       # Fixed too, so a JWT_ACCESS_TOKEN_TTL in the developer's .env does not change the tests.
       access-token-ttl: PT15M
+  # The scheduled worker never runs in the tests, and nothing reaches the real Open-Meteo: a test
+  # calls WeatherEnrichmentWorker.enrichPending() with a fake server or a test double.
+  weather:
+    enabled: false
+    open-meteo-base-url: http://127.0.0.1:9

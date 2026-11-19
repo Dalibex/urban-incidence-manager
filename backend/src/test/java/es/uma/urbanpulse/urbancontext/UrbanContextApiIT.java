@@ -34,9 +34,9 @@ import org.springframework.test.web.servlet.ResultActions;
  *
  * <p>They are written from the issues, the contract ({@code docs/api/openapi.yml}) and the
  * permission matrix of {@code docs/security.md}, not from the implementation: the incident and its
- * context are inserted with SQL on the Flyway schema, as the enrichment of #307 will write them,
- * and every request goes through HTTP. Every response is also validated against the contract
- * ({@link ApiContract}). The rows of each test are deleted after it.
+ * context are inserted with SQL on the Flyway schema, as the enrichment of #307 writes them, and
+ * every request goes through HTTP. Every response is also validated against the contract ({@link
+ * ApiContract}). The rows of each test are deleted after it.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -216,7 +216,7 @@ class UrbanContextApiIT {
                     .andExpect(jsonPath("$.capturedAt").value(nullValue()))
                     .andExpect(jsonPath("$.weather").value(nullValue()));
         }
-        // Reading does not create the row: the enrichment of #307 owns it.
+        // Reading does not create the row: the report creates it (#307).
         assertThat(contextRows(incident)).isZero();
     }
 
