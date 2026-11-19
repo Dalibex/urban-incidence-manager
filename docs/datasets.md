@@ -18,7 +18,7 @@ with it.
 
 - **[Demo Dataset](#-demo-dataset)**: the sample data of the demo, and how it is loaded.
 - **[Performance Dataset](#-performance-dataset)**: the large dataset for the measurements: what it generates and how to check it.
-- **[Measurements](#-measurements)**: the query plans of the indexes and the load test of QA-1.
+- **[Measurements](#-measurements)**: the query plans of the indexes, the load test of QA-1, the quality-attribute experiments and the metrics of the weather enrichment.
 
 ## 🎬 Demo Dataset
 
@@ -150,7 +150,8 @@ or repeated, so every measurement records:
 | Date and commit | When and on which commit it was measured |
 
 Three kinds are recorded below: the query plans that justify each index, the load test of QA-1, and
-the quality-attribute experiments.
+the quality-attribute experiments. The last section says which metrics measure the weather
+enrichment, which has no measurement yet.
 
 ### Query plans of the indexes
 
@@ -376,3 +377,19 @@ Result, in milliseconds. No request failed in either run.
 Every p95 is far under 500 ms; the slowest is the technician's list, at 28 ms. The two runs are within
 20 % of each other in every operation. Run 1, right after the one-minute warm-up, was slower: up to
 14 ms in the citizen's list and 9 ms in the detail.
+
+### Weather enrichment (ADR-0018)
+
+Not measured yet. The evaluation of [ADR-0018](adr/0018-weather-and-traffic-providers.md#how-it-will-be-evaluated)
+reads these metrics of the backend at `/actuator/prometheus`
+([ADR-0023](adr/0023-load-test-observability.md)):
+
+- `urbanpulse_weather_requests_seconds`, by `outcome` (`answered`, `unavailable`, `rejected`): the
+  calls to Open-Meteo and their time, for the calls per minute, hour and day.
+- `urbanpulse_weather_contexts_total`, by `status` (`COMPLETE`, `ERROR`, `UNAVAILABLE`): the contexts
+  the worker ended, for the share that is `COMPLETE`.
+- `urbanpulse_weather_delay_seconds`: the time from the report to the stored weather, for the 60
+  seconds of the threshold.
+
+A load test must never call the real Open-Meteo: `run.sh` starts the backend with
+`WEATHER_ENRICHMENT_ENABLED=false` ([load tests](../backend/load-tests/practice/README.md)).
