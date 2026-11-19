@@ -127,7 +127,13 @@ export function OutcomeMessage({
               : `${failed} Try again in a moment.`}
           </p>
           <p>
-            <button type="button" className={styles.button} onClick={onRetry} disabled={retrying}>
+            {/* Not `disabled`: a browser moves the focus of a disabled button to the page. */}
+            <button
+              type="button"
+              className={styles.button}
+              aria-disabled={retrying || undefined}
+              onClick={retrying ? undefined : onRetry}
+            >
               {retrying ? 'Trying again…' : 'Try again'}
             </button>
           </p>

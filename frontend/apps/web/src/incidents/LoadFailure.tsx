@@ -59,9 +59,15 @@ export function RefreshFailure({
   );
 }
 
+/** Not `disabled` while it retries: a browser moves the focus of a disabled button to the page. */
 function RetryButton({ retrying, onRetry }: Pick<LoadFailureProps, 'retrying' | 'onRetry'>) {
   return (
-    <button type="button" className={styles.button} onClick={onRetry} disabled={retrying}>
+    <button
+      type="button"
+      className={styles.button}
+      aria-disabled={retrying || undefined}
+      onClick={retrying ? undefined : onRetry}
+    >
       {retrying ? 'Trying again…' : 'Try again'}
     </button>
   );
