@@ -246,9 +246,10 @@ Compose keeps at most three files of 10 MB per container.
 - The base map is built by the one-off `tiles-builder` service of the same Compose file: #38.
 
 - **It would break if:** someone changed the schema or the data by hand on a shared database.
-- **Check:** `docker compose --profile app run --rm backend --spring.profiles.include=bootstrap-admin`
-  creates the first administrator and exits ([deployment guide](deployment.md), *Create the First
-  Administrator*).
+- **Check:** `docker compose --profile admin run --rm bootstrap-admin` in the deployment, or
+  `docker compose --profile app run --rm backend --spring.profiles.include=bootstrap-admin` in
+  development, creates the first administrator and exits ([deployment guide](deployment.md),
+  *Create the First Administrator*).
 
 ## 🔄 Keeping It Current
 
