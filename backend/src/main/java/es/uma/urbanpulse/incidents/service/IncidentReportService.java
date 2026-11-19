@@ -10,6 +10,7 @@ import es.uma.urbanpulse.incidents.entity.InvalidIncidentDataException;
 import es.uma.urbanpulse.incidents.entity.Location;
 import es.uma.urbanpulse.incidents.repository.CategoryRepository;
 import es.uma.urbanpulse.incidents.repository.IncidentRepository;
+import es.uma.urbanpulse.urbancontext.service.UrbanContextService;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
@@ -29,6 +30,7 @@ public class IncidentReportService {
     private final IncidentRepository incidents;
     private final CategoryRepository categories;
     private final UserRepository users;
+    private final UrbanContextService urbanContexts;
     private final Clock clock;
     // A business metric next to the technical ones of Micrometer, read by the load tests in
     // Grafana: how many reports the system accepts while it is under load.
@@ -38,9 +40,11 @@ public class IncidentReportService {
             IncidentRepository incidents,
             CategoryRepository categories,
             UserRepository users,
+            UrbanContextService urbanContexts,
             Clock clock,
             MeterRegistry meterRegistry) {
         this.incidents = incidents;
+        this.urbanContexts = urbanContexts;
         this.categories = categories;
         this.users = users;
         this.clock = clock;
@@ -129,6 +133,9 @@ public class IncidentReportService {
                                 now,
                                 key);
         Incident saved = incidents.saveAndFlush(incident);
+        // Only a PENDING row in the same transaction: the weather is fetched after the report, so a
+        // source that is down never delays or fails it (RF26, ADR-0018).
+        urbanContexts.createPending(saved);
         // Counted once the report is committed: a rejected report, or one whose transaction rolls
         // back, is never counted.
         TransactionSynchronizationManager.registerSynchronization(

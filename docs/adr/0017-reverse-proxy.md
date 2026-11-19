@@ -3,6 +3,7 @@
 - **Status:** Accepted
 - **Decision Makers:** Project Team
 - **Date:** 2026-11-02
+- **Amended:** 2026-11-19 (see *Amendments*)
 
 ## Context
 
@@ -27,7 +28,7 @@ In the **production/demo compose** we use **nginx as the unique published entry 
 - We prefer an **unprivileged nginx image** (for example `nginxinc/nginx-unprivileged` listening on 8080) to follow the "unprivileged in the container" practice.
 - The `nginx.conf` maximum request body size (`client_max_body_size`) must match the evidence upload limit defined in ADR-0013.
 - Only the `web` container publishes a host port (`HTTP_PORT`). The `backend`, `db` and Redis publish no ports, per ADR-0011.
-- nginx tells the backend who the client is and which address it used: it writes `X-Forwarded-For` (its own `$remote_addr`), `X-Forwarded-Proto`, `X-Forwarded-Host` and `X-Forwarded-Port` itself, at the `server` level of `nginx.conf`, so a client's own values never pass, and removes the client's `Forwarded` and `X-Forwarded-Prefix`. The backend trusts them only in the deployment Compose (`SERVER_FORWARD_HEADERS_STRATEGY=native`) and only from a private address (#200).
+- nginx tells the backend who the client is and which address it used: it writes `X-Forwarded-For` (its own `$remote_addr`), `X-Forwarded-Proto`, `X-Forwarded-Host` and `X-Forwarded-Port` itself, at the `server` level of `nginx.conf`, so a client's own values never pass, and removes the client's `Forwarded` and `X-Forwarded-Prefix`. The backend trusts them only in the deployment Compose (`SERVER_FORWARD_HEADERS_STRATEGY=native`) and only from nginx's fixed address on the internal network (#200; see *Amendments*).
 - **HTTPS is strictly required** before any deployment reachable from the internet, for three reasons:
   - credentials and tokens must not travel in plain HTTP;
   - browsers only allow geolocation and the camera on secure origins;
@@ -62,7 +63,7 @@ The full-stack **`docker-compose.yaml` file is located at the repository root**,
 - **Negatives:**
   - One more configuration artifact to keep in sync with the API path (`/api`) and the evidence upload size limits.
   - Development and production expose ports differently (documented).
-  - Behind nginx the backend sees nginx as the client of every request, so the rate limits per client address would be shared by everyone and the `Location` of a `201` would point inside Compose. The forwarded headers above mitigate it (#200), and they are only safe while the backend publishes no port.
+  - Behind nginx the backend sees nginx as the client of every request, so the rate limits per client address would be shared by everyone and the `Location` of a `201` would point inside Compose. The forwarded headers above mitigate it (#200), and they are only safe because the backend trusts nginx's address alone.
 
 ## How it will be evaluated
 
@@ -75,3 +76,14 @@ The full-stack **`docker-compose.yaml` file is located at the repository root**,
 - [ADR-0006: Use React for the web application](0006-frontend-web-technology.md)
 - [ADR-0011: Deployment and 12-factor configuration](0011-deployment-12factor.md)
 - [ADR-0013: Local volume behind a StorageService interface for evidences](0013-evidence-storage.md)
+
+## Amendments
+
+- **2026-11-19** ([#307](https://github.com/Dalibex/urban-incidence-manager/issues/307)). The
+  backend trusted the forwarded headers from any private address, Tomcat's default. A process on
+  the Docker host reaches the backend through the gateway of its networks, which is a private
+  address, so it could forge the client address and dodge the rate limits. The `internal` network
+  now has a fixed subnet, nginx a fixed address in it, and
+  `SERVER_TOMCAT_REMOTEIP_INTERNALPROXIES` trusts that address alone; the `lint` job checks that
+  both match. A shared secret header between nginx and the backend was not chosen: it would be one
+  more secret to rotate for the same result.
