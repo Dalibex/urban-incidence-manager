@@ -116,8 +116,9 @@ goal: Planned: #57.
   total, by priority, charts by status, category and department, and the latest reported; each
   part folds and is remembered. The filters fold behind a button, with quick ranges of days. A
   customizable dashboard is planned in #265.
-- **Incident detail** (#46): report data, photos (#44), history and internal comments (#50) in one
-  timeline. The actions depend on the status (ADR-0020):
+- **Incident detail** (#46): report data, photos (#44), the weather when it was reported in the
+  *Context* section (#308), and the history and internal comments (#50) in one timeline. The
+  actions depend on the status (ADR-0020):
 
   | Status | Actions | Issue |
   | --- | --- | --- |
@@ -129,7 +130,7 @@ goal: Planned: #57.
   | Any | *Comment* (internal, for the staff of the incident) | #50 |
 
 - **Not in the MVP:** nearby urban assets, duplicate warnings and the traffic in the detail (RF16,
-  RF22–RF24). The weather of the incident is in the *Context* section (#308).
+  RF22–RF24).
 
 ### Web: technician
 
@@ -139,9 +140,9 @@ goal: Planned: #57.
 - **Work queue** (#51): the incidents assigned to them, with the filters and columns of the inbox
   (date reported, title, category, status and priority). It opens on `ASSIGNED` and `IN_PROGRESS`
   (#187).
-- **Incident detail** (#51): report data, photos (#194) and the history, read-only. *Accept*
-  (`ASSIGNED` → `IN_PROGRESS`), *Comment* (#50) and *Resolve* (`IN_PROGRESS` → `RESOLVED`,
-  resolution notes required).
+- **Incident detail** (#51): report data, photos (#194), the weather in the *Context* section
+  (#308) and the history, read-only. *Accept* (`ASSIGNED` → `IN_PROGRESS`), *Comment* (#50) and
+  *Resolve* (`IN_PROGRESS` → `RESOLVED`, resolution notes required).
 
 ### Web: administrator
 
