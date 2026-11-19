@@ -189,9 +189,10 @@ exists.
 context. It is case 1 of section 9 of `AGENTS.md`.
 
 **Status.** It holds by construction: creating an incident (`IncidentReportService`) uses only the
-database and calls no external source, because none is integrated yet. The test is written with
-the first source adapter, the weather from Open-Meteo (Planned: #307), which enriches the incident
-after it is saved, not before ([ADR-0018](adr/0018-weather-and-traffic-providers.md)).
+database. It inserts the `PENDING` urban context in its transaction, and the weather worker of
+`urbancontext` calls Open-Meteo afterwards, outside any report
+([ADR-0018](adr/0018-weather-and-traffic-providers.md)). T4 and T15 of #309 test it with
+Open-Meteo slow (`WeatherEnrichmentIT`) and down (`WeatherEnrichmentWithoutOpenMeteoIT`).
 
 ### QA-3: Sign-in attempts over the limit are rejected (ADR-0004)
 
@@ -250,6 +251,7 @@ Known limits the team accepts for now. A review does not report them (*Sprint re
 | The API documentation is public (`/swagger-ui.html`, `/v3/api-docs`, `/openapi.yml`) | Anyone can read the contract, which is public by design | [Security guide](security.md), *Permission matrix*; [API guide](api.md) says how to turn it off |
 | The audit trigger guards against mistakes, not against the database owner | Someone with the owner or superuser account can disable it; a user who appears in the audit trail cannot be deleted | [Security guide](security.md), *Audit trail* |
 | Everything runs on one machine | If the machine stops, the whole system stops; nginx is also the single entry point, but keeps no data | [ADR-0011](adr/0011-deployment-12factor.md); [deployment guide](deployment.md), *If nginx Goes Down* |
+| nginx (`web`) can reach the internet through `edge`: Compose only publishes a port on a network with a route out | nginx never calls out, but a flaw that let someone run code in it could send out the passwords and tokens it sees, which travel without HTTPS today. The backend and the database have no such route (egress proxy). Revisited with HTTPS and the cloud deployment, whose firewall can block outbound traffic from the proxy's host | [ADR-0011](adr/0011-deployment-12factor.md), *Amendments* 2026-11-19; [deployment guide](deployment.md), *Networks* |
 | A refresh that sign-out cannot use to revoke the session (it answers after the sign-out, or the `DELETE` itself fails) creates a session the device no longer holds | That session stays alive on the server until its refresh token expires (`REFRESH_TOKEN_TTL`, 14 days by default); nobody can use it without the token, which the device discarded | [Security guide](security.md), *Sessions and passwords*; #237 |
 
 ## 📋 ADRs Without a Measurable Evaluation
