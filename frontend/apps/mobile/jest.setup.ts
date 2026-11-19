@@ -6,6 +6,10 @@ process.env.EXPO_PUBLIC_MAP_STYLE_URL = 'http://tiles.test/style.json';
 process.env.EXPO_PUBLIC_QUICK_SIGN_IN = 'false';
 delete process.env.EXPO_PUBLIC_DEMO_PASSWORD;
 
+// `uuid.v4()` of `expo` calls its native module, which Jest does not load: Node's generator stands
+// in for it (the Idempotency-Key of a report, #289).
+globalThis.expo = { ...globalThis.expo, uuidv4: () => crypto.randomUUID() };
+
 // MapLibre is a native module that Jest cannot load. The mock renders plain views and keeps the
 // props, so tests can read the style and fire the map events. The camera's methods are shared
 // mocks that tests read through `jest.requireMock`.

@@ -79,6 +79,8 @@ const CREATED: components['schemas']['IncidentResponse'] = {
   closedAt: null,
 };
 
+const IDEMPOTENCY_KEY = '9b2d6f4e-1c3a-4e8b-a7d5-0f6e2c4b8a13';
+
 describe('createIncident', () => {
   it('returns the created incident and sends the body with the access token', async () => {
     let authorization: string | null = null;
@@ -93,11 +95,48 @@ describe('createIncident', () => {
       fetch,
     });
 
-    const result = await createIncident(client, BODY);
+    const result = await createIncident(client, BODY, IDEMPOTENCY_KEY);
 
     expect(result).toEqual({ ok: true, data: CREATED });
     expect(authorization).toBe('Bearer access-1');
     expect(sent).toEqual(BODY);
+  });
+
+  // #302 T5: the generated client sends the key of the contract.
+  it('sends the idempotency key of the report as its header', async () => {
+    const keys: (string | null)[] = [];
+    const fetch = vi.fn(async (request: Request) => {
+      keys.push(request.headers.get('Idempotency-Key'));
+      return json(201, CREATED);
+    });
+    const client = createApiClient(BASE_URL, { tokenStore: memoryStore(TOKENS), fetch });
+
+    await createIncident(client, BODY, IDEMPOTENCY_KEY);
+    await createIncident(client, BODY, IDEMPOTENCY_KEY);
+
+    expect(keys).toEqual([IDEMPOTENCY_KEY, IDEMPOTENCY_KEY]);
+  });
+
+  it('carries the code of a key already used for another report', async () => {
+    const fetch = vi.fn(async () =>
+      json(
+        422,
+        {
+          type: 'about:blank',
+          title: 'Unprocessable Content',
+          status: 422,
+          code: 'IDEMPOTENCY_KEY_REUSED',
+        },
+        'application/problem+json',
+      ),
+    );
+    const client = createApiClient(BASE_URL, { tokenStore: memoryStore(TOKENS), fetch });
+
+    expect(await createIncident(client, BODY, IDEMPOTENCY_KEY)).toEqual({
+      ok: false,
+      failure: { kind: 'problem', status: 422, code: 'IDEMPOTENCY_KEY_REUSED' },
+      fieldErrors: [],
+    });
   });
 
   it('carries the per-field errors of a 422 problem', async () => {
@@ -116,7 +155,7 @@ describe('createIncident', () => {
     });
     const client = createApiClient(BASE_URL, { tokenStore: memoryStore(TOKENS), fetch });
 
-    expect(await createIncident(client, BODY)).toEqual({
+    expect(await createIncident(client, BODY, IDEMPOTENCY_KEY)).toEqual({
       ok: false,
       failure: { kind: 'problem', status: 422, code: undefined },
       fieldErrors: errors,
@@ -129,7 +168,7 @@ describe('createIncident', () => {
     });
     const client = createApiClient(BASE_URL, { tokenStore: memoryStore(TOKENS), fetch });
 
-    expect(await createIncident(client, BODY)).toEqual({
+    expect(await createIncident(client, BODY, IDEMPOTENCY_KEY)).toEqual({
       ok: false,
       failure: { kind: 'network' },
       fieldErrors: [],

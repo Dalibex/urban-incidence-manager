@@ -92,6 +92,9 @@ async function renderScreen() {
   return { navigation, queryClient };
 }
 
+/** A UUID in its canonical form, as the contract asks for the `Idempotency-Key`. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
 // The hook is mocked, so its messages are not exported here.
 const PERMISSION_ERROR = 'Location is off. Move the map to put the pin on the incident.';
 
@@ -400,6 +403,53 @@ describe('NewIncidentScreen', () => {
       });
     });
 
+    // #302 T4: the retry carries the key of the first attempt; a new report after success a new one.
+    it('retries a failed report with the same key, and gives the next report a new one', async () => {
+      mockedCreateIncident.mockResolvedValue({
+        ok: false,
+        failure: { kind: 'network' },
+        fieldErrors: [],
+      });
+      await renderScreen();
+      await fillIn('Street light off', 'Off for three days.');
+      await fireEvent.press(screen.getByRole('button', { name: 'Submit' }));
+      await screen.findByText(/UrbanPulse cannot be reached/);
+
+      mockedCreateIncident.mockResolvedValue(CREATED);
+      await fireEvent.press(screen.getByRole('button', { name: 'Submit' }));
+      await waitFor(() => expect(Alert.alert).toHaveBeenCalledTimes(1));
+      await fillIn('Street light off', 'Off for three days.');
+      await fireEvent.press(screen.getByRole('button', { name: 'Submit' }));
+
+      await waitFor(() => expect(mockedCreateIncident).toHaveBeenCalledTimes(3));
+      const [first, retry, next] = mockedCreateIncident.mock.calls.map(([, , key]) => key);
+      expect(first).toMatch(UUID);
+      expect(retry).toBe(first);
+      expect(next).toMatch(UUID);
+      expect(next).not.toBe(first);
+    });
+
+    // #289: a changed report is not a retry, so the API must not take it for the first one.
+    it('gives the report a new key when the citizen changes it after a failure', async () => {
+      mockedCreateIncident.mockResolvedValue({
+        ok: false,
+        failure: { kind: 'problem', status: 500, code: undefined },
+        fieldErrors: [],
+      });
+      await renderScreen();
+      await fillIn('Street light off', 'Off for three days.');
+      await fireEvent.press(screen.getByRole('button', { name: 'Submit' }));
+      await screen.findByText(/could not be reported/);
+
+      await fireEvent.changeText(screen.getByLabelText('Description'), 'Off for four days.');
+      await fireEvent.press(screen.getByRole('button', { name: 'Submit' }));
+
+      await waitFor(() => expect(mockedCreateIncident).toHaveBeenCalledTimes(2));
+      const [first, changed] = mockedCreateIncident.mock.calls.map(([, , key]) => key);
+      expect(changed).toMatch(UUID);
+      expect(changed).not.toBe(first);
+    });
+
     it('cannot be sent twice while a submission is in flight', async () => {
       const reply = deferred<CreateIncidentResult>();
       mockedCreateIncident.mockReturnValue(reply.promise);
@@ -429,12 +479,16 @@ describe('NewIncidentScreen', () => {
       await fireEvent.press(screen.getByRole('button', { name: 'Submit' }));
 
       await waitFor(() => expect(Alert.alert).toHaveBeenCalledTimes(1));
-      expect(mockedCreateIncident).toHaveBeenCalledWith(expect.anything(), {
-        title: 'Street light off',
-        description: 'Off for three days.',
-        categoryId: LIGHTING.id,
-        location: { latitude: 36.7213, longitude: -4.4214, accuracy: 12.5 },
-      });
+      expect(mockedCreateIncident).toHaveBeenCalledWith(
+        expect.anything(),
+        {
+          title: 'Street light off',
+          description: 'Off for three days.',
+          categoryId: LIGHTING.id,
+          location: { latitude: 36.7213, longitude: -4.4214, accuracy: 12.5 },
+        },
+        expect.stringMatching(UUID),
+      );
       expect(queryClient.getQueryState(incidentKeys.myReports('open'))?.isInvalidated).toBe(true);
       expect(screen.getByLabelText('Title').props.value).toBe('');
       expect(screen.getByLabelText('Description').props.value).toBe('');

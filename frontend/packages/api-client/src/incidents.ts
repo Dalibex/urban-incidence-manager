@@ -21,12 +21,27 @@ export type FormResult<T> =
 /** Result of reporting an incident. */
 export type CreateIncidentResult = FormResult<IncidentResponse>;
 
-/** Reports an incident (RF03). The API takes the reporter from the access token of the session. */
+/**
+ * Reports an incident (RF03). The API takes the reporter from the access token of the session.
+ *
+ * `idempotencyKey` is a UUID created once per report and sent again, unchanged, when the same report
+ * is retried: if the first answer was lost after the API saved the incident, the retry returns that
+ * incident instead of creating a second one (#289). A report with other data needs a new key, or it
+ * answers `422` with `IDEMPOTENCY_KEY_REUSED`.
+ */
 export function createIncident(
   client: ApiClient,
   body: CreateIncidentRequest,
+  idempotencyKey: string,
 ): Promise<CreateIncidentResult> {
-  return callForm(() => client.POST('/incidents', { body }), 'the created incident');
+  return callForm(
+    () =>
+      client.POST('/incidents', {
+        params: { header: { 'Idempotency-Key': idempotencyKey } },
+        body,
+      }),
+    'the created incident',
+  );
 }
 
 /**
