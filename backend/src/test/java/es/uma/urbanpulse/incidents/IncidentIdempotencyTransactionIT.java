@@ -79,6 +79,13 @@ class IncidentIdempotencyTransactionIT {
         Mockito.reset(incidents);
         var reported = "SELECT id FROM incident WHERE reporter_id = ?";
         jdbc.update("DELETE FROM status_change WHERE incident_id IN (" + reported + ")", citizen);
+        jdbc.update(
+                "DELETE FROM external_observation WHERE urban_context_id IN"
+                        + " (SELECT id FROM urban_context WHERE incident_id IN ("
+                        + reported
+                        + "))",
+                citizen);
+        jdbc.update("DELETE FROM urban_context WHERE incident_id IN (" + reported + ")", citizen);
         jdbc.update("DELETE FROM location WHERE incident_id IN (" + reported + ")", citizen);
         jdbc.update("DELETE FROM incident WHERE reporter_id = ?", citizen);
         jdbc.update("DELETE FROM users WHERE id = ?", citizen);
