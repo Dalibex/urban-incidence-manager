@@ -35,7 +35,8 @@ tests ([ADR-0011](adr/0011-deployment-12factor.md)).
 
 ## 🌐 Deploy the Whole System
 
-You only need Docker Engine (or Docker Desktop) with Compose v2, and Git: the images compile the
+You only need Docker Engine (28.0.1 or later on a Linux server, see *Networks*) or Docker Desktop
+with Compose v2, and Git: the images compile the
 backend and the web app, so the machine needs no Java and no Node. From the repository root:
 
 1. Create `.env` from `.env.example`, which holds no development value and no secret:
@@ -55,11 +56,12 @@ backend and the web app, so the machine needs no Java and no Node. From the repo
    ```
 
    The first build takes several minutes: it downloads Maven, the Java dependencies and the client
-   packages. `docker compose ps` lists `postgres`, `backend` and `web`, and only `web` shows a port.
+   packages. `docker compose ps` lists `postgres`, `backend`, `egress-proxy` and `web`, and only
+   `web` shows a port.
 3. Create the first administrator (*Create the First Administrator*):
 
    ```bash
-   docker compose run --rm backend --spring.profiles.include=bootstrap-admin
+   docker compose --profile admin run --rm bootstrap-admin
    ```
 
 4. Build the base map (*Build the Base Map*):
@@ -82,6 +84,46 @@ of each demo user instead ([demo script](demo.md)).
 > internet: without it, passwords and tokens travel in plain text, and release builds of the mobile
 > app refuse plain HTTP. Use this deployment on a machine or a network you trust, such as the demo
 > LAN, until the cloud deployment decides the certificate.
+
+### Networks
+
+Three Compose networks keep each service to what it needs ([ADR-0011](adr/0011-deployment-12factor.md)):
+
+| Network | Services | What it gives |
+| --- | --- | --- |
+| `edge` | `web`, `tiles-builder` | The published port of `web`, and the internet that `tiles-builder` needs to download the map data |
+| `internal` | `web`, `backend`, `postgres`, `egress-proxy`, `bootstrap-admin` | nginx reaches the backend, the backend the database and the proxy. No route to the internet, and no address of the host (`isolated`): the host cannot reach these services on it, nor they the host. Fixed subnet `10.203.217.0/28`, with fixed addresses: `web` at `.10`, the only address whose `X-Forwarded-*` headers the backend trusts ([security guide](security.md#rate-limits)); `backend` at `.11`, the only client the proxy serves; `egress-proxy` at `.12` |
+| `egress` | `egress-proxy` | The backend's only route to the internet. No published port, no other service, and containers in it cannot reach each other |
+
+Neither the backend nor the database can reach the internet. The backend calls Open-Meteo
+([ADR-0018](adr/0018-weather-and-traffic-providers.md)) through `egress-proxy`, a Squid forward
+proxy built from `egress-proxy/`: it lets the backend's address open an HTTPS tunnel to the hosts
+of `egress-proxy/squid.conf` (today `api.open-meteo.com`) and refuses everything else with `403`.
+TLS goes end to end, so the proxy only sees the host name. Its log, in `docker compose logs
+egress-proxy`, has one line per tunnel: `TCP_DENIED/403` for a refused one, at once, and
+`TCP_TUNNEL/200` for an allowed one when it closes, which can be minutes later because the backend
+keeps the connection open to reuse it. A refused tunnel is what to look for if the weather of new
+incidents stops arriving. Adding an external source is one more `dstdomain -n` line in
+`squid.conf`, in its own pull request. The `lint` job of the CI fails if a service changes networks
+or if the addresses below disagree, and the `build` job if the proxy lets anything else out.
+
+`web` and `tiles-builder` do reach the internet through `edge`: Compose can only publish a port on a
+network with a route out, and `tiles-builder` downloads the map data. nginx never calls out, but a
+flaw that let someone run code in it could; it is an accepted risk in the
+[architecture overview](architecture.md#-accepted-risks).
+
+On a Linux server, use Docker Engine 28.0.1 or later: earlier versions let another machine of the
+local network reach the unpublished ports of the containers by adding a route to their network
+([Docker Engine 28 release notes](https://docs.docker.com/engine/release-notes/28/)). Docker
+Desktop is not affected.
+
+The subnet of `internal` is outside Docker's default pools, so it never overlaps a network Docker
+creates. If `docker compose up` says that it overlaps a network of the server, choose another
+private `/28` and change, together: in `docker-compose.yaml`, the `subnet` and `ip_range` of
+`internal`, the `ipv4_address` of `web`, `backend` and `egress-proxy` (outside `ip_range`), and
+`SERVER_TOMCAT_REMOTEIP_INTERNALPROXIES` of `backend` (the address of `web`, with its dots
+escaped); in `egress-proxy/squid.conf`, the address of `acl backend`. The `lint` job checks that
+they agree.
 
 ### What nginx Serves
 
@@ -139,20 +181,21 @@ while you create the first administrator).
 | `SPRING_PROFILES_ACTIVE` | empty | empty | | `backend` | Data profile: empty (no sample data, as in production), `dev`, `demo` or `perf` ([datasets](datasets.md)) |
 | `DEMO_PASSWORD` | empty | empty | ✓ | `backend` | Password of the demo users; required with the `demo` profile |
 | `PERF_INCIDENTS` | commented out | — | | `backend` | Incidents the `perf` profile generates, 100000 when it is not set. Leave it commented out rather than empty |
-| `BOOTSTRAP_ADMIN_NAME` | empty | empty | | `backend` | Name of the first administrator; only read by its one-off process (see *Create the First Administrator*) |
-| `BOOTSTRAP_ADMIN_EMAIL` | empty | empty | | `backend` | Email of the first administrator; only read by its one-off process |
-| `BOOTSTRAP_ADMIN_PASSWORD` | empty | empty | ✓ | `backend` | Password of the first administrator, with the rules of sign-up; empty it once the account exists |
+| `BOOTSTRAP_ADMIN_NAME` | empty | empty | | `backend` (development), `bootstrap-admin` (deployment) | Name of the first administrator; only read by its one-off process (see *Create the First Administrator*) |
+| `BOOTSTRAP_ADMIN_EMAIL` | empty | empty | | `backend` (development), `bootstrap-admin` (deployment) | Email of the first administrator; only read by its one-off process |
+| `BOOTSTRAP_ADMIN_PASSWORD` | empty | empty | ✓ | `backend` (development), `bootstrap-admin` (deployment) | Password of the first administrator, with the rules of sign-up; empty it once the account exists |
 | `TILES_BASE_URL` | `http://localhost:5173/tiles` | `http://localhost:8000/tiles` | | `tiles-builder` | Address the clients load the map from, written into `style.json`: the Vite server in development, the entry point in the deployment |
 | `STORAGE_BASE_PATH` | `./storage` | `/app/storage`, fixed in `docker-compose.yaml`, not in `.env` | | `backend` | Folder for the evidence files ([ADR-0013](adr/0013-evidence-storage.md)). Both Compose files fix it to the `evidence_data` volume at `/app/storage`, since any other folder would keep the photos in the container and lose them when it is recreated. Only the backend run from the IDE or `./mvnw` reads it from `backend/.env`: a folder relative to `backend/`, ignored by Git ([development guide](development.md#-create-the-local-environment-file)) |
 | `EVIDENCE_MAX_FILE_SIZE` | `10MB` | `10MB` | | `backend` | Maximum size of an evidence file; a larger one answers `413`. It also bounds the upload request (the file plus 64 KB), and so does `client_max_body_size` in `frontend/nginx.conf` |
 | `EVIDENCE_MAX_FILES_PER_INCIDENT` | `5` | `5` | | `backend` | Maximum evidence files per incident; one more answers `422` |
 | `WEATHER_ENRICHMENT_ENABLED` | `true` | `true` | | `backend` | Turns the weather worker on or off ([ADR-0018](adr/0018-weather-and-traffic-providers.md)). Off, reports are still created and their weather stays `PENDING`; when it is turned on again, the ones older than `WEATHER_MAX_DELAY` become `UNAVAILABLE` |
-| `OPEN_METEO_BASE_URL` | `https://api.open-meteo.com` | `https://api.open-meteo.com` | | `backend` | Where Open-Meteo answers. No key is needed; the tests point it to a fake server |
+| `OPEN_METEO_BASE_URL` | `https://api.open-meteo.com` | `https://api.open-meteo.com` | | `backend` | Where Open-Meteo answers. No key is needed; the tests point it to a fake server. It must be `https`, or `http` only on `localhost`, `127.0.0.1` or `[::1]`, with no user, query or fragment: otherwise the backend does not start, so the weather never travels in plain text |
+| `OPEN_METEO_PROXY` | empty: the backend calls Open-Meteo directly | `http://egress-proxy:3128`, fixed in `docker-compose.yaml`, not in `.env` | | `backend` | The forward proxy for the calls to Open-Meteo (*Networks*). It must be `http`, with a host and a port and nothing else; the tunnel inside it is still HTTPS. In the deployment the backend has no other way out, so without it the weather stays pending |
 | `WEATHER_ENRICHMENT_INTERVAL` | `PT30S` | `PT30S` | | `backend` | Time between two runs of the worker, so the weather appears up to this long after the report |
 | `WEATHER_ENRICHMENT_BATCH_SIZE` | `20` | `20` | | `backend` | Incidents enriched per run. It caps the calls to Open-Meteo: 40 a minute with the defaults, under its free limit of 600 |
 | `OPEN_METEO_TIMEOUT` | `PT2S` | `PT2S` | | `backend` | Connection and read timeout of each call to Open-Meteo |
 | `WEATHER_MAX_DELAY` | `PT1H` | `PT1H` | | `backend` | From this age of the report on, the current weather no longer stands for the weather at the report, and the incident's weather is `UNAVAILABLE` |
-| `SERVER_FORWARD_HEADERS_STRATEGY` | not set | `native`, fixed in `docker-compose.yaml`, not in `.env` | | `backend` | The backend takes the client address and the public address from the `X-Forwarded-*` headers that nginx writes, only from a private address ([security guide](security.md#rate-limits)). Never set it in development, where clients reach the backend directly and could forge them |
+| `SERVER_FORWARD_HEADERS_STRATEGY` | not set | `native`, fixed in `docker-compose.yaml`, not in `.env` | | `backend` | The backend takes the client address and the public address from the `X-Forwarded-*` headers that nginx writes, only from nginx's fixed address, `SERVER_TOMCAT_REMOTEIP_INTERNALPROXIES` in `docker-compose.yaml` (*Networks*; [security guide](security.md#rate-limits)). Never set it in development, where clients reach the backend directly and could forge them |
 | `GRAFANA_ADMIN_PASSWORD` | empty | — | ✓ | `grafana` | Password of the `admin` user of Grafana, only with `--profile observability`. Empty, Grafana starts with `admin`/`admin` and asks to change it at the first sign-in |
 | `GRAFANA_PORT` | `3000` | — | | `grafana` | Port of Grafana on your machine |
 | `PROMETHEUS_PORT` | `9090` | — | | `prometheus` | Port of Prometheus on your machine |
@@ -233,10 +276,13 @@ configuration as the backend. The rules it follows are in the
 2. With Docker running, in the deployment, from the repository root:
 
    ```bash
-   docker compose run --rm backend --spring.profiles.include=bootstrap-admin
+   docker compose --profile admin run --rm bootstrap-admin
    ```
 
-   In development, from `backend/`:
+   `bootstrap-admin` is the backend image with the same settings, as a one-off service: it runs the
+   image that the last `docker compose up -d --build` built (one tag, `urbanpulse-deploy-backend`),
+   it works with the backend running, and it is the only service that receives the
+   `BOOTSTRAP_ADMIN_*` variables. In development, from `backend/`:
 
    ```bash
    docker compose --profile app run --rm backend --spring.profiles.include=bootstrap-admin
@@ -245,9 +291,10 @@ configuration as the backend. The rules it follows are in the
 3. Sign in on the web with that email and password.
 
 > [!IMPORTANT]
-> Then empty `BOOTSTRAP_ADMIN_PASSWORD` in `.env` and run `docker compose up -d` again. The deployment
-> Compose also passes that variable to the running `backend`, so the container keeps the password
-> in its environment (`docker inspect`) until it is recreated.
+> Then empty `BOOTSTRAP_ADMIN_PASSWORD` in `.env`, so the password does not stay on the disk of the
+> server. In the deployment no running container holds it: only `bootstrap-admin` receives it, and
+> `--rm` removes that container when it ends. In development, the `app` profile still passes it to
+> the backend container; recreate it with `docker compose --profile app up -d` after emptying it.
 
 How it behaves (what it checks, and why, is in the [security guide](security.md#-first-administrator)):
 

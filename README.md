@@ -122,6 +122,7 @@ The kinds of tests and how to run part of them are in the [testing guide](docs/t
 | `frontend/` | The pnpm workspace: `apps/web`, `apps/mobile` and the shared `packages/` ([layout](docs/development.md#-client-workspace)), and the web image with nginx |
 | `docs/` | The guides below, the [ADRs](docs/adr/), the [OpenAPI contract](docs/api/openapi.yml) and the [C4 model](docs/architecture/) |
 | `tiles/` | The builder of the base map ([ADR-0016](docs/adr/0016-self-hosted-osm-base-map.md)) |
+| `egress-proxy/` | The backend's only way out to the internet in the deployment: a Squid proxy that lets it reach Open-Meteo and nothing else ([deployment guide](docs/deployment.md#networks)) |
 | `.github/`, `.githooks/` | CI workflows, issue and pull request templates, and the pre-commit hook |
 | `docker-compose.yaml`, `.env.example` | The deployment: the whole system behind nginx |
 

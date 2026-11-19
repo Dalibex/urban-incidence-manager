@@ -175,7 +175,9 @@ is the only port the deployment publishes (`HTTP_PORT`, [ADR-0017](adr/0017-reve
 
 **Accepted limit.** The system runs one backend replica (ADR-0011). Nothing in the domain stops a
 second one, because the state is in PostgreSQL (see VI), but the rate-limit counters would not be
-shared. A second replica is one of the triggers of
+shared, and the weather workers of both replicas would call Open-Meteo for the same pending batch:
+the database keeps one context per incident, but the calls would double
+([ADR-0018](adr/0018-weather-and-traffic-providers.md)). A second replica is one of the triggers of
 [ADR-0022](adr/0022-redis-from-measurements.md) for Redis. The load test of QA-1
 (`backend/load-tests`, [architecture overview](architecture.md)) measures a single replica.
 
@@ -239,7 +241,8 @@ Compose keeps at most three files of 10 MB per container.
   ([ADR-0014](adr/0014-database-migrations-flyway.md), [database guide](database.md)): #8, #34.
 - The `dev`, `demo` and `perf` datasets are repeatable migrations behind their profiles: #83, #54,
   #84 ([datasets](datasets.md)).
-- The first administrator is created by a one-off run of the backend image: #126.
+- The first administrator is created by a one-off run of the backend image: #126. In the
+  deployment it is the `bootstrap-admin` service, which shares the backend's image and settings.
 - The base map is built by the one-off `tiles-builder` service of the same Compose file: #38.
 
 - **It would break if:** someone changed the schema or the data by hand on a shared database.

@@ -26,8 +26,11 @@ The `demo` Spring profile loads the sample data of the demo (#54): one user per 
 incidents in Málaga covering every status, each with a history allowed by
 [ADR-0020](adr/0020-incident-lifecycle-transitions.md). The [demo script](demo.md) lists its users
 and incidents and how to walk through them. It is separate from the development dataset: the
-development data keeps the cases developers need (several citizens and technicians, urban context,
-assets, notifications); the demo data is small and easy to follow in front of an audience.
+development data keeps the cases developers need (several citizens and technicians, an urban context
+of each status, assets, notifications); the demo data is small and easy to follow in front of an
+audience, and stores the weather of its incidents as the worker of
+[ADR-0018](adr/0018-weather-and-traffic-providers.md) would, so its incidents need no call to
+Open-Meteo.
 
 It follows the pattern of every data profile (*Data Profiles* in the
 [database guide](database.md)):

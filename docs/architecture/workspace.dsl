@@ -336,9 +336,10 @@ workspace "UrbanPulse" "C4 Model" {
                     web_service = deploymentNode "web" "The only published port, HTTP_PORT (8000 by default). HTTP only: HTTPS is not set up yet (docs/deployment.md)" "Image built from frontend/Dockerfile (unprivileged nginx)" {
                         nginx_instance = containerInstance urbanpulse.nginx
                     }
-                    backend_service = deploymentNode "backend" "Internal network only" "Image built from backend/Dockerfile" {
+                    backend_service = deploymentNode "backend" "No published port and no route to the internet: internal network only; it reaches Open-Meteo through egress-proxy (ADR-0011)" "Image built from backend/Dockerfile" {
                         backend_instance = containerInstance urbanpulse.backend
                     }
+                    egress_proxy = infrastructureNode "egress-proxy" "The backend's only way out to the internet: lets it open an HTTPS tunnel to api.open-meteo.com and refuses everything else (ADR-0011, ADR-0018)" "Squid, image built from egress-proxy/Dockerfile"
                     evidence_volume = deploymentNode "evidence_data" "Mounted in backend at /app/storage" "Docker named volume" {
                         evidence_instance = containerInstance urbanpulse.evidence_storage
                     }
@@ -359,6 +360,7 @@ workspace "UrbanPulse" "C4 Model" {
             phone = deploymentNode "Phone" "Runs the citizen app; release builds allow HTTPS only" "Android or iOS" {
                 mobile_instance = containerInstance urbanpulse.frontend_mobile
             }
+            server.compose.backend_service.backend_instance -> server.compose.egress_proxy "Calls Open-Meteo through it" "HTTPS tunnel (CONNECT)"
 
             server.compose.db_service.postgres_instance -> server.compose.postgres_volume "Stores the database files" "Volume mount"
             server.compose.tiles_service.tiles_instance -> server.compose.tiles_volume "Writes malaga.pmtiles, the style, fonts and sprites" "Volume mount"
