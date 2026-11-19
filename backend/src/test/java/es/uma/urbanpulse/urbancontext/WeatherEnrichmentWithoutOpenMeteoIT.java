@@ -9,9 +9,12 @@ import es.uma.urbanpulse.TestcontainersConfiguration;
 import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.shared.security.TestTokens;
 import es.uma.urbanpulse.urbancontext.service.WeatherEnrichmentWorker;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,6 +63,7 @@ class WeatherEnrichmentWithoutOpenMeteoIT {
     @Autowired private TestTokens tokens;
     @Autowired private WeatherEnrichmentWorker worker;
     @Autowired private MutableClock clock;
+    @Autowired private MeterRegistry meters;
 
     private final List<UUID> createdIncidents = new ArrayList<>();
     private UUID citizen;
@@ -101,21 +105,28 @@ class WeatherEnrichmentWithoutOpenMeteoIT {
     }
 
     // T8: a refused connection leaves the context PENDING, and every run tries it again until the
-    // report is older than WEATHER_MAX_DELAY; then it is UNAVAILABLE, with no value stored.
+    // report is older than WEATHER_MAX_DELAY; then it is UNAVAILABLE without a call, with no value
+    // stored. The incident is never touched.
     @Test
     void aRefusedConnectionRetriesUntilTheMaximumDelay() throws Exception {
         UUID incident = report();
+        Map<String, Object> incidentBefore = incidentRow(incident);
+        long unavailableBefore = unavailableCalls();
 
         worker.enrichPending();
         assertThat(contextStatus(incident)).isEqualTo("PENDING");
+        assertThat(unavailableCalls() - unavailableBefore).isEqualTo(1);
 
         clock.advance(MAX_DELAY.minusMinutes(1));
         worker.enrichPending();
         assertThat(contextStatus(incident)).isEqualTo("PENDING");
+        assertThat(unavailableCalls() - unavailableBefore).isEqualTo(2);
 
         clock.advance(Duration.ofMinutes(2));
         worker.enrichPending();
         assertThat(contextStatus(incident)).isEqualTo("UNAVAILABLE");
+        // The expired context is closed without calling Open-Meteo.
+        assertThat(unavailableCalls() - unavailableBefore).isEqualTo(2);
         assertThat(
                         jdbc.queryForObject(
                                 "SELECT count(*) FROM external_observation o"
@@ -124,6 +135,23 @@ class WeatherEnrichmentWithoutOpenMeteoIT {
                                 Integer.class,
                                 incident))
                 .isZero();
+        assertThat(incidentRow(incident)).isEqualTo(incidentBefore);
+    }
+
+    /** Calls that found Open-Meteo unreachable, from the metric of the worker (ADR-0018). */
+    private long unavailableCalls() {
+        Timer unavailable =
+                meters.find("urbanpulse.weather.requests").tag("outcome", "unavailable").timer();
+        return unavailable == null ? 0 : unavailable.count();
+    }
+
+    /** What the worker must never change in the incident. */
+    private Map<String, Object> incidentRow(UUID incident) {
+        return jdbc.queryForMap(
+                "SELECT i.status, i.category_id, i.priority, i.version, i.updated_at,"
+                        + " (SELECT count(*) FROM status_change s WHERE s.incident_id = i.id)"
+                        + " AS history FROM incident i WHERE i.id = ?",
+                incident);
     }
 
     private UUID report() throws Exception {

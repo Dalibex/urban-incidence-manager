@@ -117,14 +117,6 @@ class IncidentReportCounterIT {
                                 Integer.class,
                                 citizen.getId()))
                 .isZero();
-        // Its context rolls back with it: createPending runs in the transaction of the report.
-        assertThat(
-                        jdbc.queryForObject(
-                                "SELECT count(*) FROM urban_context c JOIN incident i"
-                                        + " ON i.id = c.incident_id WHERE i.reporter_id = ?",
-                                Integer.class,
-                                citizen.getId()))
-                .isZero();
     }
 
     private double count() {

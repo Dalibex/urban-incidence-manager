@@ -13,6 +13,7 @@ import es.uma.urbanpulse.TestcontainersConfiguration;
 import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.shared.security.TestTokens;
 import es.uma.urbanpulse.urbancontext.service.WeatherEnrichmentWorker;
+import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import java.sql.Timestamp;
@@ -26,7 +27,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -47,9 +47,10 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * Acceptance tests of #309 for the weather enrichment of #307 (T1 to T4 and T9 to T14), against
+ * Acceptance tests of #309 for the weather enrichment of #307 (T1 to T4 and T9 to T13), against
  * PostgreSQL and a fake Open-Meteo ({@link FakeOpenMeteo}); T8 and T15, with Open-Meteo really
- * unreachable, are in {@link WeatherEnrichmentWithoutOpenMeteoIT}.
+ * unreachable, are in {@link WeatherEnrichmentWithoutOpenMeteoIT}, and T14, which needs a longer
+ * timeout, in {@link WeatherEnrichmentConcurrencyIT}.
  *
  * <p>They are written from #309 and ADR-0018 (<i>Mechanism</i>, <i>Outcomes</i>,
  * <i>Provenance</i>), not from the implementation: incidents are reported through HTTP or inserted
@@ -146,6 +147,8 @@ class WeatherEnrichmentIT {
         UUID incident = report();
         assertThat(context(incident)).containsEntry("status", "PENDING");
         assertThat(OPEN_METEO.calls()).isZero();
+        double completeBefore = completeContexts();
+        long delaysBefore = delaysRecorded();
 
         // PostgreSQL keeps microseconds.
         Instant before = Instant.now().truncatedTo(ChronoUnit.MICROS);
@@ -162,6 +165,9 @@ class WeatherEnrichmentIT {
                                 assertThat(query)
                                         .contains("latitude=" + LATITUDE)
                                         .contains("longitude=" + LONGITUDE));
+        // The metrics are recorded once the result is stored (ADR-0018, Observability).
+        assertThat(completeContexts() - completeBefore).isEqualTo(1);
+        assertThat(delaysRecorded() - delaysBefore).isEqualTo(1);
     }
 
     // T2, end to end: a clear sky with wind of 40 km/h or more is stored as WINDY. Every code of
@@ -277,6 +283,9 @@ class WeatherEnrichmentIT {
         UUID first = pendingIncident(minutesAgo(30));
         UUID second = pendingIncident(minutesAgo(20));
         UUID third = pendingIncident(minutesAgo(10));
+        Map<UUID, Map<String, Object>> before = new HashMap<>();
+        List.of(first, second, third)
+                .forEach(incident -> before.put(incident, incidentRow(incident)));
         OPEN_METEO.answerNext(httpStatus(503), httpStatus(429));
 
         worker.enrichPending();
@@ -285,6 +294,7 @@ class WeatherEnrichmentIT {
         for (UUID incident : List.of(first, second, third)) {
             assertThat(context(incident)).containsEntry("status", "PENDING");
             assertThat(observations(incident)).isEmpty();
+            assertThat(incidentRow(incident)).isEqualTo(before.get(incident));
         }
 
         worker.enrichPending();
@@ -292,6 +302,7 @@ class WeatherEnrichmentIT {
         assertThat(OPEN_METEO.calls()).isEqualTo(5);
         for (UUID incident : List.of(first, second, third)) {
             assertThat(context(incident)).containsEntry("status", "COMPLETE");
+            assertThat(incidentRow(incident)).isEqualTo(before.get(incident));
         }
     }
 
@@ -360,11 +371,11 @@ class WeatherEnrichmentIT {
         assertThat(context(incident)).containsEntry("status", "COMPLETE");
     }
 
-    // T13: the pending work is rows in the database, not state of the process. The contexts left
-    // PENDING before a restart are enriched by the first run after it, each one once: the next run
-    // does not call Open-Meteo again or store their observations twice.
+    // T13: the pending work is rows in the database, not a list kept by the worker. The contexts
+    // already PENDING when a run starts are enriched by it, each one once: the next run does not
+    // call Open-Meteo again or store their observations twice. No restart is simulated.
     @Test
-    void pendingRowsLeftBeforeARestartAreEnrichedOnce() {
+    void pendingRowsAlreadyInTheDatabaseAreEnrichedOnce() {
         UUID first = pendingIncident(minutesAgo(15));
         UUID second = pendingIncident(minutesAgo(5));
 
@@ -378,39 +389,17 @@ class WeatherEnrichmentIT {
         }
     }
 
-    // T14: two runs at once take the same pending incident and both get Open-Meteo's answer, but
-    // only one writes it: one context and one set of observations.
-    @Test
-    void twoRunsAtOnceStoreOneContextAndOneSetOfObservations() {
-        UUID incident = pendingIncident(minutesAgo(5));
-        double answeredBefore = answeredCalls();
-        // Neither call is answered until both runs have asked, so both took it as PENDING.
-        OPEN_METEO.holdAnswersUntil(2);
-
-        CompletableFuture.allOf(
-                        CompletableFuture.runAsync(worker::enrichPending),
-                        CompletableFuture.runAsync(worker::enrichPending))
-                .join();
-
-        assertThat(OPEN_METEO.calls()).isEqualTo(2);
-        // Both calls were answered within the client's timeout, so both runs really raced to
-        // write it; a timed-out call would leave the other run alone.
-        assertThat(answeredCalls() - answeredBefore).isEqualTo(2);
-        assertThat(
-                        jdbc.queryForObject(
-                                "SELECT count(*) FROM urban_context WHERE incident_id = ?",
-                                Integer.class,
-                                incident))
-                .isEqualTo(1);
-        assertThat(context(incident)).containsEntry("status", "COMPLETE");
-        assertThat(observations(incident)).hasSize(3);
+    /** Contexts the worker ended as {@code COMPLETE}, from its metric (ADR-0018). */
+    private double completeContexts() {
+        Counter complete =
+                meters.find("urbanpulse.weather.contexts").tag("status", "COMPLETE").counter();
+        return complete == null ? 0 : complete.count();
     }
 
-    /** Calls to Open-Meteo that got an answer, from the metric of the worker (ADR-0018). */
-    private double answeredCalls() {
-        Timer answered =
-                meters.find("urbanpulse.weather.requests").tag("outcome", "answered").timer();
-        return answered == null ? 0 : answered.count();
+    /** Delays between a report and its weather recorded by the worker, from its metric. */
+    private long delaysRecorded() {
+        Timer delay = meters.find("urbanpulse.weather.delay").timer();
+        return delay == null ? 0 : delay.count();
     }
 
     /**
