@@ -70,6 +70,8 @@ urbanpulse:
   weather:
     enabled: ${WEATHER_ENRICHMENT_ENABLED:true}
     open-meteo-base-url: ${OPEN_METEO_BASE_URL:https://api.open-meteo.com}
+    # Empty: the calls go straight to Open-Meteo.
+    open-meteo-proxy: ${OPEN_METEO_PROXY:}
     interval: ${WEATHER_ENRICHMENT_INTERVAL:PT30S}
     batch-size: ${WEATHER_ENRICHMENT_BATCH_SIZE:20}
     open-meteo-timeout: ${OPEN_METEO_TIMEOUT:PT2S}

@@ -54,6 +54,7 @@ class WeatherEnrichmentWorkerTest {
                 new WeatherEnrichmentProperties(
                         enabled,
                         URI.create("http://localhost:1"),
+                        null,
                         Duration.ofSeconds(10),
                         BATCH_SIZE,
                         Duration.ofSeconds(2),
