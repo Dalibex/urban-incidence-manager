@@ -75,7 +75,7 @@ public class IncidentReportService {
         Objects.requireNonNull(idempotencyKey, "idempotencyKey");
         // Locked until the transaction ends: two requests with the same key at once are checked
         // one after the other, so the second finds the incident of the first instead of creating
-        // another. The unique constraint of V17 is the database rule behind it.
+        // another. The unique constraint of V18 is the database rule behind it.
         User reporter =
                 users.findLockedById(reporterId).orElseThrow(IncidentReportService::unknownUser);
         var key = new IdempotencyKey(idempotencyKey, ReportFingerprint.of(request));
