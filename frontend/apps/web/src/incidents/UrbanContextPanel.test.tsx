@@ -343,7 +343,46 @@ describe('context section in the incident detail (#308)', () => {
       await vi.waitFor(() => {
         expect(panel.getByRole('button', { name: 'Check again' })).toBeTruthy();
       });
-      expect(document.activeElement).not.toBe(screen.getByRole('heading', { name: 'Context' }));
+      expect(document.activeElement).toBe(panel.getByRole('button', { name: 'Check again' }));
+    });
+
+    // A browser moves the focus of a `disabled` button to the page, and jsdom does not, so the
+    // button must stay enabled while it checks and ignore a second click instead.
+    it('keeps the button focusable while it checks, and a second click reads nothing more', async () => {
+      useFakeClock();
+      let release: () => void = () => {};
+      let holdNextRead = false;
+      const fetch = openDetail(() =>
+        holdNextRead
+          ? new Promise<Response>((resolve) => {
+              release = () => resolve(json(200, PENDING));
+            })
+          : json(200, PENDING),
+      );
+
+      const panel = within(await findContextPanel());
+      await panel.findByText('Getting the weather…');
+      for (let check = 0; check < PENDING_CONTEXT_CHECKS; check++) {
+        await advance(PENDING_CONTEXT_INTERVAL_MS);
+      }
+      await panel.findByText('The weather has not arrived yet.');
+      const readsBefore = contextReads(fetch);
+
+      holdNextRead = true;
+      await userEvent.click(panel.getByRole('button', { name: 'Check again' }));
+      const checking = await panel.findByRole('button', { name: 'Checking…' });
+
+      expect(checking.hasAttribute('disabled')).toBe(false);
+      expect(checking.getAttribute('aria-disabled')).toBe('true');
+      expect(document.activeElement).toBe(checking);
+      await userEvent.click(checking);
+      expect(contextReads(fetch)).toBe(readsBefore + 1);
+
+      holdNextRead = false;
+      await act(async () => release());
+      expect(await panel.findByRole('button', { name: 'Check again' })).toBe(
+        document.activeElement,
+      );
     });
   });
 

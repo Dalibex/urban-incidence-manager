@@ -96,7 +96,13 @@ function ContextState({ context, stoppedWaiting, checking, onCheck }: ContextSta
         <div className={styles.state}>
           <p>The weather has not arrived yet.</p>
           <p>
-            <button type="button" className={styles.button} disabled={checking} onClick={onCheck}>
+            {/* Not `disabled`: a browser moves the focus of a disabled button to the page. */}
+            <button
+              type="button"
+              className={styles.button}
+              aria-disabled={checking || undefined}
+              onClick={checking ? undefined : onCheck}
+            >
               {checking ? 'Checking…' : 'Check again'}
             </button>
           </p>
