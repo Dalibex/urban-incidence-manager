@@ -9,6 +9,7 @@ import es.uma.urbanpulse.incidents.entity.Priority;
 import es.uma.urbanpulse.incidents.service.IncidentQueryService;
 import es.uma.urbanpulse.incidents.service.IncidentReportService;
 import es.uma.urbanpulse.shared.security.AuthenticatedUser;
+import es.uma.urbanpulse.shared.web.MalformedRequestException;
 import es.uma.urbanpulse.shared.web.PageRequests;
 import es.uma.urbanpulse.shared.web.PageResponse;
 import es.uma.urbanpulse.shared.web.QueryParameters;
@@ -20,6 +21,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.springframework.data.domain.Sort;
@@ -32,6 +34,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -51,6 +54,12 @@ class IncidentController {
     // The sortable properties and the default order of listIncidents in the contract.
     private static final Set<String> SORTABLE = Set.of("reportedAt", "updatedAt");
     private static final Sort NEWEST_FIRST = Sort.by(Sort.Direction.DESC, "reportedAt");
+
+    // The header of createIncident in the contract (#289), and the form of its value.
+    private static final String IDEMPOTENCY_KEY = "Idempotency-Key";
+    private static final Pattern CANONICAL_UUID =
+            Pattern.compile(
+                    "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
 
     // Every query parameter of listIncidents in the contract; any other one is a 400.
     private static final Set<String> LIST_PARAMETERS =
@@ -109,12 +118,21 @@ class IncidentController {
         return incidents.history(incidentId, user.id(), user.role());
     }
 
+    /**
+     * A retry with the same {@code Idempotency-Key} answers {@code 201} with the incident already
+     * created (#289), so the client handles a first answer and a repeated one in the same way.
+     */
     @PostMapping
     @PreAuthorize("hasRole('CITIZEN')")
     public ResponseEntity<IncidentResponse> createIncident(
             @Valid @RequestBody CreateIncidentRequest request,
+            @RequestHeader(name = IDEMPOTENCY_KEY, required = false) String idempotencyKey,
             @AuthenticationPrincipal AuthenticatedUser currentUser) {
-        var incident = incidentReportService.createIncident(request, currentUser.id());
+        var incident =
+                idempotencyKey == null
+                        ? incidentReportService.createIncident(request, currentUser.id())
+                        : incidentReportService.createIncident(
+                                request, currentUser.id(), parseIdempotencyKey(idempotencyKey));
 
         var response = IncidentResponse.of(incident, currentUser.role());
 
@@ -124,5 +142,17 @@ class IncidentController {
                         .buildAndExpand(incident.getId())
                         .toUri();
         return ResponseEntity.created(location).body(response);
+    }
+
+    /**
+     * The key in the canonical form the contract asks for. {@link UUID#fromString} alone also takes
+     * shortened forms such as {@code 1-2-3-4-5}, so the same key could arrive written in two ways.
+     */
+    private static UUID parseIdempotencyKey(String value) {
+        if (!CANONICAL_UUID.matcher(value).matches()) {
+            throw new MalformedRequestException(
+                    "Invalid value of the header " + IDEMPOTENCY_KEY + ".");
+        }
+        return UUID.fromString(value);
     }
 }

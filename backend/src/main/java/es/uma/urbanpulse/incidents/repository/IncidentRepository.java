@@ -48,6 +48,17 @@ public interface IncidentRepository
     Optional<Incident> findLockedById(UUID id);
 
     /**
+     * The incident a citizen reported with an {@code Idempotency-Key} (#289), with its category and
+     * location, which the answer of a retry needs after the transaction ends.
+     */
+    @EntityGraph(attributePaths = {"category", "location"})
+    @Query(
+            "select i from Incident i"
+                    + " where i.reporter.id = :reporterId and i.idempotencyKey.value = :key")
+    Optional<Incident> findByIdempotencyKey(
+            @Param("reporterId") UUID reporterId, @Param("key") UUID key);
+
+    /**
      * The id and title of some incidents, in one query and without loading them: an entity would
      * also load its location, one query per incident. For the labels of the audit log (#41).
      */

@@ -4,6 +4,7 @@ import es.uma.urbanpulse.identity.entity.User;
 import es.uma.urbanpulse.identity.repository.UserRepository;
 import es.uma.urbanpulse.incidents.dto.CreateIncidentRequest;
 import es.uma.urbanpulse.incidents.entity.Category;
+import es.uma.urbanpulse.incidents.entity.IdempotencyKey;
 import es.uma.urbanpulse.incidents.entity.Incident;
 import es.uma.urbanpulse.incidents.entity.InvalidIncidentDataException;
 import es.uma.urbanpulse.incidents.entity.Location;
@@ -13,6 +14,7 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 import org.locationtech.jts.geom.Coordinate;
 import org.springframework.security.authentication.InsufficientAuthenticationException;
@@ -49,14 +51,46 @@ public class IncidentReportService {
                         .register(meterRegistry);
     }
 
+    /** A report sent without an {@code Idempotency-Key}: every call creates an incident. */
     @Transactional
     public Incident createIncident(CreateIncidentRequest request, UUID reporterId) {
+        User reporter = users.findById(reporterId).orElseThrow(IncidentReportService::unknownUser);
+        return report(request, reporter, null);
+    }
+
+    /**
+     * A report sent with an {@code Idempotency-Key} (#289). A key this citizen already used with
+     * the same report returns that incident, as it is now, and creates nothing; with a different
+     * report it is refused.
+     *
+     * @throws IdempotencyKeyReusedException if the key was used for a different report
+     */
+    @Transactional
+    public Incident createIncident(
+            CreateIncidentRequest request, UUID reporterId, UUID idempotencyKey) {
+        Objects.requireNonNull(idempotencyKey, "idempotencyKey");
+        // Locked until the transaction ends: two requests with the same key at once are checked
+        // one after the other, so the second finds the incident of the first instead of creating
+        // another. The unique constraint of V17 is the database rule behind it.
         User reporter =
-                users.findById(reporterId)
-                        .orElseThrow(
-                                () ->
-                                        new InsufficientAuthenticationException(
-                                                "The user does not exist"));
+                users.findLockedById(reporterId).orElseThrow(IncidentReportService::unknownUser);
+        var key = new IdempotencyKey(idempotencyKey, ReportFingerprint.of(request));
+        var previous = incidents.findByIdempotencyKey(reporterId, idempotencyKey);
+        if (previous.isPresent()) {
+            var stored = previous.get();
+            // Found by its key, so it has one.
+            if (!stored.idempotencyKey().orElseThrow().isSameRequest(key.requestHash())) {
+                throw new IdempotencyKeyReusedException();
+            }
+            return stored;
+        }
+        return report(request, reporter, key);
+    }
+
+    /**
+     * @param key {@code null} for a report sent without an {@code Idempotency-Key}
+     */
+    private Incident report(CreateIncidentRequest request, User reporter, IdempotencyKey key) {
         Category category = null;
         if (request.categoryId() != null) {
             category =
@@ -76,14 +110,24 @@ public class IncidentReportService {
         location.setAccuracy(reported.accuracy());
         // address, neighborhood and district stay null (RF26: graceful degradation).
 
+        Instant now = Instant.now(clock);
         var incident =
-                Incident.report(
-                        reporter,
-                        request.title(),
-                        request.description(),
-                        category,
-                        location,
-                        Instant.now(clock));
+                key == null
+                        ? Incident.report(
+                                reporter,
+                                request.title(),
+                                request.description(),
+                                category,
+                                location,
+                                now)
+                        : Incident.report(
+                                reporter,
+                                request.title(),
+                                request.description(),
+                                category,
+                                location,
+                                now,
+                                key);
         Incident saved = incidents.saveAndFlush(incident);
         // Counted once the report is committed: a rejected report, or one whose transaction rolls
         // back, is never counted.
@@ -95,5 +139,9 @@ public class IncidentReportService {
                     }
                 });
         return saved;
+    }
+
+    private static InsufficientAuthenticationException unknownUser() {
+        return new InsufficientAuthenticationException("The user does not exist");
     }
 }
