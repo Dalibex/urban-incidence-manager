@@ -13,7 +13,7 @@ first: [`docs/api/openapi.yml`](api/openapi.yml) is its source of truth
 
 - **[What It Is and Why It Comes First](#-what-it-is-and-why-it-comes-first)**: why the contract is the source of truth of the API.
 - **[What the Contract Defines](#-what-the-contract-defines)**: its parts, and the operations agreed in each sprint.
-- **[Conventions](#-conventions)**: paths, names, schemas, errors and their codes, request id and listings.
+- **[Conventions](#-conventions)**: paths, names, schemas, errors and their codes, request id, retries of a report and listings.
 - **[How to Add an Endpoint](#-how-to-add-an-endpoint)**: the steps, from the contract to the tests.
 - **[Viewing the Documentation](#-viewing-the-documentation)**: Swagger UI and the contract served by the backend.
 - **[Generated Client](#-generated-client)**: the TypeScript client of the apps, generated from the contract.
@@ -175,6 +175,7 @@ Do not define a new error body. If an error needs extra information, add an opti
 | `CLASSIFICATION_NOT_ALLOWED` | 409 | `updateIncident` | The incident is `REJECTED` or `CLOSED` |
 | `ATTACHMENT_NOT_ALLOWED` | 409 | `createIncidentAttachment` | A citizen can only upload while the incident is `REPORTED` |
 | `FILE_TOO_LARGE` | 413 | `createIncidentAttachment` | The file is over the size limit |
+| `IDEMPOTENCY_KEY_REUSED` | 422 | `createIncident` | The citizen already used this `Idempotency-Key` for a different report: send a new key |
 
 Add a row in the same PR that introduces a new code.
 
@@ -187,6 +188,20 @@ Every response carries an `X-Request-ID` header (`components.headers.XRequestId`
 - The shared error responses list the header. Operations do not repeat it in their success responses: the `info` of the contract says it applies to all of them.
 - Every response with a status of `400` or more writes one log line with its status, method and path (`Answered 422 to POST /api/v1/registrations`), so even a client error that logs nothing else can be found by its `traceId`. The line never has the body, the query string or the headers, which may hold personal data.
 - `RequestIdFilter` sets it before the security filters run, so their `401` and `403` carry it too. In the code, a module never reads or writes it: `ApiExceptionHandler` and `SecurityProblemResponses` add `traceId`.
+
+### Retries of a report
+
+`createIncident` is the one operation whose retry must not repeat its effect: a citizen on a weak
+connection taps *Submit* again when the answer is lost, and a second incident would reach the
+operators (#289). It takes an optional `Idempotency-Key` header
+(`components.parameters.IdempotencyKey`):
+
+- The client creates a UUID once per report and sends it unchanged on every retry of that report. A
+  report whose data changed is a new report and gets a new key; a report saved successfully, too.
+- A key the same citizen already used with the same body answers `201` with that incident and
+  creates nothing; with another body, `422` `IDEMPOTENCY_KEY_REUSED`. Each key is kept with its
+  incident for as long as the incident exists, and is unique per citizen.
+- Without the header every request creates an incident. No other operation takes the header.
 
 ### Domain errors
 

@@ -358,6 +358,15 @@ export interface paths {
          *     `district` start as `null` ("not available yet") and are filled in later, when enrichment
          *     exists.
          *
+         *     Retries (#289): a client that may retry the report sends an `Idempotency-Key`. A request
+         *     with a key the same citizen already used, and the same body, creates nothing: it answers
+         *     `201` with that incident as it is now, the same `Location` and no new history entry. Two
+         *     such requests at the same time also create one incident. The same key with a different
+         *     body answers `422` with `IDEMPOTENCY_KEY_REUSED` and leaves the stored incident as it was,
+         *     so a client creates a new key when the citizen changes the report. A request that failed
+         *     (`4xx`, `5xx`) stored nothing, so its retry with the same key, once the cause of the failure
+         *     is gone, creates the incident. Without the header every request creates an incident.
+         *
          *     Roles: `CITIZEN`.
          */
         post: operations["createIncident"];
@@ -2088,6 +2097,8 @@ export interface components {
         UserId: string;
         /** @description Identifier of the attachment. */
         AttachmentId: string;
+        /** @description A UUID the client creates once per report and sends again, unchanged, on every retry of that report, so a retry after a lost answer returns the incident already created instead of a second one (#289). It is kept with the incident for as long as the incident exists, and it is unique per reporter: another citizen who sends the same key gets their own incident. A value that is not a UUID in its canonical form (36 characters, with hyphens) returns `400`. */
+        IdempotencyKey: string;
         /** @description Only incidents in one of these statuses. Repeat it for several values (`?status=REPORTED&status=VALIDATED`). Absent means every status. */
         StatusFilter: components["schemas"]["IncidentStatus"][];
         /** @description Only incidents in one of these categories. Repeat it for several values. */
@@ -2657,7 +2668,10 @@ export interface operations {
     createIncident: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description A UUID the client creates once per report and sends again, unchanged, on every retry of that report, so a retry after a lost answer returns the incident already created instead of a second one (#289). It is kept with the incident for as long as the incident exists, and it is unique per reporter: another citizen who sends the same key gets their own incident. A value that is not a UUID in its canonical form (36 characters, with hyphens) returns `400`. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -2667,10 +2681,10 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The incident was created. `Location` points to it and the body repeats it. */
+            /** @description The incident was created, or it already existed with this `Idempotency-Key` and body. `Location` points to it and the body repeats it. */
             201: {
                 headers: {
-                    /** @description URL of the new incident. */
+                    /** @description URL of the incident. */
                     Location?: string;
                     [name: string]: unknown;
                 };
@@ -2681,7 +2695,16 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            422: components["responses"]["UnprocessableEntity"];
+            /** @description The data does not pass validation, code `VALIDATION_FAILED`, with every invalid field in `errors`; or the `Idempotency-Key` was already used by this citizen for a different report, code `IDEMPOTENCY_KEY_REUSED`, and nothing was created. */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["XRequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             500: components["responses"]["InternalServerError"];
         };
     };
