@@ -240,6 +240,9 @@ class PasswordChangeApiIT {
         String givenHash = storedHash();
 
         expectFieldError(changePassword(email, GIVEN_PASSWORD, "Short-1"), "newPassword");
+        // #285: 4 emoji are 8 UTF-16 units, but only 4 of the 8 characters required.
+        expectFieldError(
+                changePassword(email, GIVEN_PASSWORD, "\uD83D\uDE00".repeat(4)), "newPassword");
 
         expectUnchanged(userId, givenHash);
     }

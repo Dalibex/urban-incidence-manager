@@ -107,6 +107,20 @@ class FirstAdministratorIT {
         assertThat(output).doesNotContain(PASSWORD);
     }
 
+    // #322: String.strip also removes U+001C to U+001F, which the \S of the contract counts as
+    // visible, so such a name passed the check and was stored empty.
+    @Test
+    void aNameOfControlCharactersIsNotStoredEmpty() {
+        bootstrap(values("\u001F\u001C", email, PASSWORD));
+
+        assertThat(
+                        jdbc.queryForObject(
+                                "SELECT name FROM users WHERE email = ?",
+                                String.class,
+                                email.toLowerCase()))
+                .isEqualTo("\u001F\u001C");
+    }
+
     // T2
     @Test
     void theNewAdministratorSignsIn() throws Exception {

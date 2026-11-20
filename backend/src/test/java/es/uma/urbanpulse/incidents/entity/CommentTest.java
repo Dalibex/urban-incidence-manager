@@ -37,7 +37,7 @@ class CommentTest {
 
     @ParameterizedTest
     @NullSource
-    @ValueSource(strings = {"", "   ", "\n\t"})
+    @ValueSource(strings = {"", "   ", "\n\t", "\u00A0\u00A0\u00A0", "\u00A0 \u202F", "\uFEFF"})
     void refusesAMissingOrBlankText(String text) {
         assertRefused(text, "Write the comment.");
     }
@@ -56,6 +56,18 @@ class CommentTest {
         assertRefused(
                 "a".repeat(Comment.MAX_TEXT_LENGTH + 1),
                 "The comment can have at most 2000 characters.");
+    }
+
+    // #285: PostgreSQL cannot store U+0000, and saving it failed with a 500.
+    @Test
+    void refusesATextWithTheNullCharacter() {
+        assertRefused("Back street\u0000", "The comment cannot contain the null character.");
+    }
+
+    @Test
+    void acceptsLettersBetweenNoBreakSpaces() {
+        assertThat(Comment.internal(incident, fixture.operator, "\u00A0Ok\u00A0", NOW).getText())
+                .isEqualTo("\u00A0Ok\u00A0");
     }
 
     private void assertRefused(String text, String message) {
