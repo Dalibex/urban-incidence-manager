@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Decision Makers:** Project Team
 - **Date:** 2026-10-10
-- **Amended:** 2026-10-28 (see *Amendments*)
+- **Amended:** 2026-10-28, 2026-11-02 and 2026-11-19 (see *Amendments*)
 
 ## Context
 
@@ -33,6 +33,7 @@ We will deploy the system as **containers orchestrated by a single `docker-compo
   | `web` | Own image built from `frontend/Dockerfile` (nginx) | `HTTP_PORT` |
   | `backend` | Own image built from `backend/Dockerfile` | No (internal network) |
   | `db` | `postgis/postgis` (PostgreSQL + PostGIS) | No (internal network) |
+  | `egress-proxy` | Own image built from `egress-proxy/Dockerfile` (Squid) | No (internal and egress networks) |
 
 - **One image per service for every environment (12-factor X).** The same pinned image tag is
   used in local development, CI (Testcontainers and smoke test), staging and production. Images
@@ -45,7 +46,7 @@ We will deploy the system as **containers orchestrated by a single `docker-compo
 - **Stateless application process:** sessions and tokens live in the clients and, where
   server-side state is unavoidable, in the cache; the app container can be stopped and started
   at any time.
-- **Database and backend on the internal network only:** the `internal` compose network has no published ports and no outbound internet access. Per ADR-0017, only `web` publishes a port in the deployed system; `backend` and `db` are strictly internal.
+- **Database and backend on the internal network:** the `internal` compose network has no published ports and no outbound internet access. Per ADR-0017, only `web` publishes a port in the deployed system; `backend` and `db` publish none, and neither has a route to the internet. The backend calls the external sources of ADR-0018 through `egress-proxy`, the only service on the `egress` network, which lets it reach the allowed hosts and nothing else (see *Amendments*, 2026-11-19).
 - **Local development exception:** `backend/docker-compose.yaml` publishes `db` on `127.0.0.1`
   only, so the backend can run from the IDE, where Spring Boot's Docker Compose support starts the
   database. The `backend` service in that file belongs to the `app` profile, so the IDE flow
@@ -120,3 +121,25 @@ requirements demand.
   `COMPOSE_FILE`, because Spring Boot's Docker Compose support already starts that file from the
   IDE.
 - **2026-11-02** ([#91](https://github.com/Dalibex/urban-incidence-manager/issues/91)). Updated published ports and Compose file location to align with ADR-0017: in the deployed Compose, only `web` publishes a host port (`HTTP_PORT`), keeping `backend` and `db` strictly internal. Clarified that the full-stack `docker-compose.yaml` lives at the repository root, while `backend/docker-compose.yaml` is kept for the local development exception.
+- **2026-11-19** ([#307](https://github.com/Dalibex/urban-incidence-manager/issues/307)). The
+  backend calls Open-Meteo ([ADR-0018](0018-weather-and-traffic-providers.md)), which `internal`
+  cannot reach. The backend stays on `internal` only, with no route to the internet, and calls
+  Open-Meteo through `egress-proxy`: a Squid forward proxy (`egress-proxy/`) that is the only
+  service on `egress`, a network with outbound access, no published port and inter-container
+  traffic turned off. Squid allows one thing: an HTTPS tunnel (`CONNECT`, port 443) from the
+  backend's fixed address to the hosts of its allowlist, named as such (`dstdomain -n`: a tunnel to
+  an IP address is refused, whatever its reverse DNS says), today `api.open-meteo.com`. TLS stays
+  end to end, so the proxy never sees the content. `internal` also gives the host no address
+  (`gateway_mode_ipv4: isolated`), so its services cannot reach anything the host listens on, nor
+  the host them. Even code running inside a compromised backend can only reach those hosts, and
+  `db` has no way out at all. `web` and `tiles-builder` keep the internet of `edge`, because a
+  published port needs a network with a route out; that is an accepted risk of the
+  [architecture overview](../architecture.md). The CI checks the networks of every service, the
+  addresses and the allowlist (`lint`) and that the proxy refuses everything else (`build`). The
+  first administrator is created by a `bootstrap-admin` one-off service with the backend's image
+  and settings, because `run backend` would take the backend's fixed address.
+  Alternatives: the backend on its own outbound network, which lets it reach any host of the
+  internet; the backend on `edge`, shared with `web` and `tiles-builder`, with the same problem;
+  and firewall rules on the host, which live outside the repository and break when the IP
+  addresses of Open-Meteo change. The cost of the choice is one more small image to keep up to
+  date, and one line in `squid.conf` for each new external source.

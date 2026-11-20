@@ -63,6 +63,9 @@ function api(server: Server, answers: { closure?: Answer; reopening?: Answer } =
     },
     [`GET /incidents/${RESOLVED.id}/status-changes`]: () => json(200, []),
     [`GET /incidents/${RESOLVED.id}/attachments`]: () => json(200, []),
+    // The weather of the Context section (#308); these tests do not look at it.
+    [`GET /incidents/${RESOLVED.id}/urban-context`]: () =>
+      json(200, { status: 'UNAVAILABLE', capturedAt: null, weather: null }),
     [`POST /incidents/${RESOLVED.id}/closure`]: async (request) => {
       server.closed.push(await request.json());
       if (answers.closure) {

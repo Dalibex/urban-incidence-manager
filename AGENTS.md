@@ -137,6 +137,7 @@ Do not change the stack or introduce components because they are popular. An arc
 | `frontend/`  | Client pnpm workspace: `apps/web`, `apps/mobile` and `packages/*`, and the web image (nginx). |
 | `docs/`      | Guides, ADRs, the API contract and the C4 model (see section 2).        |
 | `tiles/`     | Base map builder, a one-off process.                                    |
+| `egress-proxy/` | The backend's only way out to the internet in the deployment: a Squid proxy with an allowlist of hosts. |
 | `.github/`   | CI workflows, issue and pull request templates.                         |
 | `.githooks/` | Versioned Git hooks (pre-commit formatting).                            |
 

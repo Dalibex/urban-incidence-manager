@@ -167,15 +167,19 @@ Known limits:
     `SERVER_FORWARD_HEADERS_STRATEGY=native` makes Tomcat take the client address from
     `X-Forwarded-For`, and the scheme, host and port of the `Location` of a `201` from
     `X-Forwarded-Proto`, `X-Forwarded-Host` and `X-Forwarded-Port` (#200). Tomcat only reads them
-    from a private address, the default of `server.tomcat.remoteip.internal-proxies`, which covers
-    the Compose networks.
+    from nginx: `SERVER_TOMCAT_REMOTEIP_INTERNALPROXIES` is the fixed address of `web` on the
+    `internal` network (`10.203.217.10`), and the `lint` job fails if the two differ. A request
+    from any other peer keeps that peer's own address, whatever headers it sends.
   - **Why a client cannot forge them:** nginx writes all four itself at the `server` level of
     `frontend/nginx.conf`, so what a client sends never reaches the backend, and it removes the
     client's `Forwarded` and `X-Forwarded-Prefix`, which the backend would trust if it ever switched
     to `server.forward-headers-strategy=framework`. The `build` job fails if a `location` sets a
     `proxy_set_header` of its own, or if a forged header reaches the backend.
-  - **The condition:** this is safe only because the backend publishes no port. If it were reachable
-    from a private network without nginx, anyone there could send the headers.
+  - **Who else reaches the backend:** nobody but the services of `internal`. It publishes no port,
+    and `internal` gives the host no address (`gateway_mode_ipv4: isolated`), so not even a process
+    on the server can call it without nginx. The trust in nginx's address alone stays as a second
+    barrier: if another container ever reached the backend, its forged headers would be ignored and
+    it would be limited by its own address ([deployment guide](deployment.md#networks)).
 - On Docker Desktop (Windows and macOS), Docker hides the address of the devices that connect from
   outside its virtual machine, so nginx sees one address for all of them and they share the
   limits. On a Linux machine each device that connects over IPv4 arrives with its own address.

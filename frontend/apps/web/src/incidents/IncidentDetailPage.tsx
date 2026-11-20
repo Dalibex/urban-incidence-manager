@@ -15,6 +15,7 @@ import { PRIORITY_LABELS } from './labels';
 import { PhotoGallery } from './PhotoGallery';
 import { LoadingSkeleton, SkeletonLine, SkeletonText } from './Skeleton';
 import { StatusBadge } from './StatusBadge';
+import { UrbanContextPanel } from './UrbanContextPanel';
 
 type Incident = components['schemas']['IncidentResponse'];
 type IncidentLocation = components['schemas']['IncidentLocation'];
@@ -103,6 +104,7 @@ function IncidentDetail({ incident }: { incident: Incident }) {
           <ReportPanel incident={incident} />
           <PhotoGallery incidentId={incident.id} />
           <LocationPanel location={incident.location} />
+          <UrbanContextPanel incidentId={incident.id} />
           <IncidentTimeline incidentId={incident.id} />
         </div>
       </div>

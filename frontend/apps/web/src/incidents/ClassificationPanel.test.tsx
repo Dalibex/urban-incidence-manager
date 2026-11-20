@@ -100,6 +100,9 @@ function api(
     [`GET /incidents/${INCIDENT.id}/comments`]: () =>
       json(200, { content: [], page: { number: 0, size: 100, totalElements: 0, totalPages: 0 } }),
     [`GET /incidents/${INCIDENT.id}/attachments`]: () => json(200, []),
+    // The weather of the Context section (#308); these tests do not look at it.
+    [`GET /incidents/${INCIDENT.id}/urban-context`]: () =>
+      json(200, { status: 'UNAVAILABLE', capturedAt: null, weather: null }),
     'GET /categories': () => json(200, CATEGORIES),
     [`PATCH /incidents/${INCIDENT.id}`]: async (request) => {
       const body = (await request.json()) as UpdateIncidentRequest;

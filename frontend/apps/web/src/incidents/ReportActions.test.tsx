@@ -79,6 +79,9 @@ function api(server: Server, answers: Partial<Record<Action, Answer>> = {}) {
     },
     [`GET /incidents/${REPORTED.id}/status-changes`]: () => json(200, []),
     [`GET /incidents/${REPORTED.id}/attachments`]: () => json(200, []),
+    // The weather of the Context section (#308); these tests do not look at it.
+    [`GET /incidents/${REPORTED.id}/urban-context`]: () =>
+      json(200, { status: 'UNAVAILABLE', capturedAt: null, weather: null }),
     [`POST /incidents/${REPORTED.id}/validation`]: action('validation', VALIDATED),
     [`POST /incidents/${REPORTED.id}/rejection`]: action('rejection', REJECTED),
     [`POST /incidents/${REPORTED.id}/information-requests`]: action('information-requests', {

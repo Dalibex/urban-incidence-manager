@@ -60,6 +60,15 @@ class IncidentReportCounterIT {
                 "DELETE FROM status_change WHERE incident_id IN (" + reported + ")",
                 citizen.getId());
         jdbc.update(
+                "DELETE FROM external_observation WHERE urban_context_id IN"
+                        + " (SELECT id FROM urban_context WHERE incident_id IN ("
+                        + reported
+                        + "))",
+                citizen.getId());
+        jdbc.update(
+                "DELETE FROM urban_context WHERE incident_id IN (" + reported + ")",
+                citizen.getId());
+        jdbc.update(
                 "DELETE FROM location WHERE incident_id IN (" + reported + ")", citizen.getId());
         jdbc.update("DELETE FROM incident WHERE reporter_id = ?", citizen.getId());
         jdbc.update("DELETE FROM users WHERE id = ?", citizen.getId());
@@ -69,9 +78,16 @@ class IncidentReportCounterIT {
     void aStoredReportIsCountedOnce() {
         double before = count();
 
-        reports.createIncident(report(null), citizen.getId());
+        var incident = reports.createIncident(report(null), citizen.getId());
 
         assertThat(count()).isEqualTo(before + 1);
+        // The report starts its urban context, empty, for the weather worker (ADR-0018).
+        assertThat(
+                        jdbc.queryForObject(
+                                "SELECT status FROM urban_context WHERE incident_id = ?",
+                                String.class,
+                                incident.getId()))
+                .isEqualTo("PENDING");
     }
 
     @Test
