@@ -128,6 +128,9 @@ function detail(incident: () => Response | Promise<Response>) {
     [`GET /incidents/${INCIDENT.id}/classification-changes`]: () => json(200, NO_ENTRIES),
     [`GET /incidents/${INCIDENT.id}/comments`]: () => json(200, NO_ENTRIES),
     [`GET /incidents/${INCIDENT.id}/attachments`]: () => json(200, []),
+    // The weather of the Context section (#308); these tests do not look at it.
+    [`GET /incidents/${INCIDENT.id}/urban-context`]: () =>
+      json(200, { status: 'UNAVAILABLE', capturedAt: null, weather: null }),
     'GET /categories': () => json(200, []),
     'GET /departments': () => json(200, []),
   });
@@ -157,9 +160,12 @@ describe('incident detail while it loads (#174)', () => {
     for (const title of ['Actions', 'Report', 'Location']) {
       expect(within(skeleton).getByText(title)).toBeDefined();
     }
-    // Only the status is read: the shape and its titles are hidden from screen readers.
+    // Only the status and the name of the page are read (#180): the shape and its titles are
+    // hidden from screen readers.
     expect(skeleton.getAttribute('aria-hidden')).toBe('true');
-    expect(screen.queryByRole('heading')).toBeNull();
+    expect(screen.getAllByRole('heading').map((heading) => heading.textContent)).toEqual([
+      'Incident',
+    ]);
     // The way back does not wait for the incident.
     expect(screen.getByRole('link', { name: 'Back to the inbox' })).toBeDefined();
   });

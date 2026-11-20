@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import es.uma.urbanpulse.ApiContract;
+import es.uma.urbanpulse.TestHistories;
 import es.uma.urbanpulse.TestcontainersConfiguration;
 import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.shared.security.TestTokens;
@@ -89,7 +90,7 @@ class IncidentCommentApiIT {
     void deleteTheRowsOfTheTest() {
         for (UUID incident : createdIncidents) {
             jdbc.update("DELETE FROM comment WHERE incident_id = ?", incident);
-            jdbc.update("DELETE FROM status_change WHERE incident_id = ?", incident);
+            TestHistories.delete(jdbc, "incident_id = ?", incident);
             jdbc.update("DELETE FROM assignment WHERE incident_id = ?", incident);
             jdbc.update("DELETE FROM location WHERE incident_id = ?", incident);
             jdbc.update("DELETE FROM incident WHERE id = ?", incident);
@@ -191,7 +192,8 @@ class IncidentCommentApiIT {
         expectForbidden(list(citizen, incident, ""));
     }
 
-    // T4: a missing, empty or blank text, or one over the limit, is 422 and stores nothing.
+    // T4: a missing, empty or blank text, one with U+0000 or one over the limit, is 422 and stores
+    // nothing.
     @Test
     void anInvalidTextIsUnprocessableAndStoresNothing() throws Exception {
         UUID incident = assignedTo(technician);
@@ -202,6 +204,9 @@ class IncidentCommentApiIT {
                         "{\"text\": null}",
                         body(""),
                         body(" \n "),
+                        // #285: no-break spaces are blank, and U+0000 used to fail with a 500.
+                        body("\u00A0\u00A0"),
+                        "{\"text\": \"Back street\\u0000\"}",
                         body("a".repeat(MAX_TEXT_LENGTH + 1)))) {
             expectUnprocessable(comment(operator, incident, body), "text");
         }

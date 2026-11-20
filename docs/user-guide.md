@@ -237,6 +237,11 @@ ticked. *Clear filters* lists every incident.
 - **Location:** address, neighbourhood, district, coordinates and the accuracy the phone reported
   (for example *within 12.5 m*). A value that is not known says *Not available*: it is never left
   empty or guessed.
+- **Context:** the weather at the incident's position when it was reported, such as *Rainy*, with
+  the time it was recorded and *Weather data by Open-Meteo.com*, which opens the source. The weather
+  arrives some seconds after the report: until then it says *Getting the weather…* and checks again
+  on its own for two minutes, then offers *Check again*, which looks once more. When there is no weather, it says *Weather
+  not available* and why; it never shows a guessed value.
 - **History:** a timeline of every change of status, oldest first, with its date and time, who made
   it, their role and the reason. Entries the citizen does not see are marked *Internal*. The changes
   of category and priority appear among them as *Classification changed*, with who made them and
@@ -395,7 +400,8 @@ with the time it was read and *Try again*. Only the first load of the page shows
 instead of the incident.
 
 In the incident detail, if the photos cannot be listed, the *Photos* section says so with *Try
-again* and the rest of the detail stays. If one photo cannot be loaded, its tile says *This photo
+again* and the rest of the detail stays. The *Context* section works the same way when the weather
+cannot be loaded. If one photo cannot be loaded, its tile says *This photo
 could not be loaded.* with its own *Try again*, and the other photos still show.
 
 ## 🔧 Technician (Web)
@@ -419,7 +425,7 @@ those of the inbox, *Reported in* included.
 
 ### Incident detail
 
-The report, its photos, the location and the history, as the operator sees them (see
+The report, its photos, the location, the weather and the history, as the operator sees them (see
 [Incident detail](#incident-detail)), and the actions of the technician:
 
 - **Accept the work**, on an *Assigned* incident: press *Accept* when you start working on it. It

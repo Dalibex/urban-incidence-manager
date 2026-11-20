@@ -28,6 +28,7 @@ export {
   createIncidentComment,
   getIncident,
   getIncidentStatistics,
+  getIncidentUrbanContext,
   listCategories,
   listDepartments,
   listIncidentClassificationChanges,

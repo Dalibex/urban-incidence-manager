@@ -5,6 +5,7 @@ import es.uma.urbanpulse.identity.entity.AuditAction;
 import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.identity.entity.User;
 import es.uma.urbanpulse.identity.repository.UserRepository;
+import es.uma.urbanpulse.shared.text.Texts;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import java.util.Comparator;
@@ -87,7 +88,7 @@ public class FirstAdministratorService {
         }
 
         var user = new User();
-        user.setName(name.strip());
+        user.setName(Texts.strip(name));
         user.setEmail(normalizedEmail);
         user.setPasswordHash(passwordEncoder.encode(password));
         user.setRole(Role.ADMINISTRATOR);

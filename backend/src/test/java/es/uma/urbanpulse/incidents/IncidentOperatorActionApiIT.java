@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import es.uma.urbanpulse.ApiContract;
+import es.uma.urbanpulse.TestHistories;
 import es.uma.urbanpulse.TestcontainersConfiguration;
 import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.shared.security.TestTokens;
@@ -104,7 +105,7 @@ class IncidentOperatorActionApiIT {
     void deleteTheRowsOfTheTest() {
         for (UUID incident : createdIncidents) {
             jdbc.update("DELETE FROM notification WHERE incident_id = ?", incident);
-            jdbc.update("DELETE FROM status_change WHERE incident_id = ?", incident);
+            TestHistories.delete(jdbc, "incident_id = ?", incident);
             jdbc.update("DELETE FROM location WHERE incident_id = ?", incident);
             jdbc.update("DELETE FROM incident WHERE id = ?", incident);
         }
@@ -211,6 +212,17 @@ class IncidentOperatorActionApiIT {
             expectUnprocessable(act(administrator, incident, REJECTION, body(0, reason)), "reason");
         }
 
+        assertUnchanged(incident, "REPORTED", 0, 1);
+    }
+
+    // #285: PostgreSQL cannot store U+0000, so it used to fail on save with a 500.
+    @Test
+    void aReasonWithTheNullCharacterIsUnprocessable() throws Exception {
+        UUID incident = classified("REPORTED");
+
+        expectUnprocessable(
+                act(operator, incident, REJECTION, "{\"version\": 0, \"reason\": \"Dup\\u0000\"}"),
+                "reason");
         assertUnchanged(incident, "REPORTED", 0, 1);
     }
 

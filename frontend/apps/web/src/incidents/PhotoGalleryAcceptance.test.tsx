@@ -69,6 +69,9 @@ function detailApi(list: Answer, content: Record<string, Answer> = {}) {
     [`GET /incidents/${INCIDENT.id}/comments`]: () =>
       json(200, { content: [], page: { number: 0, size: 100, totalElements: 0, totalPages: 0 } }),
     [`GET /incidents/${INCIDENT.id}/attachments`]: list,
+    // The weather of the Context section (#308); these tests do not look at it.
+    [`GET /incidents/${INCIDENT.id}/urban-context`]: () =>
+      json(200, { status: 'UNAVAILABLE', capturedAt: null, weather: null }),
     ...Object.fromEntries(
       Object.entries(content).map(([id, answer]) => [`GET /attachments/${id}/content`, answer]),
     ),

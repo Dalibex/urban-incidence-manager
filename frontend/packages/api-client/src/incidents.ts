@@ -355,6 +355,19 @@ export function getIncident(
   return callApi(() => client.GET('/incidents/{incidentId}', { params: { path: { incidentId } } }));
 }
 
+/**
+ * The urban context of an incident, for staff: today its weather from Open-Meteo (ADR-0018). An
+ * incident the caller may not see answers `404`, and a role that may not read it `403`.
+ */
+export function getIncidentUrbanContext(
+  client: ApiClient,
+  incidentId: string,
+): Promise<ApiResult<Schemas['UrbanContextResponse']>> {
+  return callApi(() =>
+    client.GET('/incidents/{incidentId}/urban-context', { params: { path: { incidentId } } }),
+  );
+}
+
 /** Query of `listIncidentClassificationChanges`: `page` starts at 0, `size` is at most 100. */
 export type ClassificationChangeQuery = NonNullable<
   operations['listIncidentClassificationChanges']['parameters']['query']

@@ -45,6 +45,15 @@ public class InvalidIncidentDataException extends InvalidDataException {
                                         + " photos.")));
     }
 
+    /** The name of the uploaded file holds U+0000, which PostgreSQL cannot store. */
+    public static InvalidIncidentDataException invalidFileName() {
+        return new InvalidIncidentDataException(
+                List.of(
+                        new FieldError(
+                                "file",
+                                "The name of the file cannot contain the null character.")));
+    }
+
     InvalidIncidentDataException(List<FieldError> fieldErrors) {
         super(fieldErrors);
     }

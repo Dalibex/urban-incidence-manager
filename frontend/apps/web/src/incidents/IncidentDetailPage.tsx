@@ -15,6 +15,7 @@ import { PRIORITY_LABELS } from './labels';
 import { PhotoGallery } from './PhotoGallery';
 import { LoadingSkeleton, SkeletonLine, SkeletonText } from './Skeleton';
 import { StatusBadge } from './StatusBadge';
+import { UrbanContextPanel } from './UrbanContextPanel';
 
 type Incident = components['schemas']['IncidentResponse'];
 type IncidentLocation = components['schemas']['IncidentLocation'];
@@ -50,9 +51,12 @@ export function IncidentDetailPage() {
         {BACK_LABELS[list]}
       </Link>
       {incident.isPending ? (
-        <LoadingSkeleton what="the incident">
-          <IncidentDetailSkeleton />
-        </LoadingSkeleton>
+        <>
+          <PendingTitle />
+          <LoadingSkeleton what="the incident">
+            <IncidentDetailSkeleton />
+          </LoadingSkeleton>
+        </>
       ) : incident.isError && isNotFound(incident.error) ? (
         // On a reload too: the incident may have been reassigned, so the user can no longer see it.
         <div className={styles.state}>
@@ -62,12 +66,15 @@ export function IncidentDetailPage() {
           <p>It does not exist, or you cannot see it.</p>
         </div>
       ) : incident.isLoadingError ? (
-        <LoadFailure
-          what="The incident"
-          error={incident.error}
-          retrying={incident.isFetching}
-          onRetry={() => void incident.refetch()}
-        />
+        <>
+          <PendingTitle />
+          <LoadFailure
+            what="The incident"
+            error={incident.error}
+            retrying={incident.isFetching}
+            onRetry={() => void incident.refetch()}
+          />
+        </>
       ) : (
         <>
           {/* A failed reload keeps the incident and the forms open on it, with what was typed
@@ -103,6 +110,7 @@ function IncidentDetail({ incident }: { incident: Incident }) {
           <ReportPanel incident={incident} />
           <PhotoGallery incidentId={incident.id} />
           <LocationPanel location={incident.location} />
+          <UrbanContextPanel incidentId={incident.id} />
           <IncidentTimeline incidentId={incident.id} />
         </div>
       </div>
@@ -115,6 +123,19 @@ function IncidentDetail({ incident }: { incident: Incident }) {
  * and status, the actions, the report and the location. The photos and the history load on their
  * own once the incident is there, each with its own loading state.
  */
+/**
+ * The heading of the page while the incident has no title to show, loading or after it failed to
+ * load: the article is labelled by `page-title`, so it always needs one, and screen readers still
+ * find the page by its headings.
+ */
+function PendingTitle() {
+  return (
+    <h1 id="page-title" className={styles.visuallyHidden}>
+      Incident
+    </h1>
+  );
+}
+
 function IncidentDetailSkeleton() {
   return (
     <>
