@@ -142,8 +142,10 @@ the map is back and you move it to the incident. What you wrote is kept.
 
 If the server cannot be reached, or does not answer (the app waits up to 30 seconds for each
 request), the app says *UrbanPulse cannot be reached. Check your connection and try again.* and
-keeps what you wrote, so you can tap *Submit* again. A report the server kept but whose answer was
-lost may then appear twice in *My reports* (Planned: #289).
+keeps what you wrote, so you can tap *Submit* again. If the server had kept the report and only its
+answer was lost, tapping *Submit* again without changing it confirms that same report: it appears
+once in *My reports*. If you change the report before submitting it again, it is sent as a new
+report, so the first one, if it was kept, may also be in *My reports*.
 
 The report is saved as soon as you submit it. Photos are optional, and a photo that cannot be
 uploaded never loses the report.

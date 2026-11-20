@@ -25,6 +25,7 @@ import { TextField } from '../components/TextField';
 import { useIncidentLocation } from '../hooks/useIncidentLocation';
 import { isGpsFixOutsideMap, locationToReport, type MapPin } from '../location/report-location';
 import { incidentKeys, useCategories } from '../incidents/incident-queries';
+import { useReportKey } from '../incidents/report-key';
 import type { MainTabsParamList } from '../navigation/MainTabs';
 import { ApiCallError } from '../query-client';
 import { categoriesMessage, reportIncidentMessage, UNEXPECTED_ERROR } from '../session/messages';
@@ -63,6 +64,7 @@ export function NewIncidentScreen({ navigation }: Props) {
   const [pin, setPin] = useState<MapPin | null>(null);
 
   const submittingRef = useRef(false);
+  const reportKey = useReportKey();
 
   const categories = useCategories();
 
@@ -94,16 +96,19 @@ export function NewIncidentScreen({ navigation }: Props) {
     setFieldErrors({});
     setError(null);
     try {
-      const result = await createIncident(api, {
+      const report = {
         title: title.trim(),
         description: description.trim(),
         ...(categoryId !== null ? { categoryId } : {}),
         location: reportedLocation,
-      });
+      };
+      // A retry after a lost answer sends the same key, so the API does not save it twice (#289).
+      const result = await createIncident(api, report, reportKey.keyFor(report));
       if (!result.ok) {
         showProblems(result.failure, result.fieldErrors);
         return;
       }
+      reportKey.forget();
       // The new report must show in "My reports" without waiting for the cache to go stale.
       void queryClient.invalidateQueries({ queryKey: incidentKeys.all });
       setTitle('');

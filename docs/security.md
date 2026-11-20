@@ -380,7 +380,9 @@ filters of `GET /incidents` apply inside that scope, so they never widen it. A `
 filter by `status`: any other filter answers `403`, because ignoring it would give a misleading list
 and accepting `priority` would reveal a staff-only value by trying values. A photo follows the rule
 of its incident: the id of an attachment is not a public URL, and a photo of an incident the caller
-may not see answers `404` too (ADR-0013).
+may not see answers `404` too (ADR-0013). The `Idempotency-Key` of `POST /incidents` belongs to the
+citizen who sent it: the same key sent by another citizen creates an incident of their own, so
+knowing someone else's key never returns their incident (#289).
 
 ## ➕ Protecting a New Endpoint
 

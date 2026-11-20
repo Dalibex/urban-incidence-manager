@@ -25,6 +25,8 @@ const TOKENS: SessionTokens = {
   refreshTokenExpiresAt: '2026-11-16T10:00:00Z',
 };
 
+const REPORT_KEY = '9b2d6f4e-1c3a-4e8b-a7d5-0f6e2c4b8a13';
+
 const REPORT: components['schemas']['CreateIncidentRequest'] = {
   title: 'Street light off',
   description: 'It has been off for three days.',
@@ -86,7 +88,7 @@ describe('network failures (#236)', () => {
     async (_source, error) => {
       const { client } = clientFailingWith(error);
 
-      const result = await createIncident(client, REPORT);
+      const result = await createIncident(client, REPORT, REPORT_KEY);
 
       expect(result).toEqual({ ok: false, failure: { kind: 'network' }, fieldErrors: [] });
     },
@@ -131,7 +133,7 @@ describe('network failures (#236)', () => {
     it('is thrown by a form', async () => {
       const { client } = clientFailingWith(bug);
 
-      await expect(createIncident(client, REPORT)).rejects.toBe(bug);
+      await expect(createIncident(client, REPORT, REPORT_KEY)).rejects.toBe(bug);
     });
 
     it('is thrown by the sign-out, which still clears the tokens', async () => {

@@ -99,6 +99,18 @@ class IncidentReportCounterIT {
         assertThat(count()).isEqualTo(before);
     }
 
+    // #289: a retry with the same Idempotency-Key stores nothing, so it is not counted again.
+    @Test
+    void aRetryWithTheSameKeyIsCountedOnce() {
+        double before = count();
+        UUID key = UUID.randomUUID();
+
+        reports.createIncident(report(null), citizen.getId(), key);
+        reports.createIncident(report(null), citizen.getId(), key);
+
+        assertThat(count()).isEqualTo(before + 1);
+    }
+
     @Test
     void aReportWhoseTransactionRollsBackIsNotCounted() {
         double before = count();

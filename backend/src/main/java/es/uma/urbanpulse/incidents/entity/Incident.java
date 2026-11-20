@@ -6,6 +6,7 @@ import es.uma.urbanpulse.shared.error.FieldError;
 import es.uma.urbanpulse.shared.text.Texts;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -124,6 +125,11 @@ public class Incident {
     @OneToOne(mappedBy = "incident", cascade = CascadeType.PERSIST, fetch = FetchType.LAZY)
     private Location location;
 
+    // Empty when the report came without an Idempotency-Key (#289).
+    @Getter(AccessLevel.NONE)
+    @Embedded
+    private IdempotencyKey idempotencyKey;
+
     /**
      * A citizen reports an incident: it starts in {@code REPORTED} with its first history entry,
      * which has no previous status (ADR-0020, row "— → REPORTED"). The location is a separate
@@ -160,6 +166,29 @@ public class Incident {
                 new StatusChange(
                         incident, reporter, incident.reportedAt, null, IncidentStatus.REPORTED));
         return incident;
+    }
+
+    /**
+     * The same, for a report sent with an {@code Idempotency-Key} (#289): the key is kept with the
+     * incident, so a retry of the report finds it instead of creating another one.
+     */
+    public static Incident report(
+            User reporter,
+            String title,
+            String description,
+            Category category,
+            Location location,
+            Instant now,
+            IdempotencyKey idempotencyKey) {
+        Objects.requireNonNull(idempotencyKey, "idempotencyKey");
+        var incident = report(reporter, title, description, category, location, now);
+        incident.idempotencyKey = idempotencyKey;
+        return incident;
+    }
+
+    /** The key the report was sent with; empty when it came without one. */
+    public Optional<IdempotencyKey> idempotencyKey() {
+        return Optional.ofNullable(idempotencyKey);
     }
 
     /**

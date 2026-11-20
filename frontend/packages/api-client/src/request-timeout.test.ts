@@ -25,6 +25,8 @@ const TOKENS: SessionTokens = {
   refreshTokenExpiresAt: '2026-11-16T10:00:00Z',
 };
 
+const REPORT_KEY = '9b2d6f4e-1c3a-4e8b-a7d5-0f6e2c4b8a13';
+
 const REPORT: components['schemas']['CreateIncidentRequest'] = {
   title: 'Street light off',
   description: 'It has been off for three days.',
@@ -86,7 +88,7 @@ describe('a request the API never answers (#276 C)', () => {
   it('ends a form as a network failure, so the screen keeps what was typed', async () => {
     const client = clientWith(NEVER);
 
-    const result = createIncident(client, REPORT);
+    const result = createIncident(client, REPORT, REPORT_KEY);
     await vi.advanceTimersByTimeAsync(RESPONSE_TIMEOUT_MS);
 
     expect(await result).toEqual({ ok: false, failure: { kind: 'network' }, fieldErrors: [] });

@@ -743,7 +743,18 @@ paths:
         `district` start as `null` ("not available yet") and are filled in later, when enrichment
         exists.
 
+        Retries (#289): a client that may retry the report sends an `Idempotency-Key`. A request
+        with a key the same citizen already used, and the same body, creates nothing: it answers
+        `201` with that incident as it is now, the same `Location` and no new history entry. Two
+        such requests at the same time also create one incident. The same key with a different
+        body answers `422` with `IDEMPOTENCY_KEY_REUSED` and leaves the stored incident as it was,
+        so a client creates a new key when the citizen changes the report. A request that failed
+        (`4xx`, `5xx`) stored nothing, so its retry with the same key, once the cause of the failure
+        is gone, creates the incident. Without the header every request creates an incident.
+
         Roles: `CITIZEN`.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
@@ -752,10 +763,12 @@ paths:
               $ref: "#/components/schemas/CreateIncidentRequest"
       responses:
         "201":
-          description: The incident was created. `Location` points to it and the body repeats it.
+          description: >-
+            The incident was created, or it already existed with this `Idempotency-Key` and body.
+            `Location` points to it and the body repeats it.
           headers:
             Location:
-              description: URL of the new incident.
+              description: URL of the incident.
               schema:
                 type: string
                 format: uri-reference
@@ -771,7 +784,45 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
         "422":
-          $ref: "#/components/responses/UnprocessableEntity"
+          description: >-
+            The data does not pass validation, code `VALIDATION_FAILED`, with every invalid field
+            in `errors`; or the `Idempotency-Key` was already used by this citizen for a different
+            report, code `IDEMPOTENCY_KEY_REUSED`, and nothing was created.
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              examples:
+                validationFailed:
+                  summary: Invalid fields
+                  value:
+                    type: about:blank
+                    title: Unprocessable Content
+                    status: 422
+                    code: VALIDATION_FAILED
+                    detail: The request has 2 invalid fields.
+                    instance: /api/v1/incidents
+                    traceId: 4bf92f3577b34da6a3ce929d0e0e4736
+                    errors:
+                      - field: title
+                        message: must not be blank
+                      - field: location.latitude
+                        message: must be between -90 and 90
+                idempotencyKeyReused:
+                  summary: The key belongs to another report
+                  value:
+                    type: about:blank
+                    title: Unprocessable Content
+                    status: 422
+                    code: IDEMPOTENCY_KEY_REUSED
+                    detail: >-
+                      This Idempotency-Key was already used for a different report. Send a new key
+                      for a new report.
+                    instance: /api/v1/incidents
+                    traceId: 4bf92f3577b34da6a3ce929d0e0e4736
         "500":
           $ref: "#/components/responses/InternalServerError"
 
@@ -1802,6 +1853,22 @@ components:
         type: string
         format: uuid
         examples: [c4d5e6f7-a8b9-4c0d-9e1f-2a3b4c5d6e7f]
+
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: >-
+        A UUID the client creates once per report and sends again, unchanged, on every retry of
+        that report, so a retry after a lost answer returns the incident already created instead
+        of a second one (#289). It is kept with the incident for as long as the incident exists,
+        and it is unique per reporter: another citizen who sends the same key gets their own
+        incident. A value that is not a UUID in its canonical form (36 characters, with hyphens)
+        returns `400`.
+      schema:
+        type: string
+        format: uuid
+        examples: [9b2d6f4e-1c3a-4e8b-a7d5-0f6e2c4b8a13]
 
     StatusFilter:
       name: status
