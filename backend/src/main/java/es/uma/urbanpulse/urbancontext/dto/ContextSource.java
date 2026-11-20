@@ -8,8 +8,11 @@ import java.net.URI;
  */
 public record ContextSource(String name, String attribution, URI url) {
 
-    /** CC BY 4.0: the attribution goes wherever the weather is shown (ADR-0018). */
-    static final ContextSource OPEN_METEO =
+    /**
+     * CC BY 4.0: the attribution goes wherever the weather is shown (ADR-0018). Its name is also
+     * the {@code source} stored with each weather observation.
+     */
+    public static final ContextSource OPEN_METEO =
             new ContextSource(
                     "Open-Meteo",
                     "Weather data by Open-Meteo.com",

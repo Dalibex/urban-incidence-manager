@@ -270,8 +270,12 @@ describe('users screen', () => {
       await userEvent.keyboard('{Enter}');
 
       const trying = await screen.findByRole('button', { name: 'Trying again…' });
-      expect((trying as HTMLButtonElement).disabled).toBe(true);
-      expect(document.activeElement).not.toBe(document.body);
+      // aria-disabled, not disabled: a browser would move the focus of a disabled button to the page.
+      expect(trying.hasAttribute('disabled')).toBe(false);
+      expect(trying.getAttribute('aria-disabled')).toBe('true');
+      expect(document.activeElement).toBe(trying);
+      await userEvent.click(trying);
+      expect(calls).toBe(2);
       // What was typed cannot change while the request goes.
       expect((screen.getByLabelText('Name') as HTMLInputElement).readOnly).toBe(true);
 

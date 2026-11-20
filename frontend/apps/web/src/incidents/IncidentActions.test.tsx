@@ -85,6 +85,9 @@ function api(incident: Incident) {
     [`GET /incidents/${incident.id}/classification-changes`]: () => json(200, EMPTY_PAGE),
     [`GET /incidents/${incident.id}/comments`]: () => json(200, EMPTY_PAGE),
     [`GET /incidents/${incident.id}/attachments`]: () => json(200, []),
+    // The weather of the Context section (#308); these tests do not look at it.
+    [`GET /incidents/${incident.id}/urban-context`]: () =>
+      json(200, { status: 'UNAVAILABLE', capturedAt: null, weather: null }),
     'GET /categories': () => json(200, [INCIDENT.category]),
     'GET /departments': () => json(200, []),
     'GET /technicians': () => json(200, []),

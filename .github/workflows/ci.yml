@@ -1,8 +1,8 @@
 # Continuous integration for UrbanPulse.
 #
 # Jobs:
-#   lint → repository hygiene (.env, both Compose files, image parity, one published port) and
-#          formatting (Spotless check)
+#   lint → repository hygiene (.env, both Compose files, image parity, one published port, nginx as
+#          the only trusted proxy) and formatting (Spotless check)
 #   contract → the OpenAPI contract docs/api/openapi.yml is valid and follows docs/api.md (Redocly),
 #              and the generated frontend/packages/api-client types match it
 #   architecture → the C4 draw.io file is the one docs/architecture/workspace.dsl generates
@@ -107,17 +107,56 @@ jobs:
           echo "A plain up starts postgres, --profile app adds backend; nothing else starts by default."
 
       # The deployment Compose of ADR-0017, at the repository root, with its own .env.example.
-      - name: Deployment Compose file is valid with .env.example and publishes one port (12F-III, VII)
+      - name: Deployment Compose file is valid with .env.example, publishes one port and trusts only nginx (12F-III, VII)
         working-directory: .
         run: |
           cp .env.example .env
-          docker compose --profile tiles config --quiet
-          published=$(docker compose --profile tiles config --format json | jq -r '.services | to_entries[] | select(.value.ports) | .key' | paste -sd ' ')
+          # Every profile, so the one-off services are checked too.
+          docker compose --profile '*' config --quiet
+          published=$(docker compose --profile '*' config --format json | jq -r '.services | to_entries[] | select(.value.ports) | .key' | paste -sd ' ')
           if [ "$published" != "web" ]; then
             echo "::error file=docker-compose.yaml,title=12F-VII Port binding::Only web may publish a port in the deployment Compose (ADR-0017). Services that publish one: ${published:-none}."
             exit 1
           fi
           echo "The deployment docker-compose.yaml is valid and only web publishes a port."
+          # The backend takes the X-Forwarded-* headers only from nginx's fixed address on internal:
+          # if the two drift apart, nginx is not trusted and every client shares one address.
+          nginx_ip=$(docker compose config --format json | jq -r '.services.web.networks.internal.ipv4_address')
+          trusted=$(docker compose config --format json | jq -r '.services.backend.environment.SERVER_TOMCAT_REMOTEIP_INTERNALPROXIES' | sed 's/\\\././g')
+          if [ -z "$nginx_ip" ] || [ "$nginx_ip" = "null" ] || [ "$nginx_ip" != "$trusted" ]; then
+            echo "::error file=docker-compose.yaml,title=Forwarded headers::SERVER_TOMCAT_REMOTEIP_INTERNALPROXIES of backend ($trusted) must be the ipv4_address of web on internal ($nginx_ip), with its dots escaped."
+            exit 1
+          fi
+          echo "The backend trusts the forwarded headers only from nginx ($nginx_ip)."
+
+      # The backend and the database reach the internet only through egress-proxy, and only for the
+      # backend (ADR-0011, Amendments). A service added to a network, a network_mode or a change of
+      # internal would open another way, so the whole map is compared with the expected one.
+      - name: Deployment Compose — the backend reaches the internet only through egress-proxy
+        working-directory: .
+        run: |
+          config=$(docker compose --profile '*' config --format json)
+          fail() { echo "::error file=docker-compose.yaml,title=Egress::$1"; exit 1; }
+          # Every service of every profile and its networks. Changing this list is a decision about
+          # who reaches what: update docs/deployment.md (Networks) in the same pull request.
+          expected='backend:internal bootstrap-admin:internal egress-proxy:egress,internal postgres:internal tiles-builder:edge web:edge,internal'
+          # A network listed without options is null in the JSON, hence // {} and keys.
+          actual=$(echo "$config" | jq -r '.services | to_entries[] | "\(.key):\((.value.networks // {}) | keys | sort | join(","))"' | LC_ALL=C sort | paste -sd ' ')
+          [ "$actual" = "$expected" ] || fail "The networks of the services changed. Expected: $expected. Found: $actual."
+          with_mode=$(echo "$config" | jq -r '.services | to_entries[] | select(.value.network_mode != null) | .key' | paste -sd ' ')
+          [ -z "$with_mode" ] || fail "network_mode skips the networks of this file and is not allowed here ($with_mode)."
+          [ "$(echo "$config" | jq -r '.networks.internal.internal')" = "true" ] || fail "The internal network must keep internal: true."
+          [ "$(echo "$config" | jq -r '.networks.internal.driver_opts["com.docker.network.bridge.gateway_mode_ipv4"]')" = "isolated" ] \
+            || fail "The internal network must keep gateway_mode_ipv4 isolated, so the host and the services cannot reach each other."
+          backend_ip=$(echo "$config" | jq -r '.services.backend.networks.internal.ipv4_address')
+          grep -qE "^acl backend src ${backend_ip//./\\.}/32$" egress-proxy/squid.conf \
+            || fail "egress-proxy/squid.conf must allow exactly the backend's address ($backend_ip/32)."
+          proxy=$(echo "$config" | jq -r '.services.backend.environment.OPEN_METEO_PROXY')
+          [ "$proxy" = "http://egress-proxy:3128" ] || fail "OPEN_METEO_PROXY of the backend must be http://egress-proxy:3128, not '$proxy'."
+          meteo_host=$(echo "$config" | jq -r '.services.backend.environment.OPEN_METEO_BASE_URL' | sed -E 's#^https?://([^/:]+).*#\1#')
+          grep -qE "^acl allowed_hosts dstdomain .*\b${meteo_host//./\\.}\b" egress-proxy/squid.conf \
+            || fail "egress-proxy/squid.conf does not allow $meteo_host, the host of OPEN_METEO_BASE_URL."
+          echo "The backend ($backend_ip) reaches the internet only through egress-proxy, and only $meteo_host."
 
       - name: Set up Java
         uses: actions/setup-java@v6
@@ -321,6 +360,7 @@ jobs:
     env:
       IMAGE: urbanpulse-backend:${{ github.sha }}
       WEB_IMAGE: urbanpulse-web:${{ github.sha }}
+      EGRESS_PROXY_IMAGE: urbanpulse-egress-proxy:${{ github.sha }}
       WEB_SMOKE_PORT: "8088"
       SMOKE_PORT: "9090"
       SMOKE_DB: urbanpulse
@@ -493,3 +533,14 @@ jobs:
       - name: Web image — the client cannot forge the forwarded headers
         working-directory: .
         run: bash .github/scripts/check_forwarded_headers.sh "$WEB_IMAGE"
+
+      # The egress proxy of the deployment (egress-proxy/, ADR-0011): it must deny every tunnel but
+      # the allowed ones, from the backend's address only. The check needs no internet: the proxy
+      # refuses before it connects anywhere.
+      - name: Build the egress proxy image
+        working-directory: egress-proxy
+        run: docker build -t "$EGRESS_PROXY_IMAGE" .
+
+      - name: Egress proxy — it refuses every tunnel but the allowed ones
+        working-directory: .
+        run: bash .github/scripts/check_egress_proxy.sh "$EGRESS_PROXY_IMAGE"

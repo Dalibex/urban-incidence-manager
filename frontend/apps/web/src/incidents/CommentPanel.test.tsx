@@ -66,6 +66,9 @@ function api(
     [`GET /incidents/${incident.id}/status-changes`]: () => json(200, []),
     [`GET /incidents/${incident.id}/classification-changes`]: () => pageOf([]),
     [`GET /incidents/${incident.id}/attachments`]: () => json(200, []),
+    // The weather of the Context section (#308); these tests do not look at it.
+    [`GET /incidents/${incident.id}/urban-context`]: () =>
+      json(200, { status: 'UNAVAILABLE', capturedAt: null, weather: null }),
     [`GET /incidents/${incident.id}/comments`]: () => pageOf([...comments]),
     [`POST /incidents/${incident.id}/comments`]: async (request) => {
       sent.push(await request.json());

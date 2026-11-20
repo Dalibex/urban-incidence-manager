@@ -18,7 +18,7 @@ with it.
 
 - **[Demo Dataset](#-demo-dataset)**: the sample data of the demo, and how it is loaded.
 - **[Performance Dataset](#-performance-dataset)**: the large dataset for the measurements: what it generates and how to check it.
-- **[Measurements](#-measurements)**: the query plans of the indexes and the load test of QA-1.
+- **[Measurements](#-measurements)**: the query plans of the indexes, the load test of QA-1, the quality-attribute experiments and the metrics of the weather enrichment.
 
 ## 🎬 Demo Dataset
 
@@ -26,8 +26,11 @@ The `demo` Spring profile loads the sample data of the demo (#54): one user per 
 incidents in Málaga covering every status, each with a history allowed by
 [ADR-0020](adr/0020-incident-lifecycle-transitions.md). The [demo script](demo.md) lists its users
 and incidents and how to walk through them. It is separate from the development dataset: the
-development data keeps the cases developers need (several citizens and technicians, urban context,
-assets, notifications); the demo data is small and easy to follow in front of an audience.
+development data keeps the cases developers need (several citizens and technicians, an urban context
+of each status, assets, notifications); the demo data is small and easy to follow in front of an
+audience, and stores the weather of its incidents as the worker of
+[ADR-0018](adr/0018-weather-and-traffic-providers.md) would, so its incidents need no call to
+Open-Meteo.
 
 It follows the pattern of every data profile (*Data Profiles* in the
 [database guide](database.md)):
@@ -45,6 +48,12 @@ PostGIS container.
   again with the new value.
 - Restarting keeps what was created during the demo; only a change to `R__demo_data.sql` or a
   reset inserts the demo data again.
+- Each demo incident has its weather (`urban_context` `COMPLETE`, with its three observations): the
+  real values of Open-Meteo for its position and the 15-minute step of its report, taken once
+  from Open-Meteo's historical data, so the demo needs no call to Open-Meteo. The data is licensed
+  CC BY 4.0, and wherever the weather is shown it says "Weather data by Open-Meteo.com"
+  ([ADR-0018](adr/0018-weather-and-traffic-providers.md)). A report made during the demo gets its
+  weather from Open-Meteo, which needs internet.
 
 ## 📈 Performance Dataset
 
@@ -144,7 +153,8 @@ or repeated, so every measurement records:
 | Date and commit | When and on which commit it was measured |
 
 Three kinds are recorded below: the query plans that justify each index, the load test of QA-1, and
-the quality-attribute experiments.
+the quality-attribute experiments. The last section says which metrics measure the weather
+enrichment, which has no measurement yet.
 
 ### Query plans of the indexes
 
@@ -370,3 +380,19 @@ Result, in milliseconds. No request failed in either run.
 Every p95 is far under 500 ms; the slowest is the technician's list, at 28 ms. The two runs are within
 20 % of each other in every operation. Run 1, right after the one-minute warm-up, was slower: up to
 14 ms in the citizen's list and 9 ms in the detail.
+
+### Weather enrichment (ADR-0018)
+
+Not measured yet. The evaluation of [ADR-0018](adr/0018-weather-and-traffic-providers.md#how-it-will-be-evaluated)
+reads these metrics of the backend at `/actuator/prometheus`
+([ADR-0023](adr/0023-load-test-observability.md)):
+
+- `urbanpulse_weather_requests_seconds`, by `outcome` (`answered`, `unavailable`, `rejected`): the
+  calls to Open-Meteo and their time, for the calls per minute, hour and day.
+- `urbanpulse_weather_contexts_total`, by `status` (`COMPLETE`, `ERROR`, `UNAVAILABLE`): the contexts
+  the worker ended, for the share that is `COMPLETE`.
+- `urbanpulse_weather_delay_seconds`: the time from the report to the stored weather, for the 60
+  seconds of the threshold.
+
+A load test must never call the real Open-Meteo: `run.sh` starts the backend with
+`WEATHER_ENRICHMENT_ENABLED=false` ([load tests](../backend/load-tests/practice/README.md)).

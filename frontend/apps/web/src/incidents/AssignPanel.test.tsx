@@ -101,6 +101,9 @@ function api(server: Server, answers: Answers = {}) {
     },
     [`GET /incidents/${VALIDATED.id}/status-changes`]: () => json(200, []),
     [`GET /incidents/${VALIDATED.id}/attachments`]: () => json(200, []),
+    // The weather of the Context section (#308); these tests do not look at it.
+    [`GET /incidents/${VALIDATED.id}/urban-context`]: () =>
+      json(200, { status: 'UNAVAILABLE', capturedAt: null, weather: null }),
     [`POST /incidents/${VALIDATED.id}/assignments`]: async (request) => {
       const body = (await request.json()) as {
         version: number;

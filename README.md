@@ -27,14 +27,14 @@ What each role can do today:
 | Who | App | What they can do |
 | --- | --- | --- |
 | Citizen | Mobile | Sign up, report an incident by placing it on the map, add photos, and follow their reports and what the city answers |
-| Municipal operator | Web | Review new reports in an inbox with filters or on a live map with a dashboard; classify, validate, reject or ask for more information; assign to a department and a technician; close or reopen the result |
-| Technician | Web | Accept the incidents assigned to them and resolve them with their notes |
+| Municipal operator | Web | Review new reports in an inbox with filters or on a live map with a dashboard, and see in the detail of each one the weather when it was reported; classify, validate, reject or ask for more information; assign to a department and a technician; close or reopen the result |
+| Technician | Web | Accept the incidents assigned to them, see the weather when each one was reported, and resolve them with their notes |
 | Administrator | Web | Everything an operator does, plus managing the staff accounts and reading the audit log |
 | Analyst | Web | Operational reports for a period, on screen or as CSV |
 
 Every incident follows a fixed lifecycle ([ADR-0020](docs/adr/0020-incident-lifecycle-transitions.md)). Each change keeps who made it, when and why, and the citizen never sees the internal notes.
 
-Also built: the deployment of the whole system behind nginx, sample data for development, the demo and the measurements ([datasets](docs/datasets.md)), load tests with k6 seen in Grafana next to the backend's metrics ([load tests](backend/load-tests/practice/README.md)), the base map, and the CI pipeline. What is not built yet says `Planned: #N` in the [requirements](docs/requirements.md).
+Also built: the weather of each new incident, taken from Open-Meteo after the report without ever delaying it ([ADR-0018](docs/adr/0018-weather-and-traffic-providers.md)); the deployment of the whole system behind nginx, sample data for development, the demo and the measurements ([datasets](docs/datasets.md)), load tests with k6 seen in Grafana next to the backend's metrics ([load tests](backend/load-tests/practice/README.md)), the base map, and the CI pipeline. What is not built yet says `Planned: #N` in the [requirements](docs/requirements.md).
 
 ## 🔄 How It Works
 
@@ -122,6 +122,7 @@ The kinds of tests and how to run part of them are in the [testing guide](docs/t
 | `frontend/` | The pnpm workspace: `apps/web`, `apps/mobile` and the shared `packages/` ([layout](docs/development.md#-client-workspace)), and the web image with nginx |
 | `docs/` | The guides below, the [ADRs](docs/adr/), the [OpenAPI contract](docs/api/openapi.yml) and the [C4 model](docs/architecture/) |
 | `tiles/` | The builder of the base map ([ADR-0016](docs/adr/0016-self-hosted-osm-base-map.md)) |
+| `egress-proxy/` | The backend's only way out to the internet in the deployment: a Squid proxy that lets it reach Open-Meteo and nothing else ([deployment guide](docs/deployment.md#networks)) |
 | `.github/`, `.githooks/` | CI workflows, issue and pull request templates, and the pre-commit hook |
 | `docker-compose.yaml`, `.env.example` | The deployment: the whole system behind nginx |
 

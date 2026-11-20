@@ -6,6 +6,7 @@ import {
   getAttachmentContent,
   getIncident,
   getIncidentStatistics,
+  getIncidentUrbanContext,
   listCategories,
   listDepartments,
   listIncidentAttachments,
@@ -32,6 +33,7 @@ import {
   useQuery,
   useQueryClient,
   type QueryClient,
+  type QueryState,
 } from '@tanstack/react-query';
 
 import { dataOf } from '../query-client';
@@ -61,6 +63,7 @@ const incidentKeys = {
     ['incidents', incidentId, 'classification-changes'] as const,
   attachments: (incidentId: string) => ['incidents', incidentId, 'attachments'] as const,
   comments: (incidentId: string) => ['incidents', incidentId, 'comments'] as const,
+  urbanContext: (incidentId: string) => ['incidents', incidentId, 'urban-context'] as const,
   categories: ['categories'] as const,
 };
 
@@ -138,6 +141,48 @@ export function useIncident(incidentId: string) {
     queryKey: incidentKeys.detail(incidentId),
     queryFn: () => dataOf(getIncident(api, incidentId)),
   });
+}
+
+/** How often a pending weather is read again: the backend's worker runs every 30 s (ADR-0018). */
+export const PENDING_CONTEXT_INTERVAL_MS = 15_000;
+
+/** Reads of a pending weather before the section stops on its own: two minutes in all. */
+export const PENDING_CONTEXT_CHECKS = 8;
+
+/**
+ * The urban context of an incident. While it is `PENDING`, it is read again every 15 s, up to two
+ * minutes; then the section offers to check again instead of polling for ever.
+ */
+export function useIncidentUrbanContext(incidentId: string) {
+  const { api } = useSession();
+  const queryClient = useQueryClient();
+  const queryKey = incidentKeys.urbanContext(incidentId);
+  const context = useQuery({
+    queryKey,
+    queryFn: () => dataOf(getIncidentUrbanContext(api, incidentId)),
+    refetchInterval: (query) =>
+      waitingForWeather(query.state) === 'polling' ? PENDING_CONTEXT_INTERVAL_MS : false,
+  });
+  // Read again on every answer (dataUpdatedAt changes with each one), so the count is current.
+  const state =
+    context.dataUpdatedAt > 0
+      ? queryClient.getQueryState<components['schemas']['UrbanContextResponse']>(queryKey)
+      : undefined;
+  return { context, stoppedWaiting: state ? waitingForWeather(state) === 'stopped' : false };
+}
+
+/**
+ * Whether a pending weather is still read on its own. Only successful reads count, and a failed
+ * read stops it too: the section then shows the failure with *Try again*, never a poll that keeps
+ * failing. The count belongs to the cached query, so it survives a navigation while it is kept.
+ */
+function waitingForWeather(
+  state: QueryState<components['schemas']['UrbanContextResponse']>,
+): 'polling' | 'stopped' | 'no' {
+  if (state.status !== 'success' || state.data?.status !== 'PENDING') {
+    return 'no';
+  }
+  return state.dataUpdateCount <= PENDING_CONTEXT_CHECKS ? 'polling' : 'stopped';
 }
 
 export function useIncidentHistory(incidentId: string) {

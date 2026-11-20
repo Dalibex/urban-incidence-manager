@@ -8,6 +8,7 @@ import {
   createIncidentComment,
   getIncident,
   getIncidentStatistics,
+  getIncidentUrbanContext,
   listCategories,
   listDepartments,
   listIncidentClassificationChanges,
@@ -299,6 +300,31 @@ describe('incident calls', () => {
     expect(result).toEqual({
       ok: false,
       failure: { kind: 'problem', status: 404, code: undefined },
+    });
+  });
+
+  it('reads the urban context of an incident from its urban-context path', async () => {
+    const context: components['schemas']['UrbanContextResponse'] = {
+      status: 'UNAVAILABLE',
+      capturedAt: null,
+      weather: null,
+    };
+    const { fetch, client } = clientAnswering(200, context);
+
+    const result = await getIncidentUrbanContext(client, INCIDENT_ID);
+
+    const request = fetch.mock.calls[0]![0];
+    expect(request.method).toBe('GET');
+    expect(new URL(request.url).pathname).toBe(`/api/v1/incidents/${INCIDENT_ID}/urban-context`);
+    expect(result).toEqual({ ok: true, data: context });
+  });
+
+  it('reports a forbidden urban context as a 403 problem', async () => {
+    const { client } = clientAnswering(403, { status: 403 });
+
+    expect(await getIncidentUrbanContext(client, INCIDENT_ID)).toEqual({
+      ok: false,
+      failure: { kind: 'problem', status: 403, code: undefined },
     });
   });
 });
