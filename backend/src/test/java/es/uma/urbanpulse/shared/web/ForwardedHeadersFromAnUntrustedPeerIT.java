@@ -5,6 +5,7 @@ import static es.uma.urbanpulse.shared.web.ForwardedRequests.newEmail;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.jayway.jsonpath.JsonPath;
+import es.uma.urbanpulse.TestHistories;
 import es.uma.urbanpulse.TestcontainersConfiguration;
 import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.shared.security.TestTokens;
@@ -59,8 +60,9 @@ class ForwardedHeadersFromAnUntrustedPeerIT {
     @AfterEach
     void deleteTheRowsOfTheTest() {
         if (citizenId != null) {
-            jdbc.update(
-                    "DELETE FROM status_change WHERE incident_id IN (SELECT id FROM incident WHERE reporter_id = ?)",
+            TestHistories.delete(
+                    jdbc,
+                    "incident_id IN (SELECT id FROM incident WHERE reporter_id = ?)",
                     citizenId);
             jdbc.update(
                     "DELETE FROM urban_context WHERE incident_id IN (SELECT id FROM incident WHERE reporter_id = ?)",

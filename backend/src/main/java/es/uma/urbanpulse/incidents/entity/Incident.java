@@ -112,7 +112,9 @@ public class Incident {
 
     @Getter(AccessLevel.NONE)
     @OneToMany(mappedBy = "incident", cascade = CascadeType.PERSIST)
-    @OrderBy("instant")
+    // The order of the timeline (StatusChangeRepository.findHistory): the id breaks ties between
+    // entries of the same instant, so the order does not depend on how the database reads them.
+    @OrderBy("instant ASC, id ASC")
     private List<StatusChange> statusChanges = new ArrayList<>();
 
     @Getter(AccessLevel.NONE)

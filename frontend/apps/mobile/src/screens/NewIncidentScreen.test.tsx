@@ -192,7 +192,8 @@ describe('NewIncidentScreen', () => {
       await act(() => map().props.onDidFinishLoadingMap());
       await fillIn('Street light off', 'Off for three days.');
 
-      expect(screen.getByText('Getting your location…')).toBeOnTheScreen();
+      // #180: one progress element with its name, read as a whole by screen readers.
+      expect(screen.getByRole('progressbar', { name: 'Getting your location…' })).toBeOnTheScreen();
       expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled();
     });
 

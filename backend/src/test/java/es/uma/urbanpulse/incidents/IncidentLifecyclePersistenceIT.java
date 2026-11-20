@@ -1,6 +1,7 @@
 package es.uma.urbanpulse.incidents;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import es.uma.urbanpulse.PersistenceTestSupport;
 import es.uma.urbanpulse.identity.entity.Role;
@@ -16,11 +17,13 @@ import es.uma.urbanpulse.incidents.entity.PrioritySource;
 import es.uma.urbanpulse.incidents.entity.StatusChange;
 import es.uma.urbanpulse.incidents.entity.TransitionDetails;
 import es.uma.urbanpulse.incidents.repository.IncidentRepository;
+import es.uma.urbanpulse.incidents.repository.StatusChangeRepository;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Coordinate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessException;
 
 /**
  * The history and the assignments that {@link Incident} creates are saved with it, by cascade, so
@@ -32,6 +35,7 @@ class IncidentLifecyclePersistenceIT extends PersistenceTestSupport {
     private static final Instant LATER = Instant.parse("2026-11-02T10:00:00Z");
 
     @Autowired private IncidentRepository incidents;
+    @Autowired private StatusChangeRepository statusChanges;
 
     @Test
     void savingTheIncidentWritesItsHistoryAndAssignment() {
@@ -58,7 +62,7 @@ class IncidentLifecyclePersistenceIT extends PersistenceTestSupport {
                 IncidentTransition.ASSIGNMENT,
                 operator,
                 TransitionDetails.assignment(department, technician),
-                LATER);
+                LATER.plusSeconds(60));
         UUID id = incident.getId();
         flushAndClear();
 
@@ -76,6 +80,78 @@ class IncidentLifecyclePersistenceIT extends PersistenceTestSupport {
                                 String.class,
                                 id))
                 .isEqualTo(technician.getId().toString());
+    }
+
+    // #180: the history is never rewritten, not even with native SQL (V17).
+    @Test
+    void theDatabaseRefusesToRewriteTheHistory() {
+        Incident incident = incidents.save(reported(persistedUser(Role.CITIZEN)));
+        UUID id = incident.getId();
+        flushAndClear();
+
+        assertThatThrownBy(
+                        () ->
+                                queryNative(
+                                        "UPDATE status_change SET reason = 'Rewritten'"
+                                                + " WHERE incident_id = ? RETURNING id",
+                                        UUID.class,
+                                        id))
+                .isInstanceOf(DataAccessException.class)
+                .hasMessageContaining("status_change is append-only: UPDATE");
+    }
+
+    // #323: nor cut, one entry at a time.
+    @Test
+    void theDatabaseRefusesToDeleteAnEntryOfTheHistory() {
+        Incident incident = incidents.save(reported(persistedUser(Role.CITIZEN)));
+        UUID id = incident.getId();
+        flushAndClear();
+
+        assertThatThrownBy(
+                        () ->
+                                queryNative(
+                                        "DELETE FROM status_change WHERE incident_id = ?"
+                                                + " RETURNING id",
+                                        UUID.class,
+                                        id))
+                .isInstanceOf(DataAccessException.class)
+                .hasMessageContaining("status_change is append-only: DELETE");
+    }
+
+    // #180: entries of the same instant come in the order of the timeline (instant, then id), not
+    // in whatever order the database returns them.
+    @Test
+    void entriesOfTheSameInstantKeepTheOrderOfTheTimeline() {
+        User operator = persistedUser(Role.MUNICIPAL_OPERATOR);
+        Incident incident = reported(persistedUser(Role.CITIZEN));
+        incident.classify(persistedCategory(), REPORTED_AT);
+        incident.prioritize(
+                Priority.LOW, "Side street", PrioritySource.MANUAL, operator, REPORTED_AT);
+        incident = incidents.save(incident);
+        incident.changeStatus(
+                IncidentTransition.VALIDATION, operator, TransitionDetails.none(), LATER);
+        incident.changeStatus(
+                IncidentTransition.ASSIGNMENT,
+                operator,
+                TransitionDetails.assignment(persistedDepartment(), null),
+                LATER);
+        UUID id = incident.getId();
+        flushAndClear();
+
+        assertThat(incidents.findById(id).orElseThrow().getStatusChanges())
+                .extracting(StatusChange::getId)
+                .containsExactlyElementsOf(
+                        statusChanges.findHistory(id).stream().map(StatusChange::getId).toList());
+    }
+
+    private Incident reported(User citizen) {
+        return Incident.report(
+                citizen,
+                "Street light off",
+                "Off since Monday.",
+                null,
+                locationAt(36.7213, -4.4214),
+                REPORTED_AT);
     }
 
     private User persistedUser(Role role) {
