@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import es.uma.urbanpulse.ApiContract;
+import es.uma.urbanpulse.TestHistories;
 import es.uma.urbanpulse.TestcontainersConfiguration;
 import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.incidents.dto.CreateIncidentRequest;
@@ -78,7 +79,7 @@ class IncidentIdempotencyTransactionIT {
     void deleteTheRowsOfTheTest() {
         Mockito.reset(incidents);
         var reported = "SELECT id FROM incident WHERE reporter_id = ?";
-        jdbc.update("DELETE FROM status_change WHERE incident_id IN (" + reported + ")", citizen);
+        TestHistories.delete(jdbc, "incident_id IN (" + reported + ")", citizen);
         jdbc.update(
                 "DELETE FROM external_observation WHERE urban_context_id IN"
                         + " (SELECT id FROM urban_context WHERE incident_id IN ("
