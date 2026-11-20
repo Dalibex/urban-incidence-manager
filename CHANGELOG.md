@@ -23,6 +23,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Every text the backend stores refuses U+0000 with `422`, instead of a `500` or, on sign-up, a false `409 EMAIL_ALREADY_EXISTS`. Names, titles, descriptions and comments of no-break spaces are blank, and the lengths, the password minimum among them, count characters instead of UTF-16 units. Sign-in and the current password of a password change keep their checks, and the password maximum is still 72 bytes of UTF-8 (#285).
 - In the deployment Compose the backend trusted the `X-Forwarded-*` headers from any private address, so a process on the server could call it without nginx, invent client addresses to get around the sign-in and sign-up limits, and change the `Location` of its answers. Now it trusts only nginx, which has a fixed address on the `internal` network (#307).
 - Two photos uploaded at the same time to an incident with one place left could both be saved and go over `EVIDENCE_MAX_FILES_PER_INCIDENT`, and a citizen's photo uploaded while an operator validated the incident could be saved after it left `REPORTED`. Now the second one answers `422` or `409` and its file is removed (#275).
 - After a password change, or after an account was disabled and enabled again, an old refresh token sent by another tab or device was taken as stolen and closed every session of the user, including the one just opened with the new password. Now it only gets `401` (#275).

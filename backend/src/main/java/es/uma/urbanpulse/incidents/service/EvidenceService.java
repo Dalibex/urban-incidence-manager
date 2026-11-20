@@ -12,6 +12,7 @@ import es.uma.urbanpulse.incidents.repository.AttachmentRepository;
 import es.uma.urbanpulse.incidents.repository.IncidentRepository;
 import es.uma.urbanpulse.shared.storage.EvidenceProperties;
 import es.uma.urbanpulse.shared.storage.StorageService;
+import es.uma.urbanpulse.shared.text.Texts;
 import es.uma.urbanpulse.shared.web.FileTooLargeException;
 import java.time.Clock;
 import java.time.OffsetDateTime;
@@ -95,11 +96,12 @@ public class EvidenceService {
      * @throws IncidentNotFoundException if it does not exist or the caller may not see it
      * @throws AttachmentNotAllowedException if a citizen adds it after {@code REPORTED}
      * @throws FileTooLargeException if it is over {@code EVIDENCE_MAX_FILE_SIZE}
-     * @throws InvalidIncidentDataException if the content is not an accepted image, or the incident
-     *     already has {@code EVIDENCE_MAX_FILES_PER_INCIDENT} photos
+     * @throws InvalidIncidentDataException if the file name holds U+0000, the content is not an
+     *     accepted image, or the incident already has {@code EVIDENCE_MAX_FILES_PER_INCIDENT}
+     *     photos
      */
     public Upload upload(UUID incidentId, UUID userId, Role role, String fileName, byte[] bytes) {
-        var checked = inTransaction(() -> check(incidentId, userId, role, bytes));
+        var checked = inTransaction(() -> check(incidentId, userId, role, fileName, bytes));
         if (checked.existing() != null) {
             return new Upload(checked.existing(), false);
         }
@@ -134,11 +136,14 @@ public class EvidenceService {
     /** What the checks found: the content to store, or the photo a retry already stored. */
     private record Checked(EvidenceContent content, AttachmentResponse existing) {}
 
-    private Checked check(UUID incidentId, UUID userId, Role role, byte[] bytes) {
+    private Checked check(UUID incidentId, UUID userId, Role role, String fileName, byte[] bytes) {
         var incident = visibleIncident(incidentId, userId, role);
         requireOpenTo(role, incident);
         if (bytes.length > limits.maxFileSize().toBytes()) {
             throw new FileTooLargeException();
+        }
+        if (Texts.hasNullCharacter(fileName)) {
+            throw InvalidIncidentDataException.invalidFileName();
         }
         var content = EvidenceContent.of(bytes);
         var existing = existing(incidentId, content.sha256());

@@ -214,6 +214,17 @@ class IncidentOperatorActionApiIT {
         assertUnchanged(incident, "REPORTED", 0, 1);
     }
 
+    // #285: PostgreSQL cannot store U+0000, so it used to fail on save with a 500.
+    @Test
+    void aReasonWithTheNullCharacterIsUnprocessable() throws Exception {
+        UUID incident = classified("REPORTED");
+
+        expectUnprocessable(
+                act(operator, incident, REJECTION, "{\"version\": 0, \"reason\": \"Dup\\u0000\"}"),
+                "reason");
+        assertUnchanged(incident, "REPORTED", 0, 1);
+    }
+
     // T4: the reason has the limit of the contract (maxLength 2000).
     @Test
     void aRejectionReasonOverTheLimitIsUnprocessable() throws Exception {

@@ -1,16 +1,15 @@
 package es.uma.urbanpulse.incidents.dto;
 
+import es.uma.urbanpulse.shared.text.Text;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 import java.util.UUID;
 
 public record CreateIncidentRequest(
-        @NotBlank @Size(min = 1, max = 120) String title,
-        @NotBlank @Size(min = 1, max = 2000) String description,
+        @NotNull @Text(max = 120) String title,
+        @NotNull @Text(max = 2000) String description,
         UUID categoryId,
         @NotNull @Valid ReportedLocation location) {
 

@@ -2,6 +2,7 @@ package es.uma.urbanpulse.incidents.entity;
 
 import es.uma.urbanpulse.identity.entity.User;
 import es.uma.urbanpulse.shared.error.FieldError;
+import es.uma.urbanpulse.shared.text.Texts;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -74,10 +75,15 @@ public class Comment {
     }
 
     private static void requireValidText(String text) {
-        if (text == null || text.isBlank()) {
+        // No-break spaces are blank too, as the \S of the contract says.
+        if (Texts.isBlank(text)) {
             throw invalidText("Write the comment.");
         }
-        if (text.codePointCount(0, text.length()) > MAX_TEXT_LENGTH) {
+        // PostgreSQL cannot store U+0000.
+        if (Texts.hasNullCharacter(text)) {
+            throw invalidText("The comment cannot contain the null character.");
+        }
+        if (Texts.length(text) > MAX_TEXT_LENGTH) {
             throw invalidText("The comment can have at most " + MAX_TEXT_LENGTH + " characters.");
         }
     }

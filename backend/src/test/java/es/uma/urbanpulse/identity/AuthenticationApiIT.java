@@ -80,6 +80,7 @@ class AuthenticationApiIT {
     private static final String ME = "/api/v1/users/me";
 
     private static final String VALID_PASSWORD = "Correct-Horse-Battery-9";
+    private static final String EMOJI = "\uD83D\uDE00";
     private static final long ACCESS_TOKEN_LIFETIME_SECONDS = 15 * 60;
     private static final long LIFETIME_TOLERANCE_SECONDS = 60;
 
@@ -290,6 +291,50 @@ class AuthenticationApiIT {
         assertThat(usersWithEmail("not-an-email")).isZero();
     }
 
+    // #285: PostgreSQL cannot store U+0000; it used to fail on save and answer a false 409.
+    @Test
+    void aNameWithTheNullCharacterIsRejectedAndNotTakenForADuplicateEmail() throws Exception {
+        expectFieldError(signUpNamed("Test\\u0000Citizen", email, VALID_PASSWORD), "name");
+
+        assertThat(usersWithEmail(email)).isZero();
+    }
+
+    // #285: a name of no-break spaces looks empty, as the \S of the contract says.
+    @Test
+    void aNameOfNoBreakSpacesIsBlank() throws Exception {
+        expectFieldError(signUpNamed("\u00A0\u00A0\u00A0", email, VALID_PASSWORD), "name")
+                .andExpect(
+                        jsonPath("$.errors[?(@.field == 'name')].message")
+                                .value("must not be blank"));
+
+        assertThat(usersWithEmail(email)).isZero();
+    }
+
+    // #322: String.strip also removes U+001C to U+001F, which the \S of the contract counts as
+    // visible, so such a name passed the check and was stored empty.
+    @Test
+    void aNameOfControlCharactersIsNotStoredEmpty() throws Exception {
+        signUpNamed("\\u001F\\u001C", email, VALID_PASSWORD)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("\u001F\u001C"));
+    }
+
+    // #285: the limits count characters, so 100 emoji are a valid name and 101 are not.
+    @Test
+    void theNameLimitCountsEmojiAsOneCharacter() throws Exception {
+        expectFieldError(signUpNamed(EMOJI.repeat(101), email, VALID_PASSWORD), "name");
+
+        signUpNamed(EMOJI.repeat(100), email, VALID_PASSWORD).andExpect(status().isCreated());
+    }
+
+    // #285: 4 emoji are 8 UTF-16 units but only 4 characters, under the minimum of 8.
+    @Test
+    void aPasswordOfFourEmojiIsTooShort() throws Exception {
+        expectFieldError(signUp(email, EMOJI.repeat(4)), "password");
+
+        assertThat(usersWithEmail(email)).isZero();
+    }
+
     // T4: a body that is not JSON is a client bug (400), not invalid data (422) nor a 500.
     @Test
     void malformedJsonIsABadRequest() throws Exception {
@@ -435,11 +480,17 @@ class AuthenticationApiIT {
     }
 
     private ResultActions signUp(String userEmail, String password) throws Exception {
+        return signUpNamed("Test Citizen", userEmail, password);
+    }
+
+    /** The name goes into the JSON as it is, so it may hold an escape such as {@code \\u0000}. */
+    private ResultActions signUpNamed(String name, String userEmail, String password)
+            throws Exception {
         String body =
                 """
-                {"name": "Test Citizen", "email": "%s", "password": "%s"}
+                {"name": "%s", "email": "%s", "password": "%s"}
                 """
-                        .formatted(userEmail, password);
+                        .formatted(name, userEmail, password);
         return mvc.perform(json(post(REGISTRATIONS), body));
     }
 
@@ -482,8 +533,9 @@ class AuthenticationApiIT {
         expectProblem(result, 401, "INVALID_REFRESH_TOKEN");
     }
 
-    private static void expectFieldError(ResultActions result, String field) throws Exception {
-        expectProblem(result, 422, "VALIDATION_FAILED")
+    private static ResultActions expectFieldError(ResultActions result, String field)
+            throws Exception {
+        return expectProblem(result, 422, "VALIDATION_FAILED")
                 .andExpect(jsonPath("$.errors[?(@.field == '%s')]".formatted(field)).exists());
     }
 

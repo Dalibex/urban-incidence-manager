@@ -183,6 +183,21 @@ class IncidentReportApiIT {
         assertThat(incidentsOf(citizen)).isZero();
     }
 
+    // #285: a title of no-break spaces looked empty and was saved; U+0000 failed on save with a
+    // 500.
+    @Test
+    void aTitleOfNoBreakSpacesAndADescriptionWithTheNullCharacterAreRefused() throws Exception {
+        String invalid =
+                """
+                {"title": "\u00A0\u00A0\u00A0", "description": "The lamp\\u0000 is off.",
+                 "location": {"latitude": %s, "longitude": %s}}
+                """
+                        .formatted(LATITUDE, LONGITUDE);
+
+        expectFieldErrors(report(citizen, Role.CITIZEN, invalid), "title", "description");
+        assertThat(incidentsOf(citizen)).isZero();
+    }
+
     // T5: every rule of CreateIncidentRequest and ReportedLocation answers 422 with its field.
     @Test
     void everyInvalidFieldIsListed() throws Exception {
