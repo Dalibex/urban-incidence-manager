@@ -25,6 +25,7 @@ import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -106,6 +107,24 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
                         "Someone else changed this resource since you read it. Reload it and try"
                                 + " again.");
         problem.setProperty(CODE, CONCURRENT_MODIFICATION);
+        complete(problem, request);
+        return problem;
+    }
+
+    /**
+     * A multipart body the server cannot parse, such as a boundary never closed or missing (#407).
+     * It is the client's mistake, so a {@code 400} and no {@code ERROR} line; the parser's message
+     * stays in the debug log. A file over the limit is a {@link MaxUploadSizeExceededException},
+     * answered with {@code 413} by {@link #handleMaxUploadSizeExceededException}, whose type is
+     * closer.
+     */
+    @ExceptionHandler(MultipartException.class)
+    ProblemDetail handleMalformedMultipart(MultipartException ex, WebRequest request) {
+        log.debug("Unreadable multipart body on {}: {}", path(request), ex.getMessage());
+        var problem =
+                ProblemDetail.forStatusAndDetail(
+                        HttpStatus.BAD_REQUEST, "The multipart body cannot be read.");
+        problem.setProperty(CODE, MalformedRequestException.CODE);
         complete(problem, request);
         return problem;
     }
