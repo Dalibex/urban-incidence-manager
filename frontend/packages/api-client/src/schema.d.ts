@@ -186,7 +186,7 @@ export interface paths {
          *     written to the logs.
          *
          *     Accepted risk of ADR-0021 (trust on first use): while an account has no confirmed second
-         *     factor (when #57 is deployed, after `deleteUserMfa`, and for a new account), whoever knows
+         *     factor (when #57 is deployed, after `createUserMfaReset`, and for a new account), whoever knows
          *     its password can enrol their own phone first. The real user then gets
          *     `MFA_ALREADY_ENROLLED`, and an administrator resets it.
          *
@@ -344,7 +344,7 @@ export interface paths {
         patch: operations["updateUser"];
         trace?: never;
     };
-    "/users/{userId}/mfa": {
+    "/users/{userId}/mfa-resets": {
         parameters: {
             query?: never;
             header?: never;
@@ -353,23 +353,23 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post?: never;
         /**
          * Reset the second factor of a user
          * @description Planned: #57. For a user who lost their phone (ADR-0021): removes their TOTP secret, revokes
          *     every refresh token and open sign-in challenge of the user, and records a `RESET_MFA` audit
-         *     entry, in one transaction. The user enrols again on their next sign-in.
+         *     entry with the actor, the instant, the user (`target`) and the `reason` the administrator
+         *     gives, in one transaction, as ADR-0021 asks. The user enrols again on their next sign-in.
          *
-         *     The reason that ADR-0021 asks the audit to keep is the action itself: a reset exists only for
-         *     a lost or replaced phone, so it takes no free text, like the other actions of the trail,
-         *     which store none. The entry keeps the actor, the instant and the user (`target`).
+         *     A reset is a resource with a body, not a `DELETE`, because the audit needs that reason and a
+         *     `DELETE` has no body.
          *
-         *     It is idempotent: a user without a second factor also gets `204`, and then nothing changes
-         *     and nothing is recorded.
+         *     A user without a second factor also gets `204`, and then nothing changes and nothing is
+         *     recorded.
          *
          *     Roles: `ADMINISTRATOR`.
          */
-        delete: operations["deleteUserMfa"];
+        post: operations["createUserMfaReset"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1317,6 +1317,11 @@ export interface components {
             otpauthUri: string;
             /** @description The same secret in Base32, for a user who types it into the authenticator app instead of scanning the QR code. */
             secret: string;
+        };
+        /** @description Why the second factor of the user is reset, for the audit trail. Planned: #57. */
+        CreateUserMfaResetRequest: {
+            /** @description The reason, as the administrator writes it (for example, a lost phone). It is kept in the `RESET_MFA` entry; write no personal data in it. */
+            reason: string;
         };
         /** @description A code of the authenticator app for a sign-in challenge. Planned: #57. */
         CreateMfaVerificationRequest: {
@@ -2684,7 +2689,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description The account already has a second factor, so the challenge asks for a code, not an enrolment. Code: `MFA_ALREADY_ENROLLED`. An administrator resets it with `deleteUserMfa` when the phone is lost. */
+            /** @description The account already has a second factor, so the challenge asks for a code, not an enrolment. Code: `MFA_ALREADY_ENROLLED`. An administrator resets it with `createUserMfaReset` when the phone is lost. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2705,7 +2710,6 @@ export interface operations {
                 };
             };
             422: components["responses"]["UnprocessableEntity"];
-            429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];
         };
     };
@@ -2937,7 +2941,7 @@ export interface operations {
             500: components["responses"]["InternalServerError"];
         };
     };
-    deleteUserMfa: {
+    createUserMfaReset: {
         parameters: {
             query?: never;
             header?: never;
@@ -2947,7 +2951,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateUserMfaResetRequest"];
+            };
+        };
         responses: {
             /** @description The user has no second factor now. */
             204: {
@@ -2960,6 +2968,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             500: components["responses"]["InternalServerError"];
         };
     };

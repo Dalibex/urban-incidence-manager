@@ -4,9 +4,8 @@
 # their types from it. The contract of a feature is merged before or together with its
 # implementation, never after it: the Sprint 1 operations were agreed ahead in #93 and the committed
 # Sprint 2 ones in #204, the features after the MVP in #301, and a later feature writes its contract
-# first. An operation that is not
-# built yet says `Planned: #N`, naming the issue that implements it, whose pull request removes the
-# mark. How to do it: docs/api.md.
+# first. An operation that is not built yet says `Planned: #N`, naming the issue that implements it,
+# whose pull request removes the mark. How to do it: docs/api.md.
 openapi: 3.1.0
 
 info:
@@ -388,7 +387,7 @@ paths:
         written to the logs.
 
         Accepted risk of ADR-0021 (trust on first use): while an account has no confirmed second
-        factor (when #57 is deployed, after `deleteUserMfa`, and for a new account), whoever knows
+        factor (when #57 is deployed, after `createUserMfaReset`, and for a new account), whoever knows
         its password can enrol their own phone first. The real user then gets
         `MFA_ALREADY_ENROLLED`, and an administrator resets it.
 
@@ -433,7 +432,7 @@ paths:
           description: >-
             The account already has a second factor, so the challenge asks for a code, not an
             enrolment. Code: `MFA_ALREADY_ENROLLED`. An administrator resets it with
-            `deleteUserMfa` when the phone is lost.
+            `createUserMfaReset` when the phone is lost.
           content:
             application/problem+json:
               schema:
@@ -448,8 +447,6 @@ paths:
                 traceId: 4bf92f3577b34da6a3ce929d0e0e4736
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
         "500":
           $ref: "#/components/responses/InternalServerError"
 
@@ -765,26 +762,32 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-  /users/{userId}/mfa:
-    delete:
+  /users/{userId}/mfa-resets:
+    post:
       tags: [identity]
-      operationId: deleteUserMfa
+      operationId: createUserMfaReset
       summary: Reset the second factor of a user
       description: |
         Planned: #57. For a user who lost their phone (ADR-0021): removes their TOTP secret, revokes
         every refresh token and open sign-in challenge of the user, and records a `RESET_MFA` audit
-        entry, in one transaction. The user enrols again on their next sign-in.
+        entry with the actor, the instant, the user (`target`) and the `reason` the administrator
+        gives, in one transaction, as ADR-0021 asks. The user enrols again on their next sign-in.
 
-        The reason that ADR-0021 asks the audit to keep is the action itself: a reset exists only for
-        a lost or replaced phone, so it takes no free text, like the other actions of the trail,
-        which store none. The entry keeps the actor, the instant and the user (`target`).
+        A reset is a resource with a body, not a `DELETE`, because the audit needs that reason and a
+        `DELETE` has no body.
 
-        It is idempotent: a user without a second factor also gets `204`, and then nothing changes
-        and nothing is recorded.
+        A user without a second factor also gets `204`, and then nothing changes and nothing is
+        recorded.
 
         Roles: `ADMINISTRATOR`.
       parameters:
         - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserMfaResetRequest"
       responses:
         "204":
           description: The user has no second factor now.
@@ -796,6 +799,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
         "500":
           $ref: "#/components/responses/InternalServerError"
 
@@ -2636,6 +2641,20 @@ components:
           description: >-
             The same secret in Base32, for a user who types it into the authenticator app instead of
             scanning the QR code.
+
+    CreateUserMfaResetRequest:
+      type: object
+      description: "Why the second factor of the user is reset, for the audit trail. Planned: #57."
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+          pattern: "\\S"
+          description: >-
+            The reason, as the administrator writes it (for example, a lost phone). It is kept in
+            the `RESET_MFA` entry; write no personal data in it.
 
     CreateMfaVerificationRequest:
       type: object
