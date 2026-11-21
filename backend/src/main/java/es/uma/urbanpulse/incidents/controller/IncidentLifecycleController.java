@@ -7,7 +7,6 @@ import es.uma.urbanpulse.incidents.entity.TransitionDetails;
 import es.uma.urbanpulse.incidents.service.IncidentLifecycleService;
 import es.uma.urbanpulse.shared.security.AuthenticatedUser;
 import java.util.UUID;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,9 +16,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * The lifecycle actions of an incident (ADR-0020), one sub-resource per transition. The role is
- * checked here ({@code 403}); {@link IncidentLifecycleService} answers {@code 404} for an incident
- * the caller cannot see and {@code 409} for a stale version or a transition the table does not
- * allow, and the domain answers {@code 422} for missing data, in that order.
+ * checked by the security filters ({@code 403}, {@code ApiAuthorizationRules}); {@link
+ * IncidentLifecycleService} answers {@code 404} for an incident the caller cannot see and {@code
+ * 409} for a stale version or a transition the table does not allow, and the domain answers {@code
+ * 422} for missing data, in that order.
  */
 @RestController
 @RequestMapping("/api/v1/incidents/{incidentId}")
@@ -32,7 +32,6 @@ class IncidentLifecycleController {
     }
 
     @PostMapping("/validation")
-    @PreAuthorize("hasAnyRole('MUNICIPAL_OPERATOR', 'ADMINISTRATOR')")
     IncidentResponse validate(
             @AuthenticationPrincipal AuthenticatedUser user,
             @PathVariable UUID incidentId,
@@ -41,7 +40,6 @@ class IncidentLifecycleController {
     }
 
     @PostMapping("/rejection")
-    @PreAuthorize("hasAnyRole('MUNICIPAL_OPERATOR', 'ADMINISTRATOR')")
     IncidentResponse reject(
             @AuthenticationPrincipal AuthenticatedUser user,
             @PathVariable UUID incidentId,
@@ -50,7 +48,6 @@ class IncidentLifecycleController {
     }
 
     @PostMapping("/information-requests")
-    @PreAuthorize("hasAnyRole('MUNICIPAL_OPERATOR', 'ADMINISTRATOR')")
     IncidentResponse requestInformation(
             @AuthenticationPrincipal AuthenticatedUser user,
             @PathVariable UUID incidentId,
@@ -59,7 +56,6 @@ class IncidentLifecycleController {
     }
 
     @PostMapping("/acceptance")
-    @PreAuthorize("hasRole('TECHNICIAN')")
     IncidentResponse accept(
             @AuthenticationPrincipal AuthenticatedUser user,
             @PathVariable UUID incidentId,
@@ -68,7 +64,6 @@ class IncidentLifecycleController {
     }
 
     @PostMapping("/resolution")
-    @PreAuthorize("hasRole('TECHNICIAN')")
     IncidentResponse resolve(
             @AuthenticationPrincipal AuthenticatedUser user,
             @PathVariable UUID incidentId,
@@ -77,7 +72,6 @@ class IncidentLifecycleController {
     }
 
     @PostMapping("/closure")
-    @PreAuthorize("hasAnyRole('MUNICIPAL_OPERATOR', 'ADMINISTRATOR')")
     IncidentResponse close(
             @AuthenticationPrincipal AuthenticatedUser user,
             @PathVariable UUID incidentId,
@@ -86,7 +80,6 @@ class IncidentLifecycleController {
     }
 
     @PostMapping("/reopening")
-    @PreAuthorize("hasAnyRole('MUNICIPAL_OPERATOR', 'ADMINISTRATOR')")
     IncidentResponse reopen(
             @AuthenticationPrincipal AuthenticatedUser user,
             @PathVariable UUID incidentId,

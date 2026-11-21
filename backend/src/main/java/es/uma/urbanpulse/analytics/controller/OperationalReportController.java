@@ -10,16 +10,14 @@ import es.uma.urbanpulse.shared.web.QueryParameters;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -35,13 +33,11 @@ import org.springframework.web.bind.annotation.RestController;
  * methods match {@code *}{@code /*} equally, and Spring would answer {@code 500} for an ambiguous
  * mapping. Errors stay {@code application/problem+json} with either {@code Accept}.
  *
- * <p>The parameters arrive only as the raw query and are read here, inside the method. A typed
- * {@code @RequestParam} would be converted before {@code @PreAuthorize} runs, and a role that may
- * not read reports would get {@code 400} for a missing {@code from} instead of {@code 403}.
+ * <p>Only analysts and administrators may read it: the security filters answer {@code 403} to the
+ * other roles before Spring reads the query ({@code ApiAuthorizationRules}).
  */
 @RestController
 @RequestMapping("/api/v1/incident-reports")
-@PreAuthorize("hasAnyRole('ANALYST', 'ADMINISTRATOR')")
 class OperationalReportController {
 
     static final MediaType TEXT_CSV = new MediaType("text", "csv", StandardCharsets.UTF_8);
@@ -62,13 +58,25 @@ class OperationalReportController {
     }
 
     @GetMapping
-    IncidentReportResponse json(@RequestParam MultiValueMap<String, String> parameters) {
-        return new IncidentReportResponse(rows(parameters));
+    IncidentReportResponse json(
+            @RequestParam MultiValueMap<String, String> parameters,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+                    OffsetDateTime from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+                    OffsetDateTime to,
+            @RequestParam(required = false) String groupBy) {
+        return new IncidentReportResponse(rows(parameters, from, to, groupBy));
     }
 
     @GetMapping(produces = "text/csv")
-    ResponseEntity<byte[]> csv(@RequestParam MultiValueMap<String, String> parameters) {
-        var csv = IncidentReportCsv.write(rows(parameters));
+    ResponseEntity<byte[]> csv(
+            @RequestParam MultiValueMap<String, String> parameters,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+                    OffsetDateTime from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+                    OffsetDateTime to,
+            @RequestParam(required = false) String groupBy) {
+        var csv = IncidentReportCsv.write(rows(parameters, from, to, groupBy));
         return ResponseEntity.ok()
                 .contentType(TEXT_CSV)
                 .header(
@@ -77,46 +85,40 @@ class OperationalReportController {
                 .body(csv);
     }
 
-    private List<IncidentReportRow> rows(MultiValueMap<String, String> parameters) {
+    /**
+     * The three parameters are required, but not with {@code required = true}: Spring would answer
+     * a missing one with its own {@code 400}, without the {@code MALFORMED_REQUEST} code of the
+     * contract. ISO.DATE_TIME parses into {@code OffsetDateTime} only with an offset, so a local
+     * date-time such as {@code 2026-11-01T00:00} is a {@code 400}, never an instant in the server's
+     * zone. {@code groupBy} is not a {@link ReportGrouping}: the contract writes its values in
+     * lowercase, and Spring would only accept the names of the constants.
+     */
+    private List<IncidentReportRow> rows(
+            MultiValueMap<String, String> parameters,
+            OffsetDateTime from,
+            OffsetDateTime to,
+            String groupBy) {
         QueryParameters.requireKnownAndFilled(parameters, PARAMETERS);
-        var from = instant(parameters, "from");
-        var to = instant(parameters, "to");
-        var groupBy = single(parameters, "groupBy");
+        QueryParameters.requireSingle(parameters, PARAMETERS);
         var grouping =
-                ReportGrouping.ofParameter(groupBy)
+                ReportGrouping.ofParameter(required("groupBy", groupBy))
                         .orElseThrow(
                                 () ->
                                         new MalformedRequestException(
                                                 "Unknown groupBy. The accepted values are "
                                                         + GROUPINGS
                                                         + "."));
-        return reports.report(grouping, new ReportPeriod(from, to));
+        return reports.report(grouping, new ReportPeriod(instant("from", from), instant("to", to)));
     }
 
-    /**
-     * An ISO 8601 date-time with its offset. Without one ({@code 2026-11-01T00:00}) it is a {@code
-     * 400}, never an instant in the server's zone.
-     */
-    private static Instant instant(MultiValueMap<String, String> parameters, String name) {
-        var value = single(parameters, name);
-        Instant instant;
-        try {
-            instant =
-                    OffsetDateTime.parse(value, DateTimeFormatter.ISO_OFFSET_DATE_TIME).toInstant();
-        } catch (DateTimeParseException e) {
-            throw QueryParameters.invalidValue(name);
-        }
-        return QueryParameters.requireStorable(name, instant);
+    private static Instant instant(String name, OffsetDateTime value) {
+        return QueryParameters.requireStorable(name, required(name, value).toInstant());
     }
 
-    private static String single(MultiValueMap<String, String> parameters, String name) {
-        var values = parameters.get(name);
-        if (values == null) {
+    private static <T> T required(String name, T value) {
+        if (value == null) {
             throw new MalformedRequestException("The parameter " + name + " is required.");
         }
-        if (values.size() > 1) {
-            throw new MalformedRequestException("The parameter " + name + " is repeated.");
-        }
-        return values.getFirst();
+        return value;
     }
 }
