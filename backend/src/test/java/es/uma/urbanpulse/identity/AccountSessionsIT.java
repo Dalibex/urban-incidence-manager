@@ -295,8 +295,10 @@ class AccountSessionsIT {
                                 .content("{}"))
                 .andExpect(status().is(422))
                 .andExpect(jsonPath("$.type").value("about:blank"));
+        // Outside /api/v1: there, a path without a rule is refused with 403 before Spring MVC
+        // looks for it (ApiAuthorizationRules).
         mvc.perform(
-                        get("/api/v1/nothing-here")
+                        get("/nothing-here")
                                 .header(HttpHeaders.AUTHORIZATION, tokens.bearer(Role.CITIZEN)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.type").value("about:blank"))

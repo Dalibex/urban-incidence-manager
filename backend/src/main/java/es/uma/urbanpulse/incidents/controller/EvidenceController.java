@@ -10,7 +10,6 @@ import java.util.UUID;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,13 +22,12 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 /**
  * {@code listIncidentAttachments}, {@code createIncidentAttachment} and {@code
- * getAttachmentContent}: the photos of an incident (ADR-0013). The role is checked here; which
- * incidents the caller may see, and when a citizen may add photos, is checked by {@link
- * EvidenceService}.
+ * getAttachmentContent}: the photos of an incident (ADR-0013). The role is checked by the security
+ * filters ({@code ApiAuthorizationRules}); which incidents the caller may see, and when a citizen
+ * may add photos, is checked by {@link EvidenceService}.
  */
 @RestController
 @RequestMapping("/api/v1")
-@PreAuthorize("hasAnyRole('CITIZEN', 'MUNICIPAL_OPERATOR', 'TECHNICIAN', 'ADMINISTRATOR')")
 class EvidenceController {
 
     private final EvidenceService evidence;
