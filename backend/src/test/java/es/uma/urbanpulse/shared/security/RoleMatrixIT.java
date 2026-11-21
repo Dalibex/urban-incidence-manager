@@ -19,12 +19,15 @@ import java.util.EnumSet;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Named;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
@@ -33,6 +36,8 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.AbstractMockHttpServletRequestBuilder;
+import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 /**
  * The whole <em>Permission Matrix</em> of {@code docs/security.md} in one place (#286): every
@@ -41,7 +46,9 @@ import org.springframework.test.web.servlet.request.AbstractMockHttpServletReque
  * ApiAuthorizationRules} widened to an extra role or narrowed to one fewer fails here.
  *
  * <p>The expected roles are copied from the document, not from the rules, so the test compares two
- * independent sources. A cell that says "own" or "assigned" still allows the role: the service
+ * independent sources. The rows themselves are checked against the operations Spring MVC really
+ * maps ({@link #everyOperationThatNeedsATokenHasItsRow}), so a new operation cannot be left out of
+ * the matrix unnoticed. A cell that says "own" or "assigned" still allows the role: the service
  * narrows it with the data of the resource. To keep that check out of the way, every request is one
  * Spring MVC refuses before the service runs (a path id that is not a UUID, a body that is not
  * JSON, a page size over the limit, a parameter that does not convert), so an allowed role gets
@@ -62,8 +69,20 @@ class RoleMatrixIT {
     private static final Set<Role> EVERY_ROLE = EnumSet.allOf(Role.class);
     private static final Set<Role> ADMINISTRATOR_ONLY = EnumSet.of(Role.ADMINISTRATOR);
 
+    // The operations of the contract marked `security: []`, as SecurityConfig lists them.
+    private static final Set<String> PUBLIC_OPERATIONS =
+            Set.of(
+                    "POST " + API + "/registrations",
+                    "POST " + API + "/sessions",
+                    "POST " + API + "/sessions/refresh",
+                    "POST " + API + "/password-changes");
+
     @Autowired private MockMvc mvc;
     @Autowired private TestTokens tokens;
+
+    @Autowired
+    @Qualifier("requestMappingHandlerMapping")
+    private RequestMappingHandlerMapping handlerMapping;
 
     enum Outcome {
         FORBIDDEN,
@@ -96,6 +115,48 @@ class RoleMatrixIT {
                     .as("an allowed role is not refused")
                     .isNotEqualTo(HttpStatus.FORBIDDEN.value());
         }
+    }
+
+    /**
+     * The rows are written by hand, so a new operation without its row would go untested here. This
+     * compares them with every operation Spring MVC maps under {@code /api/v1}, except the public
+     * ones: an operation without a row, or a row without an operation, fails.
+     */
+    @Test
+    void everyOperationThatNeedsATokenHasItsRow() {
+        var mapped =
+                handlerMapping.getHandlerMethods().keySet().stream()
+                        .flatMap(RoleMatrixIT::operationsOf)
+                        .filter(operation -> operation.contains(" " + API + "/"))
+                        .filter(operation -> !PUBLIC_OPERATIONS.contains(operation))
+                        .collect(Collectors.toSet());
+        var rows = matrix().map(row -> mappingOf(row.operation())).collect(Collectors.toSet());
+
+        assertThat(rows)
+                .as("the rows of the matrix and the operations Spring MVC maps under %s", API)
+                .containsExactlyInAnyOrderElementsOf(mapped);
+    }
+
+    // "GET /api/v1/incidents/{}" for each method and path of a mapping.
+    private static Stream<String> operationsOf(RequestMappingInfo mapping) {
+        var methods = mapping.getMethodsCondition().getMethods();
+        return mapping.getPatternValues().stream()
+                .flatMap(
+                        path ->
+                                methods.isEmpty()
+                                        ? Stream.of("ANY " + withoutVariableNames(path))
+                                        : methods.stream()
+                                                .map(m -> m + " " + withoutVariableNames(path)));
+    }
+
+    // "GET /incidents/{id}, id not a UUID" → "GET /api/v1/incidents/{}".
+    private static String mappingOf(String operation) {
+        var methodAndPath = operation.split(",")[0].split(" ");
+        return methodAndPath[0] + " " + withoutVariableNames(API + methodAndPath[1]);
+    }
+
+    private static String withoutVariableNames(String path) {
+        return path.replaceAll("\\{[^}]+}", "{}");
     }
 
     static Stream<Arguments> everyOperationAndRole() {

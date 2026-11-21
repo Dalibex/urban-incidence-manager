@@ -420,7 +420,9 @@ knowing someone else's key never returns their incident (#289).
    `tokens.bearer(userId, Role.X)` for an existing user): one test per allowed role and at least one
    for a role that gets `403`, plus one without a token (`401`). Add the operation to
    `RoleBeforeEveryOperationIT` with a refused role and an invalid input, so its `403` comes before
-   the `400` or `422`.
+   the `400` or `422`, and add its row of the matrix to `RoleMatrixIT`, which calls it with every
+   role. `RoleMatrixIT` compares its rows with the operations Spring MVC maps, so it fails while
+   the new operation has no row.
 
 A global `@RestControllerAdvice` must not catch `AccessDeniedException`, `AuthenticationException`
 or `RequestRejectedException` (for example through a handler for `Exception`): rethrow them. A
