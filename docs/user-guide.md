@@ -207,9 +207,9 @@ The menu at the top shows *Inbox* and *Map*.
 The incidents, newest first, a page at a time, with the date it was reported, title, category,
 status and priority. A category or priority that is not set shows *Not classified* or *Not set*.
 
-The sign-in opens it on the reports waiting for a review: the status *Reported* is ticked. The
-menu opens it with the filters you last used on it in this browser, and on *Reported* the first
-time. *Clear filters* lists every incident, and the menu then opens it that way.
+The menu and the sign-in open it with the filters you last used on it in this browser, and on the
+reports waiting for a review the first time: the status *Reported* is ticked. *Clear filters* lists
+every incident, and the menu and the sign-in then open it that way.
 
 - **Filters:** status, category, priority, department and the days it was reported (*Reported
   from* and *to*, both included, in Málaga time, or in one click with *Reported in*: *Today*,
@@ -415,9 +415,9 @@ browser, and the first time on *Assigned* and *In progress*.
 ### Work queue
 
 The incidents assigned to you now, newest first, a page at a time, with the same columns as the
-operator's inbox. The sign-in opens it on the work still to do: the statuses *Assigned* and *In
-progress* are ticked. The menu opens it with the filters you last used on it in this browser, and
-on the work still to do the first time. Tick other statuses, or *Clear filters*, to see the incidents you resolved. The filters are
+operator's inbox. The menu and the sign-in open it with the filters you last used on it in this
+browser, and on the work still to do the first time: the statuses *Assigned* and *In progress* are
+ticked. Tick other statuses, or *Clear filters*, to see the incidents you resolved. The filters are
 those of the inbox, *Reported in* included.
 
 - **Filters:** the same as in the [inbox](#inbox), and they work the same way: they combine, they

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { filtersSearch } from './incident-filters';
 import { rememberedFilters, rememberFilters } from './remembered-filters';
 
 const CATEGORY = '7c1e2d3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f';
@@ -18,7 +19,7 @@ describe('remembered filters (#263)', () => {
       reportedTo: '2026-11-05',
     };
 
-    rememberFilters('inbox', 'user-1', filters);
+    rememberFilters('inbox', 'user-1', filtersSearch(filters));
 
     expect(rememberedFilters('inbox', 'user-1')).toEqual(filters);
   });
@@ -26,15 +27,15 @@ describe('remembered filters (#263)', () => {
   it('tells nothing stored from no filters, which is what Clear filters leaves', () => {
     expect(rememberedFilters('inbox', 'user-1')).toBeUndefined();
 
-    rememberFilters('inbox', 'user-1', {});
+    rememberFilters('inbox', 'user-1', filtersSearch({}));
 
     expect(rememberedFilters('inbox', 'user-1')).toEqual({});
   });
 
-  it('drops what the API would reject, never sends it', () => {
+  it('drops what the API would reject, such as a malformed id, never sends it', () => {
     window.localStorage.setItem(
       'urbanpulse.list-filters.inbox.user-1',
-      `?status=NOPE&status=REPORTED&categoryId=deleted&priority=URGENT&reportedFrom=2026-02-30&departmentId=${CATEGORY}`,
+      `?status=NOPE&status=REPORTED&categoryId=not-an-id&priority=URGENT&reportedFrom=2026-02-30&departmentId=${CATEGORY}`,
     );
 
     expect(rememberedFilters('inbox', 'user-1')).toEqual({
@@ -50,8 +51,8 @@ describe('remembered filters (#263)', () => {
   });
 
   it('keeps each list and each user apart', () => {
-    rememberFilters('inbox', 'user-1', { priority: 'HIGH' });
-    rememberFilters('map', 'user-1', { priority: 'LOW' });
+    rememberFilters('inbox', 'user-1', filtersSearch({ priority: 'HIGH' }));
+    rememberFilters('map', 'user-1', filtersSearch({ priority: 'LOW' }));
 
     expect(rememberedFilters('inbox', 'user-1')).toEqual({ priority: 'HIGH' });
     expect(rememberedFilters('map', 'user-1')).toEqual({ priority: 'LOW' });
@@ -70,7 +71,9 @@ describe('remembered filters (#263)', () => {
       throw new DOMException('full', 'QuotaExceededError');
     });
 
-    expect(() => rememberFilters('workQueue', 'user-1', { priority: 'HIGH' })).not.toThrow();
+    expect(() =>
+      rememberFilters('workQueue', 'user-1', filtersSearch({ priority: 'HIGH' })),
+    ).not.toThrow();
     expect(rememberedFilters('workQueue', 'user-1')).toBeUndefined();
   });
 });

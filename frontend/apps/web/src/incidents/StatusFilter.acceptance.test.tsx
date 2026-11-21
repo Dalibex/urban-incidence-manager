@@ -1,6 +1,6 @@
 import { act, cleanup, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { PATHS } from '../routing/access';
 import { fakeApi, json, renderApp } from '../test-utils';
@@ -60,7 +60,36 @@ async function signIn() {
   await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
 }
 
+/**
+ * The inbox API for two operators who share the browser: `/users/me` answers whoever `current.user`
+ * is, and signing out works.
+ */
+function sharedBrowserApi() {
+  const current = { user: OPERATOR };
+  const inbox = inboxApi([]);
+  const fetch = (request: Request) => {
+    const { pathname } = new URL(request.url);
+    if (request.method === 'GET' && pathname.endsWith('/users/me')) {
+      return Promise.resolve(json(200, current.user));
+    }
+    if (request.method === 'DELETE' && pathname.endsWith('/sessions/current')) {
+      return Promise.resolve(new Response(null, { status: 204 }));
+    }
+    return inbox(request);
+  };
+  return { current, fetch };
+}
+
+async function signOut() {
+  await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+  await screen.findByRole('heading', { name: 'Sign in to UrbanPulse' });
+}
+
 describe('several statuses in the status filter (#218)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   // T1, the part jsdom can check: the browser's own focus ring and Tab order are checked by hand.
   it('ticks and unticks the statuses with the keyboard', async () => {
     const requests: URLSearchParams[] = [];
@@ -241,5 +270,66 @@ describe('several statuses in the status filter (#218)', () => {
     await screen.findByText('No incidents match these filters.');
     expect(tickedStatuses()).toEqual(['Reported', 'Reopened']);
     expect(requests.at(-1)!.getAll('status')).toEqual(['REPORTED', 'REOPENED']);
+  });
+
+  // #263: signing out sends to the sign-in with the address of the one who left.
+  it('does not give the filters of one user to the next who signs in', async () => {
+    const { current, fetch } = sharedBrowserApi();
+    renderApp(PATHS.signIn, { fetch });
+    await signIn();
+    await screen.findByText('No incidents match these filters.');
+    await userEvent.click(statusChoice('Reopened'));
+    await signOut();
+
+    current.user = { ...OPERATOR, id: 'second-operator' };
+    await signIn();
+
+    await screen.findByText('No incidents match these filters.');
+    expect(tickedStatuses()).toEqual(['Reported']);
+    expect(window.localStorage.getItem('urbanpulse.list-filters.inbox.second-operator')).toBe(
+      '?status=REPORTED',
+    );
+    const menu = screen.getByRole('navigation', { name: 'Main' });
+    expect(within(menu).getByRole('link', { name: 'Inbox' }).getAttribute('href')).toBe(
+      '/inbox?status=REPORTED',
+    );
+  });
+
+  // #263: the first visit has the defaults, not every later sign-in.
+  it('lands on the filters last used on the inbox when the same user signs in again', async () => {
+    const { fetch } = sharedBrowserApi();
+    const router = renderApp(PATHS.signIn, { fetch });
+    await signIn();
+    await screen.findByText('No incidents match these filters.');
+    await userEvent.click(statusChoice('Reopened'));
+    await signOut();
+    // No address to return to: the landing path decides.
+    await act(() => router.navigate(PATHS.signIn, { replace: true }));
+
+    await signIn();
+
+    await screen.findByText('No incidents match these filters.');
+    expect(tickedStatuses()).toEqual(['Reported', 'Reopened']);
+    expect(router.state.location.search).toBe('?status=REPORTED&status=REOPENED');
+  });
+
+  it('opens the menu and the inbox on the defaults when the browser refuses its storage', async () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError');
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('full', 'QuotaExceededError');
+    });
+    const router = renderApp(PATHS.home, { role: 'MUNICIPAL_OPERATOR', fetch: inboxApi([]) });
+
+    await screen.findByText('No incidents match these filters.');
+    expect(tickedStatuses()).toEqual(['Reported']);
+    await userEvent.click(statusChoice('Reopened'));
+    const menu = screen.getByRole('navigation', { name: 'Main' });
+    expect(within(menu).getByRole('link', { name: 'Inbox' }).getAttribute('href')).toBe(
+      '/inbox?status=REPORTED',
+    );
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(router.state.location.pathname).toBe(PATHS.inbox);
   });
 });

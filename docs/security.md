@@ -311,8 +311,7 @@ which parts of the map screen each user folded or opened, under a key with the u
 the work queue and the map (`urbanpulse.list-filters.<list>.<user id>`, #263). The values hold no
 personal data and the API never reads them. They stay after sign-out because they are only a layout
 and a convenience, so on a shared browser the storage keeps the ids of the users who opened those
-screens there. If the browser refuses its storage, the
-screen works with the defaults.
+screens there. If the browser refuses its storage, the screen works with the defaults.
 
 ## 🧮 Permission Matrix
 

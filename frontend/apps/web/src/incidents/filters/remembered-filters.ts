@@ -51,8 +51,23 @@ export function rememberedFilters(list: FilterList, userId: string): IncidentFil
   return stored === null ? undefined : filtersFrom(new URLSearchParams(stored));
 }
 
-export function rememberFilters(list: FilterList, userId: string, filters: IncidentFilters): void {
-  write(storageKey(list, userId), filtersSearch(filters));
+/**
+ * Where a list opens for a user: with the filters they last used on it, or at `firstVisit` when
+ * nothing is stored. Nothing stored is not the same as no filters: after *Clear filters* the list
+ * opens as is.
+ */
+export function rememberedPath(
+  path: string,
+  list: FilterList,
+  userId: string,
+  firstVisit: string,
+): string {
+  const filters = rememberedFilters(list, userId);
+  return filters ? path + filtersSearch(filters) : firstVisit;
+}
+
+export function rememberFilters(list: FilterList, userId: string, search: string): void {
+  write(storageKey(list, userId), search);
   version += 1;
   listeners.forEach((listener) => listener());
 }
@@ -68,7 +83,7 @@ export function useRememberFilters(list: FilterList, filters: IncidentFilters): 
   const search = filtersSearch(filters);
   useEffect(() => {
     if (userId) {
-      rememberFilters(list, userId, filtersFrom(new URLSearchParams(search)));
+      rememberFilters(list, userId, search);
     }
   }, [list, userId, search]);
 }

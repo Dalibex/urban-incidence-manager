@@ -2,8 +2,7 @@ import type { Role } from '@urbanpulse/domain';
 import type { ReactNode } from 'react';
 
 import { AuditLogPage } from '../audit/AuditLogPage';
-import { filtersSearch } from '../incidents/filters/incident-filters';
-import { rememberedFilters, type FilterList } from '../incidents/filters/remembered-filters';
+import { rememberedPath } from '../incidents/filters/remembered-filters';
 import { InboxPage } from '../incidents/InboxPage';
 import { WorkQueuePage } from '../incidents/WorkQueuePage';
 import { MapPage } from '../map/MapPage';
@@ -32,41 +31,26 @@ export interface Section {
   element: ReactNode;
 }
 
-/**
- * The link of a list: the filters its user last used on it, or `firstVisit` when nothing is stored
- * (#263). Nothing stored is not the same as no filters: after *Clear filters* the list opens as is.
- */
-function rememberedLink(
-  path: string,
-  list: FilterList,
-  firstVisit: (user: SessionUser) => string,
-): (user: SessionUser) => string {
-  return (user) => {
-    const filters = rememberedFilters(list, user.id);
-    return filters ? path + filtersSearch(filters) : firstVisit(user);
-  };
-}
-
 // Each stream replaces its placeholder and widens `roles` when the permission matrix
 // (docs/security.md) lets more roles use the screen.
 export const SECTIONS: readonly Section[] = [
   {
     path: PATHS.inbox,
-    link: rememberedLink(PATHS.inbox, 'inbox', () => INBOX_DEFAULT_PATH),
+    link: ({ id }) => rememberedPath(PATHS.inbox, 'inbox', id, INBOX_DEFAULT_PATH),
     label: 'Inbox',
     roles: OPERATOR_ROLES,
     element: <InboxPage />,
   },
   {
     path: PATHS.workQueue,
-    link: rememberedLink(PATHS.workQueue, 'workQueue', () => WORK_QUEUE_DEFAULT_PATH),
+    link: ({ id }) => rememberedPath(PATHS.workQueue, 'workQueue', id, WORK_QUEUE_DEFAULT_PATH),
     label: 'Work queue',
     roles: ['TECHNICIAN'],
     element: <WorkQueuePage />,
   },
   {
     path: PATHS.map,
-    link: rememberedLink(PATHS.map, 'map', ({ role }) => mapDefaultPath(role)),
+    link: ({ id, role }) => rememberedPath(PATHS.map, 'map', id, mapDefaultPath(role)),
     label: 'Map',
     roles: INCIDENT_DETAIL_ROLES,
     element: <MapPage />,

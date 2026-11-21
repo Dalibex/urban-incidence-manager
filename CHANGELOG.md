@@ -17,7 +17,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- The web inbox, work queue and map reopen from the menu with the filters last used on each one in that browser, for each user, instead of always starting from the default filters; the default filters still apply the first time and after signing in, and *Clear filters* is remembered too (#263).
+- The web inbox, work queue and map reopen from the menu with the filters last used on each one in that browser, for each user, and so does the sign-in of an operator or a technician, instead of always starting from the default filters; the default filters apply only the first time, and *Clear filters* is remembered too (#263).
 - PostgreSQL gets 256 MB of shared memory (`shm_size`) in both Compose files instead of Docker's 64 MB: with a million incidents, concurrent map, dashboard and report queries failed with `500` (#176).
 - The staff lists filtered by status and priority count their incidents with a new index (migration `V16`): from 254 ms to 4 ms with a million incidents (#176).
 - `STORAGE_BASE_PATH` in `backend/.env.example` is `./storage`, so the backend run from the IDE or `./mvnw` keeps the photos in `backend/storage/`, which Git ignores. Both Compose files fix the folder of the backend container to its volume at `/app/storage` and no longer read `STORAGE_BASE_PATH` from `.env`, so a different value can no longer leave the photos outside the volume. Change it to `./storage` in a `backend/.env` copied before (#275).

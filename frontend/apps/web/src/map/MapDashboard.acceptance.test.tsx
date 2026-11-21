@@ -172,8 +172,6 @@ function summary() {
 describe('staff dashboard on the map (#177, test #258)', () => {
   afterEach(() => {
     vi.useRealTimers();
-    // What a test folded stays in this browser for the next one otherwise.
-    window.localStorage.clear();
   });
 
   // T5, T3: the figures and the three charts, the groups without a value named.

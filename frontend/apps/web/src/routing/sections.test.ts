@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { filtersSearch } from '../incidents/filters/incident-filters';
 import { rememberFilters } from '../incidents/filters/remembered-filters';
 import { userWith } from '../test-utils';
 import { INBOX_DEFAULT_PATH, PATHS, WORK_QUEUE_DEFAULT_PATH } from './access';
@@ -19,15 +20,15 @@ describe('the menu links of the lists (#263)', () => {
   });
 
   it('open the filters the user last used, or none after Clear filters', () => {
-    rememberFilters('inbox', 'user-1', { priority: 'HIGH' });
-    rememberFilters('map', 'user-1', {});
+    rememberFilters('inbox', 'user-1', filtersSearch({ priority: 'HIGH' }));
+    rememberFilters('map', 'user-1', filtersSearch({}));
 
     expect(linkOf(PATHS.inbox, 'MUNICIPAL_OPERATOR')).toBe(`${PATHS.inbox}?priority=HIGH`);
     expect(linkOf(PATHS.map, 'MUNICIPAL_OPERATOR')).toBe(PATHS.map);
   });
 
   it('give another user of the browser their own filters or the defaults', () => {
-    rememberFilters('inbox', 'user-1', { priority: 'HIGH' });
+    rememberFilters('inbox', 'user-1', filtersSearch({ priority: 'HIGH' }));
 
     expect(linkOf(PATHS.inbox, 'MUNICIPAL_OPERATOR', 'user-2')).toBe(INBOX_DEFAULT_PATH);
   });
