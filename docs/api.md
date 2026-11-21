@@ -78,7 +78,7 @@ like the Sprint 2 ones:
 | `identity` | `createMfaEnrollment`, `createMfaVerification`, `deleteUserMfa`, and the `202` of `createSession`; `ENROLL_MFA` and `RESET_MFA` join `AuditAction` with that pull request | #57 |
 | `incidents`, `geospatial` | `listDistricts`, and the `district` filter of `listIncidents`, `listIncidentLocations` and `getIncidentStatistics` | #59 |
 | `geospatial` | `listPlaces` (address search) | #179 |
-| `incidents` | The text search `q` of `listIncidents` and `listIncidentLocations` | #266 |
+| `incidents` | The text search `q` of `listIncidents`, `listIncidentLocations` and `getIncidentStatistics` | #266 |
 | `incidents` | `icon` in `CategoryResponse`, and `categoryId` in `IncidentPosition` | #267 |
 
 ## 📏 Conventions
@@ -177,7 +177,7 @@ Do not define a new error body. If an error needs extra information, add an opti
 | `VALIDATION_FAILED` | 422 | Any with a body, and `getIncidentReport` | The data is not valid; see `errors` |
 | `EMAIL_ALREADY_EXISTS` | 409 | `createRegistration` | An account with this email exists |
 | `INVALID_CREDENTIALS` | 401 | `createSession` | Wrong email or password (the same for both, so emails are not revealed) |
-| `ACCOUNT_DISABLED` | 403 | `createSession` | Right credentials, disabled account |
+| `ACCOUNT_DISABLED` | 403 | `createSession`; planned: `createMfaVerification` | Right credentials, disabled account |
 | `TOO_MANY_ATTEMPTS` | 429 | `createSession`, `createRegistration`; planned: `createMfaEnrollment`, `createMfaVerification`, `listPlaces` | Rate limited; see `Retry-After` |
 | `INVALID_REFRESH_TOKEN` | 401 | `refreshSession` | Unknown, expired, revoked or reused refresh token: sign in again |
 | `INVALID_TRANSITION` | 409 | Lifecycle actions (Sprint 2) | The transition is not allowed (ADR-0020) |
@@ -188,7 +188,7 @@ Do not define a new error body. If an error needs extra information, add an opti
 | `FILE_TOO_LARGE` | 413 | `createIncidentAttachment` | The file is over the size limit |
 | `IDEMPOTENCY_KEY_REUSED` | 422 | `createIncident` | The citizen already used this `Idempotency-Key` for a different report: send a new key |
 | `INVALID_MFA_CHALLENGE` | 401 | `createMfaEnrollment`, `createMfaVerification` (planned, #57) | The sign-in challenge is unknown, expired or used: sign in again |
-| `INVALID_MFA_CODE` | 401 | `createMfaVerification` (planned, #57) | The code is wrong, outside its time window or already used: type another one |
+| `INVALID_MFA_CODE` | 401 | `createMfaVerification` (planned, #57) | The code is wrong, outside its time window or already used: type another one (five per challenge) |
 | `MFA_ALREADY_ENROLLED` | 409 | `createMfaEnrollment` (planned, #57) | The account already has a second factor: send a code instead |
 | `GEOCODING_UNAVAILABLE` | 503 | `listPlaces` (planned, #179) | The address search provider is down or too slow: place the pin by hand |
 

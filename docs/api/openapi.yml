@@ -371,15 +371,23 @@ paths:
       summary: Start the enrolment of the second factor
       description: |
         Planned: #57. For a challenge of `createSession` whose `enrollmentRequired` is `true`:
-        creates a new TOTP secret for the account and returns it as an `otpauth://` URI, which the
-        web app shows as a QR code for an authenticator app. The enrolment stays pending, and the
-        second factor does not protect the account, until `createMfaVerification` receives a first
-        valid code for the same challenge.
+        creates a new TOTP secret for that challenge and returns it as an `otpauth://` URI, which
+        the web app shows as a QR code for an authenticator app. The enrolment stays pending, and
+        the second factor does not protect the account, until `createMfaVerification` receives a
+        first valid code for the same challenge.
 
-        Calling it again for the same challenge replaces the pending secret, so a QR shown before
-        stops working. The secret is returned only here and only while the enrolment is pending:
-        once confirmed, no operation returns it again. It is stored encrypted, and never written to
-        the logs.
+        The pending secret belongs to the challenge, not to the account: two sign-ins enrolling at
+        once (two tabs, or someone else with the password) never replace each other's secret. The
+        first valid code confirms its own secret and cancels every other pending enrolment of the
+        account, whose challenges then get `MFA_ALREADY_ENROLLED`. Calling this operation again for
+        the same challenge replaces its pending secret, so a QR shown before stops working. The
+        secret is returned only here and only while the enrolment is pending: once confirmed, no
+        operation returns it again. It is stored encrypted, and never written to the logs.
+
+        Accepted risk of ADR-0021 (trust on first use): while an account has no confirmed second
+        factor (when #57 is deployed, after `deleteUserMfa`, and for a new account), whoever knows
+        its password can enrol their own phone first. The real user then gets
+        `MFA_ALREADY_ENROLLED`, and an administrator resets it.
 
         The challenge token is the credential, in the body and not in the path, so it does not reach
         the access logs. A challenge that is unknown, expired or already used gets
@@ -457,8 +465,21 @@ paths:
 
         A code is valid for its 30-second time step and one step on each side; a code that was
         already used is refused. A wrong code does not spend the challenge, so the user can type
-        another one until the challenge expires. Failed codes count towards the rate limit of the
-        account, like failed passwords, and are written to the log without the code.
+        another one, up to five wrong codes per challenge: the fifth spends it, and the next request
+        gets `INVALID_MFA_CHALLENGE`. Wrong codes are written to the log without the code.
+
+        Brute force: wrong codes also have their own limit per account, keyed by the account only
+        (not by the client address) and separate from the password limit. A right password does
+        not give these attempts back; only a valid code does. Past the limit, `429`
+        `TOO_MANY_ATTEMPTS` with `Retry-After`, even for a right code. #57 adds its row to *Rate
+        limits* in `docs/security.md`.
+
+        The account is checked again here: if it was disabled after the password step, or its role
+        no longer needs the second factor, the answer is `403` `ACCOUNT_DISABLED` or `401`
+        `INVALID_MFA_CHALLENGE`, and no token is issued. Of two verifications at once of the same
+        challenge with a valid code, one gets the tokens and the other `INVALID_MFA_CHALLENGE`. A
+        challenge with `enrollmentRequired` and no `createMfaEnrollment` yet has no secret to match,
+        so any code gets `INVALID_MFA_CODE`.
 
         Roles: public (the challenge and the code are the credentials).
       security: []
@@ -507,6 +528,22 @@ paths:
                     detail: The sign-in has expired. Sign in again.
                     instance: /api/v1/mfa-verifications
                     traceId: 4bf92f3577b34da6a3ce929d0e0e4736
+        "403":
+          description: >-
+            The account was disabled after the password step. Code: `ACCOUNT_DISABLED`. No token is
+            issued.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: about:blank
+                title: Forbidden
+                status: 403
+                code: ACCOUNT_DISABLED
+                detail: This account is disabled.
+                instance: /api/v1/mfa-verifications
+                traceId: 4bf92f3577b34da6a3ce929d0e0e4736
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
         "429":
@@ -732,6 +769,10 @@ paths:
         Planned: #57. For a user who lost their phone (ADR-0021): removes their TOTP secret, revokes
         every refresh token and open sign-in challenge of the user, and records a `RESET_MFA` audit
         entry, in one transaction. The user enrols again on their next sign-in.
+
+        The reason that ADR-0021 asks the audit to keep is the action itself: a reset exists only for
+        a lost or replaced phone, so it takes no free text, like the other actions of the trail,
+        which store none. The entry keeps the actor, the instant and the user (`target`).
 
         It is idempotent: a user without a second factor also gets `204`, and then nothing changes
         and nothing is recorded.
@@ -1819,9 +1860,9 @@ paths:
       description: |
         The indicators of the staff dashboard (#177), shown beside the map: how many incidents
         match, and how they split by status, priority, category and department. It takes the same
-        filters and the same scope as `listIncidentLocations`, without the bounding box and the text
-        search `q`, so it counts the incidents the map draws. `q` finds one incident on the map
-        (#266); it does not change what the dashboard counts. Unlike the map it has no cap: it counts every one.
+        filters and the same scope as `listIncidentLocations`, without the bounding box, so it
+        counts the incidents the map draws, also while the text search `q` (Planned: #266) narrows
+        them. Unlike the map it has no cap: it counts every one.
         An unknown parameter, or one without a value, returns `400`, like `listIncidents`.
 
         Every group of a dimension adds up to `total`: they are read from one snapshot, so an
@@ -1843,6 +1884,7 @@ paths:
         - $ref: "#/components/parameters/ReportedToFilter"
         - $ref: "#/components/parameters/DepartmentIdFilter"
         - $ref: "#/components/parameters/DistrictFilter"
+        - $ref: "#/components/parameters/TextSearch"
       responses:
         "200":
           description: The counts.
@@ -1908,8 +1950,9 @@ paths:
           returned. No match is `200` with an empty list.
         - **At most five places.** The list is bounded, so it is not paginated.
         - **Rate limits.** The backend sends Nominatim at most one request per second, for every
-          user together, and limits each user too. Over either limit it answers `429` with
-          `Retry-After` instead of waiting.
+          user together, and each user to 10 searches a minute, so one user cannot use up what the
+          others share. It keeps repeated searches in a cache, as the policy asks. Over either
+          limit it answers `429` with `Retry-After` instead of waiting.
         - **Provider down.** If Nominatim does not answer in time, or answers with an error, the
           answer is `503` `GEOCODING_UNAVAILABLE`. The report does not depend on it: the user can
           still place the pin by hand (RF26).
