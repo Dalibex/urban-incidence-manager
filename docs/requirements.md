@@ -44,48 +44,48 @@ reason.
 covers: *Yes*, *Partly* (the note says what is left out), *Stretch* (planned only if there is time)
 or *No* (after the MVP). **After the MVP** says what the next milestones add and which issue covers
 it, and which accepted decision a requirement of the [final delivery](#-final-delivery) replaces.
-Every requirement except the analyst's is built in the monolith before the refactor (milestone
-*Sprint 3 - Complete app*). Whether an issue is finished is in GitHub, not here.
+Every requirement is planned in the monolith before the refactor (milestone *Sprint 3 - Complete
+app*), except the analyst's (RF17, RF25) and RF20, which is out of the final delivery. Whether an issue is finished is in GitHub, not here.
 
 ### High
 
 | ID | Requirement | In the MVP | Issues | After the MVP |
 | --- | --- | --- | --- | --- |
-| RF01 | **Identity and access.** Users sign up or sign in; staff authenticate. | Yes. A second factor for staff is planned with low priority. | #35, #39, #126, #165; #57 (second factor, ADR-0021) | The second factor for staff: #57. |
-| RF02 | **Roles and permissions.** Different permissions for citizens, operators, technicians, administrators and analysts. | Yes | #35, #39, #100, #40; [permission matrix](security.md#-permission-matrix) | A new **auditor** role that reads the audit with the administrators ([final delivery](#-final-delivery)): #355. |
+| RF01 | **Identity and access.** Users sign up or sign in; staff authenticate. | Yes. A second factor for staff is planned with low priority. | #35, #39, #126, #165; #57 (second factor, ADR-0021) | The second factor for staff. Planned: #57. |
+| RF02 | **Roles and permissions.** Different permissions for citizens, operators, technicians, administrators and analysts. | Yes | #35, #39, #100, #40; [permission matrix](security.md#-permission-matrix) | A new **auditor** role that reads the audit with the administrators ([final delivery](#-final-delivery)). Planned: #355. |
 | RF03 | **Report an incident** with a title, description, position and optional category. | Yes | #43 | — |
-| RF04 | **Location.** The incident keeps coordinates, normalized address and accuracy. | Partly. Coordinates, and the accuracy while the position is the phone's GPS fix; the citizen corrects the position with a pin on the mobile map, and reports without GPS once they move it: the map's starting point on Málaga is never sent. The normalized address has no issue. | #43; #60 (#197, #198) | The normalized address from the position: #375. |
+| RF04 | **Location.** The incident keeps coordinates, normalized address and accuracy. | Partly. Coordinates, and the accuracy while the position is the phone's GPS fix; the citizen corrects the position with a pin on the mobile map, and reports without GPS once they move it: the map's starting point on Málaga is never sent. The normalized address has no issue. | #43; #60 (#197, #198) | The normalized address from the position. Planned: #375. |
 | RF06 | **Consultation and tracking.** A user sees the detail, status, dates and visible history of their incidents. | Yes | #45 (citizen), #46 (staff), #100, #169 (timeline) | — |
 | RF09 | **Validation.** An operator validates, requests more information or rejects a report with a reason. | Yes | #48 (#188, #189) | — |
 | RF11 | **Assignment** of a validated incident to a department, team or technician. | Yes | #49 (#184, #185), #190 | — |
 | RF12 | **Lifecycle.** Status changes follow the allowed transitions and are audited. | Yes | ADR-0020; #37, #99, #101, #102, #49, #51, #52 | — |
-| RF18 | **Audit** of administrative actions, assisted decisions and relevant changes. | Partly. Administrative actions and classification; assisted decisions come with RF20. | #36, #40, #41, #47 | Every change of every incident and who made it, an audit dashboard and an audit service with its own database ([final delivery](#-final-delivery)): #353. Replaces the single schema of ADR-0010 for the audit. |
-| RF26 | **Controlled degradation.** An external source being down does not prevent creating an incident. | Yes. Creating an incident calls no external source; it has to stay that way when RF21–RF25 arrive. | #43 | It also holds when one of the new services is down ([final delivery](#-final-delivery)): #327. |
+| RF18 | **Audit** of administrative actions, assisted decisions and relevant changes. | Partly. Administrative actions and classification; assisted decisions come with RF20. | #36, #40, #41, #47 | Every change of every incident and who made it, an audit dashboard and an audit service with its own database ([final delivery](#-final-delivery)). Planned: #353. Replaces the single schema of ADR-0010 for the audit. |
+| RF26 | **Controlled degradation.** An external source being down does not prevent creating an incident. | Yes. Creating an incident calls no external source; it has to stay that way when RF21–RF25 arrive. | #43 | It also holds when one of the new services is down ([final delivery](#-final-delivery)). Planned: #327. |
 
 ### Medium
 
 | ID | Requirement | In the MVP | Issues | After the MVP |
 | --- | --- | --- | --- | --- |
-| RF05 | **Evidence.** Photos or other files, with type and size validation. | Yes | #44 (ADR-0013; #192 API, #193 mobile, #194 web) | The photos in an external image service ([final delivery](#-final-delivery)): #341. Replaces the local volume of ADR-0013. |
-| RF07 | **Search.** Staff filter by status, category, date, priority, district and department. | Yes. The district filter needs RF21. | #58 (#182 API, #183 web) | The district filter comes with RF21: #59. |
-| RF08 | **Map** of incidents and relevant urban layers. | Partly. Incidents on the web map, clustered by zoom and refreshed on their own; the mobile report form places the incident with a pin on the base map; urban layers need urban data, which the MVP does not load. | #53 (#195 API, #196 web); #60 (mobile: #197, #198) | Urban layers on the staff map: #374. |
+| RF05 | **Evidence.** Photos or other files, with type and size validation. | Yes | #44 (ADR-0013; #192 API, #193 mobile, #194 web) | The photos in an external image service ([final delivery](#-final-delivery)). Planned: #341. Replaces the local volume of ADR-0013. |
+| RF07 | **Search.** Staff filter by status, category, date, priority, district and department. | Yes. The district filter needs RF21. | #58 (#182 API, #183 web) | The district filter comes with RF21. Planned: #59. |
+| RF08 | **Map** of incidents and relevant urban layers. | Partly. Incidents on the web map, clustered by zoom and refreshed on their own; the mobile report form places the incident with a pin on the base map; urban layers need urban data, which the MVP does not load. | #53 (#195 API, #196 web); #60 (mobile: #197, #198) | Urban layers on the staff map. Planned: #374. |
 | RF10 | **Priority**, manual or assisted, keeping its justification. | Partly. Manual priority with a required justification; assisted priority comes with RF20. | #47 | Assisted priority stays out with RF20. |
 | RF13 | **Collaboration.** Operators and technicians add comments, evidence and resolution data. | Yes. Every comment is internal in the MVP. | #50, #51, #44 | — |
-| RF14 | **Notifications** of relevant changes through configurable channels. | No. The delivery providers are only proposed (ADR-0019). | — | Notifications to the citizen: #373 (providers in ADR-0031, #397). |
-| RF19 | **Reports.** Exportable operational and territorial reports. | Yes. The district grouping needs RF21: without it, new reports have no district. | #42 | The district grouping comes with RF21: #59. |
-| RF21 | **District and neighbourhood** from the location. | Stretch | #59 | Built before the refactor: #59. |
+| RF14 | **Notifications** of relevant changes through configurable channels. | No. The delivery providers are only proposed (ADR-0019). | — | Notifications to the citizen. Planned: #373; the providers in ADR-0031, Planned: #397. |
+| RF19 | **Reports.** Exportable operational and territorial reports. | Yes. The district grouping needs RF21: without it, new reports have no district. | #42 | The district grouping comes with RF21. Planned: #59. |
+| RF21 | **District and neighbourhood** from the location. | Stretch | #59 | Planned before the refactor: #59. |
 
 ### Low
 
 | ID | Requirement | In the MVP | Issues | After the MVP |
 | --- | --- | --- | --- | --- |
-| RF15 | **Statistics** by category, territory, status and resolution time. | Partly. The report of #42 gives totals and resolution times per group; the dashboard beside the web map counts the incidents of the map by status, priority, category and department. Territory needs RF21. | #42, #177 | The staff dashboard is a requirement of the [final delivery](#-final-delivery), already built; territory comes with RF21 (#59), and a customizable dashboard is #265. |
-| RF16 | **Duplicates.** Suggest similar incidents by proximity, time and meaning. | No | — | The reports of several citizens unified into one normalized incident ([final delivery](#-final-delivery)): #333. |
+| RF15 | **Statistics** by category, territory, status and resolution time. | Partly. The report of #42 gives totals and resolution times per group; the dashboard beside the web map counts the incidents of the map by status, priority, category and department. Territory needs RF21. | #42, #177 | The staff dashboard is a requirement of the [final delivery](#-final-delivery), already built; territory comes with RF21 (Planned: #59), and a customizable dashboard (Planned: #265). |
+| RF16 | **Duplicates.** Suggest similar incidents by proximity, time and meaning. | No | — | The reports of several citizens unified into one normalized incident ([final delivery](#-final-delivery)). Planned: #333. |
 | RF17 | **Zonal analysis.** Incidents and aggregated context for an area and period. | No | — | Not planned before the refactor: it serves the analyst's indicators and spatial patterns. |
 | RF20 | **Intelligent assistance.** Classify, prioritize, summarize and recommend with a stated confidence. | No | — | No. Out of the final delivery by decision of the product owner (2026-11-20). |
-| RF22 | **Urban asset.** Associate an incident with a nearby urban asset. | No | — | Urban assets near an incident: #374, on the Málaga open data of #350. |
-| RF23 | **External context** from external sources. | Partly. The backend stores the weather of each new incident from Open-Meteo (ADR-0018, #307), staff read it through the API (#306) and see it in the *Context* section of the incident detail (#308). The traffic provider is only proposed (ADR-0024). | #304, #306, #307, #308 | A context service with its own database for the Málaga open data and the weather ([final delivery](#-final-delivery)): #346. Replaces the single schema of ADR-0010 for the context; the weather source of ADR-0018 is compared again in #372. |
-| RF24 | **Contextual view.** The operator sees the urban context of an incident. | Partly. Operators, administrators and the assigned technician see the weather of the incident in the *Context* section of its detail (#308); traffic and assets are not built. | #304, #308 | The open data and the nearby assets in the view: #346, #374. |
+| RF22 | **Urban asset.** Associate an incident with a nearby urban asset. | No | — | Urban assets near an incident, on the Málaga open data. Planned: #374, #350. |
+| RF23 | **External context** from external sources. | Partly. The backend stores the weather of each new incident from Open-Meteo (ADR-0018, #307), staff read it through the API (#306) and see it in the *Context* section of the incident detail (#308). The traffic provider is only proposed (ADR-0024). | #304, #306, #307, #308 | A context service with its own database for the Málaga open data and the weather ([final delivery](#-final-delivery)). Planned: #346. Replaces the single schema of ADR-0010 for the context; the weather source of ADR-0018 is compared again in #372. |
+| RF24 | **Contextual view.** The operator sees the urban context of an incident. | Partly. Operators, administrators and the assigned technician see the weather of the incident in the *Context* section of its detail (#308); traffic and assets are not built. | #304, #308 | The open data and the nearby assets in the view. Planned: #346, #374. |
 | RF25 | **Historical correlation** of incidents with historical urban variables. | No | — | Not planned before the refactor: it serves the analyst's indicators and spatial patterns. |
 
 The schema already has tables for some requirements outside the MVP (`urban_context`,
@@ -112,8 +112,8 @@ issue is the parent that covers the requirement; its sub-issues are listed in it
 | **Normalized incidents.** The reports of several citizens about the same problem become one incident, and each report stays traceable to it: a report of a problem that already has an incident is attached to it instead of creating a duplicate, and the incident lists every citizen who reported it. Built in the core, before the services. | No. Each report is its own incident. | #333 | — |
 | **Context service** that extracts, normalizes and manages external data (the chosen Málaga open data, and the weather from AEMET or another source) in its **own database**, kept up to date by periodic extraction or by asking the source when needed. | Partly. The `urbancontext` module of the core stores the weather of each new incident from Open-Meteo, in the shared schema; the open data is not loaded. | #346; the weather source: #372 | The single schema of ADR-0010 for the context; the weather provider of ADR-0018 if #372 chooses another |
 | **Audit service** with its **own database**: every status of an incident, every change and who made it, with an analysis dashboard and a new **auditor** role that reads it with the administrators. The audit is the internal observability of the system (who changed what and why); its own database is a privacy measure. | Partly. The core's audit log records administrative actions and classifications, and administrators read it in a list; status changes are in each incident's history. There is no auditor role, dashboard or separate database. | #353 | The single schema of ADR-0010 for the audit |
-| **Paginated bulk reads.** Every REST read that returns a collection is paginated. | Partly. The incidents, the users, the audit entries, and the comments and classification changes of an incident are paginated ([API conventions](api.md#listings)); the map locations, the status changes of an incident and the technicians are not. | #360 | — |
-| **Incident UUID.** A UUID identifies each incident across the services: it is its public id, a UUIDv7 for new incidents, while the keys inside the database are numeric. | Partly. The API identifies each incident by a UUID; numeric internal keys and UUIDv7 are not built. | #369 | — |
+| **Paginated bulk reads.** Every bulk REST read is paginated. | Partly. The incidents, the users, the audit entries, and the comments and classification changes of an incident are paginated ([API conventions](api.md#listings)); the map locations, the status changes of an incident and the technicians are not. The categories, the departments and the photos of an incident are short or bounded lists, not bulk reads, for the client to confirm in #328. | #360 | — |
+| **Incident UUID.** A UUID identifies each incident across the services: it is its public id, a UUIDv7 for new incidents, while the keys inside the database are numeric. | Partly. The API identifies each incident by a UUID; new incidents do not get a UUIDv7 yet. | #369 | — |
 | **Reliability and resilience** when a component (an external source or a service) is not available. | Partly. Creating an incident never waits for an external source, and the weather is fetched afterwards ([QA-2](architecture.md#qa-2-create-an-incident-while-an-external-source-is-down-rf26)); there are no services yet. | #327 | — |
 | **Observability environment** that combines k6, Micrometer, structured logs, Prometheus and Grafana to evaluate the quality attributes. | Partly. k6, Micrometer, Prometheus and Grafana run for the backend (ADR-0023); the logs are plain text and not aggregated, and no service-level indicator is defined. | #362 | — |
 | **Design documents validated by the client**, with the problems of each requirement and the possible solutions. | No. | #328 and the design document of each parent above | — |
@@ -128,8 +128,8 @@ in on the web gets a notice to use the phone; staff who sign in on the phone get
 web. Every screen is also protected by the API: hiding a menu entry is not access control
 ([security guide](security.md)).
 
-The sign-in screen asks for the email and password. A second factor for staff accounts is a stretch
-goal: Planned: #57.
+The sign-in screen asks for the email and password. A second factor for staff accounts is
+planned before the refactor: Planned: #57.
 
 ### Web: municipal operator
 
@@ -160,7 +160,8 @@ goal: Planned: #57.
   | Any | *Comment* (internal, for the staff of the incident) | #50 |
 
 - **Not in the MVP:** nearby urban assets, duplicate warnings and the traffic in the detail (RF16,
-  RF22–RF24).
+  RF22–RF24). After it, the reports of several citizens join one normalized incident instead of a
+  duplicate warning (Planned: #333), and the detail shows the nearby assets (Planned: #374).
 
 ### Web: technician
 
@@ -184,6 +185,13 @@ goal: Planned: #57.
 - **Audit log** (#41): read-only list filtered by date, actor and action; columns date, actor,
   action, target and details.
 - **Not in the MVP:** the *Sources* screen for external data sources (it goes with RF23).
+
+### Web: auditor
+
+A new role of the [final delivery](#-final-delivery), not built yet.
+
+- **Audit dashboard:** every change of every incident and who made it, analysed by period, actor
+  and type, read-only; administrators see it too. Planned: #355 (the role), #358 (the dashboard).
 
 ### Web: analyst
 
