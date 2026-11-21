@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatInstant, historyEventLabel, startOfDay } from './incident-labels';
+import { addressText, formatInstant, historyEventLabel, startOfDay } from './incident-labels';
 
 describe('historyEventLabel', () => {
   it.each([
@@ -31,5 +31,33 @@ describe('startOfDay', () => {
     ['on the first day of a year', '2027-01-01', '2026-12-31T23:00:00.000Z'],
   ])('is the local midnight of Málaga %s', (_, day, instant) => {
     expect(startOfDay(day)).toBe(instant);
+  });
+});
+
+describe('addressText', () => {
+  it('is the address while it is available', () => {
+    expect(addressText('Calle Larios, 5, 29005 Málaga', 'AVAILABLE')).toEqual({
+      text: 'Calle Larios, 5, 29005 Málaga',
+      missing: false,
+    });
+  });
+
+  it.each([
+    ['PENDING', 'Looking up the address…'],
+    ['OUTSIDE_AREA', 'No address: the position is outside Málaga'],
+    ['UNAVAILABLE', 'Not available'],
+  ] as const)('says why there is none when it is %s', (status, text) => {
+    expect(addressText(null, status)).toEqual({ text, missing: true });
+  });
+
+  it('never shows a value left with another status as current', () => {
+    expect(addressText('Calle Larios, 5', 'PENDING')).toEqual({
+      text: 'Looking up the address…',
+      missing: true,
+    });
+  });
+
+  it('is not available when an available address comes without a value', () => {
+    expect(addressText(null, 'AVAILABLE')).toEqual({ text: 'Not available', missing: true });
   });
 });

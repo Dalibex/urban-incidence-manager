@@ -267,6 +267,13 @@
   font-size: 14px;
 }
 
+/* The licence of OpenStreetMap (ODbL) asks for it wherever an address it gave is shown (#375). */
+.addressSource {
+  display: block;
+  margin-top: var(--space-xs);
+  font-size: 14px;
+}
+
 .actions {
   background: var(--color-surface);
 }

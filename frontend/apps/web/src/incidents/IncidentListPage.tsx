@@ -1,5 +1,5 @@
 import type { components } from '@urbanpulse/api-client';
-import { formatInstant } from '@urbanpulse/ui';
+import { addressText, formatInstant } from '@urbanpulse/ui';
 import { useRef, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 
@@ -23,7 +23,7 @@ type IncidentSummary = components['schemas']['IncidentSummaryResponse'];
 const PAGE_PARAM = 'page';
 
 /** The columns of the table, shared by the skeleton so it has the same shape. */
-const COLUMNS = ['Reported', 'Title', 'Category', 'Status', 'Priority'] as const;
+const COLUMNS = ['Reported', 'Title', 'Address', 'Category', 'Status', 'Priority'] as const;
 
 /** Rows drawn while a page loads: enough to fill the screen, never a count the user reads. */
 const SKELETON_ROWS = 5;
@@ -176,6 +176,9 @@ function IncidentTable({ rows, loading, rowAction }: IncidentTableProps) {
               </td>
               <td className={styles.incidentTitle}>{incident.title}</td>
               <td>
+                <AddressCell incident={incident} />
+              </td>
+              <td>
                 {incident.category?.name ?? <span className={styles.muted}>Not classified</span>}
               </td>
               <td>
@@ -195,6 +198,19 @@ function IncidentTable({ rows, loading, rowAction }: IncidentTableProps) {
       </table>
     </div>
   );
+}
+
+/**
+ * The street and number, so a technician finds the incident without reading the map (#375), or why
+ * there is none. The listing is staff-only, so the address is always in the summary; an older API
+ * without it shows as not available.
+ */
+function AddressCell({ incident }: { incident: IncidentSummary }) {
+  const { text, missing } = addressText(
+    incident.address ?? null,
+    incident.addressStatus ?? 'UNAVAILABLE',
+  );
+  return missing ? <span className={styles.muted}>{text}</span> : <>{text}</>;
 }
 
 /** The table with its columns and lines in place of the rows, while the first page loads. */
