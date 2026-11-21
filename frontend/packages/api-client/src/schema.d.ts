@@ -467,7 +467,8 @@ export interface paths {
          *     - `CITIZEN`: only the incidents they reported.
          *     - `TECHNICIAN`: only the incidents actively assigned to them.
          *     - `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`: all incidents.
-         *     - `ANALYST`: no access yet (`403`); analytics comes in a later milestone.
+         *     - `ANALYST`: no access (`403`); analysts read the aggregated report instead
+         *       (`getIncidentReport`, #42).
          *
          *     Sortable properties: `reportedAt`, `updatedAt`. Default `reportedAt,desc` (newest first);
          *     `id` is always added as the last criterion so the order is stable between pages.
@@ -1083,8 +1084,9 @@ export interface paths {
         };
         /**
          * Get the status history of an incident
-         * @description Every status change of the incident, oldest first. It is not paginated: the lifecycle of
-         *     ADR-0020 bounds it to a few entries per incident.
+         * @description Every status change of the incident, oldest first. It is not paginated yet, although the
+         *     history has no upper bound: information requests, reassignments and reopening can repeat.
+         *     Planned: #360.
          *
          *     A citizen only gets the entries visible to them, with the reason only where ADR-0020 says
          *     the citizen sees it, and without the staff-only properties. Staff get every entry.
