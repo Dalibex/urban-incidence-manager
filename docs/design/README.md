@@ -72,7 +72,7 @@ Do not mark a document *Accepted*, nor build what it proposes, without the clien
 
 | DD | Title | Status | Issue |
 | --- | --- | --- | --- |
-| DD-001 | Target architecture, resilience and contracts between services | Planned | #328 |
+| DD-001 | Target architecture, resilience and contracts between services | Planned | #412 |
 | DD-002 | Citizen reports and normalized incidents | Planned | #334 |
 | DD-003 | Evidence in an external image service | Planned | #342 |
 | DD-004 | Context service: the open data, the weather and how they are kept up to date | Planned | #347 |
