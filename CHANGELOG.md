@@ -45,6 +45,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
 ### Fixed
 
 - Mobile: with the GPS position outside the area the map covers, the report was saved at that position while the map showed the pin on its border. The app now says the position is outside the map and waits for the citizen to place the pin (#290).
+- Web: after an incident action the map dashboard and the technicians of the assignment form show the change at once instead of up to 30 seconds later, and after a change to a staff account so do the technicians and the audit log. The incident detail no longer goes back to the old status, with a `409` on the next action, when a slower reload answers after the action; the summary of an incident on the map refreshes with its marker; and an action that answers after signing out no longer puts its incident in the cache of the next user of the tab (#287).
 
 ## [0.2.0] - 2026-11-14
 

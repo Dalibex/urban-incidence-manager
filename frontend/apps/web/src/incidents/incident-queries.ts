@@ -7,6 +7,7 @@ import {
   getIncident,
   getIncidentStatistics,
   getIncidentUrbanContext,
+  hasSessionEnded,
   listCategories,
   listDepartments,
   listIncidentAttachments,
@@ -135,11 +136,16 @@ export function useLatestIncidents(filters: IncidentFilters) {
   });
 }
 
-export function useIncident(incidentId: string) {
+/**
+ * @param refetchInterval how often to read it again while it is shown, in ms; the map's summary
+ *   reads it with the markers, so it never shows an older status than its marker (#287)
+ */
+export function useIncident(incidentId: string, refetchInterval?: number) {
   const { api } = useSession();
   return useQuery({
     queryKey: incidentKeys.detail(incidentId),
     queryFn: () => dataOf(getIncident(api, incidentId)),
+    refetchInterval,
   });
 }
 
@@ -285,18 +291,31 @@ export function useTechnicians() {
   });
 }
 
+/** The lists of incidents that a change of any incident can alter: the inbox, the map and its dashboard. */
+const INCIDENT_LISTS: readonly unknown[] = ['page', 'locations', 'statistics', 'latest'];
+
 /**
  * What every change of an incident does to the cache, so the screens show it without reloading:
  * the detail takes the incident the API answered, with its new `version`, and the inbox pages, the
- * map and the parts of this incident read separately (its history, for example) are read again.
- * Every mutation of the web calls it on success (#47 leaves the pattern for the lifecycle actions).
+ * map, its dashboard, the technicians and the parts of this incident read separately (its history,
+ * for example) are read again. Every mutation of the web calls it on success (#47 leaves the
+ * pattern for the lifecycle actions).
+ *
+ * A reload of the detail still in flight is cancelled first: it was sent before the change, and
+ * answering after it, it would bring back the old status and `version` (#287).
  */
-export function afterIncidentChange(queryClient: QueryClient, incident: Incident): Promise<void> {
-  queryClient.setQueryData(incidentKeys.detail(incident.id), incident);
-  return queryClient.invalidateQueries({
+export async function afterIncidentChange(
+  queryClient: QueryClient,
+  incident: Incident,
+): Promise<void> {
+  const detail = incidentKeys.detail(incident.id);
+  await queryClient.cancelQueries({ queryKey: detail, exact: true });
+  queryClient.setQueryData(detail, incident);
+  await queryClient.invalidateQueries({
     predicate: ({ queryKey }) =>
-      (queryKey[0] === 'incidents' && (queryKey[1] === 'page' || queryKey[1] === 'locations')) ||
-      (queryKey[0] === 'incidents' && queryKey[1] === incident.id && queryKey.length > 2),
+      (queryKey[0] === 'incidents' && INCIDENT_LISTS.includes(queryKey[1])) ||
+      (queryKey[0] === 'incidents' && queryKey[1] === incident.id && queryKey.length > 2) ||
+      queryKey[0] === 'technicians',
   });
 }
 
@@ -307,12 +326,15 @@ export function afterIncidentChange(queryClient: QueryClient, incident: Incident
 function useIncidentChange<TBody>(
   send: (api: ApiClient, body: TBody) => Promise<FormResult<Incident>>,
 ) {
-  const { api } = useSession();
+  const { api, markSession } = useSession();
   const queryClient = useQueryClient();
   return useMutation({
+    // The session that sends the change, kept as the mutation's context.
+    onMutate: () => markSession(),
     mutationFn: (body: TBody) => send(api, body),
-    onSuccess: (result) => {
-      if (result.ok) {
+    onSuccess: (result, _body, session) => {
+      // After a sign-out the cache belongs to nobody, or to the next user: the answer stays out.
+      if (result.ok && !hasSessionEnded(session)) {
         // Not awaited: the form answers as soon as the API does, while the lists reload.
         void afterIncidentChange(queryClient, result.data);
       }
