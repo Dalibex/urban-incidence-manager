@@ -170,7 +170,9 @@ photo again; it is never stored twice. A photo that is too large, is not a JPEG,
 or goes over the limit of the report is refused with its reason.
 
 The report is accepted even when the address, neighbourhood or district cannot be worked out at
-that moment: they show as *Not available* until they are known.
+that moment. The street address is looked up from the position just after you send the report:
+until it arrives it says *Looking up the address…*. A position outside Málaga says *No address: the
+position is outside Málaga*, and an address that cannot be found says *Not available*.
 
 ### Follow your reports
 
@@ -184,7 +186,8 @@ Scroll down to load more. Tap a report to see:
 - **Details:** its category (*Not set yet* when nobody has classified it), when it was reported,
   when it was last updated and, once closed, when it was closed.
 - **Location:** address, neighbourhood, district, coordinates and accuracy; *Not available* when
-  a value is not known.
+  a value is not known. The address shows *© OpenStreetMap contributors* under it, the source it
+  comes from, or why there is none: *Looking up the address…* or *outside Málaga*.
 - **History:** a timeline of each change of status, oldest first, with its date and time. Your
   report shows as yours (*You*) and every other change as the *City council*'s. A rejection shows
   its **reason**. When the city needs more details, the entry shows a *Message from the city
@@ -204,8 +207,10 @@ The menu at the top shows *Inbox* and *Map*.
 
 ### Inbox
 
-The incidents, newest first, a page at a time, with the date it was reported, title, category,
-status and priority. A category or priority that is not set shows *Not classified* or *Not set*.
+The incidents, newest first, a page at a time, with the date it was reported, title, street
+address, category, status and priority. A category or priority that is not set shows *Not
+classified* or *Not set*; an address that is not there yet says *Looking up the address…*, and one
+outside Málaga or not found says so.
 
 The menu and the sign-in open it on the reports waiting for a review: the status *Reported* is
 ticked. *Clear filters* lists every incident.
@@ -236,7 +241,10 @@ ticked. *Clear filters* lists every incident.
   attached.* They are only shown inside the signed-in app; there is no public link to them.
 - **Location:** address, neighbourhood, district, coordinates and the accuracy the phone reported
   (for example *within 12.5 m*). A value that is not known says *Not available*: it is never left
-  empty or guessed.
+  empty or guessed. The address, such as *Calle Larios, 5, 29005 Málaga*, is looked up from the
+  position after the report and comes with *© OpenStreetMap contributors*, which opens the source;
+  until then it says *Looking up the address…*, and a position outside Málaga says so. Reload the
+  page to see an address that has just arrived.
 - **Context:** the weather at the incident's position when it was reported, such as *Rainy*, with
   the time it was recorded and *Weather data by Open-Meteo.com*, which opens the source. The weather
   arrives some seconds after the report: until then it says *Getting the weather…* and checks again

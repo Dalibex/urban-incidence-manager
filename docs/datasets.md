@@ -28,9 +28,9 @@ incidents in Málaga covering every status, each with a history allowed by
 and incidents and how to walk through them. It is separate from the development dataset: the
 development data keeps the cases developers need (several citizens and technicians, an urban context
 of each status, assets, notifications); the demo data is small and easy to follow in front of an
-audience, and stores the weather of its incidents as the worker of
-[ADR-0018](adr/0018-weather-and-traffic-providers.md) would, so its incidents need no call to
-Open-Meteo.
+audience, and stores the weather and the address of its incidents as the workers
+([ADR-0018](adr/0018-weather-and-traffic-providers.md), #375) would, so its incidents need no call
+to Open-Meteo or Nominatim.
 
 It follows the pattern of every data profile (*Data Profiles* in the
 [database guide](database.md)):
@@ -54,6 +54,10 @@ PostGIS container.
   CC BY 4.0, and wherever the weather is shown it says "Weather data by Open-Meteo.com"
   ([ADR-0018](adr/0018-weather-and-traffic-providers.md)). A report made during the demo gets its
   weather from Open-Meteo, which needs internet.
+- Each demo incident with an address has it `AVAILABLE`, from `OpenStreetMap`, stored 30 seconds
+  after its report; the first one has none and shows *Not available*. A report made during the
+  demo gets its address from Nominatim some seconds later, which needs internet too
+  ([ADR-0002](adr/0002-open-street-map.md)).
 
 ## 📈 Performance Dataset
 
@@ -76,7 +80,7 @@ With the default volume of 100,000 incidents:
 | --- | --- | --- |
 | `users` | 5,055 | 5,000 citizens (one per twenty incidents) and a fixed staff of 10 operators, 40 technicians, 2 administrators and 3 analysts. A few citizens report many incidents: the top tenth reports about half of them. |
 | `incident` | 100,000 | Reported between November 2025 and mid-October 2026. Older incidents are mostly closed (about 59% closed, 10% rejected overall), recent ones still in progress. Categories in realistic proportions; a quarter of the unvalidated incidents have none. |
-| `location` | 100,000 | Clustered around twelve places of Málaga, the city centre the busiest. About 8% without address, neighbourhood and district, and 5% without accuracy ("not available"). |
+| `location` | 100,000 | Clustered around twelve places of Málaga, the city centre the busiest. About 8% without address, neighbourhood and district (their address `UNAVAILABLE`), and 5% without accuracy ("not available"). The rest have their address `AVAILABLE`, stored 30 seconds after the report, so the address worker has nothing pending. |
 | `status_change` | about 487,000 | The history of each incident, only transitions of [ADR-0020](adr/0020-incident-lifecycle-transitions.md); 12% include an information request. |
 | `assignment`, `comment`, `attachment`, `notification` | about 80,000, 30,000, 40,000 and 94,000 | One assignment per assigned incident, a comment on 30% of the incidents, attachment metadata on 40%, and a notification of the last change. |
 
@@ -153,8 +157,8 @@ or repeated, so every measurement records:
 | Date and commit | When and on which commit it was measured |
 
 Three kinds are recorded below: the query plans that justify each index, the load test of QA-1, and
-the quality-attribute experiments. The last section says which metrics measure the weather
-enrichment, which has no measurement yet.
+the quality-attribute experiments. The last two sections say which metrics measure the weather and
+the address enrichment, which have no measurement yet.
 
 ### Query plans of the indexes
 

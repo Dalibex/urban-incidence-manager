@@ -89,7 +89,7 @@ workspace "UrbanPulse" "C4 Model" {
                     tags "UrbanContext"
                     url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0009-urban-data-source.md
                 }
-                geospatial = component "geospatial" "Location and territory: districts, neighbourhoods, urban assets and spatial queries over local data." "Spring Service / Spring Data JPA / PostGIS" {
+                geospatial = component "geospatial" "Location and territory: districts, neighbourhoods, urban assets and spatial queries over local data, and a scheduled worker that resolves the normalized address of each new incident with Nominatim after the report (ADR-0002)." "Spring Service / Spring Data JPA / PostGIS" {
                     tags "Geospatial"
                     url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0003-geospatial-data-management.md
                 }
@@ -259,6 +259,7 @@ workspace "UrbanPulse" "C4 Model" {
         urbanpulse.backend.urbancontext -> opendata "Queries authoritative data" "HTTPS"
         urbanpulse.backend.urbancontext -> openstreet "Geocoding and asset fallback" "HTTPS"
         urbanpulse.backend.urbancontext -> openmeteo "Current weather at the incident" "HTTPS"
+        urbanpulse.backend.geospatial -> openstreet "Address of the incident by reverse geocoding (Nominatim), after the report" "HTTPS"
         urbanpulse.backend.urbancontext -> tomtom "Traffic flow near the incident" "HTTPS"
         urbanpulse.backend.notifications -> brevo "Sends transactional email" "HTTPS (REST API)"
         urbanpulse.backend.notifications -> twilio "Sends SMS" "HTTPS (Twilio Java SDK)"
@@ -336,10 +337,10 @@ workspace "UrbanPulse" "C4 Model" {
                     web_service = deploymentNode "web" "The only published port, HTTP_PORT (8000 by default). HTTP only: HTTPS is not set up yet (docs/deployment.md)" "Image built from frontend/Dockerfile (unprivileged nginx)" {
                         nginx_instance = containerInstance urbanpulse.nginx
                     }
-                    backend_service = deploymentNode "backend" "No published port and no route to the internet: internal network only; it reaches Open-Meteo through egress-proxy (ADR-0011)" "Image built from backend/Dockerfile" {
+                    backend_service = deploymentNode "backend" "No published port and no route to the internet: internal network only; it reaches Open-Meteo and Nominatim through egress-proxy (ADR-0011)" "Image built from backend/Dockerfile" {
                         backend_instance = containerInstance urbanpulse.backend
                     }
-                    egress_proxy = infrastructureNode "egress-proxy" "The backend's only way out to the internet: lets it open an HTTPS tunnel to api.open-meteo.com and refuses everything else (ADR-0011, ADR-0018)" "Squid, image built from egress-proxy/Dockerfile"
+                    egress_proxy = infrastructureNode "egress-proxy" "The backend's only way out to the internet: lets it open an HTTPS tunnel to api.open-meteo.com and nominatim.openstreetmap.org and refuses everything else (ADR-0011, ADR-0018, ADR-0002)" "Squid, image built from egress-proxy/Dockerfile"
                     evidence_volume = deploymentNode "evidence_data" "Mounted in backend at /app/storage" "Docker named volume" {
                         evidence_instance = containerInstance urbanpulse.evidence_storage
                     }
@@ -360,7 +361,7 @@ workspace "UrbanPulse" "C4 Model" {
             phone = deploymentNode "Phone" "Runs the citizen app; release builds allow HTTPS only" "Android or iOS" {
                 mobile_instance = containerInstance urbanpulse.frontend_mobile
             }
-            server.compose.backend_service.backend_instance -> server.compose.egress_proxy "Calls Open-Meteo through it" "HTTPS tunnel (CONNECT)"
+            server.compose.backend_service.backend_instance -> server.compose.egress_proxy "Calls Open-Meteo and Nominatim through it" "HTTPS tunnel (CONNECT)"
 
             server.compose.db_service.postgres_instance -> server.compose.postgres_volume "Stores the database files" "Volume mount"
             server.compose.tiles_service.tiles_instance -> server.compose.tiles_volume "Writes malaga.pmtiles, the style, fonts and sprites" "Volume mount"
@@ -448,7 +449,7 @@ workspace "UrbanPulse" "C4 Model" {
 
         dynamic urbanpulse.backend "Dynamic_ReportIncident" {
             title "Reporting an incident from the mobile app"
-            description "RF03 and RF26: the report saves only a PENDING urban context, so no external source can block it. The scheduled worker of urbancontext fills its weather from Open-Meteo afterwards (ADR-0018), and is not shown."
+            description "RF03 and RF26: the report saves only a PENDING urban context and a PENDING address, so no external source can block it. The scheduled workers of urbancontext and geospatial fill the weather from Open-Meteo (ADR-0018) and the address from Nominatim (ADR-0002) afterwards, and are not shown."
             citizen -> urbanpulse.frontend_mobile "Writes a title and description, picks an optional category and confirms the position"
             urbanpulse.frontend_mobile -> urbanpulse.nginx "POST /api/v1/incidents with the access token"
             urbanpulse.nginx -> urbanpulse.backend.incidents "Proxies the request; shared.security validates the token"
