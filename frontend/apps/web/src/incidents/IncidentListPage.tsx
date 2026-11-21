@@ -10,6 +10,7 @@ import {
   withFilters,
   type IncidentFilters,
 } from './filters/incident-filters';
+import { useRememberFilters, type FilterList } from './filters/remembered-filters';
 import { INBOX_PAGE_SIZE, useIncidentPage } from './incident-queries';
 import styles from './Incidents.module.css';
 import { LoadFailure } from './LoadFailure';
@@ -29,6 +30,8 @@ const COLUMNS = ['Reported', 'Title', 'Category', 'Status', 'Priority'] as const
 const SKELETON_ROWS = 5;
 
 interface IncidentListPageProps {
+  /** Which list this is, so the menu reopens it with the filters last used on it (#263). */
+  list: Extract<FilterList, 'inbox' | 'workQueue'>;
   title: string;
   lead: string;
   /** What the screen says when the user has no incidents at all, and what brings them. */
@@ -44,9 +47,16 @@ interface IncidentListPageProps {
  * (`?status=REPORTED&page=2`, the page starting at 1 for people), so reloading, going back or
  * sharing the link keeps them.
  */
-export function IncidentListPage({ title, lead, noIncidents, rowAction }: IncidentListPageProps) {
+export function IncidentListPage({
+  list,
+  title,
+  lead,
+  noIncidents,
+  rowAction,
+}: IncidentListPageProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const filters = filtersFrom(searchParams);
+  useRememberFilters(list, filters);
   const page = pageFrom(searchParams.get(PAGE_PARAM));
   const incidents = useIncidentPage(apiPageOf(page, INBOX_PAGE_SIZE), filters);
   const firstFilter = useRef<HTMLInputElement>(null);

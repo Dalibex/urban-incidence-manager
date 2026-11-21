@@ -305,11 +305,13 @@ link to this section.
 ## 💾 Browser Storage
 
 The web app keeps the tokens in memory only (`SessionContext`), never in `localStorage` or
-`sessionStorage`, where any script of the page could read them. The only thing it writes there is
+`sessionStorage`, where any script of the page could read them. The only things it writes there are
 which parts of the map screen each user folded or opened, under a key with the user's id
-(`urbanpulse.map-preferences.<user id>`, #177). The value holds no personal data and the API never
-reads it. It stays after sign-out because it is only a layout, so on a shared browser the storage
-keeps the ids of the users who opened the map there. If the browser refuses its storage, the
+(`urbanpulse.map-preferences.<user id>`, #177), and the filters each user last used on the inbox,
+the work queue and the map (`urbanpulse.list-filters.<list>.<user id>`, #263). The values hold no
+personal data and the API never reads them. They stay after sign-out because they are only a layout
+and a convenience, so on a shared browser the storage keeps the ids of the users who opened those
+screens there. If the browser refuses its storage, the
 screen works with the defaults.
 
 ## 🧮 Permission Matrix

@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { act, cleanup, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 
@@ -102,22 +102,64 @@ describe('several statuses in the status filter (#218)', () => {
     expect(requests.at(-1)!.getAll('status')).toEqual(['ASSIGNED', 'IN_PROGRESS']);
   });
 
-  // T4, the inbox: after signing in and from the menu it opens on Reported only.
-  it('opens the inbox on Reported after signing in and from the menu', async () => {
-    const router = renderApp(PATHS.signIn, { fetch: inboxApi([]) });
+  // T4, the inbox: after signing in it opens on Reported only. The menu opens the defaults the
+  // first time (routing/sections.test.ts) and the last filters afterwards (#263).
+  it('opens the inbox on Reported after signing in', async () => {
+    renderApp(PATHS.signIn, { fetch: inboxApi([]) });
 
     await signIn();
+
     await screen.findByText('No incidents match these filters.');
     expect(tickedStatuses()).toEqual(['Reported']);
+  });
+
+  // #263, AC1: the filters come back from the menu, also after Clear filters.
+  it('reopens the inbox from the menu with the filters last used on it', async () => {
+    const router = renderApp(PATHS.signIn, { fetch: inboxApi([]) });
+    await signIn();
+    await screen.findByText('No incidents match these filters.');
+    const menu = screen.getByRole('navigation', { name: 'Main' });
 
     await userEvent.click(statusChoice('Reopened'));
-    expect(tickedStatuses()).toEqual(['Reported', 'Reopened']);
-    const menu = screen.getByRole('navigation', { name: 'Main' });
+    await act(() => router.navigate('/elsewhere'));
     await userEvent.click(within(menu).getByRole('link', { name: 'Inbox' }));
 
+    await screen.findByText('No incidents match these filters.');
+    expect(tickedStatuses()).toEqual(['Reported', 'Reopened']);
+
+    // The first button is the one of the filter bar; the empty state has the other.
+    await userEvent.click(screen.getAllByRole('button', { name: 'Clear filters' })[0]!);
+    await screen.findByText('There are no incidents yet.');
+    await act(() => router.navigate('/elsewhere'));
+    await userEvent.click(within(menu).getByRole('link', { name: 'Inbox' }));
+
+    await screen.findByText('There are no incidents yet.');
+    expect(tickedStatuses()).toEqual([]);
+    expect(router.state.location.search).toBe('');
+  });
+
+  // #263, AC2: the filters are of the user, not of the browser.
+  it('gives another user of the browser their own filters, or the defaults', async () => {
+    const first = renderApp(`${PATHS.inbox}?status=VALIDATED&priority=HIGH`, {
+      role: 'MUNICIPAL_OPERATOR',
+      fetch: inboxApi([]),
+    });
+    await screen.findByText('No incidents match these filters.');
+    await act(() => first.navigate('/elsewhere'));
+    cleanup();
+
+    const second = renderApp('/elsewhere', {
+      role: 'MUNICIPAL_OPERATOR',
+      userId: 'user-2',
+      fetch: inboxApi([]),
+    });
+    await userEvent.click(
+      within(screen.getByRole('navigation', { name: 'Main' })).getByRole('link', { name: 'Inbox' }),
+    );
+
+    await screen.findByText('No incidents match these filters.');
     expect(tickedStatuses()).toEqual(['Reported']);
-    // The list of Reported was asked for after the sign-in, so it comes from the cache.
-    expect(router.state.location.search).toBe('?status=REPORTED');
+    expect(second.state.location.search).toBe('?status=REPORTED');
   });
 
   // T5
