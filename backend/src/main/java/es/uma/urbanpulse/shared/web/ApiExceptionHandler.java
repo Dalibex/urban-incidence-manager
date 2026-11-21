@@ -21,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.web.firewall.RequestRejectedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -40,8 +41,10 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
  * nothing and the {@code traceId} of every body ({@link RequestIdFilter}). It is also the only
  * place that knows the status of each domain error ({@code shared.error}).
  *
- * <p>The {@code 401} and {@code 403} of the security filters are written by {@code
- * SecurityProblemResponses}, before any controller runs.
+ * <p>The {@code 401} and {@code 403} of the security filters, and the {@code 400} of a request
+ * their firewall refuses, are written by {@code SecurityProblemResponses}. They happen before any
+ * controller runs, except the firewall's refusal of a header value or a parameter name, which is
+ * thrown when Spring MVC reads it; this class rethrows it so that class answers it too.
  */
 @RestControllerAdvice
 class ApiExceptionHandler extends ResponseEntityExceptionHandler {
@@ -151,12 +154,17 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     /**
      * Anything unexpected: logged with its stack trace, answered without it. Security exceptions
-     * are rethrown so the filters answer them: a {@code @PreAuthorize} that fails must stay a
-     * {@code 403}, not become a {@code 500} (docs/security.md).
+     * are rethrown so the filters answer them: a service that refuses an action with {@code
+     * AccessDeniedException} must stay a {@code 403}, not become a {@code 500} (docs/security.md).
+     * So is the firewall's {@code RequestRejectedException}, thrown when Spring MVC reads a header
+     * value or a parameter name the firewall refuses: it must stay the {@code 400} of the firewall,
+     * not become a {@code 500} with the refused value in an error log line.
      */
     @ExceptionHandler(Exception.class)
     ProblemDetail handleUnexpected(Exception ex, WebRequest request) throws Exception {
-        if (ex instanceof AccessDeniedException || ex instanceof AuthenticationException) {
+        if (ex instanceof AccessDeniedException
+                || ex instanceof AuthenticationException
+                || ex instanceof RequestRejectedException) {
             throw ex;
         }
         log.error("Unexpected error answering {}", path(request), ex);

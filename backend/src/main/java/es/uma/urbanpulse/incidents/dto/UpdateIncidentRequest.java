@@ -5,7 +5,7 @@ import java.util.UUID;
 
 /**
  * {@code UpdateIncidentRequest}: the body of {@code updateIncident}. Nothing is checked with Bean
- * Validation, which would run before the role check: {@code IncidentClassificationService} checks
+ * Validation, which would answer before the service: {@code IncidentClassificationService} checks
  * every field after the role, the incident, the {@code version} and the status (ADR-0020).
  *
  * @param version the {@code version} of the incident the client read; {@code null} gets a {@code
