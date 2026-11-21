@@ -227,7 +227,8 @@ class AuditLogApiIT {
                             .andReturn()
                             .getResponse()
                             .getStatus();
-            assertThat(answer).as(request.toString()).isIn(404, 405);
+            // The API has no rule for them, so the security filters refuse them (deny by default).
+            assertThat(answer).as(request.toString()).isEqualTo(403);
         }
 
         assertThat(

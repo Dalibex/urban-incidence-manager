@@ -13,8 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Operational reports of incidents (RF19, #42): the incidents reported in a period, counted with
- * their current status and grouped. The role is checked by the controller; the report holds no
- * personal data, so every analyst and administrator gets the same one.
+ * their current status and grouped. The role is checked by the security filters ({@code
+ * ApiAuthorizationRules}); the report holds no personal data, so every analyst and administrator
+ * gets the same one.
  */
 @Service
 @Transactional(readOnly = true)

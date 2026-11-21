@@ -207,9 +207,10 @@ public class UserAdministrationService {
     }
 
     /**
-     * The Bean Validation errors of a body, ordered by field. The controller has no {@code @Valid}
-     * (it would answer {@code 422} before the role check), so they are checked here, after it, and
-     * joined with the rules of the service in one {@code 422}.
+     * The Bean Validation errors of a body, ordered by field. The controller has no {@code @Valid}:
+     * it would answer a {@code 422} with these errors alone, and the client would learn of the
+     * rules of the service (a staff role, the administrator's own role or account) only after
+     * fixing them. Checked here, they are joined with those rules in one {@code 422}.
      */
     private ArrayList<FieldError> constraintErrors(Object body) {
         return validator.validate(body).stream()

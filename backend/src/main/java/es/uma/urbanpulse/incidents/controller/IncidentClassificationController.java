@@ -13,7 +13,6 @@ import jakarta.validation.constraints.Min;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.domain.Sort;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,9 +25,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * {@code updateIncident} and {@code listIncidentClassificationChanges} (#47): the category and the
- * priority of an incident, and their changes. The role is checked here; the service checks the
- * rest. The body has no {@code @Valid}: Bean Validation would run before {@code @PreAuthorize} and
- * answer {@code 422} to a role that should get {@code 403} (ADR-0020).
+ * priority of an incident, and their changes. The role is checked by the security filters ({@code
+ * ApiAuthorizationRules}); the service checks the rest. The body has no {@code @Valid}: Bean
+ * Validation would answer {@code 422} before the service answers {@code 404} or {@code 409}, and
+ * ADR-0020 orders them {@code 403}, {@code 404}, {@code 409}, {@code 422}. The service validates
+ * the body after those checks.
  */
 @RestController
 @RequestMapping("/api/v1/incidents/{incidentId}")
@@ -49,7 +50,6 @@ class IncidentClassificationController {
     }
 
     @PatchMapping
-    @PreAuthorize("hasAnyRole('MUNICIPAL_OPERATOR', 'ADMINISTRATOR')")
     IncidentResponse update(
             @AuthenticationPrincipal AuthenticatedUser user,
             @PathVariable UUID incidentId,
@@ -58,7 +58,6 @@ class IncidentClassificationController {
     }
 
     @GetMapping("/classification-changes")
-    @PreAuthorize("hasAnyRole('MUNICIPAL_OPERATOR', 'TECHNICIAN', 'ADMINISTRATOR')")
     PageResponse<ClassificationChangeResponse> changes(
             @AuthenticationPrincipal AuthenticatedUser user,
             @PathVariable UUID incidentId,

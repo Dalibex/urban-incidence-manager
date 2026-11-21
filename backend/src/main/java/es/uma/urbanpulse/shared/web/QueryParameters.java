@@ -61,4 +61,25 @@ public final class QueryParameters {
             }
         }
     }
+
+    /**
+     * Spring gives a typed {@code @RequestParam} only the first value of a repeated parameter, or
+     * joins the values with commas into a {@code String}, so {@code ?from=a&from=b} would be read
+     * as one of them without telling the client.
+     *
+     * @param parameters every parameter of the request, as {@code @RequestParam MultiValueMap}
+     *     receives them
+     * @param single the parameters the operation takes once
+     * @throws MalformedRequestException if one of {@code single} is repeated; when several are, it
+     *     names the first in alphabetical order, so the answer does not depend on the order of a
+     *     set
+     */
+    public static void requireSingle(MultiValueMap<String, String> parameters, Set<String> single) {
+        for (var name : single.stream().sorted().toList()) {
+            var values = parameters.get(name);
+            if (values != null && values.size() > 1) {
+                throw new MalformedRequestException("The parameter " + name + " is repeated.");
+            }
+        }
+    }
 }

@@ -7,16 +7,16 @@ import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.identity.service.UserAdministrationService;
 import es.uma.urbanpulse.identity.service.UserFilter;
 import es.uma.urbanpulse.shared.security.AuthenticatedUser;
-import es.uma.urbanpulse.shared.web.MalformedRequestException;
 import es.uma.urbanpulse.shared.web.PageRequests;
 import es.uma.urbanpulse.shared.web.PageResponse;
 import es.uma.urbanpulse.shared.web.QueryParameters;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,34 +34,25 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
  * /users/me} stays in {@link CurrentUserController}: Spring prefers its literal path to {@code
  * {userId}}.
  *
- * <p>Only administrators get past {@code @PreAuthorize}; every other role gets {@code 403}. So the
- * query is read inside the method and the bodies have no {@code @Valid}: a typed parameter or Bean
- * Validation would run before {@code @PreAuthorize} and answer {@code 400} or {@code 422} to a role
- * that should get {@code 403}, as in {@code OperationalReportController}. The service validates the
- * bodies.
- *
- * <p>What Spring cannot read at all still answers {@code 400} before the role check, to any role: a
- * {@code userId} that is not a UUID, a body that is not JSON, or a {@code role} in the body that is
- * not a {@link Role}. They reveal nothing about the users, and the rest of the API behaves the
- * same.
+ * <p>Only administrators may call them: the security filters answer {@code 403} to every other role
+ * before Spring reads the request ({@code ApiAuthorizationRules}). The bodies have no
+ * {@code @Valid}: the service validates them, so their Bean Validation errors and the rules of the
+ * service come in one {@code 422}.
  */
 @RestController
 @RequestMapping("/api/v1/users")
-@PreAuthorize("hasRole('ADMINISTRATOR')")
 class UserController {
 
     // The sortable properties and the default order of listUsers in the contract.
     private static final Set<String> SORTABLE = Set.of("name", "email");
     private static final Sort BY_NAME = Sort.by("name");
 
-    // Every query parameter of listUsers in the contract; any other one is a 400.
+    // Every query parameter of listUsers in the contract; any other one is a 400. Only role may
+    // repeat.
     private static final Set<String> LIST_PARAMETERS =
             Set.of("page", "size", "sort", "name", "email", "role");
-
-    // The page parameters of every listing in the contract (docs/api.md, "Listings").
-    private static final int DEFAULT_PAGE = 0;
-    private static final int DEFAULT_SIZE = 20;
-    private static final int MAX_SIZE = 100;
+    private static final Set<String> SINGLE_PARAMETERS =
+            Set.of("page", "size", "sort", "name", "email");
 
     private final UserAdministrationService users;
 
@@ -70,18 +61,23 @@ class UserController {
     }
 
     @GetMapping
-    PageResponse<UserResponse> list(@RequestParam MultiValueMap<String, String> parameters) {
+    PageResponse<UserResponse> list(
+            @RequestParam MultiValueMap<String, String> parameters,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) List<Role> role) {
         QueryParameters.requireKnownAndFilled(parameters, LIST_PARAMETERS);
-        var page = number(parameters, "page", DEFAULT_PAGE, 0, Integer.MAX_VALUE);
-        var size = number(parameters, "size", DEFAULT_SIZE, 1, MAX_SIZE);
-        var filter =
-                new UserFilter(
-                        optional(parameters, "name"),
-                        optional(parameters, "email"),
-                        roles(parameters.get("role")));
-        return users.list(
-                filter,
-                PageRequests.of(page, size, optional(parameters, "sort"), SORTABLE, BY_NAME));
+        QueryParameters.requireSingle(parameters, SINGLE_PARAMETERS);
+        // Spring splits one value at its commas and turns an empty piece into null, so
+        // ?role=ANALYST, would reach the filter as [ANALYST, null].
+        if (role != null && role.contains(null)) {
+            throw QueryParameters.invalidValue("role");
+        }
+        var filter = new UserFilter(name, email, role == null ? List.of() : role);
+        return users.list(filter, PageRequests.of(page, size, sort, SORTABLE, BY_NAME));
     }
 
     @GetMapping("/{userId}")
@@ -108,48 +104,5 @@ class UserController {
             @PathVariable UUID userId,
             @RequestBody UpdateUserRequest request) {
         return users.update(administrator.id(), userId, request);
-    }
-
-    private static String optional(MultiValueMap<String, String> parameters, String name) {
-        var values = parameters.get(name);
-        if (values == null) {
-            return null;
-        }
-        if (values.size() > 1) {
-            throw new MalformedRequestException("The parameter " + name + " is repeated.");
-        }
-        return values.getFirst();
-    }
-
-    private static int number(
-            MultiValueMap<String, String> parameters, String name, int absent, int min, int max) {
-        var value = optional(parameters, name);
-        if (value == null) {
-            return absent;
-        }
-        try {
-            var number = Integer.parseInt(value);
-            if (number >= min && number <= max) {
-                return number;
-            }
-        } catch (NumberFormatException e) {
-            // Answered below, like a number out of range.
-        }
-        throw invalidValue(name);
-    }
-
-    private static List<Role> roles(List<String> values) {
-        if (values == null) {
-            return List.of();
-        }
-        try {
-            return values.stream().map(Role::valueOf).toList();
-        } catch (IllegalArgumentException e) {
-            throw invalidValue("role");
-        }
-    }
-
-    private static MalformedRequestException invalidValue(String name) {
-        return new MalformedRequestException("Invalid value of the parameter " + name + ".");
     }
 }
