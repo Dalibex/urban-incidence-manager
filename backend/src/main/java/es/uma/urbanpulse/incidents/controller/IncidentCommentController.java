@@ -13,7 +13,6 @@ import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,7 +31,6 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1/incidents/{incidentId}/comments")
-@PreAuthorize("hasAnyRole('MUNICIPAL_OPERATOR', 'TECHNICIAN', 'ADMINISTRATOR')")
 class IncidentCommentController {
 
     // The sortable property and the default order of listIncidentComments in the contract: oldest
@@ -40,7 +38,8 @@ class IncidentCommentController {
     private static final Set<String> SORTABLE = Set.of("createdAt");
     private static final Sort OLDEST_FIRST = Sort.by(Sort.Direction.ASC, "createdAt");
 
-    // Every query parameter of listIncidentComments in the contract; any other one is a 400.
+    // Every query parameter of listIncidentComments in the contract; any other one is a 400. None
+    // may repeat.
     private static final Set<String> LIST_PARAMETERS = Set.of("page", "size", "sort");
 
     private final IncidentCommentService comments;
@@ -58,6 +57,7 @@ class IncidentCommentController {
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
             @RequestParam(required = false) String sort) {
         QueryParameters.requireKnownAndFilled(parameters, LIST_PARAMETERS);
+        QueryParameters.requireSingle(parameters, LIST_PARAMETERS);
         return comments.list(
                 incidentId,
                 user.id(),

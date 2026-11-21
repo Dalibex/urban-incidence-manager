@@ -44,7 +44,8 @@ import org.springframework.web.bind.annotation.RestController;
 class RequestIdIT {
 
     static final String REQUEST_ID = "X-Request-ID";
-    private static final String FAILING_PATH = "/api/v1/test-only/failure";
+    // Outside /api/v1, where every operation needs its rule in ApiAuthorizationRules.
+    private static final String FAILING_PATH = "/test-only/failure";
 
     /** An endpoint that fails unexpectedly, the only way to get a 500 through the API. */
     @TestConfiguration

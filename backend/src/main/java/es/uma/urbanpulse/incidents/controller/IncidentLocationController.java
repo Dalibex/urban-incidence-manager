@@ -14,7 +14,6 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,14 +27,19 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1/incident-locations")
-@PreAuthorize("hasAnyRole('MUNICIPAL_OPERATOR', 'TECHNICIAN', 'ADMINISTRATOR')")
 class IncidentLocationController {
 
-    // Every query parameter of listIncidentLocations in the contract; any other one is a 400.
+    // The limits of the bounding box, each taken once.
+    private static final Set<String> BOX_PARAMETERS =
+            Set.of("minLatitude", "minLongitude", "maxLatitude", "maxLongitude");
+
+    // Every query parameter of listIncidentLocations in the contract; any other one is a 400. Only
+    // the filters the contract declares as arrays may repeat.
     private static final Set<String> PARAMETERS =
-            Stream.concat(
-                            Stream.of("minLatitude", "minLongitude", "maxLatitude", "maxLongitude"),
-                            IncidentFilterParameters.NAMES.stream())
+            Stream.concat(BOX_PARAMETERS.stream(), IncidentFilterParameters.NAMES.stream())
+                    .collect(Collectors.toUnmodifiableSet());
+    private static final Set<String> SINGLE_PARAMETERS =
+            Stream.concat(BOX_PARAMETERS.stream(), IncidentFilterParameters.SINGLE_NAMES.stream())
                     .collect(Collectors.toUnmodifiableSet());
 
     private final IncidentQueryService incidents;
@@ -62,6 +66,7 @@ class IncidentLocationController {
             @RequestParam(required = false) Double maxLatitude,
             @RequestParam(required = false) Double maxLongitude) {
         QueryParameters.requireKnownAndFilled(parameters, PARAMETERS);
+        QueryParameters.requireSingle(parameters, SINGLE_PARAMETERS);
         var filter =
                 IncidentFilterParameters.toFilter(
                         status, categoryId, priority, reportedFrom, reportedTo, departmentId);

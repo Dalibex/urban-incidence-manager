@@ -48,7 +48,7 @@ public class IncidentLifecycleService {
      *     sent it. Missing or negative is invalid data: a {@code 422} on {@code version}, answered
      *     only when the transition would be allowed, after the role, the access and the transition
      *     (ADR-0020). It is checked here and not with Bean Validation, which would answer before
-     *     the role.
+     *     the access and the transition.
      * @return the incident after the change, with its new {@code version}
      * @throws InsufficientAuthenticationException if the user of the token does not exist
      * @throws IncidentNotFoundException if it does not exist or the caller may not see it

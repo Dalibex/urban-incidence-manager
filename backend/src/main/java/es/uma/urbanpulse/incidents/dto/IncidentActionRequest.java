@@ -4,7 +4,7 @@ package es.uma.urbanpulse.incidents.dto;
  * Body of a lifecycle action: {@code IncidentActionRequest} and {@code IncidentReasonRequest} in
  * the contract, which differ only in whether the reason is required.
  *
- * <p>Nothing is checked with Bean Validation, which would run before the role check: the {@code
+ * <p>Nothing is checked with Bean Validation, which would answer before the service: the {@code
  * version} is checked by {@code IncidentLifecycleService} and the reason by the domain ({@code
  * Incident.changeStatus}), so invalid data answers {@code 422} only after the role, the access, the
  * version and the transition (ADR-0020, "Errors").
