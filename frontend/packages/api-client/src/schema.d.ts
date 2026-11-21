@@ -1915,7 +1915,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description The request is malformed: the body is not valid JSON or not valid multipart, a value has the wrong type, or a parameter is out of range (for example `size` over 100). Validation of well-formed data returns `422` instead. */
+        /** @description The request is malformed: the body is not valid JSON or not valid multipart, a value has the wrong type, a parameter is out of range (for example `size` over 100), or a parameter that takes one value is repeated (`?page=0&page=5`). Validation of well-formed data returns `422` instead. */
         BadRequest: {
             headers: {
                 "X-Request-ID": components["headers"]["XRequestId"];
