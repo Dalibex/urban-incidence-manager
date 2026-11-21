@@ -128,9 +128,9 @@ workspace "UrbanPulse" "C4 Model" {
             }
 
             ### 5. CONTAINER: CACHE (ADR-0022, ACCEPTED, NOT BUILT YET)
-            # ADR-0022 supersedes ADR-0012: Redis comes in only when a measurement or a second backend
-            # replica asks for it; until then no deployment environment runs it.
-            redis = container "Redis Cache" "Only when a measurement or a second backend replica asks for it (ADR-0022). Cache-aside with TTL on every entry, derived values only: external responses, resolved geodata per zone and dashboard aggregates. Safe to lose. With a second backend replica it also holds the sign-in and sign-up rate-limit counters." "Redis" {
+            # ADR-0022 supersedes ADR-0012: Redis comes in only when a measurement or a second
+            # backend replica asks for it; until then no deployment environment runs it.
+            redis = container "Redis Cache" "Only when a measurement or a second backend replica asks for it (ADR-0022). Cache-aside with TTL on every entry, derived values only and safe to lose: external responses, resolved geodata per zone and dashboard aggregates. With a second backend replica it also holds the sign-in and sign-up rate-limit counters, which are not derived: losing them resets the limits." "Redis" {
                 tags "Cache"
                 url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0022-redis-from-measurements.md
             }
@@ -429,8 +429,8 @@ workspace "UrbanPulse" "C4 Model" {
         }
 
         # Dynamic views follow the decided architecture, so the clients go through nginx. In
-        # development the Vite server stands in its place for the web app and for the mobile base map;
-        # the mobile app calls /api directly.
+        # development the Vite server stands in its place for the web app and for the mobile base
+        # map; the mobile app calls /api directly.
         # A citizen, because staff accounts add the TOTP challenge of ADR-0021 before any token.
         dynamic urbanpulse.backend "Dynamic_SignIn" {
             title "Sign-in and refresh token rotation"
