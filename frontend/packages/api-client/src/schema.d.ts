@@ -702,6 +702,7 @@ export interface paths {
          *     come from configuration (`EVIDENCE_MAX_FILE_SIZE`, `EVIDENCE_MAX_FILES_PER_INCIDENT`).
          *
          *     A file over the size limit returns `413`. Another type, or too many files, returns `422`.
+         *     A body that is not valid `multipart/form-data` returns `400`.
          *
          *     The same content uploaded again to the same incident, such as a retry, stores nothing new
          *     and returns `200` with the existing attachment, so a client can retry safely.
@@ -1914,7 +1915,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description The request is malformed: the body is not valid JSON, a value has the wrong type, or a parameter is out of range (for example `size` over 100). Validation of well-formed data returns `422` instead. */
+        /** @description The request is malformed: the body is not valid JSON or not valid multipart, a value has the wrong type, or a parameter is out of range (for example `size` over 100). Validation of well-formed data returns `422` instead. */
         BadRequest: {
             headers: {
                 "X-Request-ID": components["headers"]["XRequestId"];

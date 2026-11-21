@@ -6,6 +6,9 @@ import es.uma.urbanpulse.shared.error.InvalidDataException;
 import es.uma.urbanpulse.shared.error.RuleViolationException;
 import java.net.URI;
 import java.util.List;
+import org.apache.tomcat.util.http.fileupload.FileUploadException;
+import org.apache.tomcat.util.http.fileupload.MultipartStream;
+import org.apache.tomcat.util.http.fileupload.impl.InvalidContentTypeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.TypeMismatchException;
@@ -26,6 +29,7 @@ import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -50,6 +54,14 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     static final String TRACE_ID = "traceId";
     static final String CONCURRENT_MODIFICATION = "CONCURRENT_MODIFICATION";
     private static final URI ABOUT_BLANK = URI.create("about:blank");
+
+    // What Tomcat raises for a multipart body that is malformed: a stream that ends before its
+    // boundary, a wrong boundary, or a Content-Type that is not multipart.
+    private static final List<Class<? extends Exception>> MALFORMED_MULTIPART =
+            List.of(
+                    MultipartStream.MalformedStreamException.class,
+                    MultipartStream.IllegalBoundaryException.class,
+                    InvalidContentTypeException.class);
 
     private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
@@ -109,6 +121,33 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
                         "Someone else changed this resource since you read it. Reload it and try"
                                 + " again.");
         problem.setProperty(CODE, CONCURRENT_MODIFICATION);
+        complete(problem, request);
+        return problem;
+    }
+
+    /**
+     * A multipart body the server cannot parse, such as a boundary never closed or missing (#407).
+     * It is the client's mistake, so a {@code 400} and no {@code ERROR} line; the parser's message
+     * stays in the debug log. A file over the limit is a {@link MaxUploadSizeExceededException},
+     * answered with {@code 413} by {@link #handleMaxUploadSizeExceededException}, whose type is
+     * closer.
+     *
+     * <p>Spring wraps every parse failure in the same {@link MultipartException}, the server's own
+     * too, such as a full disk while Tomcat writes the temporary file. Only the causes that Tomcat
+     * raises for a malformed body are the client's ({@link #MALFORMED_MULTIPART}, {@link
+     * #missingBoundary}); any other cause is answered and logged as an unexpected error.
+     */
+    @ExceptionHandler(MultipartException.class)
+    ProblemDetail handleMalformedMultipart(MultipartException ex, WebRequest request)
+            throws Exception {
+        if (!causedBy(ex, MALFORMED_MULTIPART) && !missingBoundary(ex)) {
+            return handleUnexpected(ex, request);
+        }
+        log.debug("Unreadable multipart body on {}: {}", path(request), ex.getMessage());
+        var problem =
+                ProblemDetail.forStatusAndDetail(
+                        HttpStatus.BAD_REQUEST, "The multipart body cannot be read.");
+        problem.setProperty(CODE, MalformedRequestException.CODE);
         complete(problem, request);
         return problem;
     }
@@ -279,5 +318,29 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         return request instanceof ServletWebRequest servlet
                 ? servlet.getRequest().getRequestURI()
                 : "";
+    }
+
+    /**
+     * A multipart Content-Type without a boundary. Tomcat reports it as a plain {@link
+     * FileUploadException} without a cause; the only other plain one it throws wraps the error it
+     * failed on, which may be the server's.
+     */
+    private static boolean missingBoundary(Throwable error) {
+        for (var cause = error; cause != null; cause = cause.getCause()) {
+            if (cause.getClass() == FileUploadException.class && cause.getCause() == null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean causedBy(Throwable error, List<Class<? extends Exception>> types) {
+        for (var cause = error; cause != null; cause = cause.getCause()) {
+            var current = cause;
+            if (types.stream().anyMatch(type -> type.isInstance(current))) {
+                return true;
+            }
+        }
+        return false;
     }
 }
