@@ -93,7 +93,7 @@ workspace "UrbanPulse" "C4 Model" {
                     tags "Geospatial"
                     url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0003-geospatial-data-management.md
                 }
-                notifications = component "notifications" "Notifications created on incident status changes and their delivery status; email (Brevo) and SMS (Twilio) adapters behind one sender interface per channel." "Spring Service / Spring Data JPA" {
+                notifications = component "notifications" "Notifications created on incident status changes and their delivery status; email (Brevo) and push (Expo push service) adapters behind one sender interface per channel." "Spring Service / Spring Data JPA" {
                     tags "Notifications"
                     url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0019-notification-delivery-providers.md
                 }
@@ -185,9 +185,9 @@ workspace "UrbanPulse" "C4 Model" {
             url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0019-notification-delivery-providers.md
         }
 
-        twilio = softwareSystem "Twilio" "SMS API (Programmable Messaging)." {
+        expoPush = softwareSystem "Expo push service" "Push notifications to the citizen app; delivers on Android through Firebase Cloud Messaging." {
             tags "ExternalAPI,Proposed"
-            url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0019-notification-delivery-providers.md
+            url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0031-push-and-email-notifications.md
         }
 
         llm = softwareSystem "LLM Provider" "External model for classification, summarization, and RAG (to be decided; no module yet)." {
@@ -206,12 +206,12 @@ workspace "UrbanPulse" "C4 Model" {
         urbanpulse -> openmeteo "Current weather" "HTTPS"
         urbanpulse -> tomtom "Current traffic flow" "HTTPS"
         urbanpulse -> brevo "Sends notification emails" "HTTPS"
-        urbanpulse -> twilio "Sends notification SMS" "HTTPS"
+        urbanpulse -> expoPush "Sends push notifications" "HTTPS"
         urbanpulse -> llm "Intelligent assistance" "HTTPS" {
             tags "Future"
         }
         brevo -> citizen "Delivers notification emails" "Email"
-        twilio -> citizen "Delivers notification SMS" "SMS"
+        expoPush -> citizen "Delivers push notifications" "Push"
 
         ### Level 2: containers
         citizen -> urbanpulse.frontend_mobile "Reports incidents and attaches evidence"
@@ -233,7 +233,7 @@ workspace "UrbanPulse" "C4 Model" {
         urbanpulse.backend -> openmeteo "Current weather" "HTTPS"
         urbanpulse.backend -> tomtom "Current traffic flow" "HTTPS"
         urbanpulse.backend -> brevo "Sends notification emails" "HTTPS (REST API)"
-        urbanpulse.backend -> twilio "Sends notification SMS" "HTTPS (REST API)"
+        urbanpulse.backend -> expoPush "Sends push notifications" "HTTPS (REST API)"
         urbanpulse.backend -> llm "Intelligent assistance" "HTTPS" {
             tags "Future"
         }
@@ -261,7 +261,7 @@ workspace "UrbanPulse" "C4 Model" {
         urbanpulse.backend.urbancontext -> openmeteo "Current weather at the incident" "HTTPS"
         urbanpulse.backend.urbancontext -> tomtom "Traffic flow near the incident" "HTTPS"
         urbanpulse.backend.notifications -> brevo "Sends transactional email" "HTTPS (REST API)"
-        urbanpulse.backend.notifications -> twilio "Sends SMS" "HTTPS (Twilio Java SDK)"
+        urbanpulse.backend.notifications -> expoPush "Sends push notifications" "HTTPS (REST API)"
 
         ### Level 3: database components
         urbanpulse.backend -> urbanpulse.postgres.db_relational "Each module reads and writes its own tables; analytics only reads" "JPA/JDBC"
