@@ -79,7 +79,7 @@ app*), except the analyst's (RF17, RF25) and RF20, which is out of the final del
 
 | ID | Requirement | In the MVP | Issues | After the MVP |
 | --- | --- | --- | --- | --- |
-| RF15 | **Statistics** by category, territory, status and resolution time. | Partly. The report of #42 gives totals and resolution times per group; the dashboard beside the web map counts the incidents of the map by status, priority, category and department. Territory needs RF21. | #42, #177 | The staff dashboard is a requirement of the [final delivery](#-final-delivery), already built; territory comes with RF21 (Planned: #59), and a customizable dashboard (Planned: #265). |
+| RF15 | **Statistics** by category, territory, status and resolution time. | Partly. The report of #42 gives totals and resolution times per group; the dashboard beside the web map counts the incidents of the map by status, priority, category and department. Territory needs RF21. | #42, #177 | The staff dashboard is a requirement of the [final delivery](#-final-delivery), already built; territory comes with RF21 (Planned: #59), and a customizable dashboard is planned (Planned: #265). |
 | RF16 | **Duplicates.** Suggest similar incidents by proximity, time and meaning. | No | — | The reports of several citizens unified into one normalized incident ([final delivery](#-final-delivery)). Planned: #333. |
 | RF17 | **Zonal analysis.** Incidents and aggregated context for an area and period. | No | — | Not planned before the refactor: it serves the analyst's indicators and spatial patterns. |
 | RF20 | **Intelligent assistance.** Classify, prioritize, summarize and recommend with a stated confidence. | No | — | No. Out of the final delivery by decision of the product owner (2026-11-20). |
