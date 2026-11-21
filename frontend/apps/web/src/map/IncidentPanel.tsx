@@ -2,10 +2,10 @@ import { formatInstant } from '@urbanpulse/ui';
 import { useEffect, useRef } from 'react';
 import { Link } from 'react-router';
 
-import { useIncident } from '../incidents/incident-queries';
+import { MAP_REFRESH_INTERVAL_MS, useIncident } from '../incidents/incident-queries';
 import incidentStyles from '../incidents/Incidents.module.css';
 import { PRIORITY_LABELS } from '../incidents/labels';
-import { LoadFailure } from '../incidents/LoadFailure';
+import { LoadFailure, RefreshFailure } from '../incidents/LoadFailure';
 import { isNotFound } from '../incidents/not-found';
 import { StatusBadge } from '../incidents/StatusBadge';
 import { incidentPath } from '../routing/access';
@@ -21,7 +21,8 @@ interface IncidentPanelProps {
  * focus when it opens, so a keyboard user lands on it, and Escape closes it.
  */
 export function IncidentPanel({ incidentId, onClose }: IncidentPanelProps) {
-  const incident = useIncident(incidentId);
+  // Read again with the markers, so the summary never says less than its marker (#287).
+  const incident = useIncident(incidentId, MAP_REFRESH_INTERVAL_MS);
   // The marker may be older than the incident: a technician's incident leaves their scope when it is
   // assigned to someone else, before the next refresh of the map removes it.
   const notFound = incident.isError && isNotFound(incident.error);
@@ -54,7 +55,7 @@ export function IncidentPanel({ incidentId, onClose }: IncidentPanelProps) {
         <p role="status">Loading the incident…</p>
       ) : notFound ? (
         <p>It does not exist, or you cannot see it.</p>
-      ) : incident.isError ? (
+      ) : incident.isLoadingError ? (
         <LoadFailure
           what="The incident"
           error={incident.error}
@@ -63,6 +64,16 @@ export function IncidentPanel({ incidentId, onClose }: IncidentPanelProps) {
         />
       ) : (
         <>
+          {/* A failed reload of the interval keeps the summary on screen, as the markers do (#276). */}
+          {incident.isRefetchError && (
+            <RefreshFailure
+              what="The incident"
+              error={incident.error}
+              shownSince={incident.dataUpdatedAt}
+              retrying={incident.isFetching}
+              onRetry={() => void incident.refetch()}
+            />
+          )}
           <dl className={styles.summary}>
             <dt>Status</dt>
             <dd>

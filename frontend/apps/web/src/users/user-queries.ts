@@ -58,6 +58,9 @@ function useUserChange<TBody>(
     onSuccess: (result) => {
       if (result.ok) {
         afterSuccess(queryClient, result.data);
+        // Any change of an account may add or remove a technician, and the API audits it (#287).
+        void queryClient.invalidateQueries({ queryKey: ['technicians'] });
+        void queryClient.invalidateQueries({ queryKey: ['audit-entries'] });
       }
     },
   });

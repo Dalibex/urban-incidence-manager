@@ -1,10 +1,12 @@
 import {
   createApiClient,
   getCurrentUser,
+  markSession as markStoreSession,
   signIn as signInOnApi,
   signOut as signOutOnApi,
   type ApiClient,
   type ApiResult,
+  type SessionMark,
   type SessionTokens,
   type TokenStore,
 } from '@urbanpulse/api-client';
@@ -37,6 +39,11 @@ interface SessionValue {
    * signed-in one: the shell shows the user as they are now, without signing in again.
    */
   showChangedUser: (changed: SessionUser) => void;
+  /**
+   * Marks the session signed in now, so an answer that arrives later can tell whether that session
+   * has ended meanwhile (`hasSessionEnded`) and must not reach the cache of the next one (#287).
+   */
+  markSession: () => SessionMark;
 }
 
 const SessionContext = createContext<SessionValue | null>(null);
@@ -122,6 +129,7 @@ export function SessionProvider({ initialUser = null, fetch, children }: Session
         // Only the fields the shell shows, never the rest of the account the API answered.
         setUser((current) => (current?.id === id ? { id, name, email, role } : current));
       },
+      markSession: () => markStoreSession(tokenStore),
     }),
     [user, expired, api, tokenStore, queryClient],
   );
