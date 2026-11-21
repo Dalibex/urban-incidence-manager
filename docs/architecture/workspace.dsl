@@ -78,7 +78,7 @@ workspace "UrbanPulse" "C4 Model" {
                 tags "Backend"
                 url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0008-backend.md
 
-                identity = component "identity" "Users, roles and permissions; sign-up, login with in-memory attempt limits, short-lived JWTs, rotating hashed refresh tokens and a TOTP second factor for staff (ADR-0021); audit log." "Spring Security / Spring Data JPA" {
+                identity = component "identity" "Users, roles and permissions; sign-up, login with in-memory attempt limits, short-lived JWTs, rotating hashed refresh tokens; audit log. A TOTP second factor for staff is accepted (ADR-0021) but not built yet (#57)." "Spring Security / Spring Data JPA" {
                     tags "Identity"
                     url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0004-authentication-strategy.md
                 }
@@ -431,10 +431,10 @@ workspace "UrbanPulse" "C4 Model" {
         # Dynamic views follow the decided architecture, so the clients go through nginx. In
         # development the Vite server stands in its place for the web app and for the mobile base
         # map; the mobile app calls /api directly.
-        # A citizen, because staff accounts add the TOTP challenge of ADR-0021 before any token.
+        # A citizen, because staff accounts will add the TOTP challenge of ADR-0021 (#57) before any token.
         dynamic urbanpulse.backend "Dynamic_SignIn" {
             title "Sign-in and refresh token rotation"
-            description "ADR-0004 for a citizen: a 15-minute access token and a refresh token stored only as a hash. Every refresh revokes the token used; presenting it again ends every session. Staff accounts add a TOTP step first (ADR-0021)."
+            description "ADR-0004 for a citizen: a 15-minute access token and a refresh token stored only as a hash. Every refresh revokes the token used; presenting it again ends every session. Staff accounts will add a TOTP step first (ADR-0021, not built yet: #57)."
             citizen -> urbanpulse.frontend_mobile "Signs in with email and password"
             urbanpulse.frontend_mobile -> urbanpulse.nginx "POST /api/v1/sessions"
             urbanpulse.nginx -> urbanpulse.backend.identity "Proxies the request"
