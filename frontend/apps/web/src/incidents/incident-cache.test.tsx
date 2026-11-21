@@ -71,10 +71,10 @@ function wrapperFor(queryClient: QueryClient, fetch: (request: Request) => Promi
 }
 
 describe('cache after a change of an incident or a user (#287)', () => {
-  describe('A: what a change makes other screens read again', () => {
-    it('shows the dashboard counts and the technicians as the server has them after an incident action', async () => {
+  describe('what a change makes other screens read again', () => {
+    it('shows the dashboard counts and the latest incidents as the server has them after an incident action', async () => {
       // Arrange
-      const server = { total: 1, latestTitle: 'Before', technician: 'Ana' };
+      const server = { total: 1, latestTitle: 'Before' };
       const fetch = fakeApi({
         'GET /incident-statistics': () => statistics(server.total),
         'GET /incidents': () =>
@@ -82,33 +82,29 @@ describe('cache after a change of an incident or a user (#287)', () => {
             content: [{ ...ASSIGNED, title: server.latestTitle }],
             page: { number: 0, size: 5, totalElements: 1, totalPages: 1 },
           }),
-        'GET /technicians': () => json(200, [{ id: 't1', name: server.technician }]),
         [`POST /incidents/${INCIDENT_ID}/acceptance`]: () => json(200, IN_PROGRESS),
-        [`GET /incidents/${INCIDENT_ID}`]: () => json(200, IN_PROGRESS),
       });
       const { result } = renderHook(
         () => ({
           statistics: useIncidentStatistics(NO_FILTERS),
           latest: useLatestIncidents(NO_FILTERS),
-          technicians: useTechnicians(),
           accept: useAcceptIncident(INCIDENT_ID),
         }),
         { wrapper: wrapperFor(createQueryClient({ retryDelay: 0 }), fetch) },
       );
-      await waitFor(() => expect(result.current.technicians.data).toBeDefined());
       await waitFor(() => expect(result.current.latest.data).toBeDefined());
       await waitFor(() => expect(result.current.statistics.data).toBeDefined());
       server.total = 2;
       server.latestTitle = 'After';
-      server.technician = 'Ana, now busy';
 
       // Act
       await act(() => result.current.accept.mutateAsync({ version: 3 }));
 
       // Assert
-      await waitFor(() => expect(result.current.statistics.data?.total).toBe(2));
-      expect(result.current.latest.data?.content[0]?.title).toBe('After');
-      expect(result.current.technicians.data?.[0]?.name).toBe('Ana, now busy');
+      await waitFor(() => {
+        expect(result.current.statistics.data?.total).toBe(2);
+        expect(result.current.latest.data?.content[0]?.title).toBe('After');
+      });
     });
 
     it('shows the technicians and the audit entries as the server has them after a user is created', async () => {
@@ -160,12 +156,14 @@ describe('cache after a change of an incident or a user (#287)', () => {
       );
 
       // Assert
-      await waitFor(() => expect(result.current.technicians.data?.[0]?.name).toBe('Ana, Pedro'));
-      expect(result.current.audit.data?.page.totalElements).toBe(2);
+      await waitFor(() => {
+        expect(result.current.technicians.data?.[0]?.name).toBe('Ana, Pedro');
+        expect(result.current.audit.data?.page.totalElements).toBe(2);
+      });
     });
   });
 
-  describe('B: a reload of the detail still in flight when an action answers', () => {
+  describe('a reload of the detail still in flight when an action answers', () => {
     it('keeps the answer of the action when the older reload answers after it', async () => {
       // Arrange
       const staleReload = heldAnswer();
@@ -197,7 +195,7 @@ describe('cache after a change of an incident or a user (#287)', () => {
     });
   });
 
-  describe('C: an action still in flight when the user signs out', () => {
+  describe('an action still in flight when the user signs out', () => {
     it('leaves the cache empty when the answer of the action comes after the sign-out', async () => {
       // Arrange
       const heldAction = heldAnswer();

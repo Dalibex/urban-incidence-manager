@@ -39,7 +39,7 @@ const POTHOLE: Incident = {
 } as Incident;
 
 /** A fake API whose incident is the one `server.incident` holds at the moment of each read. */
-function mapApi(server: { incident: Incident }) {
+function mapApi(server: { incident: Incident; detailUnavailable?: boolean }) {
   return fakeApi({
     'GET /incident-locations': () =>
       json(200, {
@@ -54,7 +54,8 @@ function mapApi(server: { incident: Incident }) {
         ],
         truncated: false,
       }),
-    [`GET /incidents/${POTHOLE.id}`]: () => json(200, server.incident),
+    [`GET /incidents/${POTHOLE.id}`]: () =>
+      server.detailUnavailable ? json(503, { status: 503 }) : json(200, server.incident),
     'GET /categories': () => json(200, []),
     'GET /departments': () => json(200, []),
     'GET /incident-statistics': () =>
@@ -84,5 +85,25 @@ describe('summary of the incident selected on the map (#287)', () => {
 
     // Assert
     expect(await within(panel).findByText('Assigned')).toBeDefined();
+  });
+
+  it('keeps the summary with a warning when the refresh of the incident fails', async () => {
+    // Arrange
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const server: { incident: Incident; detailUnavailable?: boolean } = { incident: POTHOLE };
+    renderApp(PATHS.map, { role: 'MUNICIPAL_OPERATOR', fetch: mapApi(server) });
+    await userEvent.click(await screen.findByRole('button', { name: `Marker ${POTHOLE.id}` }));
+    const panel = await screen.findByRole('complementary', { name: POTHOLE.title });
+    expect(within(panel).getByText('Validated')).toBeDefined();
+    server.detailUnavailable = true;
+
+    // Act
+    await vi.advanceTimersByTimeAsync(MAP_REFRESH_INTERVAL_MS);
+
+    // Assert
+    expect((await within(panel).findByRole('alert')).textContent).toContain(
+      'The incident could not be refreshed',
+    );
+    expect(within(panel).getByText('Validated')).toBeDefined();
   });
 });

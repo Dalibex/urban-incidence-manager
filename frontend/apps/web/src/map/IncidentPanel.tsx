@@ -5,7 +5,7 @@ import { Link } from 'react-router';
 import { MAP_REFRESH_INTERVAL_MS, useIncident } from '../incidents/incident-queries';
 import incidentStyles from '../incidents/Incidents.module.css';
 import { PRIORITY_LABELS } from '../incidents/labels';
-import { LoadFailure } from '../incidents/LoadFailure';
+import { LoadFailure, RefreshFailure } from '../incidents/LoadFailure';
 import { isNotFound } from '../incidents/not-found';
 import { StatusBadge } from '../incidents/StatusBadge';
 import { incidentPath } from '../routing/access';
@@ -55,7 +55,7 @@ export function IncidentPanel({ incidentId, onClose }: IncidentPanelProps) {
         <p role="status">Loading the incident…</p>
       ) : notFound ? (
         <p>It does not exist, or you cannot see it.</p>
-      ) : incident.isError ? (
+      ) : incident.isLoadingError ? (
         <LoadFailure
           what="The incident"
           error={incident.error}
@@ -64,6 +64,16 @@ export function IncidentPanel({ incidentId, onClose }: IncidentPanelProps) {
         />
       ) : (
         <>
+          {/* A failed reload of the interval keeps the summary on screen, as the markers do (#276). */}
+          {incident.isRefetchError && (
+            <RefreshFailure
+              what="The incident"
+              error={incident.error}
+              shownSince={incident.dataUpdatedAt}
+              retrying={incident.isFetching}
+              onRetry={() => void incident.refetch()}
+            />
+          )}
           <dl className={styles.summary}>
             <dt>Status</dt>
             <dd>

@@ -297,8 +297,8 @@ const INCIDENT_LISTS: readonly unknown[] = ['page', 'locations', 'statistics', '
 /**
  * What every change of an incident does to the cache, so the screens show it without reloading:
  * the detail takes the incident the API answered, with its new `version`, and the inbox pages, the
- * map, its dashboard, the technicians and the parts of this incident read separately (its history,
- * for example) are read again. Every mutation of the web calls it on success (#47 leaves the
+ * map, its dashboard and the parts of this incident read separately (its history, for example) are
+ * read again. Every mutation of the web calls it on success (#47 leaves the
  * pattern for the lifecycle actions).
  *
  * A reload of the detail still in flight is cancelled first: it was sent before the change, and
@@ -314,8 +314,7 @@ export async function afterIncidentChange(
   await queryClient.invalidateQueries({
     predicate: ({ queryKey }) =>
       (queryKey[0] === 'incidents' && INCIDENT_LISTS.includes(queryKey[1])) ||
-      (queryKey[0] === 'incidents' && queryKey[1] === incident.id && queryKey.length > 2) ||
-      queryKey[0] === 'technicians',
+      (queryKey[0] === 'incidents' && queryKey[1] === incident.id && queryKey.length > 2),
   });
 }
 
