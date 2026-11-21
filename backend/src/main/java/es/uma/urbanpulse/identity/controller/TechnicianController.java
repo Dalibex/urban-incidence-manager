@@ -4,7 +4,6 @@ import es.uma.urbanpulse.identity.dto.TechnicianSummary;
 import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.identity.repository.UserRepository;
 import java.util.List;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -16,7 +15,6 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1/technicians")
-@PreAuthorize("hasAnyRole('MUNICIPAL_OPERATOR', 'ADMINISTRATOR')")
 class TechnicianController {
 
     private final UserRepository users;

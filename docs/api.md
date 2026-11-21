@@ -149,7 +149,7 @@ Every operation lists the shared responses that can really happen, with `$ref`:
 
 | Status | Reference | When to list it |
 |---|---|---|
-| 400 | `#/components/responses/BadRequest` | The request can be malformed: a body that is not JSON, a value of the wrong type, a parameter out of range (`size` over 100, an unknown `sort` property, an identifier that is not a UUID) |
+| 400 | `#/components/responses/BadRequest` | The request can be malformed: a body that is not JSON or not valid multipart, a value of the wrong type, a parameter out of range (`size` over 100, an unknown `sort` property, an identifier that is not a UUID) |
 | 401 | `#/components/responses/Unauthorized` | Every protected operation |
 | 403 | `#/components/responses/Forbidden` | The operation depends on the role or on the relationship with the resource |
 | 404 | `#/components/responses/NotFound` | The path has an identifier |
@@ -202,7 +202,7 @@ Every response carries an `X-Request-ID` header (`components.headers.XRequestId`
 - Without one, the backend generates 32 hexadecimal characters.
 - The shared error responses list the header. Operations do not repeat it in their success responses: the `info` of the contract says it applies to all of them.
 - Every response with a status of `400` or more writes one log line with its status, method and path (`Answered 422 to POST /api/v1/registrations`), so even a client error that logs nothing else can be found by its `traceId`. The line never has the body, the query string or the headers, which may hold personal data.
-- `RequestIdFilter` sets it before the security filters run, so their `401` and `403` carry it too. In the code, a module never reads or writes it: `ApiExceptionHandler` and `SecurityProblemResponses` add `traceId`.
+- `RequestIdFilter` sets it before the security filters run, so their `401` and `403`, and the `400` of a request their firewall refuses (a path with `//`, `;` or `%2F`), carry it too. In the code, a module never reads or writes it: `ApiExceptionHandler` and `SecurityProblemResponses` add `traceId`.
 
 ### Retries of a report
 
@@ -236,7 +236,7 @@ Every listing is paginated, so no query runs without a limit (AGENTS.md, section
 - **Parameters** `page` (0-based, default 0), `size` (default 20, maximum 100) and `sort` (`property,asc|desc`), as `#/components/parameters/Page`, `Size` and `Sort`. A `size` over 100 returns `400`; the backend never reduces it silently. So does a `page` that starts past item 2,147,483,647 (`page` times `size`), the last one a query can skip to.
 - **Response** with `content` (the items) and `page` (`#/components/schemas/PageMetadata`: `number`, `size`, `totalElements`, `totalPages`). This is the shape Spring Data produces with `@EnableSpringDataWebSupport(pageSerializationMode = VIA_DTO)`.
 - **Sorting.** Each listing documents the properties it accepts and its default in its `description`. The backend always adds `id` as the last criterion, so the order is stable and no item appears on two pages.
-- **Filters** use the name of the property they filter (`status`, `categoryId`, `priority`), repeatable for several values (`?status=REPORTED&status=VALIDATED`). Date ranges are `reportedFrom` / `reportedTo`, UTC instants.
+- **Filters** use the name of the property they filter (`status`, `categoryId`, `priority`), repeatable for several values (`?status=REPORTED&status=VALIDATED`). Date ranges are `reportedFrom` / `reportedTo`, UTC instants. Only the parameters the contract declares as arrays repeat: any other one sent twice (`?page=0&page=5`) returns `400`.
 
 Short reference lists managed by administrators, such as `listCategories`, and lists bounded by the domain, such as the status history of one incident, return a plain array without pagination. Their `description` says why.
 
@@ -245,7 +245,7 @@ Short reference lists managed by administrators, such as `listCategories`, and l
 The contract is stricter than Spring's defaults, and the acceptance tests follow the contract:
 
 - **Paging.** A `Pageable` controller argument silently reduces `size` to 2000, turns invalid values into the defaults, and an unknown `sort` property ends in `500`. Receive `page`, `size` and `sort` as validated `@RequestParam`s (`@Min`, `@Max`), check `sort` against the properties the listing accepts, and build the `PageRequest` by hand with `id` as the last criterion.
-- **Unknown and empty parameters.** Spring ignores a query parameter no argument asks for, so a mistyped filter returns the unfiltered list, and it turns an empty value (`?categoryId=`) into `null`. A listing that documents its parameters receives them all as `@RequestParam MultiValueMap` and checks them with `QueryParameters.requireKnownAndFilled`, which answers `400` to both. Spring also splits a single value on commas and turns an empty piece (`?status=REPORTED,`) into a `null` element of the list, so the incident filters answer `400` to it too.
+- **Unknown and empty parameters.** Spring ignores a query parameter no argument asks for, so a mistyped filter returns the unfiltered list, and it turns an empty value (`?categoryId=`) into `null`. A listing that documents its parameters receives them all as `@RequestParam MultiValueMap` and checks them with `QueryParameters.requireKnownAndFilled`, which answers `400` to both. Spring also splits a single value on commas and turns an empty piece (`?status=REPORTED,`) into a `null` element of the list, so the incident filters answer `400` to it too. A typed `@RequestParam` takes only the first value of a repeated parameter, so the listing also passes the parameters that are not arrays in the contract to `QueryParameters.requireSingle`, which answers `400` when one is repeated.
 - **Validation.** A failed `@Valid` body returns `400` by default. The shared `@RestControllerAdvice` translates it to `422` with `VALIDATION_FAILED` and `errors`.
 
 ## ➕ How to Add an Endpoint

@@ -5,9 +5,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import es.uma.urbanpulse.shared.error.FieldError;
 import es.uma.urbanpulse.shared.error.InvalidDataException;
 import es.uma.urbanpulse.shared.error.RuleViolationException;
+import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.UUID;
+import org.apache.tomcat.util.http.fileupload.FileUploadException;
+import org.apache.tomcat.util.http.fileupload.MultipartStream;
+import org.apache.tomcat.util.http.fileupload.impl.IOFileUploadException;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpHeaders;
@@ -20,6 +24,7 @@ import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
 
 /**
  * The Problem bodies of {@link ApiExceptionHandler} that no endpoint reaches yet, and the status of
@@ -134,6 +139,54 @@ class ApiExceptionHandlerTest {
         assertThat(problem.getInstance()).isEqualTo(URI.create(PATH));
     }
 
+    // #407: Spring wraps every multipart parse failure the same way; only a malformed body is the
+    // client's.
+    @Test
+    void aMalformedMultipartBodyIs400WithItsCode() throws Exception {
+        var malformed =
+                multipartFailure(
+                        new MultipartStream.MalformedStreamException("Stream ended unexpectedly"));
+
+        var problem = handler.handleMalformedMultipart(malformed, request());
+
+        assertThat(problem.getStatus()).isEqualTo(400);
+        assertThat(problem.getProperties())
+                .containsEntry(ApiExceptionHandler.CODE, "MALFORMED_REQUEST")
+                .containsEntry(ApiExceptionHandler.TRACE_ID, REQUEST_ID);
+    }
+
+    // #407: the server failing to write the temporary file is not the client's mistake.
+    @Test
+    void aMultipartFailureOfTheServerIs500() throws Exception {
+        var diskFull = multipartFailure(new IOException("No space left on device"));
+
+        var problem = handler.handleMalformedMultipart(diskFull, request());
+
+        assertThat(problem.getStatus()).isEqualTo(500);
+        assertThat(problem.getDetail()).doesNotContain("space");
+        assertThat(problem.getProperties()).doesNotContainKey(ApiExceptionHandler.CODE);
+    }
+
+    // #407: Tomcat reports a missing boundary as a plain FileUploadException without a cause, and
+    // wraps other read errors, which may be the server's, in a plain one with their cause.
+    @Test
+    void aMissingBoundaryIs400AndAWrappedReadErrorIs500() throws Exception {
+        var missingBoundary =
+                new MultipartException(
+                        "Failed to parse multipart servlet request",
+                        new FileUploadException(
+                                "the request was rejected because no multipart boundary was"
+                                        + " found"));
+        var wrapped =
+                new MultipartException(
+                        "Failed to parse multipart servlet request",
+                        new FileUploadException("Read timed out", new IOException("timeout")));
+
+        assertThat(handler.handleMalformedMultipart(missingBoundary, request()).getStatus())
+                .isEqualTo(400);
+        assertThat(handler.handleMalformedMultipart(wrapped, request()).getStatus()).isEqualTo(500);
+    }
+
     // T4: 500
     @Test
     void anUnexpectedErrorCarriesTheIdAndNothingElse() throws Exception {
@@ -156,6 +209,15 @@ class ApiExceptionHandlerTest {
                         new MockHttpServletResponse(),
                         (req, res) -> seen[0] = new ServletWebRequest(request));
         return seen[0];
+    }
+
+    // What Spring throws when Tomcat cannot read the parts: Tomcat wraps the error of reading the
+    // body or writing the temporary file in an IOFileUploadException.
+    private static MultipartException multipartFailure(IOException cause) {
+        return new MultipartException(
+                "Failed to parse multipart servlet request",
+                new IOFileUploadException(
+                        "Processing of multipart/form-data request failed.", cause));
     }
 
     private static final class TestRuleViolation extends RuleViolationException {
