@@ -291,15 +291,15 @@ export function useTechnicians() {
   });
 }
 
-/** The lists of incidents that a change of any incident can alter: the inbox, the map and its dashboard. */
+/** The lists that a change of any incident can alter: the inbox, the map and its dashboard. */
 const INCIDENT_LISTS: readonly unknown[] = ['page', 'locations', 'statistics', 'latest'];
 
 /**
  * What every change of an incident does to the cache, so the screens show it without reloading:
  * the detail takes the incident the API answered, with its new `version`, and the inbox pages, the
  * map, its dashboard and the parts of this incident read separately (its history, for example) are
- * read again. Every mutation of the web calls it on success (#47 leaves the
- * pattern for the lifecycle actions).
+ * read again. Every mutation of the web calls it on success (#47 leaves the pattern for the
+ * lifecycle actions).
  *
  * A reload of the detail still in flight is cancelled first: it was sent before the change, and
  * answering after it, it would bring back the old status and `version` (#287).
