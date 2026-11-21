@@ -15,19 +15,27 @@
 	<version>0.2.0</version>
 	<name>UrbanPulse backend</name>
 	<description>REST API of UrbanPulse, the platform for managing the urban incidents of Málaga</description>
-	<url/>
+	<url>https://github.com/Dalibex/urban-incidence-manager</url>
+	<inceptionYear>2026</inceptionYear>
 	<licenses>
-		<license/>
+		<license>
+			<name>Apache-2.0</name>
+			<url>https://www.apache.org/licenses/LICENSE-2.0</url>
+		</license>
 	</licenses>
-	<developers>
-		<developer/>
-	</developers>
 	<scm>
-		<connection/>
-		<developerConnection/>
-		<tag/>
-		<url/>
+		<connection>scm:git:https://github.com/Dalibex/urban-incidence-manager.git</connection>
+		<developerConnection>scm:git:git@github.com:Dalibex/urban-incidence-manager.git</developerConnection>
+		<url>https://github.com/Dalibex/urban-incidence-manager</url>
 	</scm>
+	<issueManagement>
+		<system>GitHub Issues</system>
+		<url>https://github.com/Dalibex/urban-incidence-manager/issues</url>
+	</issueManagement>
+	<ciManagement>
+		<system>GitHub Actions</system>
+		<url>https://github.com/Dalibex/urban-incidence-manager/actions</url>
+	</ciManagement>
 	<properties>
 		<!-- Java version used to compile and run the application -->
 		<java.version>25</java.version>
