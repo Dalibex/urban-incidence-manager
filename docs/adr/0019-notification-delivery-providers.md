@@ -3,6 +3,9 @@
 - **Status:** Proposed
 - **Decision Makers:** Project Team
 - **Date:** 2026-10-25
+- **Amended by:** [ADR-0031](0031-push-and-email-notifications.md) (proposed): the citizen gets
+  push notifications through the Expo push service and email through Brevo, and no SMS. What this
+  ADR says about Twilio and SMS no longer applies; its delivery mechanism and Brevo stay.
 
 ## Context
 
@@ -134,7 +137,7 @@ choice reversible.
   - Brevo's free plan has a daily sending limit. A burst of notifications above it is delayed
     or fails until the next day.
   - Push notifications to the mobile app (e.g. Expo push) are not covered and would need
-    their own ADR.
+    their own ADR: [ADR-0031](0031-push-and-email-notifications.md).
 
 ## Links Related
 
