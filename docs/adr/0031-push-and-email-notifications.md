@@ -4,7 +4,8 @@
 - **Decision Makers:** Project Team
 - **Date:** 2026-11-21
 - **Amends:** [ADR-0019](0019-notification-delivery-providers.md): the push channel is added and
-  the SMS channel is dropped; email through Brevo and the delivery mechanism stay as proposed there.
+  the SMS channel is dropped; email through Brevo and the delivery mechanism stay as proposed there,
+  with the retry and idempotency rules set here.
 
 ## Context
 
@@ -86,7 +87,11 @@ and **sends no SMS**.
     - A token belongs to one device and one user: the table of #373 has numeric keys (#369) and a
       unique token. Registering a token already held by another user moves it to the new user, so
       a shared phone never shows the notifications of the previous citizen.
-    - Signing out on the phone, or turning push off, deletes the token of that device.
+    - Signing out on the phone, or turning push off, deletes the token of that device. A sign-out
+      without network cannot reach the API, so the backend also deletes the tokens registered
+      under a session when it revokes that session or the session expires, and the app sends the
+      device's token again, or deletes it, at every sign-in, depending on whether the new user has
+      push on. #373 tests this case.
   - **Android delivery:** on Android, Expo delivers through Firebase Cloud Messaging. The team needs:
     - an Expo account shared by the team, with the app's project, whose `projectId` goes in the
       app's configuration (the token is requested for that project);
