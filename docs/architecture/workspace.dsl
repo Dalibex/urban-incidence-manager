@@ -51,7 +51,7 @@ workspace "UrbanPulse" "C4 Model" {
             }
 
             ### 2. CONTAINER: MOBILE FRONTEND (ADR-0005, ADR-0007, ADR-0016)
-            frontend_mobile = container "Mobile Frontend" "App for citizens to report and follow incidents. Built locally as an Expo development build (expo run:android)." "React Native + Expo" {
+            frontend_mobile = container "Mobile Frontend" "App for citizens to report and follow incidents. Built locally as an Expo development build (expo run:android or expo run:ios)." "React Native + Expo" {
                 tags "FrontendMobile"
                 url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0005-mobile-application-technology.md
 
@@ -130,7 +130,7 @@ workspace "UrbanPulse" "C4 Model" {
             ### 5. CONTAINER: CACHE (ADR-0022, ACCEPTED, NOT BUILT YET)
             # ADR-0022 supersedes ADR-0012: Redis comes in only when a measurement or a second backend
             # replica asks for it; until then no deployment environment runs it.
-            redis = container "Redis Cache" "Only when a measurement or a second backend replica asks for it (ADR-0022). Cache-aside with TTL on every entry, derived values only: external responses, resolved geodata per zone, dashboard aggregates and the rate-limit counters. Safe to lose." "Redis" {
+            redis = container "Redis Cache" "Only when a measurement or a second backend replica asks for it (ADR-0022). Cache-aside with TTL on every entry, derived values only: external responses, resolved geodata per zone and dashboard aggregates. Safe to lose. With a second backend replica it also holds the sign-in and sign-up rate-limit counters." "Redis" {
                 tags "Cache"
                 url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0022-redis-from-measurements.md
             }
@@ -253,8 +253,9 @@ workspace "UrbanPulse" "C4 Model" {
         urbanpulse.backend.notifications -> urbanpulse.postgres "notification" "JPA/JDBC"
         urbanpulse.backend.analytics -> urbanpulse.postgres "Aggregate queries" "Read-only"
         urbanpulse.backend.urbancontext -> urbanpulse.redis "Caches external responses (TTL), only when a measurement asks for it (ADR-0018, ADR-0022)"
-        urbanpulse.backend.geospatial -> urbanpulse.redis "Caches resolved geodata per zone (TTL)"
-        urbanpulse.backend.analytics -> urbanpulse.redis "Caches dashboard aggregates (TTL)"
+        urbanpulse.backend.geospatial -> urbanpulse.redis "Caches resolved geodata per zone (TTL), only when a measurement asks for it (ADR-0022)"
+        urbanpulse.backend.analytics -> urbanpulse.redis "Caches dashboard aggregates (TTL), only when a measurement asks for it (ADR-0022)"
+        urbanpulse.backend.identity -> urbanpulse.redis "Shares the sign-in and sign-up rate-limit counters, only with a second backend replica (ADR-0022)"
         urbanpulse.backend.incidents -> urbanpulse.evidence_storage "Stores and reads evidence binaries through StorageService"
         urbanpulse.backend.urbancontext -> opendata "Queries authoritative data" "HTTPS"
         urbanpulse.backend.urbancontext -> openstreet "Geocoding and asset fallback" "HTTPS"
@@ -279,7 +280,7 @@ workspace "UrbanPulse" "C4 Model" {
 
         citizen -> urbanpulse.frontend_mobile.mobile_ui "Reports incidents and attaches evidence"
         urbanpulse.frontend_mobile.mobile_shared -> urbanpulse.nginx "Calls /api" "HTTPS/JSON"
-        urbanpulse.frontend_mobile.mobile_ui -> urbanpulse.nginx "Loads base map tiles (pmtiles://)" "HTTPS (PMTiles)"
+        urbanpulse.frontend_mobile.mobile_ui -> urbanpulse.nginx "Loads base map tiles (pmtiles://), style, fonts and sprites (/tiles/)" "HTTPS (PMTiles)"
 
         ### Deployment: what runs where (ADR-0011)
         # Structurizr copies a container relationship to the instances of an environment when both
@@ -322,7 +323,7 @@ workspace "UrbanPulse" "C4 Model" {
             device -> developer_machine.vite "Loads the base map style, tiles, fonts and sprites from /tiles/ (EXPO_PUBLIC_MAP_STYLE_URL)" "HTTP"
             developer_machine.compose.postgres_service.postgres_instance -> developer_machine.compose.postgres_volume "Stores the database files" "Volume mount"
             developer_machine.compose.tiles_service.tiles_instance -> developer_machine.compose.sources_volume "Reuses the downloads between runs" "Volume mount"
-            developer_machine.compose.tiles_service.tiles_instance -> developer_machine.vite "Writes malaga.pmtiles to frontend/apps/web/public/tiles" "Bind mount"
+            developer_machine.compose.tiles_service.tiles_instance -> developer_machine.vite "Writes malaga.pmtiles, the style, fonts and sprites to frontend/apps/web/public/tiles" "Bind mount"
             developer_machine.k6 -> developer_machine.compose.backend_service.backend_instance "Sends the load of each experiment to /api" "HTTP"
             developer_machine.k6 -> developer_machine.compose.prometheus_service "Sends its results by remote write" "HTTP"
             developer_machine.compose.prometheus_service -> developer_machine.compose.backend_service.backend_instance "Scrapes /actuator/prometheus every 5 seconds" "HTTP"
@@ -428,7 +429,8 @@ workspace "UrbanPulse" "C4 Model" {
         }
 
         # Dynamic views follow the decided architecture, so the clients go through nginx. In
-        # development the Vite server (web) or nobody (mobile) stands in its place.
+        # development the Vite server stands in its place for the web app and for the mobile base map;
+        # the mobile app calls /api directly.
         # A citizen, because staff accounts add the TOTP challenge of ADR-0021 before any token.
         dynamic urbanpulse.backend "Dynamic_SignIn" {
             title "Sign-in and refresh token rotation"
