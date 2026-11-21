@@ -68,6 +68,11 @@ export async function signIn(
   if (!result.ok) {
     return result;
   }
+  if (!('accessToken' in result.data)) {
+    // A second-factor challenge (`202`, planned in #57) holds no tokens. No screen has the code
+    // step yet, so it fails like any other answer the screens do not handle.
+    return { ok: false, failure: { kind: 'problem', status: 202, code: undefined } };
+  }
   await tokenStore.save(result.data);
   return { ok: true, data: undefined };
 }
