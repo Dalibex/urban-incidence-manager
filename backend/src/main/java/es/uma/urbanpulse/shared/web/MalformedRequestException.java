@@ -8,7 +8,7 @@ import org.springframework.http.HttpStatus;
  */
 public class MalformedRequestException extends ApiProblemException {
 
-    static final String CODE = "MALFORMED_REQUEST";
+    public static final String CODE = "MALFORMED_REQUEST";
 
     public MalformedRequestException(String detail) {
         super(HttpStatus.BAD_REQUEST, CODE, detail);

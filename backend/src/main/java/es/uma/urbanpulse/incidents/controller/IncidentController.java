@@ -27,7 +27,6 @@ import java.util.stream.Stream;
 import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -42,13 +41,12 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 /**
  * {@code listIncidents}, {@code getIncident}, {@code listIncidentStatusChanges} and {@code
- * createIncident}. The role is checked here; which incidents the caller may see, and which filters
- * a citizen may use, are checked by the service, which answers {@code 404} for the incidents the
- * caller may not see (docs/security.md).
+ * createIncident}. The role is checked by the security filters ({@code ApiAuthorizationRules});
+ * which incidents the caller may see, and which filters a citizen may use, are checked by the
+ * service, which answers {@code 404} for the incidents the caller may not see (docs/security.md).
  */
 @RestController
 @RequestMapping("/api/v1/incidents")
-@PreAuthorize("hasAnyRole('CITIZEN', 'MUNICIPAL_OPERATOR', 'TECHNICIAN', 'ADMINISTRATOR')")
 class IncidentController {
 
     // The sortable properties and the default order of listIncidents in the contract.
@@ -61,11 +59,17 @@ class IncidentController {
             Pattern.compile(
                     "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
 
-    // Every query parameter of listIncidents in the contract; any other one is a 400.
+    // Every query parameter of listIncidents in the contract; any other one is a 400. Only the
+    // filters the contract declares as arrays may repeat.
     private static final Set<String> LIST_PARAMETERS =
             Stream.concat(
                             Stream.of("page", "size", "sort"),
                             IncidentFilterParameters.NAMES.stream())
+                    .collect(Collectors.toUnmodifiableSet());
+    private static final Set<String> SINGLE_PARAMETERS =
+            Stream.concat(
+                            Stream.of("page", "size", "sort"),
+                            IncidentFilterParameters.SINGLE_NAMES.stream())
                     .collect(Collectors.toUnmodifiableSet());
 
     private final IncidentQueryService incidents;
@@ -96,6 +100,7 @@ class IncidentController {
                     OffsetDateTime reportedTo,
             @RequestParam(required = false) List<UUID> departmentId) {
         QueryParameters.requireKnownAndFilled(parameters, LIST_PARAMETERS);
+        QueryParameters.requireSingle(parameters, SINGLE_PARAMETERS);
         var filter =
                 IncidentFilterParameters.toFilter(
                         status, categoryId, priority, reportedFrom, reportedTo, departmentId);
@@ -123,7 +128,6 @@ class IncidentController {
      * created (#289), so the client handles a first answer and a repeated one in the same way.
      */
     @PostMapping
-    @PreAuthorize("hasRole('CITIZEN')")
     public ResponseEntity<IncidentResponse> createIncident(
             @Valid @RequestBody CreateIncidentRequest request,
             @RequestHeader(name = IDEMPOTENCY_KEY, required = false) String idempotencyKey,
