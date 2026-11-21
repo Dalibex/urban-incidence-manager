@@ -38,7 +38,8 @@ class IncidentCommentController {
     private static final Set<String> SORTABLE = Set.of("createdAt");
     private static final Sort OLDEST_FIRST = Sort.by(Sort.Direction.ASC, "createdAt");
 
-    // Every query parameter of listIncidentComments in the contract; any other one is a 400.
+    // Every query parameter of listIncidentComments in the contract; any other one is a 400. None
+    // may repeat.
     private static final Set<String> LIST_PARAMETERS = Set.of("page", "size", "sort");
 
     private final IncidentCommentService comments;
@@ -56,6 +57,7 @@ class IncidentCommentController {
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
             @RequestParam(required = false) String sort) {
         QueryParameters.requireKnownAndFilled(parameters, LIST_PARAMETERS);
+        QueryParameters.requireSingle(parameters, LIST_PARAMETERS);
         return comments.list(
                 incidentId,
                 user.id(),

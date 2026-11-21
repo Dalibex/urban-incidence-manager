@@ -45,6 +45,7 @@ class IncidentStatisticsController {
                     OffsetDateTime reportedTo,
             @RequestParam(required = false) List<UUID> departmentId) {
         QueryParameters.requireKnownAndFilled(parameters, IncidentFilterParameters.NAMES);
+        QueryParameters.requireSingle(parameters, IncidentFilterParameters.SINGLE_NAMES);
         var filter =
                 IncidentFilterParameters.toFilter(
                         status, categoryId, priority, reportedFrom, reportedTo, departmentId);

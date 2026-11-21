@@ -59,11 +59,17 @@ class IncidentController {
             Pattern.compile(
                     "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
 
-    // Every query parameter of listIncidents in the contract; any other one is a 400.
+    // Every query parameter of listIncidents in the contract; any other one is a 400. Only the
+    // filters the contract declares as arrays may repeat.
     private static final Set<String> LIST_PARAMETERS =
             Stream.concat(
                             Stream.of("page", "size", "sort"),
                             IncidentFilterParameters.NAMES.stream())
+                    .collect(Collectors.toUnmodifiableSet());
+    private static final Set<String> SINGLE_PARAMETERS =
+            Stream.concat(
+                            Stream.of("page", "size", "sort"),
+                            IncidentFilterParameters.SINGLE_NAMES.stream())
                     .collect(Collectors.toUnmodifiableSet());
 
     private final IncidentQueryService incidents;
@@ -94,6 +100,7 @@ class IncidentController {
                     OffsetDateTime reportedTo,
             @RequestParam(required = false) List<UUID> departmentId) {
         QueryParameters.requireKnownAndFilled(parameters, LIST_PARAMETERS);
+        QueryParameters.requireSingle(parameters, SINGLE_PARAMETERS);
         var filter =
                 IncidentFilterParameters.toFilter(
                         status, categoryId, priority, reportedFrom, reportedTo, departmentId);
