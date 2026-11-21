@@ -29,6 +29,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
 - In the deployment Compose the backend trusted the `X-Forwarded-*` headers from any private address, so a process on the server could call it without nginx, invent client addresses to get around the sign-in and sign-up limits, and change the `Location` of its answers. Now it trusts only nginx, which has a fixed address on the `internal` network (#307).
 - Two photos uploaded at the same time to an incident with one place left could both be saved and go over `EVIDENCE_MAX_FILES_PER_INCIDENT`, and a citizen's photo uploaded while an operator validated the incident could be saved after it left `REPORTED`. Now the second one answers `422` or `409` and its file is removed (#275).
 - After a password change, or after an account was disabled and enabled again, an old refresh token sent by another tab or device was taken as stolen and closed every session of the user, including the one just opened with the new password. Now it only gets `401` (#275).
+- An evidence upload whose multipart body the server cannot read, such as a boundary that is never closed or missing, answers `400` with the code `MALFORMED_REQUEST` instead of a `500`, and no longer writes an `ERROR` line in the log (#407).
 
 ### Fixed
 
