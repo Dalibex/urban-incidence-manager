@@ -44,14 +44,16 @@ reason.
 covers: *Yes*, *Partly* (the note says what is left out), *Stretch* (planned only if there is time)
 or *No* (after the MVP). **After the MVP** says what the next milestones add and which issue covers
 it, and which accepted decision a requirement of the [final delivery](#-final-delivery) replaces.
-Every requirement is planned in the monolith before the refactor (milestone *Sprint 3 - Complete
-app*), except the analyst's (RF17, RF25) and RF20, which is out of the final delivery. Whether an issue is finished is in GitHub, not here.
+Every requirement is planned in the monolith before the refactor, except the analyst's (RF17,
+RF25) and RF20, which is out of the final delivery. The refactor then moves part of RF18, RF23 and
+RF26 into the services of the final delivery (#327, #346, #353). Whether an issue is finished, and
+in which milestone, is in GitHub, not here.
 
 ### High
 
 | ID | Requirement | In the MVP | Issues | After the MVP |
 | --- | --- | --- | --- | --- |
-| RF01 | **Identity and access.** Users sign up or sign in; staff authenticate. | Yes. A second factor for staff is planned with low priority. | #35, #39, #126, #165; #57 (second factor, ADR-0021) | The second factor for staff. Planned: #57. |
+| RF01 | **Identity and access.** Users sign up or sign in; staff authenticate. | Yes. The second factor for staff was left out of the MVP. | #35, #39, #126, #165; #57 (second factor, ADR-0021) | The second factor for staff. Planned: #57. |
 | RF02 | **Roles and permissions.** Different permissions for citizens, operators, technicians, administrators and analysts. | Yes | #35, #39, #100, #40; [permission matrix](security.md#-permission-matrix) | A new **auditor** role that reads the audit with the administrators ([final delivery](#-final-delivery)). Planned: #355. |
 | RF03 | **Report an incident** with a title, description, position and optional category. | Yes | #43 | — |
 | RF04 | **Location.** The incident keeps coordinates, normalized address and accuracy. | Partly. Coordinates, and the accuracy while the position is the phone's GPS fix; the citizen corrects the position with a pin on the mobile map, and reports without GPS once they move it: the map's starting point on Málaga is never sent. The normalized address has no issue. | #43; #60 (#197, #198) | The normalized address from the position. Planned: #375. |
@@ -231,7 +233,7 @@ changed.
 | Request information | A form to ask the citizen; the citizen answers from the app. | The incident stays `REPORTED` and the request is recorded in its history, visible to the citizen. The citizen's answer is not in the MVP. | ADR-0020 (option B), #48 |
 | Resolve | Requires a text confirmation and/or a final photo. | Resolution notes are required; a final photo is not in the MVP. | ADR-0020, #51 |
 | Reopen | Requires a comment or new evidence; the citizen can answer a reopened incident. | Only an operator reopens, with a required reason; new evidence does not replace it. The citizen does not interact with a reopened incident. | ADR-0020, #52 |
-| Operator inbox | Prioritizes `REPORTED`, with filters by date, category, status, priority, district and department. | Opens filtered by `REPORTED`, and clearing the filters shows every incident; the district filter needs #59 (stretch). | #46, #58, #183 |
+| Operator inbox | Prioritizes `REPORTED`, with filters by date, category, status, priority, district and department. | Opens filtered by `REPORTED`, and clearing the filters shows every incident; the district filter needs #59, planned before the refactor. | #46, #58, #183 |
 | Notification channels | Push, email and SMS switches in the citizen's profile (RF14, Medium). | Not in the MVP: the delivery providers are only proposed. RF14 stays Medium. | ADR-0019 (proposed) |
 | Operator detail | Urban context (traffic, weather), urban assets and duplicate warnings. | Only the weather enters the MVP, in the *Context* section of the detail (#308). Traffic, urban assets and duplicate warnings do not (RF16, RF22–RF24, Low). | ADR-0018, ADR-0024 (proposed), #304 |
 | Menus | Administrator: *Users*, *Logs*, *Sources*. Operator: *Incident list*, *Incident map*. Technician: *My work queue*. Citizen: *New*, *My reports*, *Profile*. The analyst had none. | Administrator: *Users*, *Audit log*, plus the operator's screens. Operator: *Inbox*, *Map*. Technician: *Work queue*, *Map*. Analyst: *Reports*. Citizen: unchanged. | `frontend/apps/web/src/routing/sections.tsx`, #41, #42, #53, #127, #196 |
@@ -240,8 +242,8 @@ changed.
 
 ## 🔄 Keeping This Document Up to Date
 
-- **At each sprint review**, the product owner checks the *In the MVP* column against the
-  milestones and updates it in a pull request.
+- **At each sprint review**, the product owner checks the *In the MVP* and *After the MVP*
+  columns against the milestones and updates them in a pull request.
 - **When an issue changes the scope of a requirement** (part of it is moved out, or a stretch goal
   comes in), the same pull request updates the requirement's row.
 - **When a requirement of the final delivery changes status**, the pull request that changes it
