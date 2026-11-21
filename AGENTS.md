@@ -30,6 +30,7 @@ Read the source before relying on any summary, including this file. Do not descr
 | What is planned, and when | The GitHub milestones and their issues; each issue's *Out of scope* and `Planned: #N` |
 | Requirements, priorities and screens per role | `docs/requirements.md` |
 | How each role uses the apps | `docs/user-guide.md` |
+| Design proposals, their validation by the client and their status | `docs/design/`: the index and how a design is validated in `docs/design/README.md`, the template in `docs/design/TEMPLATE.md` |
 | Decisions and their status | `docs/adr/`: read the `Status:` line of each ADR |
 | Architecture, quality scenarios and accepted risks | `docs/architecture.md`; structure in the C4 model, `docs/architecture/workspace.dsl` |
 | API contract and its conventions | `docs/api/openapi.yml`, `docs/api.md` |
