@@ -12,3 +12,9 @@ urbanpulse:
   weather:
     enabled: false
     open-meteo-base-url: http://127.0.0.1:9
+  # The same for the address worker and Nominatim: a test calls
+  # AddressEnrichmentWorker.resolvePending(), and no test waits a second between two calls.
+  address:
+    enabled: false
+    nominatim-base-url: http://127.0.0.1:9
+    request-spacing: PT0S
