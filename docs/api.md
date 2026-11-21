@@ -138,7 +138,7 @@ Every operation lists the shared responses that can really happen, with `$ref`:
 
 | Status | Reference | When to list it |
 |---|---|---|
-| 400 | `#/components/responses/BadRequest` | The request can be malformed: a body that is not JSON, a value of the wrong type, a parameter out of range (`size` over 100, an unknown `sort` property, an identifier that is not a UUID) |
+| 400 | `#/components/responses/BadRequest` | The request can be malformed: a body that is not JSON or not valid multipart, a value of the wrong type, a parameter out of range (`size` over 100, an unknown `sort` property, an identifier that is not a UUID) |
 | 401 | `#/components/responses/Unauthorized` | Every protected operation |
 | 403 | `#/components/responses/Forbidden` | The operation depends on the role or on the relationship with the resource |
 | 404 | `#/components/responses/NotFound` | The path has an identifier |
