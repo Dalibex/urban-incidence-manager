@@ -47,4 +47,11 @@ describe('filterSummary', () => {
       'Reported on 2026-11-03',
     ]);
   });
+
+  it('names the text search, so a folded bar does not hide it (#266)', () => {
+    expect(filterSummary({ status: ['REPORTED'], q: 'farola' })).toEqual([
+      'Search: “farola”',
+      'Status: Reported',
+    ]);
+  });
 });

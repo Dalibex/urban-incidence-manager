@@ -8,7 +8,9 @@ import { IncidentFilterBar } from '../incidents/filters/IncidentFilterBar';
 import {
   filtersFrom,
   hasFilters,
+  searchFrom,
   withFilters,
+  withSearch,
   type IncidentFilters,
 } from '../incidents/filters/incident-filters';
 import { useRememberFilters } from '../incidents/filters/remembered-filters';
@@ -20,6 +22,7 @@ import { filterSummary } from './filter-summary';
 import { IncidentPanel } from './IncidentPanel';
 import { MapDashboard } from './MapDashboard';
 import { MapKey } from './MapKey';
+import { MapSearch } from './MapSearch';
 import styles from './Map.module.css';
 import { INCIDENT_ZOOM, MAP_SCREEN_ID } from './map-config';
 import { useMapPreferences } from './map-preferences';
@@ -42,17 +45,24 @@ const FILTERS_ID = 'map-filters';
  * the summary, which opens the same panel from the keyboard.
  *
  * The filters fold behind a button, so the map keeps the room; while folded, a line says which
- * ones apply, so nobody forgets that the map is filtered.
+ * ones apply, so nobody forgets that the map is filtered. The text search (#266) stays in the
+ * toolbar, outside the fold, so an incident can be found without opening the filters.
  */
 export function MapPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const filters = filtersFrom(searchParams);
-  useRememberFilters('map', filters);
+  // The list filters, which the map remembers (#263), and, only here, the text search (#266),
+  // which it does not: a search is typed for the moment.
+  const listFilters = filtersFrom(searchParams);
+  useRememberFilters('map', listFilters);
+  const search = searchFrom(searchParams);
+  const filters: IncidentFilters = { ...listFilters, ...(search && { q: search }) };
   const locations = useIncidentLocations(filters);
   const categories = useCategories();
   const departments = useDepartments();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  // Changed by Clear filters, so the search box also drops a text that was never searched.
+  const [searchKey, setSearchKey] = useState(0);
   const preferences = useMapPreferences();
   const mapRef = useRef<MapRef>(null);
   const firstFilter = useRef<HTMLInputElement>(null);
@@ -63,7 +73,8 @@ export function MapPage() {
   const positions = locations.data?.content ?? [];
   const activeFilters = filterSummary(filters, categories.data, departments.data);
 
-  const changeFilters = (next: IncidentFilters) => setSearchParams(withFilters(searchParams, next));
+  const changeFilters = (next: IncidentFilters) =>
+    setSearchParams(withSearch(withFilters(searchParams, next), next.q));
 
   const select = (incidentId: string) => {
     opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -102,7 +113,16 @@ export function MapPage() {
   // when the bar is open, on the button that opens it when it is folded.
   const clearFilters = () => {
     changeFilters({});
+    setSearchKey((key) => key + 1);
     (firstFilter.current ?? filtersButton.current)?.focus();
+  };
+
+  // The filter bar has its own Clear filters, which hands over no filters at all.
+  const changeFromFilterBar = (next: IncidentFilters) => {
+    if (!hasFilters(next)) {
+      setSearchKey((key) => key + 1);
+    }
+    changeFilters(next);
   };
 
   return (
@@ -118,6 +138,11 @@ export function MapPage() {
         <h1 id="page-title" className={styles.pageTitle}>
           Map
         </h1>
+        <MapSearch
+          key={searchKey}
+          value={filters.q}
+          onSearch={(q) => changeFilters({ ...filters, q })}
+        />
         <button
           ref={filtersButton}
           type="button"
@@ -148,7 +173,7 @@ export function MapPage() {
         <div id={FILTERS_ID} className={styles.filters}>
           <IncidentFilterBar
             filters={filters}
-            onChange={changeFilters}
+            onChange={changeFromFilterBar}
             firstFilterRef={firstFilter}
           />
         </div>

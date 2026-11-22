@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 class IncidentStatisticsAssemblerTest {
 
     private static final IncidentFilter NO_FILTER =
-            new IncidentFilter(Set.of(), Set.of(), Set.of(), null, null, Set.of());
+            new IncidentFilter(Set.of(), Set.of(), Set.of(), null, null, Set.of(), null);
 
     @Test
     void withoutAStatusFilterEveryStatusIsListedInDeclaredOrderWithRealZeros() {
@@ -49,7 +49,8 @@ class IncidentStatisticsAssemblerTest {
                         Set.of(),
                         null,
                         null,
-                        Set.of());
+                        Set.of(),
+                        null);
 
         var response =
                 IncidentStatisticsAssembler.assemble(
@@ -92,7 +93,8 @@ class IncidentStatisticsAssemblerTest {
                         Set.of(Priority.LOW, Priority.HIGH),
                         null,
                         null,
-                        Set.of());
+                        Set.of(),
+                        null);
 
         var response =
                 IncidentStatisticsAssembler.assemble(

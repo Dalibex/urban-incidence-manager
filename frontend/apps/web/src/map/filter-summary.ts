@@ -19,6 +19,10 @@ export function filterSummary(
   departments: readonly Named[] = [],
 ): string[] {
   const summary: string[] = [];
+  // First: it is the one the user typed, and the one a cut line must not hide.
+  if (filters.q) {
+    summary.push(`Search: “${filters.q}”`);
+  }
   if (filters.status) {
     summary.push(`Status: ${filters.status.map((status) => STATUS_LABELS[status]).join(', ')}`);
   }

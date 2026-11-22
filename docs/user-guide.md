@@ -360,6 +360,15 @@ scrolling on a window at least 800 pixels wide and about 560 tall, also with the
 (a 1,280-pixel laptop screen at 150 % is 853). With the filters open, the map shrinks to make room;
 below about 280 pixels of map the page scrolls instead.
 
+- **Search:** the box in the toolbar finds the incidents whose title or description contains what
+  you type, ignoring capitals and accents: `camion` finds *Camión mal aparcado*, and `ano` finds
+  *año*. The words are
+  searched together, as you typed them: `farola rota` does not find *Rota la farola*. Press
+  *Enter* or *Search*; it needs 3 to 100 characters, and says so if not. It works with the filters,
+  stays in the address and in the line of the folded filters, and *Clear filters* removes it too.
+  Empty the box, with the keyboard, *Escape* or its ✕, to stop searching. It is there in full
+  screen as well. Only the map searches: the inbox and the work queue have no search. Unlike the
+  filters, the search is not kept for the next time you open the map from the menu.
 - **Filters:** they are folded, so the map keeps the room. *Filters* opens and closes them, and
   says how many apply, for example *Filters (1)*. While folded, a line next to it names them, with
   *Clear filters*. The filters stay in the address, so a reload or a shared link keeps them.

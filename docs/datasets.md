@@ -276,6 +276,45 @@ were added to each of its 100,000 incidents (200,000 entries) with an `INSERT ..
 PostgreSQL 18.6 with PostGIS 3.6 in Docker on Linux (4 CPUs, 15 GB), on commit `284142a` plus this
 change, on 2026-11-05. The index takes 4.9 MB.
 
+#### Text Search
+
+`V21__incidents_index_text_search.sql` (#266) adds `ix_incident_title_search` and
+`ix_incident_description_search`, trigram GIN indexes (`pg_trgm`) on `search_text(title)` and
+`search_text(description)`, for the text search `q` of the list, the map and the dashboard. Both
+sides of `LIKE` go through `search_text`, `lower(unaccent(...))` declared `IMMUTABLE`, so the indexes
+serve it; `unaccent` alone is only `STABLE` and cannot be indexed. The query is the condition the
+backend adds, `search_text(title) LIKE search_pattern('text') OR search_text(description) LIKE ...`,
+run as the operator, who sees every incident. `search_pattern` folds the text the same way and only
+then escapes `%`, `_` and `\`, because `unaccent` turns the full-width `％ ＿ ＼` into them.
+
+| Query | Index | Before | After |
+| --- | --- | --- | --- |
+| Count of `ledesma` (9,266 matches) | both, a `BitmapOr` of the two | 115 ms, parallel seq scan of `incident` | 30 ms, bitmap scan |
+| Count of `street light off` (17,303 matches) | both | 115 ms, the same seq scan | 50 ms, bitmap scan |
+| Count of a text no incident has | both | 115 ms, the same seq scan | 0.07 ms, bitmap scan |
+| First page of 20 of `ledesma`, newest first | `ix_incident_reported_at` | 115 ms, the same seq scan and a sort | 4 ms, index scan that checks each incident |
+
+Conditions: the same data and method as *Main Queries* above, on PostgreSQL 18.6 with PostGIS 3.6 in
+Docker Desktop (16 CPUs, 7.4 GB), on commit `a8af182` plus this change, on 2026-11-22.
+
+What the measurements decided:
+
+- Without the indexes every search reads the whole table, and one page of the list runs it twice
+  (its rows and its count); the map and its dashboard run it twice more.
+- The text is a bound parameter, and a search plans its statements for their values
+  (`plan_cache_mode = force_custom_plan`, only in its own transaction). Once the JDBC driver
+  prepares a statement, PostgreSQL may switch to a generic plan, which cannot see the text: a page
+  of a text no incident has then walks the whole `ix_incident_reported_at`, 401 ms, against 0.2 ms
+  planned for the text, which reads the trigram indexes. Writing the text into the SQL as a
+  literal would give the same plans, but its safety would depend on `standard_conforming_strings`.
+- A text with no letter or digit, such as `---`, gives the trigram indexes nothing to look up: it
+  reads the whole table, about 360 ms. It is accepted: nobody searches an incident that way, and
+  the map runs it only while such a search is applied.
+- One index per column, not one on the title and the description joined: the same times, but a
+  joined text would let a search match across the end of the title and the start of the description.
+- The two indexes take 22 MB with this volume (7.5 MB the title, 14 MB the description), against
+  30 MB of the `incident` table.
+
 #### Status and Priority
 
 `V16__incidents_index_status_priority.sql` (#176) adds `ix_incident_status_priority_reported_at`

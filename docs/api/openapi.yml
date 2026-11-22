@@ -956,7 +956,7 @@ paths:
         `id` is always added as the last criterion so the order is stable between pages.
 
         Filters always apply inside what the caller may see, so they never widen it, and every
-        filter used must match. `status` and the text search `q` (Planned: #266) are open to every
+        filter used must match. `status` and the text search `q` are open to every
         role that can list. The other filters are for staff: a `CITIZEN` who uses one gets `403`.
         An unknown parameter, or one without a value (`?categoryId=`), returns `400`.
       parameters:
@@ -1879,7 +1879,7 @@ paths:
         The indicators of the staff dashboard (#177), shown beside the map: how many incidents
         match, and how they split by status, priority, category and department. It takes the same
         filters and the same scope as `listIncidentLocations`, without the bounding box, so it
-        counts the incidents the map draws, also while the text search `q` (Planned: #266) narrows
+        counts the incidents the map draws, also while the text search `q` narrows
         them. Unlike the map it has no cap: it counts every one.
         An unknown parameter, or one without a value, returns `400`, like `listIncidents`.
 
@@ -2342,11 +2342,14 @@ components:
       name: q
       in: query
       description: >-
-        Planned: #266. Only incidents whose title or description contains this text, ignoring case
-        and accents (`farola` finds `Farola rota` and `FAROLA`; `camion` finds `camión`). The text
-        is matched as one piece, after removing its leading and trailing spaces: `farola rota` does
-        not find `rota la farola`. `%` and `_` are plain characters, not wildcards. After removing
-        those spaces it must have 3 to 100 characters, or the request returns `400`.
+        Only incidents whose title or description contains this text, each on its own,
+        ignoring case and accents (`farola` finds `Farola rota` and `FAROLA`; `camion` finds
+        `camión`; `ñ` counts as `n`, so `ano` finds `año`). The text is matched as one piece, after
+        removing its leading and trailing spaces: `farola rota` does not find `rota la farola`, nor
+        a title that ends in `farola` with a description that starts with `rota`. `%`, `_` and `\`
+        are plain characters, not wildcards. After removing those spaces it must have 3 to 100
+        characters, and no null character (U+0000), or the request returns `400`. `minLength` and
+        `maxLength` count the trimmed text.
       schema:
         type: string
         minLength: 3
