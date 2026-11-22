@@ -353,9 +353,10 @@ below about 280 pixels of map the page scrolls instead.
   - **When something fails:** if it cannot be loaded, it says so with *Try again*. If a refresh
     fails, the counts you saw stay with a warning, never as zeros, and *Latest reported* keeps the
     incidents you saw and says from when. A chart that cannot be shown gives its figures as a table.
-- **Markers:** each incident is a dot. Its colour is its status, the same as in the lists, and its
-  size is its priority: the higher, the bigger, and a *High* one also has a dark border. *Map key*,
-  in the bottom-left corner of the map, explains both; it opens and folds, and stays as you left it.
+- **Markers:** each incident is a dot. Its colour is its status, the same as in the lists, and
+  each of the eight statuses has its own colour. Its size is its priority: the higher, the bigger,
+  and a *High* one also has a dark border. *Map key*, in the bottom-left corner of the map, explains
+  both; it opens and folds, and stays as you left it.
 - **Full screen:** the button under the zoom buttons shows the whole screen of the map, with its
   filters and summary, on the whole screen; *Escape* or the same button brings the page back.
 - **Groups:** when you zoom out, nearby incidents join into a dark circle with their number, and the
