@@ -3,7 +3,7 @@ import { INCIDENT_STATUSES } from '@urbanpulse/domain';
 import { STATUS_LABELS, statusColor } from '@urbanpulse/ui';
 import type { CSSProperties } from 'react';
 
-import { GENERIC_ICON } from './category-icons';
+import { GENERIC_ICON, iconKeyOf } from './category-icons';
 import { CategoryIconGlyph } from './CategoryIconGlyph';
 import { NOT_CLASSIFIED } from './dashboard-data';
 import { HIGH_BORDER, PRIORITY_MARKS, PRIORITY_RANK } from './incident-features';
@@ -68,15 +68,15 @@ export function MapKey({ categories, open, onToggle }: MapKeyProps) {
       </ul>
       <p className={styles.legendTitle}>Icon: category</p>
       <ul className={styles.legendItems}>
-        {categories?.map(({ id, name, icon }) => (
+        {categories?.map(({ id, name }) => (
           <li key={id}>
-            <CategoryIconGlyph icon={icon ?? GENERIC_ICON} className={styles.legendIcon} />
+            <CategoryIconGlyph icon={iconKeyOf(id, categories)} className={styles.legendIcon} />
             {name}
           </li>
         ))}
         <li>
           <CategoryIconGlyph icon={GENERIC_ICON} className={styles.legendIcon} />
-          {NOT_CLASSIFIED}
+          {categories ? NOT_CLASSIFIED : `${NOT_CLASSIFIED}, or any category until they load`}
         </li>
       </ul>
       <p className={styles.legendTitle}>Groups</p>

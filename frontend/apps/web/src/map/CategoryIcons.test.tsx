@@ -1,6 +1,8 @@
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
+import { GENERIC_ICON, type IconKey } from './category-icons';
+import { CategoryIconGlyph } from './CategoryIconGlyph';
 import { ChartTable } from './ChartTable';
 import { NOT_CLASSIFIED, type DashboardChart } from './dashboard-data';
 import { MapKey } from './MapKey';
@@ -9,6 +11,16 @@ const CATEGORIES = [
   { id: 'c1', name: 'Street lighting', description: null, icon: 'STREET_LIGHTING' as const },
   { id: 'c2', name: 'Other', description: null, icon: null },
 ];
+
+/** The shapes an element draws, to tell one icon from another. */
+function drawingOf(element: Element): string {
+  return element.querySelector('svg')!.innerHTML;
+}
+
+/** A glyph rendered apart, outside the key, as the expected drawing. */
+function glyph(icon: IconKey): HTMLElement {
+  return render(<CategoryIconGlyph icon={icon} />).container;
+}
 
 /** The list under a title of the key. */
 function keySection(title: string): HTMLElement {
@@ -29,13 +41,20 @@ describe('the category icons of the map key', () => {
     for (const item of items) {
       expect(item.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
     }
+    expect(drawingOf(items[0]!)).toBe(drawingOf(glyph('STREET_LIGHTING')));
+    expect(drawingOf(items[1]!)).toBe(drawingOf(glyph(GENERIC_ICON)));
+    expect(drawingOf(items[0]!)).not.toBe(drawingOf(items[1]!));
   });
 
-  it('still names the incidents without category before the categories load', () => {
+  // Until the categories load (or if they fail), every marker shows the generic icon, so the key
+  // says so instead of calling all of them not classified.
+  it('says the generic icon stands for any category until the categories load', () => {
     render(<MapKey open onToggle={() => {}} />);
 
     const items = within(keySection('Icon: category')).getAllByRole('listitem');
-    expect(items.map((item) => item.textContent)).toEqual([NOT_CLASSIFIED]);
+    expect(items.map((item) => item.textContent)).toEqual([
+      'Not classified, or any category until they load',
+    ]);
   });
 });
 

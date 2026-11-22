@@ -1,7 +1,7 @@
 import { colors } from '@urbanpulse/ui';
 import { describe, expect, it } from 'vitest';
 
-import { GENERIC_ICON, glyphColorOn, iconKeyOf, iconSvg } from './category-icons';
+import { GENERIC_ICON, GLYPH_COLORS, glyphColorOn, iconKeyOf, iconSvg } from './category-icons';
 
 const LIGHTING = 'fd4a9835-80be-4b73-bc9f-a042bed62b61';
 const OTHER = '474f62e6-521a-4958-ba99-e0d46b420233';
@@ -26,14 +26,21 @@ describe('iconKeyOf', () => {
     expect(iconKeyOf('00000000-0000-4000-8000-000000000000', CATEGORIES)).toBe(GENERIC_ICON);
     expect(iconKeyOf(LIGHTING, undefined)).toBe(GENERIC_ICON);
   });
+
+  // A value added to the API after this bundle was built: an open tab still draws the marker.
+  it('is the generic icon for an icon this app has no drawing for', () => {
+    const newer = [{ ...CATEGORIES[0]!, icon: 'GRAFFITI' as unknown as 'WASTE' }];
+    expect(iconKeyOf(LIGHTING, newer)).toBe(GENERIC_ICON);
+  });
 });
 
 describe('glyphColorOn', () => {
   it('draws white on a dark fill and the dark text colour on a light one', () => {
-    expect(glyphColorOn('#1d4ed8')).toBe('#ffffff');
-    expect(glyphColorOn('#000000')).toBe('#ffffff');
-    expect(glyphColorOn('#facc15')).toBe(colors.text);
-    expect(glyphColorOn('#ffffff')).toBe(colors.text);
+    expect(glyphColorOn('#1d4ed8')).toBe('light');
+    expect(glyphColorOn('#000000')).toBe('light');
+    expect(glyphColorOn('#facc15')).toBe('dark');
+    expect(glyphColorOn('#ffffff')).toBe('dark');
+    expect(GLYPH_COLORS).toEqual({ light: '#ffffff', dark: colors.text });
   });
 });
 

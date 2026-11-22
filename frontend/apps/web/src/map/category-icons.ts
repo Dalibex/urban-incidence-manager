@@ -36,14 +36,15 @@ export const ICON_KEYS = Object.keys(DRAWINGS) as IconKey[];
 
 /**
  * The icon of an incident's category. A category the list does not have (an inactive one, or the
- * list could not be loaded) gets the generic icon, so a marker never goes without one.
+ * list could not be loaded), or an icon this app cannot draw yet (a value added to the API after
+ * this bundle was built), gets the generic icon, so a marker never goes without one.
  */
 export function iconKeyOf(
   categoryId: string | null,
   categories: readonly Category[] | undefined,
 ): IconKey {
-  const category = categories?.find(({ id }) => id === categoryId);
-  return category?.icon ?? GENERIC_ICON;
+  const icon = categories?.find(({ id }) => id === categoryId)?.icon;
+  return icon && Object.hasOwn(DRAWINGS, icon) ? icon : GENERIC_ICON;
 }
 
 /** The shapes of a drawing, in a 24 × 24 box, for an inline SVG. */
@@ -76,15 +77,16 @@ export function iconDataUrl(key: IconKey, color: string, size: number): string {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(iconSvg(key, color, size))}`;
 }
 
-const GLYPH_COLORS = ['#ffffff', colors.text] as const;
+/** The two colours an icon is drawn in on a fill: white and the dark text colour. */
+export const GLYPH_COLORS = { light: '#ffffff', dark: colors.text } as const;
 
 /**
  * White or the dark text colour, whichever contrasts more with `background` (WCAG relative
  * luminance), so an icon reads on the colour of any status.
  */
-export function glyphColorOn(background: string): (typeof GLYPH_COLORS)[number] {
-  const [white, dark] = GLYPH_COLORS;
-  return contrast(background, white) >= contrast(background, dark) ? white : dark;
+export function glyphColorOn(background: string): keyof typeof GLYPH_COLORS {
+  const { light, dark } = GLYPH_COLORS;
+  return contrast(background, light) >= contrast(background, dark) ? 'light' : 'dark';
 }
 
 function contrast(a: string, b: string): number {

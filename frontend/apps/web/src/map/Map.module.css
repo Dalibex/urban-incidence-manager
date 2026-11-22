@@ -392,6 +392,38 @@
   text-align: right;
 }
 
+/* A chart with icons (by category): its names, each with its icon, in a column of rows as tall as
+   the bands of the bars, with the plot's margins of 4px (StatisticsChart). */
+.iconChart {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+}
+
+.iconChartNames {
+  display: grid;
+  grid-template-rows: repeat(var(--rows), 1fr);
+  max-width: 12rem;
+  margin: 0;
+  padding: 4px var(--space-xs) 4px 0;
+  list-style: none;
+  font-family: system-ui, sans-serif;
+  font-size: 12px;
+}
+
+.iconChartNames li {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-xs);
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.iconChartNames span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .chartTable .legendIcon {
   margin-right: var(--space-xs);
   vertical-align: -3px;

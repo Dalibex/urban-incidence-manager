@@ -2,10 +2,12 @@ import { INCIDENT_STATUSES } from '@urbanpulse/domain';
 import { statusColor } from '@urbanpulse/ui';
 import { describe, expect, it } from 'vitest';
 
+import { ICON_KEYS } from './category-icons';
 import {
   CLUSTER_COLOR,
   HIGH_BORDER,
   PRIORITY_MARKS,
+  iconImageId,
   markerIconId,
   priorityRank,
   toFeatureCollection,
@@ -44,7 +46,7 @@ describe('toFeatureCollection', () => {
       status: 'REOPENED',
       priorityRank: 0,
       color: statusColor('REOPENED'),
-      icon: markerIconId('GENERIC', statusColor('REOPENED')),
+      icon: 'category-GENERIC-light',
     });
   });
 
@@ -74,6 +76,25 @@ describe('toFeatureCollection', () => {
       'category-STREET_LIGHTING-dark',
       'category-GENERIC-dark',
     ]);
+  });
+});
+
+// The map adds one image per icon and glyph colour (IncidentMap); a marker naming any other image
+// would draw without icon, and the map tests replace the map, so this checks the wiring.
+describe('markerIconId', () => {
+  it('names an image the map adds, for every icon on every status colour', () => {
+    const added = new Set(
+      ICON_KEYS.flatMap((key) =>
+        (['light', 'dark'] as const).map((glyph) => iconImageId(key, glyph)),
+      ),
+    );
+
+    for (const status of INCIDENT_STATUSES) {
+      for (const key of ICON_KEYS) {
+        expect(added).toContain(markerIconId(key, statusColor(status)));
+      }
+    }
+    expect(added.size).toBe(ICON_KEYS.length * 2);
   });
 });
 

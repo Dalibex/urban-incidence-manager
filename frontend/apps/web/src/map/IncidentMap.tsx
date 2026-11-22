@@ -22,12 +22,11 @@ import Map, {
   type MapRef,
 } from 'react-map-gl/maplibre';
 
-import { ICON_KEYS, iconDataUrl } from './category-icons';
+import { GLYPH_COLORS, ICON_KEYS, iconDataUrl } from './category-icons';
 import {
   CLUSTER_COLOR,
   HIGH_BORDER,
   iconImageId,
-  MARKER_GLYPHS,
   PRIORITY_MARKS,
   PRIORITY_RANK,
   toFeatureCollection,
@@ -194,7 +193,7 @@ const iconLayer: LayerProps = {
  * is loaded as one first.
  */
 async function addIconImages(map: MapLibreMap): Promise<void> {
-  const glyphs = Object.entries(MARKER_GLYPHS) as [keyof typeof MARKER_GLYPHS, string][];
+  const glyphs = Object.entries(GLYPH_COLORS) as [keyof typeof GLYPH_COLORS, string][];
   await Promise.all(
     ICON_KEYS.flatMap((key) =>
       glyphs.map(async ([glyph, color]) => {
@@ -303,7 +302,10 @@ export function IncidentMap({
           setBaseMapFailed(false);
           addIconImages(event.target).then(
             () => setIconsReady(true),
-            () => setIconsReady(false),
+            (error: unknown) => {
+              console.warn('The category icons of the map could not be loaded', error);
+              setIconsReady(false);
+            },
           );
         }}
       >
