@@ -89,7 +89,8 @@ Where to look for more:
   containers, the components of the backend, the web app, the mobile app and the database, the
   deployment in development and on a single host, and two dynamic views: sign-in with refresh
   rotation and reporting an incident. See *C4 Model* below.
-- **Decisions:** the [ADRs](adr/). Check each status: 0019, 0024 and 0032 are only *Proposed*.
+- **Decisions:** the [ADRs](adr/). Check each status: 0019, 0024, 0031 and 0032 are only
+  *Proposed*.
 - **API:** the [OpenAPI contract](api/openapi.yml) and the [API guide](api.md).
 - **Deployment:** the [deployment guide](deployment.md).
 - **Data:** the [database guide](database.md) and the [datasets](datasets.md).
@@ -258,8 +259,8 @@ Known limits the team accepts for now. A review does not report them (*Sprint re
 
 ADR-0013, ADR-0014, ADR-0017, ADR-0018, ADR-0020, ADR-0021, ADR-0022 and ADR-0023 state a metric
 and a threshold, and ADR-0016 has thresholds for size and build time ("smooth on a mid-range phone" is
-not measurable yet). ADR-0019, ADR-0024 and ADR-0032 are only *Proposed*, and ADR-0012 is
-superseded by ADR-0022. The accepted ADRs below have no measurable evaluation; the scenario that
+not measurable yet). ADR-0019, ADR-0024, ADR-0031 and ADR-0032 are only *Proposed*, and ADR-0012
+is superseded by ADR-0022. The accepted ADRs below have no measurable evaluation; the scenario that
 would evaluate each one:
 
 | ADR | Scenario that would evaluate it |

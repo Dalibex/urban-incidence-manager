@@ -7,4 +7,8 @@ import { afterEach } from 'vitest';
 configure({ asyncUtilTimeout: 5_000 });
 
 // Testing Library only unmounts automatically when the test runner exposes globals; ours does not.
-afterEach(cleanup);
+// What the app remembers per user (`localStorage`) must not leak from one test into the next.
+afterEach(() => {
+  cleanup();
+  window.localStorage.clear();
+});

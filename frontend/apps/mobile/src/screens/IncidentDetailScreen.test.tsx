@@ -37,6 +37,12 @@ const INCIDENT: Incident = {
     longitude: -4.4214,
     accuracy: 12.5,
     address: 'Calle Larios 12',
+    addressStatus: 'AVAILABLE' as const,
+    addressSource: {
+      name: 'OpenStreetMap',
+      attribution: '© OpenStreetMap contributors',
+      url: 'https://www.openstreetmap.org/copyright',
+    },
     neighborhood: 'Centro Histórico',
     district: 'Centro',
   },
@@ -149,7 +155,14 @@ describe('IncidentDetailScreen', () => {
     mockedGetIncident.mockResolvedValue(
       ok({
         ...INCIDENT,
-        location: { ...INCIDENT.location, address: null, neighborhood: null, district: null },
+        location: {
+          ...INCIDENT.location,
+          address: null,
+          addressStatus: 'UNAVAILABLE',
+          addressSource: null,
+          neighborhood: null,
+          district: null,
+        },
       }),
     );
     await renderScreen();
@@ -157,6 +170,37 @@ describe('IncidentDetailScreen', () => {
     await screen.findByText('Street light off');
     expect(screen.getAllByText('Not available')).toHaveLength(3);
     expect(screen.getByText('36.72130, -4.42140')).toBeOnTheScreen();
+  });
+
+  // #378, T4: the address resolved from the position, with the attribution OpenStreetMap asks for.
+  it('shows the address with its source', async () => {
+    await renderScreen();
+
+    await screen.findByText('Street light off');
+    expect(screen.getByText('Calle Larios 12')).toBeOnTheScreen();
+    expect(screen.getByText('© OpenStreetMap contributors')).toBeOnTheScreen();
+    expect(
+      screen.getByLabelText('Address: Calle Larios 12. © OpenStreetMap contributors'),
+    ).toBeOnTheScreen();
+  });
+
+  // #378, T4: without an address the citizen is told why, and no source is shown.
+  it.each([
+    ['PENDING', 'Looking up the address…'],
+    ['OUTSIDE_AREA', 'No address: the position is outside Málaga'],
+  ] as const)('says why there is no address when it is %s', async (addressStatus, text) => {
+    mockedGetIncident.mockResolvedValue(
+      ok({
+        ...INCIDENT,
+        location: { ...INCIDENT.location, address: null, addressStatus, addressSource: null },
+      }),
+    );
+    await renderScreen();
+
+    await screen.findByText('Street light off');
+    expect(screen.getByText(text)).toBeOnTheScreen();
+    expect(screen.queryByText('© OpenStreetMap contributors')).not.toBeOnTheScreen();
+    expect(screen.queryByText('Calle Larios 12')).not.toBeOnTheScreen();
   });
 
   it('shows only a not found message for an incident the API does not return (#68 T6)', async () => {

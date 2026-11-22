@@ -73,6 +73,8 @@ services:
       WEATHER_ENRICHMENT_BATCH_SIZE: ${WEATHER_ENRICHMENT_BATCH_SIZE:-20}
       OPEN_METEO_TIMEOUT: ${OPEN_METEO_TIMEOUT:-PT2S}
       WEATHER_MAX_DELAY: ${WEATHER_MAX_DELAY:-PT1H}
+      # Address of each incident from Nominatim (#375, docs/deployment.md).
+      ADDRESS_ENRICHMENT_ENABLED: ${ADDRESS_ENRICHMENT_ENABLED:-true}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8080}:8080"
     depends_on:

@@ -6,6 +6,7 @@ import {
   MAP_DEFAULT_FILTERS,
   WORK_QUEUE_DEFAULT_FILTERS,
 } from '../incidents/filters/incident-filters';
+import { rememberedPath } from '../incidents/filters/remembered-filters';
 
 export const PATHS = {
   home: '/',
@@ -78,16 +79,23 @@ export function listReturnPath(state: unknown, list: IncidentList): string {
 /** Navigation state of the sign-in, so it can lead back to the screen that asked for it. */
 export interface SignInReturn {
   returnTo: string;
+  /** Who was signed in when the sign-in was asked for, if anyone: only they return to `returnTo`. */
+  userId?: string;
 }
 
 /**
  * Where the sign-in goes once there is a session: the screen that sent the user to it, with its
  * address (a reload or a link to a filtered inbox, #78 T7), or `/`, which leads to their own screen.
+ * Another user than the one who left goes to their own screen: the address holds the filters of the
+ * first one (#263).
  */
-export function signInReturnPath(state: unknown): string {
-  const returnTo =
-    typeof state === 'object' && state !== null && 'returnTo' in state ? state.returnTo : undefined;
-  return typeof returnTo === 'string' ? returnTo : PATHS.home;
+export function signInReturnPath(state: unknown, userId: string): string {
+  if (typeof state !== 'object' || state === null) {
+    return PATHS.home;
+  }
+  const { returnTo, userId: leftBy } = state as Partial<SignInReturn>;
+  const sameUser = leftBy === undefined || leftBy === userId;
+  return typeof returnTo === 'string' && sameUser ? returnTo : PATHS.home;
 }
 
 /** Path of the detail page of one incident. */
@@ -104,8 +112,19 @@ const LANDING_PATHS: Record<Role, string> = {
   CITIZEN: PATHS.useMobile,
 };
 
-export function landingPath(role: Role): string {
-  return LANDING_PATHS[role];
+/**
+ * Where a role lands. With the user's id, an operator or a technician lands on the filters they
+ * last used on their list, the defaults only the first time (#263).
+ */
+export function landingPath(role: Role, userId?: string): string {
+  const path = LANDING_PATHS[role];
+  if (!userId) {
+    return path;
+  }
+  if (role === 'MUNICIPAL_OPERATOR') {
+    return rememberedPath(PATHS.inbox, 'inbox', userId, path);
+  }
+  return role === 'TECHNICIAN' ? rememberedPath(PATHS.workQueue, 'workQueue', userId, path) : path;
 }
 
 export type RouteAccess = 'allowed' | 'sign-in' | 'forbidden';
