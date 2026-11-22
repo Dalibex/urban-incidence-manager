@@ -1,18 +1,13 @@
 # DD-003 — Evidence in an external image service
 
-The design of #341: where the photos of the incidents are stored once they leave the `evidence_data`
-volume, how access to them stays authorized, and how the existing photos are moved. It proposes
-Cloudinary as a temporary provider and compares it with Cloudflare R2. Its decisions are recorded
-in ADR-0027 (#343) once the client validates them.
-
 | Field | Value |
 | --- | --- |
 | Status | Draft |
 | Authors | AlejandroCuetoDiaz (owner of #342), UrbanPulse team |
-| Date of last revision | 2026-11-21 |
-| Iteration | Sprint 3, *Complete app*: the photos in an external service, as the final delivery requires |
-| Reviewers | Two team members, still to be named; then the client (the lecturers) in class |
-| Links | #341 (feature), #342 (this document), #343 (ADR-0027), #344 (adapter and migration), #345 (tests); [ADR-0013](../adr/0013-evidence-storage.md); [OpenAPI](../api/openapi.yml); [C4 model](../architecture/workspace.dsl) |
+| Date of last revision | 2026-11-22 |
+| Iteration | Sprint 3, *Complete app*: the photos in an external service, as the final delivery requires (#341) |
+| Reviewers | The team, on the pull request of this document; then the client (the lecturers) in class |
+| Links | Issue #342; feature #341; pull request #411; ADR-0027 (#343, not written yet); adapter and migration #344; tests #345; [ADR-0013](../adr/0013-evidence-storage.md); [OpenAPI](../api/openapi.yml); [C4 model](../architecture/workspace.dsl) |
 
 ## 1. Executive summary
 
@@ -29,7 +24,7 @@ while the photos are test data.
 
 ## 2. Context and problem
 
-- **Current verifiable situation.**
+- **Verifiable current situation:**
   - `StorageService` has four methods on whole byte arrays: `put`, `get`, `exists` and `delete`
     ([StorageService.java:14-23](../../backend/src/main/java/es/uma/urbanpulse/shared/storage/StorageService.java)).
     Its only implementation, `LocalFsStorage`, writes files named by a random UUID, and
@@ -54,13 +49,13 @@ while the photos are test data.
   - In the deployment, the backend reaches the internet only through the Squid proxy, which lets
     through a list of hosts ([squid.conf](../../egress-proxy/squid.conf)). Each HTTP client sets the proxy itself;
     there is no JVM-wide proxy.
-- **Problem.**
+- **Problem:**
   - The final delivery requires an external service for the photos (#341).
   - While the photos live in a volume on one host, the backend cannot run a second replica: this is
     ADR-0013's own review trigger.
   - The volume must also be backed up by hand (`docker compose cp`, [deployment.md](../deployment.md),
     *Back Up and Restore*), and `docker compose down -v` deletes every photo.
-- **Motivation.** It is a requirement of the final delivery, due in Sprint 3. ADR-0027 (#343) and the
+- **Motivation:** It is a requirement of the final delivery, due in Sprint 3. ADR-0027 (#343) and the
   implementation (#344) are blocked until the client validates this design.
 
 ## 3. Goals, non-goals and scope
@@ -91,39 +86,39 @@ the error mapping of a provider failure and its contract entry, the configuratio
 Squid allowlist, the migration process, and the documents that describe storage.
 
 **Out of scope:** the database schema (the keys are kept), the clients, the permission rules, and
-the services of the target architecture (DD-001, #328).
+the services of the target architecture (DD-001, #412).
 
 ## 4. Requirements and architectural drivers
 
 | ID | Type | Need or scenario | Acceptance criterion and evidence | Priority |
 | --- | --- | --- | --- | --- |
-| RF05 | Functional | A citizen attaches photos to their report; staff who may see the incident view them | Upload, list and download work against a fake of the provider (#345 T1, T2) and in the demo (T4) | High |
-| RF-FD1 | Functional | The final delivery requires an external service for the photos (#341) | New photos are in the provider and not in the volume (#345 T1) | High |
-| RQ-1 | Security | A user who may not see a photo asks for it, by the API or by a URL found elsewhere | `404` or `401` as today, and no provider URL or key in any response or log (#345 T6) | High |
-| RQ-2 | Availability | The provider refuses connections, times out, answers `5xx` or `429` while a citizen reports | The report is created; the upload fails with a message the app can retry; no metadata row is left (#345 T5) | High |
-| RQ-3 | Durability | The existing photos are moved, and the process is stopped halfway | Every row with a file has it in the provider with the same SHA-256; running it again finishes the work and changes nothing else (#345 T3) | High |
-| RQ-4 | Performance | A phone uploads a 5 MB photo on the demo LAN | ADR-0013's accepted metric, p95 under 3 s, measured again with the provider in #344. It is a proposal to keep that threshold, not a measured fact (H-4) | Medium |
-| RQ-5 | Performance | Staff open a photo in the web on the demo LAN | p95 of `GET /attachments/{id}/content` measured with the provider in #344 and recorded for DD-006 (#363). No threshold exists yet; the client may set one from that measurement | Medium |
-| RC-1 | Constraint | Zero infrastructure cost (ADR-0013, context) | The Free plan covers storage and traffic (R-3) | High |
-| RC-2 | Constraint | Credentials only in the environment, never in the bundles; the account is created by a team member, not an agent (#341, #342) | Review of `.env.example`, `docs/deployment.md` and the bundles | High |
-| RC-3 | Constraint | The backend leaves only through the Squid allowlist ([squid.conf](../../egress-proxy/squid.conf)) | The provider's hosts are added to the list and checked in CI | High |
-| RC-4 | Constraint | The provider is temporary; S3 is expected later (Q-1) | Nothing outside the new class depends on the provider (G6) | Medium |
-| RC-5 | Constraint | The photos may show faces, plates and positions: personal data under the GDPR | Data location and terms recorded (R-1) | High |
+| FR-1 | Functional | RF05: a citizen attaches photos to their report; staff who may see the incident view them | Upload, list and download work against a fake of the provider (#345 T1, T2) and in the demo (T4) | High |
+| FR-2 | Functional | The final delivery requires an external service for the photos (#341) | New photos are in the provider and not in the volume (#345 T1) | High |
+| QR-1 | Security | A user who may not see a photo asks for it, by the API or by a URL found elsewhere | `404` or `401` as today, and no provider URL or key in any response or log (#345 T6) | High |
+| QR-2 | Availability | The provider refuses connections, times out, answers `5xx` or `429` while a citizen reports | The report is created; the upload fails with a message the app can retry; no metadata row is left (#345 T5) | High |
+| QR-3 | Durability | The existing photos are moved, and the process is stopped halfway | Every row with a file has it in the provider with the same SHA-256; running it again finishes the work and changes nothing else (#345 T3) | High |
+| QR-4 | Performance | A phone uploads a 5 MB photo on the demo LAN | ADR-0013's accepted metric, p95 under 3 s, measured again with the provider in #344. It is a proposal to keep that threshold, not a measured fact (H-4) | Medium |
+| QR-5 | Performance | Staff open a photo in the web on the demo LAN | p95 of `GET /attachments/{id}/content` measured with the provider in #344 and recorded for DD-006 (#363). No threshold exists yet; the client may set one from that measurement | Medium |
+| CR-1 | Constraint | Zero infrastructure cost (ADR-0013, context) | The Free plan covers storage and traffic (R-3) | High |
+| CR-2 | Constraint | Credentials only in the environment, never in the bundles; the account is created by a team member, not an agent (#341, #342) | Review of `.env.example`, `docs/deployment.md` and the bundles | High |
+| CR-3 | Constraint | The backend leaves only through the Squid allowlist ([squid.conf](../../egress-proxy/squid.conf)) | The provider's hosts are added to the list and checked in CI | High |
+| CR-4 | Constraint | The provider is temporary; S3 is expected later (Q-1) | Nothing outside the new class depends on the provider (G6) | Medium |
+| CR-5 | Constraint | The photos may show faces, plates and positions: personal data under the GDPR | Data location and terms recorded (R-1) | High |
 
 ## 5. Current architecture and dependencies
 
-- **C4 context and containers.** The model is [workspace.dsl](../architecture/workspace.dsl). It
+- **C4 context and containers:** The model is [workspace.dsl](../architecture/workspace.dsl). It
   draws the storage as the container `evidence_storage` ("S3-compatible storage later") and the
   volume as the deployment node `evidence_data`.
-- **Current flow.**
+- **Current flow:**
   - The mobile app posts the photo (resized to 1920 px, JPEG) to
     `POST /api/v1/incidents/{id}/attachments`.
   - The backend validates it, writes it to the volume and inserts the row.
   - The web app reads it through `GET /api/v1/attachments/{id}/content`, which checks the permission
     and streams the bytes.
-- **Dependencies and constraints.**
+- **Dependencies and constraints:**
   - PostgreSQL holds the metadata, the key and the SHA-256 (`attachment`, migrations V3, V9 and V13).
-  - The egress proxy (RC-3) and the photo limit with its row lock (#275).
+  - The egress proxy (CR-3) and the photo limit with its row lock (#275).
   - The retries between components are to be decided by ADR-0026 (#330), which is not written yet.
   - The numeric keys of #369 come before #344; the storage key is a separate column and is not
     affected.
@@ -169,7 +164,7 @@ now.
 
 | Alternative | Description | Advantages | Drawbacks and risks | Available evidence |
 | --- | --- | --- | --- | --- |
-| X. The backend streams the file | As today: check the permission, read the file from the provider, send the bytes | No contract or client change (G3). No URL reaches anyone (RQ-1). Works the same with any provider (G6) | Every view goes through the backend: one more round trip, to a provider in the US, before the first byte. The provider's CDN cache is not used, so each view is one transfer from the provider, as with Y; the leg from the backend to the client is the host's own traffic. The whole file is held in memory, at most 10 MB, as today | The current code ([EvidenceService.java:230-240](../../backend/src/main/java/es/uma/urbanpulse/incidents/service/EvidenceService.java)) |
+| X. The backend streams the file | As today: check the permission, read the file from the provider, send the bytes | No contract or client change (G3). No URL reaches anyone (QR-1). Works the same with any provider (G6) | Every view goes through the backend: one more round trip, to a provider in the US, before the first byte. The provider's CDN cache is not used, so each view is one transfer from the provider, as with Y; the leg from the backend to the client is the host's own traffic. The whole file is held in memory, at most 10 MB, as today | The current code ([EvidenceService.java:230-240](../../backend/src/main/java/es/uma/urbanpulse/incidents/service/EvidenceService.java)) |
 | Y. Redirect to a short-lived signed URL | Check the permission, then answer `302` to a provider URL valid for a few minutes | No bytes through the backend; provider caching | On Cloudinary Free a signed URL **never expires**: a leaked URL works forever. An expiring one needs the paid Advanced plan, or `private_download_url`, which costs twice the bandwidth and is not cached. Changes the contract and both clients. Anyone holding the URL can use it until it expires | Cloudinary access-control docs; R2 and S3 presigned URLs (up to 7 days) |
 | Z. Public delivery with an unguessable name | Upload as a public asset with a random name | Simplest | A permanent public URL as access control, which [AGENTS.md](../../AGENTS.md), section 8, forbids | — |
 
@@ -179,7 +174,7 @@ now.
   later change cheap.
 - Its cost, more latency and traffic through the backend, is small for photos of at most 10 MB seen
   by a few staff members.
-- The latency is measured in RQ-5. If it or the traffic ever matters, Y can be added behind the same
+- The latency is measured in QR-5. If it or the traffic ever matters, Y can be added behind the same
   endpoint with an expiring provider (R2 or S3).
 
 ### 6.3. Files left without a row
@@ -232,8 +227,9 @@ now.
     not see.
   - `409 ATTACHMENT_NOT_ALLOWED` for a citizen once the incident has left `REPORTED`.
   - `413` for size, and `422` for an empty file, a wrong type or too many photos.
-  - #341, #344 and #345 mention `415`, which the API has never answered (Q-3). Open PR #409
-    proposes `400` for a malformed multipart body; it does not depend on the storage.
+  - `400 MALFORMED_REQUEST` for a malformed multipart body (#409), which does not depend on the
+    storage.
+  - #341, #344 and #345 mention `415`, which the API has never answered (Q-3).
 - **`StorageService`:** keeps its four methods and their meaning, and gains **one**:
   - `put(key, content)` stores the content under a key that a `StorageService` generated earlier.
   - It accepts only keys in the form the storage generates (a canonical UUID), so a key still never
@@ -266,7 +262,7 @@ now.
     row's key in its own transaction. It works too, but every move and every rollback then rewrites
     the keys, and a crash between the copy and the update leaves a file the cleanup must find. #344
     is updated to follow whichever ADR-0027 accepts.
-- **Ownership:** the backend is the only writer and reader; the account belongs to the team (RC-2).
+- **Ownership:** the backend is the only writer and reader; the account belongs to the team (CR-2).
 - **Consistency:** a row exists only if its file was stored (today's order, kept). A file without a
   row is cleaned by O1.
 - **Retention:** as today, photos are not deleted while their incident exists; the database stays
@@ -293,7 +289,7 @@ now.
   - It follows ADR-0026 (#330) once that is accepted.
 - **What the citizen sees with the provider down:**
   - Creating the report never touches the provider: the photos are separate requests, so the
-    report is created and only the photos fail (RQ-2).
+    report is created and only the photos fail (QR-2).
   - A provider that refuses connections fails at once. A provider that does not answer costs each
     of the app's three attempts its total timeout: with the starting values, about 15 s × 3 plus the
     1 s and 3 s pauses, close to 50 s of waiting before the failure message.
@@ -320,7 +316,7 @@ now.
   - The backend stops during an upload: the same cases as today (section 2). There is no row
     without a file, and a file without a row is removed by the cleanup.
   - The mobile app closes during an upload: no row is written, as today.
-  - The migration stops: running it again resumes it (RQ-3).
+  - The migration stops: running it again resumes it (QR-3).
 - **A file the backend accepts but the provider refuses:** for example an image over Cloudinary's
   25-megapixel limit that is still under 10 MB. It answers `422` with a field error on `file`
   rather than `503`, and nothing is stored (Q-7).
@@ -340,7 +336,7 @@ now.
   - One variable with the key and secret (`CLOUDINARY_URL`, a name to confirm in #344). It lives in
     the host's `.env` only: listed empty in `.env.example` and marked as a secret in
     [deployment.md](../deployment.md).
-  - Never in a `VITE_*` or `EXPO_PUBLIC_*` variable, so never in a bundle (RC-2).
+  - Never in a `VITE_*` or `EXPO_PUBLIC_*` variable, so never in a bundle (CR-2).
 - **The account:**
   - Created by a team member, not by an agent, used only for UrbanPulse, with multi-factor sign-in.
   - Its secret is rotated if it ever leaks. Because the secret can do anything in the account
@@ -391,7 +387,7 @@ now.
 
 ## 8. Decisions and trade-offs
 
-| Proposed decision | Benefit | Cost or consequence | Requires an ADR? |
+| Proposed decision | Benefit | Cost or consequence | Needs an ADR? |
 | --- | --- | --- | --- |
 | Cloudinary Free as a temporary provider (6.1) | Meets the requirement with the service the lecturers named, at no cost, with its own format and size checks | Data in the US and an account-wide secret: test photos only. An adapter thrown away at the move to S3 | Yes, ADR-0027 (#343), which supersedes ADR-0013 |
 | The backend streams the photos (6.2) | No contract or client change; no URL leaves the backend; works with any provider | One more round trip per view, and no provider CDN cache | Yes, in ADR-0027 |
@@ -452,22 +448,22 @@ document is a decision until ADR-0027 is accepted.
 by a team member.
 
 **Impact on earlier versions:** none for the clients, unless Q-2 adds one error code and its mobile
-message. The database is unchanged. The ADR-0013 metric is measured again (RQ-4).
+message. The database is unchanged. The ADR-0013 metric is measured again (QR-4).
 
 ## 10. Verification and evaluation strategy
 
 | Requirement | Test or experiment | Environment and data | Metric or threshold | Expected evidence |
 | --- | --- | --- | --- | --- |
-| RF05, RF-FD1 | #345 T1, T2 | Testcontainers PostgreSQL and a fake HTTP Cloudinary | Upload stored, download after the permission check | CI test |
-| RQ-1 | #345 T6; a log assertion | Same | `404`/`401`; no `res.cloudinary.com` or signature in responses or logs | CI test |
-| RQ-2 | #345 T5 with connection refused, timeout, `503` and `429` from the fake | Same | Report created; the upload fails (`503 STORAGE_UNAVAILABLE` if Q-2 is accepted); no row | CI test |
+| FR-1, FR-2 | #345 T1, T2 | Testcontainers PostgreSQL and a fake HTTP Cloudinary | Upload stored, download after the permission check | CI test |
+| QR-1 | #345 T6; a log assertion | Same | `404`/`401`; no `res.cloudinary.com` or signature in responses or logs | CI test |
+| QR-2 | #345 T5 with connection refused, timeout, `503` and `429` from the fake | Same | Report created; the upload fails (`503 STORAGE_UNAVAILABLE` if Q-2 is accepted); no row | CI test |
 | Error mapping (7.2) | The fake answers `401` and a file refusal | Same | `500` logged as an error; `422` on `file` | CI test |
-| RQ-3 | #345 T3, plus stopping the process halfway and running it again | Same, with a volume of photos | Every SHA-256 matches; a second run copies nothing | CI test |
+| QR-3 | #345 T3, plus stopping the process halfway and running it again | Same, with a volume of photos | Every SHA-256 matches; a second run copies nothing | CI test |
 | Limit #275 | #345 T8 | Same | The limit holds | CI test |
-| RQ-4 | Timed uploads of a 5 MB photo from a phone, at least 20 runs | Deployment on the demo LAN with the real Cloudinary account | p95 under 3 s (proposal) | Measurement in the #344 PR |
-| RQ-5 | Timed downloads of the same photo from the web, at least 20 runs | Same | p95 recorded, no threshold yet | Measurement in the #344 PR |
+| QR-4 | Timed uploads of a 5 MB photo from a phone, at least 20 runs | Deployment on the demo LAN with the real Cloudinary account | p95 under 3 s (proposal) | Measurement in the #344 PR |
+| QR-5 | Timed downloads of the same photo from the web, at least 20 runs | Same | p95 recorded, no threshold yet | Measurement in the #344 PR |
 | Demo | #345 T4 | Deployment, real account, test photo | The photo shows in the web | Manual evidence in the #344 PR |
-| RC-3 | Squid log while uploading and viewing a photo | Deployment | Only the two hosts used | Manual evidence |
+| CR-3 | Squid log while uploading and viewing a photo | Deployment | Only the two hosts used | Manual evidence |
 
 **What only the real cloud can show:** the latency from the demo LAN to Cloudinary, the hosts and
 the proxy actually used, that the original is returned byte for byte (H-5), and credit consumption.
@@ -480,7 +476,7 @@ the proxy actually used, that the original is returned byte for byte (H-5), and 
 | H-1 | Hypothesis | `api.cloudinary.com` and `res.cloudinary.com` are the only hosts the backend needs | Calls blocked by Squid | Check the Squid log in #344 |
 | H-2 | Hypothesis | The Cloudinary Java SDK takes an explicit proxy (its source sets a proxy host and port from its configuration) | No route out | Check in #344; otherwise a thin HTTP client of our own |
 | H-3 | Hypothesis | The mobile app's re-encoding drops the EXIF block with the position | Positions sent to a third party | Inspect an uploaded photo in #344; feeds Q-4 |
-| H-4 | Hypothesis | Uploading to a provider in the US stays within ADR-0013's p95 of 3 s for 5 MB | Slower uploads for citizens | Measure in #344 (RQ-4) |
+| H-4 | Hypothesis | Uploading to a provider in the US stays within ADR-0013's p95 of 3 s for 5 MB | Slower uploads for citizens | Measure in #344 (QR-4) |
 | H-5 | Hypothesis | Delivering the original with no transformation returns the uploaded bytes unchanged | The SHA-256 check of the migration fails | The migration verifies it on every photo |
 | R-1 | Risk | Photos stored in the US under Free-plan terms (GDPR) | Personal data outside the EU | Test photos only while on Cloudinary Free; move to the EU (S3 or R2) before real data |
 | R-2 | Risk | The single API secret can read and delete everything | A leak exposes or destroys every photo | A dedicated account with MFA; secret only in `.env`, never logged; rotate on a leak |
@@ -499,10 +495,11 @@ the proxy actually used, that the original is returned byte for byte (H-5), and 
 
 ## 12. Review and result
 
-- **Review comments:** pending; two team members review first.
-- **Resolution:** pending: to be presented to the client in class. Record here the date, the
-  comments and the result.
-- **Recorded decisions:** ADR-0027 (#343), once accepted.
+- **Review comments:** pending. The team reviews it on its pull request (#411), then presents it to
+  the client in class.
+- **Resolution:** pending. Record here the date of the class, the client's comments and the result.
+- **Recorded decisions:** filled in once the ADRs exist; ADR-0027 (#343) is expected to name this
+  document.
 - **Differences observed after implementing:** none yet.
 
 ## Approval checklist
