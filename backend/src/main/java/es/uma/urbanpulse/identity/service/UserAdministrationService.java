@@ -27,6 +27,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -52,6 +54,7 @@ public class UserAdministrationService {
     private final Validator validator;
     private final TransactionTemplate transactions;
     private final MfaChallengeRepository challenges;
+    private final MfaService mfa;
     private final Clock clock;
 
     UserAdministrationService(
@@ -62,6 +65,7 @@ public class UserAdministrationService {
             Validator validator,
             PlatformTransactionManager transactionManager,
             MfaChallengeRepository challenges,
+            MfaService mfa,
             Clock clock) {
         this.users = users;
         this.passwordEncoder = passwordEncoder;
@@ -70,6 +74,7 @@ public class UserAdministrationService {
         this.validator = validator;
         this.transactions = new TransactionTemplate(transactionManager);
         this.challenges = challenges;
+        this.mfa = mfa;
         this.clock = clock;
     }
 
@@ -221,8 +226,9 @@ public class UserAdministrationService {
     /**
      * Removes the second factor of a user who lost their phone (#57, ADR-0021): clears the secret,
      * spends every open sign-in challenge, revokes every refresh token and records {@code
-     * RESET_MFA} with the reason, in one transaction. The user enrols again at the next sign-in. A
-     * user without a second factor is left as it is, and nothing is recorded.
+     * RESET_MFA} with the reason, in one transaction. Once it commits, the account gets back its
+     * wrong-code attempts. The user enrols again at the next sign-in. A user without a second
+     * factor is left as it is, and nothing is recorded.
      *
      * <p>The user row is locked first, like {@link #update}, so a verification of a code that runs
      * at the same time either finishes before or finds the secret gone.
@@ -251,6 +257,14 @@ public class UserAdministrationService {
                 AuditTarget.user(userId),
                 Map.of(),
                 Map.of(REASON, Texts.strip(request.reason())));
+        // After the commit: a reset that rolls back leaves the limit as it was.
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        mfa.restoreCodeAttempts(userId);
+                    }
+                });
     }
 
     /**

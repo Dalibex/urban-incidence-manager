@@ -12,6 +12,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.OptionalLong;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -79,7 +80,7 @@ public class MfaService {
             throw new MfaAlreadyEnrolledException();
         }
         var secret = codes.newSecret();
-        challenge.setPendingSecret(cipher.encrypt(secret));
+        challenge.setPendingSecret(cipher.encrypt(secret, user.getId()));
         return new MfaEnrollmentResponse(
                 MfaCodes.otpauthUri(properties.issuer(), user.getEmail(), secret),
                 MfaCodes.base32(secret));
@@ -133,7 +134,9 @@ public class MfaService {
                 storedSecret == null
                         ? OptionalLong.empty()
                         : codes.acceptedStep(
-                                cipher.decrypt(storedSecret), code, user.getMfaLastTimeStep());
+                                cipher.decrypt(storedSecret, user.getId()),
+                                code,
+                                user.getMfaLastTimeStep());
         if (step.isEmpty()) {
             challenge.setFailedAttempts(challenge.getFailedAttempts() + 1);
             if (challenge.getFailedAttempts() >= properties.codeAttemptsPerChallenge()) {
@@ -158,6 +161,15 @@ public class MfaService {
         }
         user.setMfaLastTimeStep(step.getAsLong());
         return sessions.openSession(user, true);
+    }
+
+    /**
+     * Gives the account back all its wrong-code attempts, once a reset of its second factor is
+     * committed ({@link UserAdministrationService#resetMfa}): the first code of the new enrolment
+     * must not wait for the attempts spent on the lost phone.
+     */
+    void restoreCodeAttempts(UUID userId) {
+        limiter.reset(userId.toString());
     }
 
     private LockedChallenge lock(String challengeToken) {

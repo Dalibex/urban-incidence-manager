@@ -8,13 +8,17 @@ import es.uma.urbanpulse.identity.service.AccountSecurityProperties.AttemptLimit
 import java.time.Duration;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Configuration;
 
+@ExtendWith(OutputCaptureExtension.class)
 class MfaPropertiesTest {
 
     // Base64 of 32 bytes, of 31 bytes and of 33 bytes.
@@ -91,6 +95,43 @@ class MfaPropertiesTest {
                         context ->
                                 assertThat(context.getBean(MfaProperties.class).requiredRoles())
                                         .containsExactlyInAnyOrder(Role.TECHNICIAN, Role.ANALYST));
+    }
+
+    @Test
+    void doesNotStartWithCitizenAmongTheRoles() {
+        runner.withPropertyValues(
+                        "urbanpulse.security.mfa.encryption-key=" + KEY,
+                        "urbanpulse.security.mfa.required-roles=TECHNICIAN,CITIZEN")
+                .run(
+                        context ->
+                                assertThat(context)
+                                        .hasFailed()
+                                        .getFailure()
+                                        .rootCause()
+                                        .hasMessageContaining("must not include CITIZEN")
+                                        .hasMessageContaining("mobile app"));
+    }
+
+    @Test
+    void warnsAtStartWhenNoRoleNeedsTheSecondFactor(CapturedOutput output) {
+        runner.withPropertyValues(
+                        "urbanpulse.security.mfa.encryption-key=" + KEY,
+                        "urbanpulse.security.mfa.required-roles=")
+                .run(context -> assertThat(context).hasNotFailed());
+
+        assertThat(output)
+                .containsOnlyOnce(
+                        "MFA_REQUIRED_ROLES is empty: no sign-in asks for a second factor");
+    }
+
+    @Test
+    void doesNotWarnWhenARoleNeedsTheSecondFactor(CapturedOutput output) {
+        runner.withPropertyValues(
+                        "urbanpulse.security.mfa.encryption-key=" + KEY,
+                        "urbanpulse.security.mfa.required-roles=TECHNICIAN")
+                .run(context -> assertThat(context).hasNotFailed());
+
+        assertThat(output).doesNotContain("MFA_REQUIRED_ROLES is empty");
     }
 
     private static MfaProperties properties(String key) {

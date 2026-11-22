@@ -87,9 +87,9 @@ public class SessionService {
      * user (#125). Both revocations are kept although the request fails, and the answer is the same
      * {@code 401} as for an unknown token.
      *
-     * <p>A role in {@code MFA_REQUIRED_ROLES} also loses every session when the token was not
-     * opened with a code of the second factor (#57, ADR-0021), so no refresh issues it tokens
-     * without one.
+     * <p>A role in {@code MFA_REQUIRED_ROLES} cannot refresh a token that was not opened with a
+     * code of the second factor (#57, ADR-0021), so no refresh issues it tokens without one. Only
+     * that token ends: it is no sign of theft, and the sessions opened with a code keep working.
      *
      * <p>Revoking every session also makes those tokens expire ({@link
      * RefreshTokenRepository#endAll}), so a token revoked by a password change or a disabled
@@ -131,11 +131,14 @@ public class SessionService {
             // Opened before #57 or before a change of role or of MFA_REQUIRED_ROLES: a sign-in
             // with a code is the only way back (ADR-0021).
             log.warn(
-                    "Refresh of session {} opened without the second factor: revoking every"
-                            + " session of user {}",
+                    "Refresh of session {} of user {} opened without the second factor: ending"
+                            + " that session",
                     token.getId(),
                     user.getId());
-            refreshTokens.endAll(user.getId(), now);
+            // Revoked and expired, like endAll does, so presenting it again is only refused and
+            // never taken for a reuse that ends every session (#275).
+            token.setRevokedAt(now);
+            token.setExpiresAt(now);
             throw new InvalidRefreshTokenException();
         }
         token.setRevokedAt(now);

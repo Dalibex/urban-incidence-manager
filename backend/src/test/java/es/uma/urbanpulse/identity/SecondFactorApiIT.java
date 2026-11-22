@@ -14,6 +14,7 @@ import es.uma.urbanpulse.ApiContract;
 import es.uma.urbanpulse.TestcontainersConfiguration;
 import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.identity.service.MfaProperties;
+import es.uma.urbanpulse.identity.service.RefreshTokenCleanup;
 import es.uma.urbanpulse.shared.security.TestTokens;
 import java.io.ByteArrayOutputStream;
 import java.time.Clock;
@@ -33,11 +34,13 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.stream.Stream;
 import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -96,6 +99,7 @@ class SecondFactorApiIT {
     private static final String ENROLLMENTS = "/api/v1/mfa-enrollments";
     private static final String VERIFICATIONS = "/api/v1/mfa-verifications";
     private static final String USERS = "/api/v1/users";
+    private static final String PASSWORD_CHANGES = "/api/v1/password-changes";
 
     private static final String PASSWORD = "Correct-Horse-Battery-9";
     private static final Duration STEP = Duration.ofSeconds(30);
@@ -122,6 +126,7 @@ class SecondFactorApiIT {
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private MfaProperties mfaProperties;
     @Autowired private FrozenClock clock;
+    @Autowired private RefreshTokenCleanup cleanup;
 
     @BeforeEach
     void freezeTheClockInTheMiddleOfAStep() {
@@ -580,6 +585,88 @@ class SecondFactorApiIT {
                 verify(challenge, codeAt(enrolled.secret(), 0)), 401, "INVALID_MFA_CHALLENGE");
     }
 
+    // T7: a reset gives the account its wrong-code attempts back, so the first code of the new
+    // phone is not rate limited by the codes tried before.
+    @Test
+    void aResetGivesTheAccountItsCodeAttemptsBack() throws Exception {
+        // Arrange
+        var enrolled = enrolled(Role.TECHNICIAN);
+        var administrator = account(Role.ADMINISTRATOR);
+        for (var i = 0; i < WRONG_CODES_PER_ACCOUNT / WRONG_CODES_PER_CHALLENGE; i++) {
+            sendWrongCodes(
+                    challenge(enrolled.email()), enrolled.secret(), WRONG_CODES_PER_CHALLENGE);
+        }
+        expectProblem(
+                verify(challenge(enrolled.email()), codeAt(enrolled.secret(), 0)),
+                429,
+                "TOO_MANY_ATTEMPTS");
+        reset(enrolled.id(), "Lost phone", administrator.id()).andExpect(status().isNoContent());
+        var challenge = challenge(enrolled.email());
+        var newSecret = secretOf(enroll(challenge).andExpect(status().isCreated()));
+
+        // Act
+        var result = verify(challenge, codeAt(newSecret, 0));
+
+        // Assert
+        result.andExpect(status().isCreated()).andExpect(jsonPath("$.accessToken").isNotEmpty());
+    }
+
+    // T7: administrators may reset their own second factor: their sessions end, and the entry
+    // names them as the actor and the target.
+    @Test
+    void anAdministratorResetsTheirOwnSecondFactor() throws Exception {
+        // Arrange
+        var administrator = enrolled(Role.ADMINISTRATOR);
+
+        // Act
+        var result = reset(administrator.id(), "Lost phone", administrator.id());
+
+        // Assert
+        result.andExpect(status().isNoContent());
+        assertThat(storedSecret(administrator.id())).isNull();
+        assertThat(activeRefreshTokens(administrator.id())).isZero();
+        var entries =
+                jdbc.queryForList(
+                        "SELECT actor_id FROM audit_log WHERE target_id = ? AND action = 'RESET_MFA'",
+                        administrator.id());
+        assertThat(entries).hasSize(1);
+        assertThat(entries.getFirst().get("actor_id")).isEqualTo(administrator.id());
+    }
+
+    // The reason is validated like every stored text: missing, blank, over 500 characters or with
+    // U+0000 is 422 on the field, and nothing changes.
+    @ParameterizedTest
+    @MethodSource("invalidResetBodies")
+    void aResetWithAnInvalidReasonIsRefused(String body) throws Exception {
+        // Arrange
+        var enrolled = enrolled(Role.TECHNICIAN);
+        var administrator = account(Role.ADMINISTRATOR);
+
+        // Act
+        var result =
+                mvc.perform(
+                        post(USERS + "/" + enrolled.id() + "/mfa-resets")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(body)
+                                .header(
+                                        HttpHeaders.AUTHORIZATION,
+                                        tokens.bearer(administrator.id(), Role.ADMINISTRATOR)));
+
+        // Assert
+        expectFieldError(result, "reason");
+        assertThat(storedSecret(enrolled.id())).isNotNull();
+        assertThat(auditActions(enrolled.id())).doesNotContain("RESET_MFA");
+    }
+
+    static Stream<String> invalidResetBodies() {
+        // The last one holds the JSON escape of U+0000, which the server reads as that character.
+        return Stream.of(
+                "{}",
+                "{\"reason\":\"   \"}",
+                "{\"reason\":\"%s\"}".formatted("a".repeat(501)),
+                "{\"reason\":\"Lost\\u0000phone\"}");
+    }
+
     // T7 (and the API side of T2): after a reset the user enrols again, and the codes of the old
     // secret no longer work.
     @Test
@@ -769,6 +856,84 @@ class SecondFactorApiIT {
         assertThat(storedSecret(account.id())).isNull();
     }
 
+    // A code that is not six digits is 422 on the field, and does not count as a wrong code.
+    @ParameterizedTest
+    @ValueSource(strings = {"12345", "12a456"})
+    void aCodeThatIsNotSixDigitsIsRefused(String code) throws Exception {
+        // Arrange
+        var enrolled = enrolled(Role.TECHNICIAN);
+        var challenge = challenge(enrolled.email());
+
+        // Act
+        var result = verify(challenge, code);
+
+        // Assert
+        expectFieldError(result, "code");
+        assertThat(failedAttempts(challenge)).isZero();
+    }
+
+    // A challenge token over 200 characters is 422 on the field, in the verification.
+    @Test
+    void aVerificationWithATooLongChallengeTokenIsRefused() throws Exception {
+        // Act
+        var result = verify("t".repeat(201), "123456");
+
+        // Assert
+        expectFieldError(result, "challengeToken");
+    }
+
+    // And in the enrolment.
+    @Test
+    void anEnrolmentWithATooLongChallengeTokenIsRefused() throws Exception {
+        // Act
+        var result = enroll("t".repeat(201));
+
+        // Assert
+        expectFieldError(result, "challengeToken");
+    }
+
+    // A password change spends the open challenges: one opened with the old password must not
+    // finish a sign-in.
+    @Test
+    void aPasswordChangeSpendsTheOpenChallenges() throws Exception {
+        // Arrange
+        var enrolled = enrolled(Role.MUNICIPAL_OPERATOR);
+        var challenge = challenge(enrolled.email());
+        mvc.perform(
+                        post(PASSWORD_CHANGES)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        "{\"email\":\"%s\",\"currentPassword\":\"%s\",\"newPassword\":\"%s\"}"
+                                                .formatted(
+                                                        enrolled.email(),
+                                                        PASSWORD,
+                                                        "Another-Horse-Battery-7")))
+                .andExpect(status().isNoContent());
+
+        // Act
+        var result = verify(challenge, codeAt(enrolled.secret(), 0));
+
+        // Assert
+        expectProblem(result, 401, "INVALID_MFA_CHALLENGE");
+    }
+
+    // The daily clean-up deletes the challenges that expired, and keeps the open ones.
+    @Test
+    void theDailyCleanupDeletesTheExpiredChallenges() throws Exception {
+        // Arrange
+        var account = account(Role.ANALYST);
+        var expired = challenge(account.email());
+        clock.advance(mfaProperties.challengeTtl().plusSeconds(1));
+        var open = challenge(account.email());
+
+        // Act
+        cleanup.deleteExpiredTokens();
+
+        // Assert
+        assertThat(isStored(expired)).isFalse();
+        assertThat(isStored(open)).isTrue();
+    }
+
     // --- T11 and the account checked again between the steps -------------------------------------
 
     // T11: of several verifications at once of one challenge with a valid code, only one gets the
@@ -877,12 +1042,11 @@ class SecondFactorApiIT {
                 .andExpect(jsonPath("$.refreshToken").isNotEmpty());
     }
 
-    // A staff session without the second factor (one opened before #57) is refused, and every
-    // session of the user ends, the one opened with a code too. Such a session cannot be opened
-    // through the API in this context, so it is inserted.
+    // A staff session without the second factor (one opened before #57) is refused and ends. It
+    // is no sign of theft, so the session opened with a code (another tab) keeps working. Such a
+    // session cannot be opened through the API in this context, so it is inserted.
     @Test
-    void aStaffSessionWithoutTheSecondFactorCannotBeRefreshedAndEndsEverySession()
-            throws Exception {
+    void aStaffSessionWithoutTheSecondFactorCannotBeRefreshed() throws Exception {
         // Arrange
         var enrolled = enrolled(Role.TECHNICIAN);
         var withoutCode = insertSessionWithoutSecondFactor(enrolled.id());
@@ -893,7 +1057,26 @@ class SecondFactorApiIT {
         // Assert
         expectProblem(result, 401, "INVALID_REFRESH_TOKEN")
                 .andExpect(jsonPath("$.accessToken").doesNotExist());
-        assertThat(activeRefreshTokens(enrolled.id())).isZero();
+        assertThat(activeRefreshTokens(enrolled.id())).isEqualTo(1);
+        refresh(enrolled.refreshToken()).andExpect(status().isOk());
+    }
+
+    // Presenting that session again is refused once more, and is not taken for the reuse of a
+    // stolen token, which would end the session opened with a code.
+    @Test
+    void aStaffSessionWithoutTheSecondFactorPresentedAgainLeavesTheOtherSessions()
+            throws Exception {
+        // Arrange
+        var enrolled = enrolled(Role.TECHNICIAN);
+        var withoutCode = insertSessionWithoutSecondFactor(enrolled.id());
+        expectProblem(refresh(withoutCode), 401, "INVALID_REFRESH_TOKEN");
+
+        // Act
+        var result = refresh(withoutCode);
+
+        // Assert
+        expectProblem(result, 401, "INVALID_REFRESH_TOKEN");
+        refresh(enrolled.refreshToken()).andExpect(status().isOk());
     }
 
     // A session opened when the role did not need the second factor is refused at the next
@@ -1113,6 +1296,12 @@ class SecondFactorApiIT {
                 .andExpect(jsonPath("$.code").value(code));
     }
 
+    private static ResultActions expectFieldError(ResultActions result, String field)
+            throws Exception {
+        return expectProblem(result, 422, "VALIDATION_FAILED")
+                .andExpect(jsonPath("$.errors[?(@.field == '%s')]".formatted(field)).exists());
+    }
+
     private static String text(ResultActions result) throws Exception {
         return result.andReturn().getResponse().getContentAsString();
     }
@@ -1148,6 +1337,21 @@ class SecondFactorApiIT {
                 "SELECT spent_at IS NOT NULL FROM mfa_challenges" + WHERE_TOKEN,
                 Boolean.class,
                 challengeToken);
+    }
+
+    private int failedAttempts(String challengeToken) {
+        return jdbc.queryForObject(
+                "SELECT failed_attempts FROM mfa_challenges" + WHERE_TOKEN,
+                Integer.class,
+                challengeToken);
+    }
+
+    private boolean isStored(String challengeToken) {
+        return jdbc.queryForObject(
+                        "SELECT count(*) FROM mfa_challenges" + WHERE_TOKEN,
+                        Integer.class,
+                        challengeToken)
+                == 1;
     }
 
     private List<String> auditActions(UUID target) {
