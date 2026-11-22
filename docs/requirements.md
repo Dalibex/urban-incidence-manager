@@ -70,7 +70,7 @@ in which milestone, is in GitHub, not here.
 | --- | --- | --- | --- | --- |
 | RF05 | **Evidence.** Photos or other files, with type and size validation. | Yes | #44 (ADR-0013; #192 API, #193 mobile, #194 web) | The photos in an external image service ([final delivery](#-final-delivery)). Planned: #341. Replaces the local volume of ADR-0013. |
 | RF07 | **Search.** Staff filter by status, category, date, priority, district and department. | Yes. The district filter needs RF21. | #58 (#182 API, #183 web) | The district filter comes with RF21. Planned: #59. |
-| RF08 | **Map** of incidents and relevant urban layers. | Partly. Incidents on the web map, clustered by zoom and refreshed on their own; the mobile report form places the incident with a pin on the base map; urban layers need urban data, which the MVP does not load. | #53 (#195 API, #196 web); #60 (mobile: #197, #198) | Urban layers on the staff map. Planned: #374. |
+| RF08 | **Map** of incidents and relevant urban layers. | Partly. Incidents on the web map, with the icon of their category, clustered by zoom and refreshed on their own; the mobile report form places the incident with a pin on the base map; urban layers need urban data, which the MVP does not load. | #53 (#195 API, #196 web, #267 icons); #60 (mobile: #197, #198) | Urban layers on the staff map. Planned: #374. |
 | RF10 | **Priority**, manual or assisted, keeping its justification. | Partly. Manual priority with a required justification; assisted priority comes with RF20. | #47 | Assisted priority stays out with RF20. |
 | RF13 | **Collaboration.** Operators and technicians add comments, evidence and resolution data. | Yes. Every comment is internal in the MVP. | #50, #51, #44 | — |
 | RF14 | **Notifications** of relevant changes through configurable channels. | No. The delivery providers are only proposed (ADR-0019). | — | Notifications to the citizen. Planned: #373; the providers in ADR-0031, Planned: #397. |
@@ -109,7 +109,7 @@ issue is the parent that covers the requirement; its sub-issues are listed in it
 
 | Requirement | Status | Issue | Replaces |
 | --- | --- | --- | --- |
-| **Staff dashboard.** Operators and technicians see the incidents on a map, general indicators and filters. | Built. The web map shows the incidents with markers coloured by status and sized by priority, clustered by zoom; beside it, a dashboard counts the same incidents in total, by priority, status, category and department, and lists the latest reported. Both use the inbox filters (status, category, date, priority, department). A technician sees only the incidents assigned to them. | #53, #58, #177; customizable: #265 | — |
+| **Staff dashboard.** Operators and technicians see the incidents on a map, general indicators and filters. | Built. The web map shows the incidents with markers coloured by status, sized by priority and with the icon of their category, clustered by zoom; beside it, a dashboard counts the same incidents in total, by priority, status, category and department, and lists the latest reported. Both use the inbox filters (status, category, date, priority, department). A technician sees only the incidents assigned to them. | #53, #58, #177; customizable: #265 | — |
 | **Photos in an external service**, such as Cloudinary. | No. The photos are files in a local volume behind `StorageService`. | #341 | The local volume of ADR-0013 |
 | **Normalized incidents.** The reports of several citizens about the same problem become one incident, and each report stays traceable to it: a report of a problem that already has an incident is attached to it instead of creating a duplicate, and the incident lists every citizen who reported it. Built in the core, before the services. | No. Each report is its own incident. | #333 | — |
 | **Context service** that extracts, normalizes and manages external data (the chosen Málaga open data, and the weather from AEMET or another source) in its **own database**, kept up to date by periodic extraction or by asking the source when needed. | Partly. The `urbancontext` module of the core stores the weather of each new incident from Open-Meteo, in the shared schema; the open data is not loaded. | #346; the weather source: #372 | The single schema of ADR-0010 for the context; the weather provider of ADR-0018 if #372 chooses another |
@@ -139,7 +139,8 @@ planned before the refactor: Planned: #57.
 - **Inbox** (#46): incidents newest first, with the filters of #58 (status, category, date,
   priority, department, and district when #59 is done). The menu opens it filtered by `REPORTED`
   (#183).
-- **Map** (#196): markers coloured by status and sized by priority, with the same filters as the
+- **Map** (#196): markers coloured by status, sized by priority and with the icon of their category
+  (#267), with the same filters as the
   inbox, clustered by zoom, each cluster labelled with its highest priority; refreshed every 15
   seconds. A click opens a summary with
   *Manage*, and the list of the incidents on the map, in its side column, opens the same summary
