@@ -266,6 +266,29 @@ describe('T4: transparent refresh', () => {
     expect(onSessionExpired).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['/mfa-verifications', { challengeToken: 'c-1', code: '123456' }],
+    ['/mfa-enrollments', { challengeToken: 'c-1' }],
+  ] as const)(
+    'does not refresh when %s answers 401 to a client with a session',
+    async (path, body) => {
+      const api = fakeApi({ [`POST ${path}`]: () => problem(401, 'INVALID_MFA_CHALLENGE') });
+      const tokens = memoryTokenStore(OLD_TOKENS);
+      const client = createApiClient(BASE_URL, {
+        tokenStore: tokens.store,
+        fetch: api.fetch,
+        onSessionExpired,
+      });
+
+      const { response } = await client.POST(path, { body });
+
+      expect(response.status).toBe(401);
+      expect(api.requests).toHaveLength(1);
+      expect(tokens.current()).toEqual(OLD_TOKENS);
+      expect(onSessionExpired).not.toHaveBeenCalled();
+    },
+  );
+
   it('sends no token and does not refresh when there is no session', async () => {
     const api = fakeApi({ 'GET /users/me': () => problem(401) });
     const tokens = memoryTokenStore(null);

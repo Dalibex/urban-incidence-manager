@@ -46,4 +46,15 @@ public class User {
      */
     @Column(name = "password_change_required", nullable = false)
     private Boolean passwordChangeRequired = Boolean.FALSE;
+
+    /**
+     * The TOTP secret of the second factor (#57), encrypted by {@code MfaSecretCipher}; {@code
+     * null} while the account has not enrolled. Never returned once the enrolment is confirmed.
+     */
+    @Column(name = "mfa_secret")
+    private String mfaSecret;
+
+    /** The time step of the last accepted code, so the same code is never accepted twice. */
+    @Column(name = "mfa_last_time_step")
+    private Long mfaLastTimeStep;
 }

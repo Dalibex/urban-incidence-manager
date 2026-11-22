@@ -12,6 +12,7 @@ How the API authenticates requests and checks permissions
 
 - **[Access Tokens](#-access-tokens)**: the JWT, its claims, its lifetime and its configuration.
 - **[Sessions and Passwords](#-sessions-and-passwords)**: refresh tokens, rotation and reuse, sign-out, password changes and rate limits.
+- **[Second Factor](#-second-factor)**: the TOTP code that staff sign-ins need, its enrolment and its reset.
 - **[First Administrator](#-first-administrator)**: the rules of the one-off process that creates it.
 - **[Audit Trail](#-audit-trail)**: what is recorded, who reads it and the rules for writing it.
 - **[Errors](#-errors)**: the `401`, `403` and `404` answers of security.
@@ -140,6 +141,7 @@ any user and role.
 | --- | --- | --- |
 | `POST /sessions` and `POST /password-changes` | 5 failed attempts per 15 minutes, counted together | Email and client address |
 | `POST /registrations` | 10 attempts per hour | Client address |
+| `POST /mfa-verifications` | 10 wrong codes per 15 minutes, separate from the password limit; and 5 wrong codes spend a challenge | Account only (not the client address) |
 
 Past the limit the API answers `429 TOO_MANY_ATTEMPTS` with `Retry-After` (seconds, rounded up),
 even for the right password. Each attempt is reserved before the password is checked, in one atomic
@@ -197,6 +199,65 @@ Known limits:
   Before the backend sends absolute links to other people (notifications, emails), list the
   public domain in `server_name`.
 
+## 🔑 Second Factor
+
+Staff accounts confirm each sign-in with a code of an authenticator app (TOTP, RFC 6238), as
+[ADR-0021](adr/0021-multi-factor-authentication.md) decided (#57). The rule is enforced by the API on
+the role of the account, whatever the client, so a staff account cannot sign in from the mobile
+app, which has no code step.
+
+- **Who:** the roles in `MFA_REQUIRED_ROLES`, every staff role by default. Citizens never get it:
+  the backend refuses to start with `CITIZEN` in the list, since the mobile app has no code step.
+  An empty value turns the second factor off, which only makes sense on a developer's machine; the
+  backend logs a warning when it starts that way.
+- **Two steps:** a right password returns `202` with a challenge and no tokens. The challenge is an
+  opaque, single-use token of 256 random bits that expires after 5 minutes. The database keeps its
+  SHA-256 hash only, like a refresh token, and the web app keeps the token in memory. The token pair
+  is issued by `POST /mfa-verifications` once a valid code is sent, in the same transaction that
+  spends the challenge.
+- **Refresh:** each refresh token records whether its session was opened with a code, and a
+  rotation keeps that mark. A refresh for an account whose role needs the second factor with a
+  token opened without it (a session from before #57, or from before a role change or a change of
+  `MFA_REQUIRED_ROLES`) refuses that token with `401` and ends it, and the user signs in again with
+  a code. Other sessions of the account, such as one just opened with a code, keep working.
+- **Codes:** 6 digits, SHA-1, 30-second steps; a code is valid for its step and one step on each
+  side. The last step used is stored per account, so a code that was already used, or an older one,
+  is refused, even with another challenge. Two verifications of one challenge at once lock the
+  account and the challenge rows: one gets the tokens, the other `401 INVALID_MFA_CHALLENGE`.
+- **Enrolment:** an account without a second factor gets `enrollmentRequired: true` and calls
+  `POST /mfa-enrollments`, which returns the secret as an `otpauth://` URI for the QR code and as
+  Base32 text. The secret belongs to that challenge until a first valid code confirms it: only then
+  is it copied to the account and the `ENROLL_MFA` entry recorded, and every other open challenge of
+  the account is spent. No operation returns the secret after that.
+- **Secret at rest:** encrypted with AES-256-GCM (random 12-byte IV per secret) with the key of
+  `MFA_ENCRYPTION_KEY`, 32 random bytes in Base64. The backend does not start without it. Losing or
+  changing the key makes every stored secret unreadable: the code step of every enrolled account
+  answers `500`, administrators included, so nobody can reset from the web and each account needs the
+  [emergency procedure](deployment.md#-reset-the-second-factor-of-the-last-administrator) (for
+  another user, the same SQL with their email and without the role condition).
+- **Reset:** `POST /users/{id}/mfa-resets`, administrators only, with a reason. It clears the secret,
+  spends the open challenges, revokes every refresh token of the user and records `RESET_MFA` with the
+  reason, in one transaction. The user enrols again on the next sign-in. A last administrator who
+  loses their phone follows the emergency procedure of the
+  [deployment guide](deployment.md#-reset-the-second-factor-of-the-last-administrator).
+- **Logs:** a wrong code is logged with the user id only. The secret, the codes and the challenge
+  tokens are never written to the logs.
+
+Known limits, also in *Accepted Risks* of the [architecture](architecture.md):
+
+- **Trust on first use.** While an account has no second factor (after the deployment of #57, after
+  a reset, and for a new account), whoever knows its password can enrol their own phone first. The
+  real user's sign-in then asks for a code their app cannot give, and an administrator resets it.
+- **Lock-out by whoever has the password.** The limit of wrong codes is per account and a right
+  password does not give the attempts back, so someone with the password can lock the real user
+  out of the code step for up to 15 minutes. The counter lives in the backend process, like the
+  password limit.
+- **A password change does not ask for a code.** Whoever knows the password of a staff account can
+  change it without the phone, and the real user is then locked out until an administrator gives
+  them a new password; their data is still protected, because a sign-in with the new password asks
+  for the code too. A password change spends the open challenges, so a sign-in started with the old
+  password cannot finish. A reset does not require a new password either.
+
 ## 👑 First Administrator
 
 Sign-up only creates citizens and staff accounts are created by an administrator (#40), so a clean
@@ -230,6 +291,8 @@ an operational log: the application logs on stdout never replace it.
 | `CREATE_USER`, `UPDATE_USER`, `CHANGE_ROLE`, `DISABLE_USER`, `ENABLE_USER` | User management (#40) |
 | `CHANGE_PASSWORD` | Password change (#165), with the account as its own actor: only its owner knows the password. `details` holds `passwordChangeRequired`, never a password or hash |
 | `CLASSIFY_INCIDENT` | Incident classification (#47) |
+| `ENROLL_MFA` | The first valid code of an enrolment (#57), with the account as its own actor. `details` never holds the secret |
+| `RESET_MFA` | An administrator resets a user's second factor (#57); `after` holds the `reason` |
 | `CREATE_USER` (`"origin": "BOOTSTRAP"`) | The one-off process that creates the first administrator (#126) |
 
 Staff read one part of the trail: the classification changes of an incident
@@ -314,7 +377,9 @@ link to this section.
 ## 💾 Browser Storage
 
 The web app keeps the tokens in memory only (`SessionContext`), never in `localStorage` or
-`sessionStorage`, where any script of the page could read them. The only things it writes there are
+`sessionStorage`, where any script of the page could read them. The challenge of a sign-in with a
+second factor and the secret of an enrolment are kept in memory too, and only while that sign-in
+lasts. The only things it writes there are
 which parts of the map screen each user folded or opened, under a key with the user's id
 (`urbanpulse.map-preferences.<user id>`, #177), and the filters each user last used on the inbox,
 the work queue and the map (`urbanpulse.list-filters.<list>.<user id>`, #263). The values hold no
@@ -361,12 +426,15 @@ Spring MVC: `GET /incidents/` matches `/incidents/*` with an empty segment, so a
 | `POST /sessions` | ✓ | | | | | |
 | `POST /sessions/refresh` | ✓ | | | | | |
 | `POST /password-changes` | ✓ | | | | | |
+| `POST /mfa-enrollments` | ✓, the challenge is the credential | | | | | |
+| `POST /mfa-verifications` | ✓, the challenge and the code are the credentials | | | | | |
 | `DELETE /sessions/current` | | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `GET /users/me` | | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `GET /users` | | | | | ✓ | |
 | `POST /users` | | | | | ✓, staff roles only | |
 | `GET /users/{id}` | | | | | ✓ | |
 | `PATCH /users/{id}` | | | | | ✓, staff roles only, not their own role or account | |
+| `POST /users/{id}/mfa-resets` | | | | | ✓ | |
 | `GET /categories` | | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `GET /departments` | | | ✓ | ✓ | ✓ | |
 | `GET /technicians` | | | ✓ | | ✓ | |

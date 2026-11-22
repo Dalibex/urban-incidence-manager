@@ -100,6 +100,26 @@ describe('QuickSignIn', () => {
     expect(bodies).toEqual([{ email, password: DEMO_PASSWORD }]);
   });
 
+  // The staff accounts have a second factor: the quick sign-in leads to the code step, not the inbox.
+  it('reaches the code step when the demo account has a second factor', async () => {
+    quickSignIn(DEMO_PASSWORD);
+    const fetch = fakeApi({
+      'POST /sessions': () =>
+        json(202, {
+          challengeToken: 'challenge-1',
+          challengeExpiresAt: '2026-11-21T10:05:00Z',
+          enrollmentRequired: false,
+        }),
+    });
+    const router = renderApp(PATHS.signIn, { fetch });
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Operator' }));
+
+    expect(await screen.findByRole('heading', { name: 'Enter your code' })).toBeDefined();
+    expect(router.state.location.pathname).toBe(PATHS.signIn);
+    expect(screen.queryByRole('button', { name: 'Operator' })).toBeNull();
+  });
+
   // T4
   it('shows the normal error with a wrong password, without marking the form', async () => {
     quickSignIn('not-the-demo-password');

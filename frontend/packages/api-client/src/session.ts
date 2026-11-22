@@ -140,9 +140,15 @@ function sendWithinTime(
   });
 }
 
-// A 401 from these operations means wrong credentials or a spent refresh token, never an expired
-// access token, so it must not trigger a refresh.
-const PATHS_WITHOUT_REFRESH = new Set(['/sessions', REFRESH_PATH, '/registrations']);
+// A 401 from these operations means wrong credentials or code, a spent refresh token or an unknown
+// challenge, never an expired access token, so it must not trigger a refresh.
+const PATHS_WITHOUT_REFRESH = new Set([
+  '/sessions',
+  REFRESH_PATH,
+  '/registrations',
+  '/mfa-verifications',
+  '/mfa-enrollments',
+]);
 
 /**
  * Wraps `fetch` so every request carries the access token and, when the API answers 401, the

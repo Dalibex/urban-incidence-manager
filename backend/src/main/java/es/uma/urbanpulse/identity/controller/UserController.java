@@ -1,5 +1,6 @@
 package es.uma.urbanpulse.identity.controller;
 
+import es.uma.urbanpulse.identity.dto.CreateUserMfaResetRequest;
 import es.uma.urbanpulse.identity.dto.CreateUserRequest;
 import es.uma.urbanpulse.identity.dto.UpdateUserRequest;
 import es.uma.urbanpulse.identity.dto.UserResponse;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.util.MultiValueMap;
@@ -26,13 +28,14 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 /**
- * {@code listUsers}, {@code getUser}, {@code createUser} and {@code updateUser} (#40). {@code GET
- * /users/me} stays in {@link CurrentUserController}: Spring prefers its literal path to {@code
- * {userId}}.
+ * {@code listUsers}, {@code getUser}, {@code createUser} and {@code updateUser} (#40), and {@code
+ * createUserMfaReset} (#57). {@code GET /users/me} stays in {@link CurrentUserController}: Spring
+ * prefers its literal path to {@code {userId}}.
  *
  * <p>Only administrators may call them: the security filters answer {@code 403} to every other role
  * before Spring reads the request ({@code ApiAuthorizationRules}). The bodies have no
@@ -104,5 +107,14 @@ class UserController {
             @PathVariable UUID userId,
             @RequestBody UpdateUserRequest request) {
         return users.update(administrator.id(), userId, request);
+    }
+
+    @PostMapping("/{userId}/mfa-resets")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void resetMfa(
+            @AuthenticationPrincipal AuthenticatedUser administrator,
+            @PathVariable UUID userId,
+            @RequestBody CreateUserMfaResetRequest request) {
+        users.resetMfa(administrator.id(), userId, request);
     }
 }

@@ -75,7 +75,9 @@ class RoleMatrixIT {
                     "POST " + API + "/registrations",
                     "POST " + API + "/sessions",
                     "POST " + API + "/sessions/refresh",
-                    "POST " + API + "/password-changes");
+                    "POST " + API + "/password-changes",
+                    "POST " + API + "/mfa-enrollments",
+                    "POST " + API + "/mfa-verifications");
 
     @Autowired private MockMvc mvc;
     @Autowired private TestTokens tokens;
@@ -189,6 +191,10 @@ class RoleMatrixIT {
                 row(
                         "PATCH /users/{id}, id not a UUID",
                         () -> json(patch(API + "/users/" + NOT_A_UUID)),
+                        ADMINISTRATOR_ONLY),
+                row(
+                        "POST /users/{id}/mfa-resets, id not a UUID",
+                        () -> json(post(API + "/users/" + NOT_A_UUID + "/mfa-resets")),
                         ADMINISTRATOR_ONLY),
                 // Catalogues.
                 row("GET /categories", () -> get(API + "/categories"), EVERY_ROLE),

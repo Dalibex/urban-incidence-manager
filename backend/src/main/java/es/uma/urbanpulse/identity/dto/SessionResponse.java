@@ -8,7 +8,8 @@ public record SessionResponse(
         String accessToken,
         Instant accessTokenExpiresAt,
         String refreshToken,
-        Instant refreshTokenExpiresAt) {
+        Instant refreshTokenExpiresAt)
+        implements SignInResponse {
 
     private static final String BEARER = "Bearer";
 
