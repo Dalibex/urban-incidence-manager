@@ -95,8 +95,9 @@ The backend from the terminal and the clients from their development servers, as
 To change role with one click instead of typing the email and the password, turn on the quick
 sign-in (#167). It is off by default and only exists for the demo and for development: the buttons
 call the normal sign-in with the users of the table above, and the API treats them as any other
-sign-in, so a staff button then asks for the code of the second factor too. Both apps read these variables when they start, so set them before `pnpm dev:web` and
-`pnpm dev:mobile`, or restart those that are already running.
+sign-in, so a staff button then asks for the code of the second factor too. Both apps read these
+variables when they start, so set them before `pnpm dev:web` and `pnpm dev:mobile`, or restart
+those that are already running.
 
 It only works *In development*: the web image of the deployment is built without any `.env`.
 
@@ -133,7 +134,7 @@ database without the demo dataset, gives the normal sign-in error.
 
 | # | Who and where | What to do | What it shows | Needs |
 | --- | --- | --- | --- | --- |
-| 1 | Operator, web | Sign in as `demo.operator@example.com`. | Each role lands on its own screen: the operator on the inbox. | #39 |
+| 1 | Operator, web | Sign in as `demo.operator@example.com` and type the code of the authenticator app. | Staff confirm the sign-in with a second factor; each role lands on its own screen: the operator on the inbox. | #39, #57 |
 | 2 | Operator, web | Look at the inbox, then choose *Clear filters*. | It opens on the three `REPORTED` incidents, waiting for a review; without filters, the fifteen, newest first, with category, status and priority. | #46, #183 |
 | 3 | Operator, web | Open *Street light flickering on Calle Larios*. | An incident without category; address, neighbourhood and district are "not available", never empty or invented. | #46 |
 | 4 | Operator, web | Open *Leaking fountain in Plaza de la Constitución*. | The full history from the report to the reopening, with who made each change and the internal reasons (resolution notes, reopening). | #46 |
@@ -142,7 +143,7 @@ database without the demo dataset, gives the normal sign-in error.
 | 7 | Citizen, phone | Open *My reports*, then tap *Closed*. | It opens on *Open*, with the thirteen open incidents of the citizen and their status; *Closed* shows the other three, rejected or closed. | #45 |
 | 8 | Citizen, phone | On *Closed*, open *Loud music from a bar terrace*; then go back, tap *Open* and open *Leaking fountain in Plaza de la Constitución*. | The rejection reason, which the citizen sees; the history of the fountain without the internal resolution and reopening notes. | #45 |
 | 9 | Citizen, web | Sign out on the web and sign in as `demo.citizen@example.com`, then open `/inbox`. | The web sends citizens to the mobile app: the inbox is staff only, and the API checks it again. | #39 |
-| 10 | Technician, administrator, analyst, web | Sign in with each of them. | Each lands on its own screen (work queue, users, reports). | #39 |
+| 10 | Technician, administrator, analyst, web | Sign in with each of them, with the code of each account. | Each lands on its own screen (work queue, users, reports). | #39, #57 |
 
 ## 🔁 Repeat or End the Demo
 

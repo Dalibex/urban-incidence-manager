@@ -35,8 +35,9 @@ Citizens use the **mobile app**; municipal staff (operators, technicians, admini
 analysts) use the **website**. Each app only lets in its own people:
 
 - A citizen who signs in on the website sees *Use the UrbanPulse mobile app*.
-- A staff account that signs in on the phone sees *Use the UrbanPulse website* and a *Sign out*
-  button.
+- A staff account that signs in on the phone gets *Staff accounts sign in on the UrbanPulse
+  website. The mobile app is for citizens.*, because the phone has no code step for the second
+  factor.
 
 The API checks every permission again, so this is a convenience, not the protection (see the
 [permission matrix](security.md#-permission-matrix)).
@@ -97,7 +98,7 @@ every 30 seconds and works only once.
 
 If you lose the phone, ask an administrator to reset your second factor; you set it up again at the
 next sign-in. Staff accounts cannot sign in from the mobile app, which says *Staff accounts sign in
-on the UrbanPulse website.*
+on the UrbanPulse website. The mobile app is for citizens.*
 
 **How long you stay signed in:**
 

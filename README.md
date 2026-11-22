@@ -29,8 +29,10 @@ What each role can do today:
 | Citizen | Mobile | Sign up, report an incident by placing it on the map, add photos, and follow their reports and what the city answers |
 | Municipal operator | Web | Review new reports in an inbox with filters or on a live map with a dashboard, and see in the detail of each one the weather when it was reported; classify, validate, reject or ask for more information; assign to a department and a technician; close or reopen the result |
 | Technician | Web | Accept the incidents assigned to them, see the weather when each one was reported, and resolve them with their notes |
-| Administrator | Web | Everything an operator does, plus managing the staff accounts and reading the audit log |
+| Administrator | Web | Everything an operator does, plus managing the staff accounts, resetting the second factor of a lost phone, and reading the audit log |
 | Analyst | Web | Operational reports for a period, on screen or as CSV |
+
+Staff confirm each sign-in on the web with a code from an authenticator app ([ADR-0021](docs/adr/0021-multi-factor-authentication.md)).
 
 Every incident follows a fixed lifecycle ([ADR-0020](docs/adr/0020-incident-lifecycle-transitions.md)). Each change keeps who made it, when and why, and the citizen never sees the internal notes.
 

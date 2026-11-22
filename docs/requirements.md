@@ -183,7 +183,8 @@ authenticator app (#57, ADR-0021); the first time, the screen shows a QR code to
   operator can (ADR-0020), so they also get the operator's screens (#127), and the analyst's
   *Reports* (#42).
 - **Users** (#40): list filtered by name, email and role; create a staff account with a role; edit
-  the name and role; **deactivate** (not delete) an account.
+  the name and role; **deactivate** (not delete) an account; **reset the second factor** of a
+  staff account with a reason (#57).
 - **Audit log** (#41): read-only list filtered by date, actor and action; columns date, actor,
   action, target and details.
 - **Not in the MVP:** the *Sources* screen for external data sources (it goes with RF23).

@@ -91,6 +91,10 @@ constraints, the schema has these indexes:
 | `ix_audit_log_target_id` | V14 (#47) | The classification changes of one incident |
 | `ix_incident_status_priority_reported_at` | V16 (#176) | The count of the staff lists filtered by status and priority |
 
+`mfa_challenges` (V20, #57) has no index on `user_id`: it holds at most a day of sign-in challenges
+of staff, because the daily clean-up deletes the expired ones, so reading it by user is a scan of a
+few rows. Add one only with a measurement.
+
 The indexes of V10 to V16, apart from the unique one, have their measurement in the
 [datasets guide](datasets.md#query-plans-of-the-indexes).
 

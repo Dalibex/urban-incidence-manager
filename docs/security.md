@@ -205,8 +205,10 @@ Staff accounts confirm each sign-in with a code of an authenticator app (TOTP, R
 the role of the account, whatever the client, so a staff account cannot sign in from the mobile
 app, which has no code step.
 
-- **Who:** the roles in `MFA_REQUIRED_ROLES`, every staff role by default. Citizens never get it.
-  An empty value turns the second factor off, which only makes sense on a developer's machine.
+- **Who:** the roles in `MFA_REQUIRED_ROLES`, every staff role by default. Citizens never get it:
+  the backend refuses to start with `CITIZEN` in the list, since the mobile app has no code step.
+  An empty value turns the second factor off, which only makes sense on a developer's machine; the
+  backend logs a warning when it starts that way.
 - **Two steps:** a right password returns `202` with a challenge and no tokens. The challenge is an
   opaque, single-use token of 256 random bits that expires after 5 minutes. The database keeps its
   SHA-256 hash only, like a refresh token, and the web app keeps the token in memory. The token pair
@@ -215,8 +217,8 @@ app, which has no code step.
 - **Refresh:** each refresh token records whether its session was opened with a code, and a
   rotation keeps that mark. A refresh for an account whose role needs the second factor with a
   token opened without it (a session from before #57, or from before a role change or a change of
-  `MFA_REQUIRED_ROLES`) ends every session of the account and answers `401`: the user signs in again
-  with a code.
+  `MFA_REQUIRED_ROLES`) refuses that token with `401` and ends it, and the user signs in again with
+  a code. Other sessions of the account, such as one just opened with a code, keep working.
 - **Codes:** 6 digits, SHA-1, 30-second steps; a code is valid for its step and one step on each
   side. The last step used is stored per account, so a code that was already used, or an older one,
   is refused, even with another challenge. Two verifications of one challenge at once lock the
@@ -249,7 +251,11 @@ Known limits, also in *Accepted Risks* of the [architecture](architecture.md):
   password does not give the attempts back, so someone with the password can lock the real user
   out of the code step for up to 15 minutes. The counter lives in the backend process, like the
   password limit.
-- A reset does not require a new password, and `POST /password-changes` does not ask for a code.
+- **A password change does not ask for a code.** Whoever knows the password of a staff account can
+  change it without the phone, and the real user is then locked out until an administrator gives
+  them a new password; their data is still protected, because a sign-in with the new password asks
+  for the code too. A password change spends the open challenges, so a sign-in started with the old
+  password cannot finish. A reset does not require a new password either.
 
 ## 👑 First Administrator
 
