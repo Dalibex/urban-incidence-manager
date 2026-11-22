@@ -2334,11 +2334,14 @@ components:
       name: q
       in: query
       description: >-
-        Only incidents whose title or description contains this text, ignoring case
-        and accents (`farola` finds `Farola rota` and `FAROLA`; `camion` finds `camión`). The text
-        is matched as one piece, after removing its leading and trailing spaces: `farola rota` does
-        not find `rota la farola`. `%` and `_` are plain characters, not wildcards. After removing
-        those spaces it must have 3 to 100 characters, or the request returns `400`.
+        Only incidents whose title or description contains this text, each on its own,
+        ignoring case and accents (`farola` finds `Farola rota` and `FAROLA`; `camion` finds
+        `camión`; `ñ` counts as `n`, so `ano` finds `año`). The text is matched as one piece, after
+        removing its leading and trailing spaces: `farola rota` does not find `rota la farola`, nor
+        a title that ends in `farola` with a description that starts with `rota`. `%`, `_` and `\`
+        are plain characters, not wildcards. After removing those spaces it must have 3 to 100
+        characters, and no null character (U+0000), or the request returns `400`. `minLength` and
+        `maxLength` count the trimmed text.
       schema:
         type: string
         minLength: 3
