@@ -90,8 +90,9 @@ constraints, the schema has these indexes:
 | `uq_attachment_incident_content_hash` | V13 (#192) | Integrity, not speed: one photo per content and incident (ADR-0013). Two uploads at the same time are already serialised by a lock on the incident row (#275); the index is the database rule behind it. It needs no measurement |
 | `ix_audit_log_target_id` | V14 (#47) | The classification changes of one incident |
 | `ix_incident_status_priority_reported_at` | V16 (#176) | The count of the staff lists filtered by status and priority |
+| `ix_location_address_pending` | V19 (#375) | The address worker: the next pending addresses and their expiry. Partial, only the `PENDING` locations |
 
-The indexes of V10 to V16, apart from the unique one, have their measurement in the
+The indexes of V10 to V19, apart from the unique one, have their measurement in the
 [datasets guide](datasets.md#query-plans-of-the-indexes).
 
 ## 📚 Reference Data

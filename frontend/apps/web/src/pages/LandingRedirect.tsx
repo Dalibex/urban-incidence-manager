@@ -6,5 +6,5 @@ import { useSession } from '../session/SessionContext';
 /** `/` sends each role to its own screen. */
 export function LandingRedirect() {
   const { user } = useSession();
-  return <Navigate to={user ? landingPath(user.role) : PATHS.signIn} replace />;
+  return <Navigate to={user ? landingPath(user.role, user.id) : PATHS.signIn} replace />;
 }

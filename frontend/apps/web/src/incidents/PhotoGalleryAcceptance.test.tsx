@@ -24,6 +24,8 @@ const INCIDENT: components['schemas']['IncidentResponse'] = {
     longitude: -4.42,
     accuracy: 8,
     address: null,
+    addressStatus: 'UNAVAILABLE' as const,
+    addressSource: null,
     neighborhood: null,
     district: null,
   },

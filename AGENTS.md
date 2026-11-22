@@ -30,6 +30,7 @@ Read the source before relying on any summary, including this file. Do not descr
 | What is planned, and when | The GitHub milestones and their issues; each issue's *Out of scope* and `Planned: #N` |
 | Requirements, priorities and screens per role | `docs/requirements.md` |
 | How each role uses the apps | `docs/user-guide.md` |
+| Design proposals, their validation by the client and their status | `docs/design/`: the index and how a design is validated in `docs/design/README.md`, the template in `docs/design/TEMPLATE.md` |
 | Decisions and their status | `docs/adr/`: read the `Status:` line of each ADR |
 | Architecture, quality scenarios and accepted risks | `docs/architecture.md`; structure in the C4 model, `docs/architecture/workspace.dsl` |
 | API contract and its conventions | `docs/api/openapi.yml`, `docs/api.md` |
@@ -135,7 +136,7 @@ Do not change the stack or introduce components because they are popular. An arc
 | ------------ | ----------------------------------------------------------------------- |
 | `backend/`   | Spring Boot backend, its Dockerfile and the Compose file.               |
 | `frontend/`  | Client pnpm workspace: `apps/web`, `apps/mobile` and `packages/*`, and the web image (nginx). |
-| `docs/`      | Guides, ADRs, the API contract and the C4 model (see section 2).        |
+| `docs/`      | Guides, ADRs, design documents, the API contract and the C4 model (see section 2). |
 | `tiles/`     | Base map builder, a one-off process.                                    |
 | `egress-proxy/` | The backend's only way out to the internet in the deployment: a Squid proxy with an allowlist of hosts. |
 | `.github/`   | CI workflows, issue and pull request templates.                         |

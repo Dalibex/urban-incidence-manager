@@ -11,6 +11,7 @@ import {
   withFilters,
   type IncidentFilters,
 } from '../incidents/filters/incident-filters';
+import { useRememberFilters } from '../incidents/filters/remembered-filters';
 import { useCategories, useDepartments, useIncidentLocations } from '../incidents/incident-queries';
 import incidentStyles from '../incidents/Incidents.module.css';
 import { PRIORITY_LABELS } from '../incidents/labels';
@@ -46,6 +47,7 @@ const FILTERS_ID = 'map-filters';
 export function MapPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const filters = filtersFrom(searchParams);
+  useRememberFilters('map', filters);
   const locations = useIncidentLocations(filters);
   const categories = useCategories();
   const departments = useDepartments();

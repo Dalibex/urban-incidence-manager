@@ -174,8 +174,6 @@ function summary() {
 describe('staff dashboard on the map (#177, test #258)', () => {
   afterEach(() => {
     vi.useRealTimers();
-    // What a test folded stays in this browser for the next one otherwise.
-    window.localStorage.clear();
   });
 
   // T5, T3: the figures and the three charts, the groups without a value named.
@@ -419,9 +417,9 @@ describe('staff dashboard on the map (#177, test #258)', () => {
     expect(screen.getByText('By category').closest('details')?.open).toBe(true);
   });
 
-  // docs/security.md, Browser storage: the folded parts are the only thing the app writes there,
-  // and signing out keeps them, because they are only a layout.
-  it('keeps only the folded parts in the browser storage, also after signing out', async () => {
+  // docs/security.md, Browser storage: the folded parts and the last filters (#263) are the only
+  // things the app writes there, and signing out keeps them, because they are only a convenience.
+  it('keeps only the folded parts and the filters in the browser storage after signing out', async () => {
     const dashboard = dashboardApi([counts(STATISTICS)]);
     const signOut = vi.fn(() => new Response(null, { status: 204 }));
     const fetch = (request: Request) =>
@@ -436,7 +434,10 @@ describe('staff dashboard on the map (#177, test #258)', () => {
     expect(await screen.findByRole('heading', { name: 'Sign in to UrbanPulse' })).toBeDefined();
     expect(signOut).toHaveBeenCalledTimes(1);
 
-    expect(Object.keys(window.localStorage)).toEqual(['urbanpulse.map-preferences.user-1']);
+    expect(Object.keys(window.localStorage).sort()).toEqual([
+      'urbanpulse.list-filters.map.user-1',
+      'urbanpulse.map-preferences.user-1',
+    ]);
     cleanup();
     renderApp(PATHS.map, { role: 'MUNICIPAL_OPERATOR', fetch: dashboardApi([counts(STATISTICS)]) });
     await within(await screen.findByRole('region', { name: 'Summary' })).findAllByTestId('chart');

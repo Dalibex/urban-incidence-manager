@@ -992,8 +992,9 @@ paths:
         body.
 
         No external source is called while reporting (RF26): `address`, `neighborhood` and
-        `district` start as `null` ("not available yet") and are filled in later, when enrichment
-        exists.
+        `district` start as `null` ("not available yet"). The address starts with `addressStatus`
+        `PENDING` and is resolved from the position after the report (#375);
+        `neighborhood` and `district` are filled in later, when that enrichment exists.
 
         Retries (#289): a client that may retry the report sends an `Idempotency-Key`. A request
         with a key the same citizen already used, and the same body, creates nothing: it answers
@@ -3042,8 +3043,9 @@ components:
       description: >-
         Position of the incident and what is known about the place. `null` in `accuracy`,
         `address`, `neighborhood` or `district` means "not available": unknown or not looked up
-        yet, never "none".
-      required: [latitude, longitude, accuracy, address, neighborhood, district]
+        yet, never "none". `addressStatus` says why there is no `address`.
+      required:
+        [latitude, longitude, accuracy, address, addressStatus, addressSource, neighborhood, district]
       properties:
         latitude:
           type: number
@@ -3067,8 +3069,20 @@ components:
           examples: [12.5]
         address:
           type: [string, "null"]
-          description: Normalized address. `null` while not available.
-          examples: [null]
+          description: >-
+            Normalized address of Málaga, resolved from the position after the report: the street,
+            the house number and the postcode when the source has them. Set only while
+            `addressStatus` is `AVAILABLE`; `null` otherwise.
+          examples: ["Calle Larios, 5, 29005 Málaga"]
+        addressStatus:
+          $ref: "#/components/schemas/AddressStatus"
+        addressSource:
+          description: >-
+            Where the address comes from, with the attribution its licence asks for: a client that
+            shows the address shows the attribution next to it. `null` while there is no address.
+          oneOf:
+            - $ref: "#/components/schemas/ContextSource"
+            - type: "null"
         neighborhood:
           type: [string, "null"]
           description: Neighbourhood of Málaga. `null` while not available.
@@ -3081,8 +3095,8 @@ components:
     IncidentSummaryResponse:
       type: object
       description: >-
-        One incident in a listing. `priority` is staff-only: it is absent in the responses to a
-        citizen.
+        One incident in a listing. `priority`, `address` and `addressStatus` are staff-only: they
+        are absent in the responses to a citizen.
       required: [id, title, status, category, reportedAt, updatedAt]
       properties:
         id:
@@ -3104,6 +3118,15 @@ components:
           oneOf:
             - $ref: "#/components/schemas/CategorySummary"
             - type: "null"
+        address:
+          type: [string, "null"]
+          description: >-
+            Staff only. The normalized address, as in `IncidentLocation`; `null` while
+            `addressStatus` is not `AVAILABLE`.
+          examples: ["Calle Larios, 5, 29005 Málaga"]
+        addressStatus:
+          description: Staff only. Why there is no `address`, as in `IncidentLocation`.
+          $ref: "#/components/schemas/AddressStatus"
         reportedAt:
           type: string
           format: date-time
@@ -3736,6 +3759,23 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/IncidentReportRow"
+
+    AddressStatus:
+      type: string
+      description: |
+        Whether the normalized address of an incident is there (#375). A new incident
+        starts `PENDING`, and the address worker ends it as `AVAILABLE`, `OUTSIDE_AREA` or
+        `UNAVAILABLE`, usually within a minute.
+
+        - `PENDING`: the address has not been resolved yet.
+        - `AVAILABLE`: `address` and `addressSource` are set.
+        - `OUTSIDE_AREA`: the position is outside the municipality of Málaga, so there is no
+          address to give.
+        - `UNAVAILABLE`: there is no address: the source has no street at the position, refused
+          the request, or did not answer within a day of the report, or the incident was reported
+          before the addresses existed.
+      enum: [PENDING, AVAILABLE, OUTSIDE_AREA, UNAVAILABLE]
+      examples: [AVAILABLE]
 
     UrbanContextStatus:
       type: string
