@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { components } from '@urbanpulse/api-client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -437,5 +437,64 @@ describe('incident map on the web (#196, test #76)', () => {
       expect(cleared.value).toBe('');
       expect(screen.queryByText('Type at least 3 characters.')).toBeNull();
     });
+
+    // A search is typed for the moment; the filters a list remembers (#263) never hold it.
+    it('is not remembered with the filters of the map', async () => {
+      const router = renderApp(`${PATHS.map}?priority=HIGH&q=farola`, {
+        role: 'MUNICIPAL_OPERATOR',
+        fetch: mapApi([positions([])]),
+      });
+      await screen.findByText('No incidents match these filters.');
+
+      await act(() => router.navigate('/elsewhere'));
+      await userEvent.click(screen.getByRole('link', { name: 'Map' }));
+
+      await screen.findByText('No incidents match these filters.');
+      expect(router.state.location.search).toBe('?priority=HIGH');
+    });
+  });
+
+  // #263, AC1
+  it('reopens from the menu with the filters last used on it, also none', async () => {
+    const router = renderApp(`${PATHS.map}?status=CLOSED&priority=HIGH`, {
+      role: 'MUNICIPAL_OPERATOR',
+      fetch: mapApi([positions([])]),
+    });
+    await screen.findByText('No incidents match these filters.');
+
+    await act(() => router.navigate('/elsewhere'));
+    await userEvent.click(screen.getByRole('link', { name: 'Map' }));
+    await screen.findByText('No incidents match these filters.');
+    expect(router.state.location.search).toBe('?status=CLOSED&priority=HIGH');
+
+    await userEvent.click(screen.getAllByRole('button', { name: 'Clear filters' })[0]!);
+    await act(() => router.navigate('/elsewhere'));
+    await userEvent.click(screen.getByRole('link', { name: 'Map' }));
+    await screen.findByRole('region', { name: 'Map stand-in' });
+    expect(router.state.location.search).toBe('');
+  });
+
+  // #263, AC2
+  it('gives another user of the browser their own filters, or the defaults', async () => {
+    const first = renderApp(`${PATHS.map}?priority=HIGH`, {
+      role: 'MUNICIPAL_OPERATOR',
+      fetch: mapApi([positions([])]),
+    });
+    await screen.findByText('No incidents match these filters.');
+    await act(() => first.navigate('/elsewhere'));
+    cleanup();
+
+    const second = renderApp('/elsewhere', {
+      role: 'MUNICIPAL_OPERATOR',
+      userId: 'user-2',
+      fetch: mapApi([positions([])]),
+    });
+    await userEvent.click(screen.getByRole('link', { name: 'Map' }));
+
+    await screen.findByRole('region', { name: 'Map stand-in' });
+    expect(new URLSearchParams(second.state.location.search).has('priority')).toBe(false);
+    expect(new URLSearchParams(second.state.location.search).getAll('status')).toContain(
+      'REPORTED',
+    );
   });
 });

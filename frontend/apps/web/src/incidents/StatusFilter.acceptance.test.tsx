@@ -1,6 +1,6 @@
-import { screen, within } from '@testing-library/react';
+import { act, cleanup, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { PATHS } from '../routing/access';
 import { fakeApi, json, renderApp } from '../test-utils';
@@ -60,7 +60,36 @@ async function signIn() {
   await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
 }
 
+/**
+ * The inbox API for two operators who share the browser: `/users/me` answers whoever `current.user`
+ * is, and signing out works.
+ */
+function sharedBrowserApi() {
+  const current = { user: OPERATOR };
+  const inbox = inboxApi([]);
+  const fetch = (request: Request) => {
+    const { pathname } = new URL(request.url);
+    if (request.method === 'GET' && pathname.endsWith('/users/me')) {
+      return Promise.resolve(json(200, current.user));
+    }
+    if (request.method === 'DELETE' && pathname.endsWith('/sessions/current')) {
+      return Promise.resolve(new Response(null, { status: 204 }));
+    }
+    return inbox(request);
+  };
+  return { current, fetch };
+}
+
+async function signOut() {
+  await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+  await screen.findByRole('heading', { name: 'Sign in to UrbanPulse' });
+}
+
 describe('several statuses in the status filter (#218)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   // T1, the part jsdom can check: the browser's own focus ring and Tab order are checked by hand.
   it('ticks and unticks the statuses with the keyboard', async () => {
     const requests: URLSearchParams[] = [];
@@ -102,22 +131,64 @@ describe('several statuses in the status filter (#218)', () => {
     expect(requests.at(-1)!.getAll('status')).toEqual(['ASSIGNED', 'IN_PROGRESS']);
   });
 
-  // T4, the inbox: after signing in and from the menu it opens on Reported only.
-  it('opens the inbox on Reported after signing in and from the menu', async () => {
-    const router = renderApp(PATHS.signIn, { fetch: inboxApi([]) });
+  // T4, the inbox: after signing in it opens on Reported only. The menu opens the defaults the
+  // first time (routing/sections.test.ts) and the last filters afterwards (#263).
+  it('opens the inbox on Reported after signing in', async () => {
+    renderApp(PATHS.signIn, { fetch: inboxApi([]) });
 
     await signIn();
+
     await screen.findByText('No incidents match these filters.');
     expect(tickedStatuses()).toEqual(['Reported']);
+  });
+
+  // #263, AC1: the filters come back from the menu, also after Clear filters.
+  it('reopens the inbox from the menu with the filters last used on it', async () => {
+    const router = renderApp(PATHS.signIn, { fetch: inboxApi([]) });
+    await signIn();
+    await screen.findByText('No incidents match these filters.');
+    const menu = screen.getByRole('navigation', { name: 'Main' });
 
     await userEvent.click(statusChoice('Reopened'));
-    expect(tickedStatuses()).toEqual(['Reported', 'Reopened']);
-    const menu = screen.getByRole('navigation', { name: 'Main' });
+    await act(() => router.navigate('/elsewhere'));
     await userEvent.click(within(menu).getByRole('link', { name: 'Inbox' }));
 
+    await screen.findByText('No incidents match these filters.');
+    expect(tickedStatuses()).toEqual(['Reported', 'Reopened']);
+
+    // The first button is the one of the filter bar; the empty state has the other.
+    await userEvent.click(screen.getAllByRole('button', { name: 'Clear filters' })[0]!);
+    await screen.findByText('There are no incidents yet.');
+    await act(() => router.navigate('/elsewhere'));
+    await userEvent.click(within(menu).getByRole('link', { name: 'Inbox' }));
+
+    await screen.findByText('There are no incidents yet.');
+    expect(tickedStatuses()).toEqual([]);
+    expect(router.state.location.search).toBe('');
+  });
+
+  // #263, AC2: the filters are of the user, not of the browser.
+  it('gives another user of the browser their own filters, or the defaults', async () => {
+    const first = renderApp(`${PATHS.inbox}?status=VALIDATED&priority=HIGH`, {
+      role: 'MUNICIPAL_OPERATOR',
+      fetch: inboxApi([]),
+    });
+    await screen.findByText('No incidents match these filters.');
+    await act(() => first.navigate('/elsewhere'));
+    cleanup();
+
+    const second = renderApp('/elsewhere', {
+      role: 'MUNICIPAL_OPERATOR',
+      userId: 'user-2',
+      fetch: inboxApi([]),
+    });
+    await userEvent.click(
+      within(screen.getByRole('navigation', { name: 'Main' })).getByRole('link', { name: 'Inbox' }),
+    );
+
+    await screen.findByText('No incidents match these filters.');
     expect(tickedStatuses()).toEqual(['Reported']);
-    // The list of Reported was asked for after the sign-in, so it comes from the cache.
-    expect(router.state.location.search).toBe('?status=REPORTED');
+    expect(second.state.location.search).toBe('?status=REPORTED');
   });
 
   // T5
@@ -199,5 +270,66 @@ describe('several statuses in the status filter (#218)', () => {
     await screen.findByText('No incidents match these filters.');
     expect(tickedStatuses()).toEqual(['Reported', 'Reopened']);
     expect(requests.at(-1)!.getAll('status')).toEqual(['REPORTED', 'REOPENED']);
+  });
+
+  // #263: signing out sends to the sign-in with the address of the one who left.
+  it('does not give the filters of one user to the next who signs in', async () => {
+    const { current, fetch } = sharedBrowserApi();
+    renderApp(PATHS.signIn, { fetch });
+    await signIn();
+    await screen.findByText('No incidents match these filters.');
+    await userEvent.click(statusChoice('Reopened'));
+    await signOut();
+
+    current.user = { ...OPERATOR, id: 'second-operator' };
+    await signIn();
+
+    await screen.findByText('No incidents match these filters.');
+    expect(tickedStatuses()).toEqual(['Reported']);
+    expect(window.localStorage.getItem('urbanpulse.list-filters.inbox.second-operator')).toBe(
+      '?status=REPORTED',
+    );
+    const menu = screen.getByRole('navigation', { name: 'Main' });
+    expect(within(menu).getByRole('link', { name: 'Inbox' }).getAttribute('href')).toBe(
+      '/inbox?status=REPORTED',
+    );
+  });
+
+  // #263: the first visit has the defaults, not every later sign-in.
+  it('lands on the filters last used on the inbox when the same user signs in again', async () => {
+    const { fetch } = sharedBrowserApi();
+    const router = renderApp(PATHS.signIn, { fetch });
+    await signIn();
+    await screen.findByText('No incidents match these filters.');
+    await userEvent.click(statusChoice('Reopened'));
+    await signOut();
+    // No address to return to: the landing path decides.
+    await act(() => router.navigate(PATHS.signIn, { replace: true }));
+
+    await signIn();
+
+    await screen.findByText('No incidents match these filters.');
+    expect(tickedStatuses()).toEqual(['Reported', 'Reopened']);
+    expect(router.state.location.search).toBe('?status=REPORTED&status=REOPENED');
+  });
+
+  it('opens the menu and the inbox on the defaults when the browser refuses its storage', async () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError');
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('full', 'QuotaExceededError');
+    });
+    const router = renderApp(PATHS.home, { role: 'MUNICIPAL_OPERATOR', fetch: inboxApi([]) });
+
+    await screen.findByText('No incidents match these filters.');
+    expect(tickedStatuses()).toEqual(['Reported']);
+    await userEvent.click(statusChoice('Reopened'));
+    const menu = screen.getByRole('navigation', { name: 'Main' });
+    expect(within(menu).getByRole('link', { name: 'Inbox' }).getAttribute('href')).toBe(
+      '/inbox?status=REPORTED',
+    );
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(router.state.location.pathname).toBe(PATHS.inbox);
   });
 });

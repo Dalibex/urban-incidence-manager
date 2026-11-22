@@ -2,10 +2,12 @@ import type { Role } from '@urbanpulse/domain';
 import type { ReactNode } from 'react';
 
 import { AuditLogPage } from '../audit/AuditLogPage';
+import { rememberedPath } from '../incidents/filters/remembered-filters';
 import { InboxPage } from '../incidents/InboxPage';
 import { WorkQueuePage } from '../incidents/WorkQueuePage';
 import { MapPage } from '../map/MapPage';
 import { ReportsPage } from '../reports/ReportsPage';
+import type { SessionUser } from '../session/SessionContext';
 import { UsersPage } from '../users/UsersPage';
 import {
   INBOX_DEFAULT_PATH,
@@ -21,9 +23,9 @@ export interface Section {
   path: string;
   /**
    * Where the navbar link goes, when it opens the screen with some filters, which may depend on the
-   * role; `path` otherwise.
+   * user; `path` otherwise.
    */
-  link?: string | ((role: Role) => string);
+  link?: (user: SessionUser) => string;
   label: string;
   roles: readonly Role[];
   element: ReactNode;
@@ -34,21 +36,21 @@ export interface Section {
 export const SECTIONS: readonly Section[] = [
   {
     path: PATHS.inbox,
-    link: INBOX_DEFAULT_PATH,
+    link: ({ id }) => rememberedPath(PATHS.inbox, 'inbox', id, INBOX_DEFAULT_PATH),
     label: 'Inbox',
     roles: OPERATOR_ROLES,
     element: <InboxPage />,
   },
   {
     path: PATHS.workQueue,
-    link: WORK_QUEUE_DEFAULT_PATH,
+    link: ({ id }) => rememberedPath(PATHS.workQueue, 'workQueue', id, WORK_QUEUE_DEFAULT_PATH),
     label: 'Work queue',
     roles: ['TECHNICIAN'],
     element: <WorkQueuePage />,
   },
   {
     path: PATHS.map,
-    link: mapDefaultPath,
+    link: ({ id, role }) => rememberedPath(PATHS.map, 'map', id, mapDefaultPath(role)),
     label: 'Map',
     roles: INCIDENT_DETAIL_ROLES,
     element: <MapPage />,

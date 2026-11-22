@@ -13,6 +13,7 @@ import {
   withSearch,
   type IncidentFilters,
 } from '../incidents/filters/incident-filters';
+import { useRememberFilters } from '../incidents/filters/remembered-filters';
 import { useCategories, useDepartments, useIncidentLocations } from '../incidents/incident-queries';
 import incidentStyles from '../incidents/Incidents.module.css';
 import { PRIORITY_LABELS } from '../incidents/labels';
@@ -49,9 +50,12 @@ const FILTERS_ID = 'map-filters';
  */
 export function MapPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  // The list filters and, only here, the text search (#266).
+  // The list filters, which the map remembers (#263), and, only here, the text search (#266),
+  // which it does not: a search is typed for the moment.
+  const listFilters = filtersFrom(searchParams);
+  useRememberFilters('map', listFilters);
   const search = searchFrom(searchParams);
-  const filters: IncidentFilters = { ...filtersFrom(searchParams), ...(search && { q: search }) };
+  const filters: IncidentFilters = { ...listFilters, ...(search && { q: search }) };
   const locations = useIncidentLocations(filters);
   const categories = useCategories();
   const departments = useDepartments();
