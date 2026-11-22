@@ -25,23 +25,26 @@ export interface IncidentFilters {
   /** Last day, `YYYY-MM-DD`, included. */
   reportedTo?: string;
   /**
-   * Text in the title or the description, without the spaces around it (#266). Only the map has a
-   * box for it; a list keeps it from the address like any other filter.
+   * Text in the title or the description, without the spaces around it (#266). Only the map
+   * searches: it is not one of the list filters below, so the inbox and the work queue ignore a
+   * `q` in their address, and the filters a list remembers never hold it.
    */
   q?: string;
 }
 
 type IncidentFilterName = keyof IncidentFilters;
 
-/** Every filter, in the order the filter bar shows them; also the names of the URL parameters. */
-const FILTER_NAMES: readonly IncidentFilterName[] = [
+/**
+ * Every list filter, in the order the filter bar shows them; also the names of the URL parameters.
+ * The text search is apart: see `searchFrom` and `withSearch`.
+ */
+const FILTER_NAMES: readonly Exclude<IncidentFilterName, 'q'>[] = [
   'status',
   'categoryId',
   'priority',
   'departmentId',
   'reportedFrom',
   'reportedTo',
-  'q',
 ];
 
 export const PRIORITIES: readonly Priority[] = ['HIGH', 'MEDIUM', 'LOW'];
@@ -87,10 +90,6 @@ export function filtersFrom(params: URLSearchParams): IncidentFilters {
     departmentId: first(params, 'departmentId', isUuid),
     reportedFrom: first(params, 'reportedFrom', isDay),
     reportedTo: first(params, 'reportedTo', isDay),
-    q: params
-      .getAll('q')
-      .map((text) => text.trim())
-      .find((text) => searchTextProblem(text) === undefined),
   };
   if (filters.reportedFrom && filters.reportedTo && filters.reportedFrom > filters.reportedTo) {
     // Which of the two is wrong cannot be told, so neither is applied.
@@ -113,6 +112,27 @@ export function withFilters(params: URLSearchParams, filters: IncidentFilters): 
         next.append(name, each);
       }
     }
+  }
+  return next;
+}
+
+/**
+ * The text search of the map in an address (#266), trimmed; `undefined` without one, or when the API
+ * would reject it, so it is dropped, never sent.
+ */
+export function searchFrom(params: URLSearchParams): string | undefined {
+  return params
+    .getAll('q')
+    .map((text) => text.trim())
+    .find((text) => searchTextProblem(text) === undefined);
+}
+
+/** The address of a search: `params` with `q` replaced by `text`, or without it. */
+export function withSearch(params: URLSearchParams, text: string | undefined): URLSearchParams {
+  const next = new URLSearchParams(params);
+  next.delete('q');
+  if (text) {
+    next.set('q', text);
   }
   return next;
 }
@@ -150,7 +170,7 @@ export function toListQuery(filters: IncidentFilters): IncidentListQuery {
 }
 
 export function hasFilters(filters: IncidentFilters): boolean {
-  return FILTER_NAMES.some((name) => filters[name] !== undefined);
+  return filters.q !== undefined || FILTER_NAMES.some((name) => filters[name] !== undefined);
 }
 
 /**
@@ -164,6 +184,10 @@ export function searchTextProblem(text: string): string | undefined {
   }
   if (length > SEARCH_MAX_LENGTH) {
     return `Type at most ${SEARCH_MAX_LENGTH} characters.`;
+  }
+  // The API refuses it, so an address with `%00` would fail on every Try again.
+  if (text.includes('\u0000')) {
+    return 'Remove the null character.';
   }
   return undefined;
 }

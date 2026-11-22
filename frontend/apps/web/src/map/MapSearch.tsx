@@ -56,7 +56,15 @@ export function MapSearch({ value, onSearch }: MapSearchProps) {
         className={styles.searchInput}
         placeholder="Title or description"
         value={typed}
-        onChange={(event) => setTyped(event.target.value)}
+        onChange={(event) => {
+          setTyped(event.target.value);
+          // Escape and the clear button of a search box empty it without a submit: an empty box
+          // shows no search, so the map stops searching too.
+          if (event.target.value === '' && applied !== '') {
+            setProblem(undefined);
+            onSearch(undefined);
+          }
+        }}
         aria-invalid={problem ? true : undefined}
         aria-describedby={problem ? problemId : undefined}
       />

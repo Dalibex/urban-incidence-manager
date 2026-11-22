@@ -8,7 +8,9 @@ import { IncidentFilterBar } from '../incidents/filters/IncidentFilterBar';
 import {
   filtersFrom,
   hasFilters,
+  searchFrom,
   withFilters,
+  withSearch,
   type IncidentFilters,
 } from '../incidents/filters/incident-filters';
 import { useCategories, useDepartments, useIncidentLocations } from '../incidents/incident-queries';
@@ -47,7 +49,9 @@ const FILTERS_ID = 'map-filters';
  */
 export function MapPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const filters = filtersFrom(searchParams);
+  // The list filters and, only here, the text search (#266).
+  const search = searchFrom(searchParams);
+  const filters: IncidentFilters = { ...filtersFrom(searchParams), ...(search && { q: search }) };
   const locations = useIncidentLocations(filters);
   const categories = useCategories();
   const departments = useDepartments();
@@ -65,7 +69,8 @@ export function MapPage() {
   const positions = locations.data?.content ?? [];
   const activeFilters = filterSummary(filters, categories.data, departments.data);
 
-  const changeFilters = (next: IncidentFilters) => setSearchParams(withFilters(searchParams, next));
+  const changeFilters = (next: IncidentFilters) =>
+    setSearchParams(withSearch(withFilters(searchParams, next), next.q));
 
   const select = (incidentId: string) => {
     opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;

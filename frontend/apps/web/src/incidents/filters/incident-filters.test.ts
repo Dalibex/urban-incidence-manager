@@ -4,9 +4,11 @@ import {
   filtersFrom,
   filtersSearch,
   hasFilters,
+  searchFrom,
   searchTextProblem,
   toListQuery,
   withFilters,
+  withSearch,
   type IncidentFilters,
 } from './incident-filters';
 
@@ -153,36 +155,47 @@ describe('hasFilters', () => {
 // #266: the text search of the map, `q` in the address and in the API.
 describe('the text search', () => {
   it('reads it from the address without the spaces around it', () => {
-    expect(filtersFrom(new URLSearchParams('q=%20%20farola%20rota%20'))).toEqual({
-      q: 'farola rota',
-    });
+    expect(searchFrom(new URLSearchParams('q=%20%20farola%20rota%20'))).toBe('farola rota');
   });
 
-  it('drops a text the API would reject, so the list shows more, never an error', () => {
-    expect(filtersFrom(new URLSearchParams('q=ab'))).toEqual({});
-    expect(filtersFrom(new URLSearchParams('q=%20ab%20'))).toEqual({});
-    expect(filtersFrom(new URLSearchParams(`q=${'a'.repeat(101)}`))).toEqual({});
+  it('drops a text the API would reject, so the map shows more, never an error', () => {
+    expect(searchFrom(new URLSearchParams('q=ab'))).toBeUndefined();
+    expect(searchFrom(new URLSearchParams('q=%20ab%20'))).toBeUndefined();
+    expect(searchFrom(new URLSearchParams(`q=${'a'.repeat(101)}`))).toBeUndefined();
+    expect(searchFrom(new URLSearchParams('q=ab%00c'))).toBeUndefined();
   });
 
   it('takes 3 and 100 characters, counting an emoji as one', () => {
-    expect(filtersFrom(new URLSearchParams('q=abc')).q).toBe('abc');
-    expect(filtersFrom(new URLSearchParams(`q=${'a'.repeat(100)}`)).q).toBe('a'.repeat(100));
+    expect(searchFrom(new URLSearchParams('q=abc'))).toBe('abc');
+    expect(searchFrom(new URLSearchParams(`q=${'a'.repeat(100)}`))).toBe('a'.repeat(100));
     // Counts where characters and UTF-16 units disagree: 100 emoji are 200 units, `a💡` is 3.
-    expect(filtersFrom(new URLSearchParams({ q: '💡'.repeat(100) })).q).toBe('💡'.repeat(100));
-    expect(filtersFrom(new URLSearchParams({ q: 'a💡' })).q).toBeUndefined();
+    expect(searchFrom(new URLSearchParams({ q: '💡'.repeat(100) }))).toBe('💡'.repeat(100));
+    expect(searchFrom(new URLSearchParams({ q: 'a💡' }))).toBeUndefined();
     expect(searchTextProblem('a💡')).toBe('Type at least 3 characters.');
   });
 
   it('round-trips through the address and reaches the API', () => {
-    const params = withFilters(new URLSearchParams(), { q: '50% farola' });
-    expect(filtersFrom(params)).toEqual({ q: '50% farola' });
+    const params = withSearch(new URLSearchParams('status=REPORTED&q=old'), '50% farola');
+    expect(params.toString()).toBe('status=REPORTED&q=50%25+farola');
+    expect(searchFrom(params)).toBe('50% farola');
+    expect(withSearch(params, undefined).has('q')).toBe(false);
     expect(toListQuery({ q: '50% farola' })).toEqual({ q: '50% farola' });
     expect(hasFilters({ q: '50% farola' })).toBe(true);
+  });
+
+  // The lists have no box, and a list remembers the query of its filters (#263).
+  it('is not a list filter: the lists ignore it and never keep it', () => {
+    expect(filtersFrom(new URLSearchParams('status=REPORTED&q=farola'))).toEqual({
+      status: ['REPORTED'],
+    });
+    expect(filtersSearch({ status: ['REPORTED'], q: 'farola' })).toBe('?status=REPORTED');
+    expect(withFilters(new URLSearchParams('q=farola'), {}).get('q')).toBe('farola');
   });
 
   it('says why a text cannot be searched', () => {
     expect(searchTextProblem('farola')).toBeUndefined();
     expect(searchTextProblem('  ab ')).toBe('Type at least 3 characters.');
     expect(searchTextProblem('a'.repeat(101))).toBe('Type at most 100 characters.');
+    expect(searchTextProblem('ab\u0000c')).toBe('Remove the null character.');
   });
 });

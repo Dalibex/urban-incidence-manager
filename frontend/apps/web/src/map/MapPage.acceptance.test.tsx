@@ -372,6 +372,22 @@ describe('incident map on the web (#196, test #76)', () => {
       await waitFor(() => expect(requests.at(-1)?.has('q')).toBe(false));
     });
 
+    // Escape and the ✕ of a search box empty it without a submit.
+    it('stops searching when the box is emptied without a submit, keeping the focus', async () => {
+      const requests: URLSearchParams[] = [];
+      const router = renderApp(`${PATHS.map}?q=farola`, {
+        role: 'MUNICIPAL_OPERATOR',
+        fetch: mapApi([positions([POTHOLE])], requests),
+      });
+      const box = await screen.findByRole('searchbox', { name: 'Search' });
+
+      await userEvent.clear(box);
+
+      await waitFor(() => expect(requests.at(-1)?.has('q')).toBe(false));
+      expect(new URLSearchParams(router.state.location.search).has('q')).toBe(false);
+      expect(document.activeElement).toBe(box);
+    });
+
     it('offers to clear a search that finds nothing, and clears the box too', async () => {
       renderApp(`${PATHS.map}?q=nothing`, {
         role: 'MUNICIPAL_OPERATOR',
