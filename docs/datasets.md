@@ -296,6 +296,11 @@ What the measurements decided:
 
 - Without the indexes every search reads the whole table, and one page of the list runs it twice
   (its rows and its count); the map and its dashboard run it twice more.
+- The text goes into the SQL as a literal, not as a bound parameter. With a parameter the JDBC driver
+  ends up on PostgreSQL's generic plan, which cannot see the text: a page of a text no incident has
+  then walks the whole `ix_incident_reported_at`, 401 ms, against 0.2 ms with the literal, which is
+  planned for its text and reads the trigram indexes. Hibernate doubles the quotes of the literal,
+  and a test searches a quote.
 - One index per column, not one on the title and the description joined: the same times, but a
   joined text would let a search match across the end of the title and the start of the description.
 - The two indexes take 22 MB with this volume (7.5 MB the title, 14 MB the description), against

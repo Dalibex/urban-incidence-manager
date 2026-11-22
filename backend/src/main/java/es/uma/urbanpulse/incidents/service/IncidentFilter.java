@@ -123,6 +123,10 @@ public record IncidentFilter(
     private static Specification<Incident> containsText(String text) {
         String pattern = "%" + escapeLike(text) + "%";
         return (incident, query, cb) -> {
+            // A literal on purpose: Hibernate writes it into the SQL with its quotes doubled, so
+            // PostgreSQL plans each search for its text. As a bound parameter the driver ends up on
+            // a generic plan, and a text no incident has walks the whole date index: 400 ms
+            // against 0.2 ms with 100,000 incidents (docs/datasets.md, "Text Search").
             var folded = cb.function(SEARCH_TEXT, String.class, cb.literal(pattern));
             return cb.or(
                     cb.like(

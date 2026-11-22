@@ -133,6 +133,18 @@ class IncidentTextSearchApiIT {
             assertThat(listed(operator, "q", "a\\b " + marker)).containsExactly(slash.toString());
         }
 
+        // The text goes into the SQL as a literal (IncidentFilter), so a quote must stay a quote.
+        @Test
+        @DisplayName("reads a quote as a plain character, never as SQL")
+        void readsAQuoteAsAPlainCharacter() throws Exception {
+            UUID quoted = incident(citizen, "REPORTED", "Bar O'Brien " + marker, "Ruido.");
+            incident(citizen, "REPORTED", "Bar OBrien " + marker, "Ruido.");
+
+            assertThat(listed(operator, "q", "o'brien " + marker))
+                    .containsExactly(quoted.toString());
+            assertThat(listed(operator, "q", "' or '1'='1 " + marker)).isEmpty();
+        }
+
         @Test
         @DisplayName("ignores the spaces around the text")
         void ignoresTheSpacesAroundTheText() throws Exception {
