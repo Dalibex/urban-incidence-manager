@@ -1,4 +1,4 @@
-import type { FieldError, FormResult } from '@urbanpulse/api-client';
+import type { ApiResult, FieldError, FormResult } from '@urbanpulse/api-client';
 
 import styles from '../incidents/Incidents.module.css';
 
@@ -19,7 +19,7 @@ export function canRetry(outcome: Outcome | null): boolean {
 export const EMAIL_TAKEN = 'An account with this email already exists.';
 
 /** Whether the API refused the request because another account has the email. */
-export function isEmailTaken(result: FormResult<unknown>): boolean {
+export function isEmailTaken(result: FormResult<unknown> | ApiResult<unknown>): boolean {
   return (
     !result.ok &&
     result.failure.kind === 'problem' &&
@@ -28,7 +28,8 @@ export function isEmailTaken(result: FormResult<unknown>): boolean {
   );
 }
 
-export function outcomeOf(result: FormResult<unknown>): Outcome {
+/** `fieldErrors` only come with a `FormResult`; an `ApiResult` has none, such as a reset. */
+export function outcomeOf(result: FormResult<unknown> | ApiResult<unknown>): Outcome {
   if (result.ok) {
     return { kind: 'saved' };
   }
@@ -36,6 +37,7 @@ export function outcomeOf(result: FormResult<unknown>): Outcome {
   if (failure.kind === 'network') {
     return { kind: 'unreachable' };
   }
+  const fieldErrors = 'fieldErrors' in result ? result.fieldErrors : [];
   if (isEmailTaken(result)) {
     return { kind: 'invalid', fieldErrors: [{ field: 'email', message: EMAIL_TAKEN }] };
   }
@@ -45,8 +47,8 @@ export function outcomeOf(result: FormResult<unknown>): Outcome {
   if (failure.status === 404) {
     return { kind: 'missing' };
   }
-  if (failure.status === 422 && result.fieldErrors.length > 0) {
-    return { kind: 'invalid', fieldErrors: result.fieldErrors };
+  if (failure.status === 422 && fieldErrors.length > 0) {
+    return { kind: 'invalid', fieldErrors };
   }
   return { kind: 'failed' };
 }

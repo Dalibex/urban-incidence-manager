@@ -53,7 +53,7 @@ export interface paths {
          *     password does not reveal that an account has to change it. The client then calls
          *     `createPasswordChange` and signs in again.
          *
-         *     Second factor (ADR-0021), Planned: #57. When the password is right and the role of the
+         *     Second factor (ADR-0021). When the password is right and the role of the
          *     account is in `MFA_REQUIRED_ROLES` (by default every staff role), the answer is `202` with a
          *     challenge and **no tokens**. The client sends a code from the authenticator app with
          *     `createMfaVerification`, which returns the token pair; an account that has not enrolled yet
@@ -84,6 +84,11 @@ export interface paths {
          *     stops working. Sending a revoked refresh token again (already used, or signed out) before
          *     it expires fails and also revokes every session of its user, because someone else may hold
          *     a copy of it. The answer does not say whether the token was reused, expired or unknown.
+         *
+         *     Second factor (ADR-0021): when the role of the account is in `MFA_REQUIRED_ROLES` and the
+         *     session was not opened with a code (`createMfaVerification`), as a session from before the
+         *     second factor was deployed or from before a role change, the refresh fails and that refresh
+         *     token ends; the user signs in again with a code. Other sessions of the user are kept.
          *
          *     A client must not try to refresh again when this operation returns `401`: it signs the
          *     user out instead.
@@ -168,7 +173,7 @@ export interface paths {
         put?: never;
         /**
          * Start the enrolment of the second factor
-         * @description Planned: #57. For a challenge of `createSession` whose `enrollmentRequired` is `true`:
+         * @description For a challenge of `createSession` whose `enrollmentRequired` is `true`:
          *     creates a new TOTP secret for that challenge and returns it as an `otpauth://` URI, which
          *     the web app shows as a QR code for an authenticator app. The enrolment stays pending, and
          *     the second factor does not protect the account, until `createMfaVerification` receives a
@@ -187,8 +192,8 @@ export interface paths {
          *
          *     Accepted risk of ADR-0021 (trust on first use): while an account has no confirmed second
          *     factor (when #57 is deployed, after `createUserMfaReset`, and for a new account), whoever knows
-         *     its password can enrol their own phone first. The real user then gets
-         *     `MFA_ALREADY_ENROLLED`, and an administrator resets it.
+         *     its password can enrol their own phone first. The real user's sign-in then asks for a code
+         *     their app cannot give (`INVALID_MFA_CODE`), and an administrator resets it.
          *
          *     The challenge token is the credential, in the body and not in the path, so it does not reach
          *     the access logs. A challenge that is unknown, expired or already used gets
@@ -214,12 +219,10 @@ export interface paths {
         put?: never;
         /**
          * Finish the sign-in with a code of the second factor
-         * @description Planned: #57. Checks a code of the authenticator app for a challenge of `createSession` and,
+         * @description Checks a code of the authenticator app for a challenge of `createSession` and,
          *     if it is valid, returns the token pair of ADR-0004 and spends the challenge. If the
          *     enrolment of the account is pending (`createMfaEnrollment`), a valid code also confirms it
          *     and records an `ENROLL_MFA` audit entry, in the same transaction that issues the tokens.
-         *     #57 adds `ENROLL_MFA` and `RESET_MFA` to `AuditAction` when it records them, as that schema
-         *     asks, so the audit filter never offers an action the backend does not know yet.
          *
          *     A code is valid for its 30-second time step and one step on each side; a code that was
          *     already used is refused. A wrong code does not spend the challenge, so the user can type
@@ -231,8 +234,8 @@ export interface paths {
          *     minutes. A right password does not give these attempts back; only a valid code does. Whoever
          *     has the password can use them up and lock the real user out for a while; that is accepted,
          *     like the trust on first use of `createMfaEnrollment`. Past the limit, `429`
-         *     `TOO_MANY_ATTEMPTS` with `Retry-After`, even for a right code. #57 adds its row to *Rate
-         *     limits* in `docs/security.md`.
+         *     `TOO_MANY_ATTEMPTS` with `Retry-After`, even for a right code (*Rate limits* in
+         *     `docs/security.md`).
          *
          *     The account is checked again here: if it was disabled after the password step, or its role
          *     no longer needs the second factor, the answer is `403` `ACCOUNT_DISABLED` or `401`
@@ -355,7 +358,7 @@ export interface paths {
         put?: never;
         /**
          * Reset the second factor of a user
-         * @description Planned: #57. For a user who lost their phone (ADR-0021): removes their TOTP secret, revokes
+         * @description For a user who lost their phone (ADR-0021): removes their TOTP secret, revokes
          *     every refresh token and open sign-in challenge of the user, and records a `RESET_MFA` audit
          *     entry with the actor, the instant, the user (`target`) and the `reason` the administrator
          *     gives, in one transaction, as ADR-0021 asks. The user enrols again on their next sign-in.
@@ -384,8 +387,9 @@ export interface paths {
         };
         /**
          * List the active technicians
-         * @description Enabled technicians, ordered by name and then by id, for the assignment form. It is a short
-         *     list of staff, so it is not paginated. It returns only what the form needs, without emails.
+         * @description Enabled technicians, ordered by name and then by id, for the assignment form. It is not
+         *     paginated yet, although the list has no upper bound. Planned: #360. It returns only what the
+         *     form needs, without emails.
          *
          *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`.
          */
@@ -468,13 +472,14 @@ export interface paths {
          *     - `CITIZEN`: only the incidents they reported.
          *     - `TECHNICIAN`: only the incidents actively assigned to them.
          *     - `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`: all incidents.
-         *     - `ANALYST`: no access yet (`403`); analytics comes in a later milestone.
+         *     - `ANALYST`: no access (`403`); analysts read the aggregated report instead
+         *       (`getIncidentReport`, #42).
          *
          *     Sortable properties: `reportedAt`, `updatedAt`. Default `reportedAt,desc` (newest first);
          *     `id` is always added as the last criterion so the order is stable between pages.
          *
          *     Filters always apply inside what the caller may see, so they never widen it, and every
-         *     filter used must match. `status` and the text search `q` (Planned: #266) are open to every
+         *     filter used must match. `status` and the text search `q` are open to every
          *     role that can list. The other filters are for staff: a `CITIZEN` who uses one gets `403`.
          *     An unknown parameter, or one without a value (`?categoryId=`), returns `400`.
          */
@@ -911,8 +916,8 @@ export interface paths {
         /**
          * List the positions of incidents for the map
          * @description A lightweight list for the map, with the same filters and the same scope as `listIncidents`
-         *     and an optional bounding box (#195). It is not paginated, because the map needs one answer
-         *     for the whole view: the server returns at most 1,000 items, puts the most relevant first
+         *     and an optional bounding box (#195). It is not paginated yet (Planned: #360): the server
+         *     returns at most 1,000 items for the whole view, puts the most relevant first
          *     (priority from `HIGH` to none, then newest) and sets `truncated` when it left some out. An
          *     empty result is `200`. An unknown parameter, or one without a value, returns `400`, like
          *     `listIncidents`.
@@ -948,7 +953,7 @@ export interface paths {
          * @description The indicators of the staff dashboard (#177), shown beside the map: how many incidents
          *     match, and how they split by status, priority, category and department. It takes the same
          *     filters and the same scope as `listIncidentLocations`, without the bounding box, so it
-         *     counts the incidents the map draws, also while the text search `q` (Planned: #266) narrows
+         *     counts the incidents the map draws, also while the text search `q` narrows
          *     them. Unlike the map it has no cap: it counts every one.
          *     An unknown parameter, or one without a value, returns `400`, like `listIncidents`.
          *
@@ -1085,8 +1090,9 @@ export interface paths {
         };
         /**
          * Get the status history of an incident
-         * @description Every status change of the incident, oldest first. It is not paginated: the lifecycle of
-         *     ADR-0020 bounds it to a few entries per incident.
+         * @description Every status change of the incident, oldest first. It is not paginated yet, although the
+         *     history has no upper bound: information requests, reassignments and reopening can repeat.
+         *     Planned: #360.
          *
          *     A citizen only gets the entries visible to them, with the reason only where ADR-0020 says
          *     the citizen sees it, and without the staff-only properties. Staff get every entry.
@@ -1295,7 +1301,7 @@ export interface components {
              */
             refreshTokenExpiresAt: string;
         };
-        /** @description The first step of a sign-in that needs the second factor (ADR-0021): no tokens yet. Planned: #57. */
+        /** @description The first step of a sign-in that needs the second factor (ADR-0021): no tokens yet. */
         MfaChallengeResponse: {
             /** @description Opaque, single-use credential of this sign-in, for `createMfaEnrollment` and `createMfaVerification`. The client keeps it in memory only, never in storage. */
             challengeToken: string;
@@ -1307,11 +1313,11 @@ export interface components {
             /** @description `true` when the account has no confirmed second factor yet: the client calls `createMfaEnrollment` and shows the QR code before asking for a code. */
             enrollmentRequired: boolean;
         };
-        /** @description The challenge of the sign-in that is enrolling. Planned: #57. */
+        /** @description The challenge of the sign-in that is enrolling. */
         CreateMfaEnrollmentRequest: {
             challengeToken: string;
         };
-        /** @description A pending enrolment of the second factor. The secret is shown only now, while the enrolment is pending. Planned: #57. */
+        /** @description A pending enrolment of the second factor. The secret is shown only now, while the enrolment is pending. */
         MfaEnrollmentResponse: {
             /**
              * Format: uri
@@ -1321,12 +1327,12 @@ export interface components {
             /** @description The same secret in Base32, for a user who types it into the authenticator app instead of scanning the QR code. */
             secret: string;
         };
-        /** @description Why the second factor of the user is reset, for the audit trail. Planned: #57. */
+        /** @description Why the second factor of the user is reset, for the audit trail. */
         CreateUserMfaResetRequest: {
             /** @description The reason, as the administrator writes it (for example, a lost phone). It is kept in the `RESET_MFA` entry; write no personal data in it. */
             reason: string;
         };
-        /** @description A code of the authenticator app for a sign-in challenge. Planned: #57. */
+        /** @description A code of the authenticator app for a sign-in challenge. */
         CreateMfaVerificationRequest: {
             challengeToken: string;
             /** @description The six digits the authenticator app shows now. */
@@ -1429,7 +1435,7 @@ export interface components {
          * @example CHANGE_ROLE
          * @enum {string}
          */
-        AuditAction: "CREATE_USER" | "UPDATE_USER" | "CHANGE_ROLE" | "DISABLE_USER" | "ENABLE_USER" | "CHANGE_PASSWORD" | "CLASSIFY_INCIDENT";
+        AuditAction: "CREATE_USER" | "UPDATE_USER" | "CHANGE_ROLE" | "DISABLE_USER" | "ENABLE_USER" | "CHANGE_PASSWORD" | "CLASSIFY_INCIDENT" | "ENROLL_MFA" | "RESET_MFA";
         /**
          * @description The kind of record an audit entry is about.
          * @example USER
@@ -2410,7 +2416,7 @@ export interface components {
         DepartmentIdFilter: string[];
         /** @description Planned: #59. Only incidents in one of these districts, by the name `listDistricts` returns. Repeat it for several values. It matches `location.district` exactly, so an incident whose district is not available (`null`) never matches; a name that is not a district matches nothing. */
         DistrictFilter: string[];
-        /** @description Planned: #266. Only incidents whose title or description contains this text, ignoring case and accents (`farola` finds `Farola rota` and `FAROLA`; `camion` finds `camión`). The text is matched as one piece, after removing its leading and trailing spaces: `farola rota` does not find `rota la farola`. `%` and `_` are plain characters, not wildcards. After removing those spaces it must have 3 to 100 characters, or the request returns `400`. */
+        /** @description Only incidents whose title or description contains this text, each on its own, ignoring case and accents (`farola` finds `Farola rota` and `FAROLA`; `camion` finds `camión`; `ñ` counts as `n`, so `ano` finds `año`). The text is matched as one piece, after removing its leading and trailing spaces: `farola rota` does not find `rota la farola`, nor a title that ends in `farola` with a description that starts with `rota`. `%`, `_` and `\` are plain characters, not wildcards. After removing those spaces it must have 3 to 100 characters, and no null character (U+0000), or the request returns `400`. `minLength` and `maxLength` count the trimmed text. */
         TextSearch: string;
         /** @description Page number, starting at 0. A page that starts past item 2,147,483,647 (`page` times `size`) returns `400`. */
         Page: number;
@@ -2500,7 +2506,7 @@ export interface operations {
                     "application/json": components["schemas"]["SessionResponse"];
                 };
             };
-            /** @description The password is right, but the account needs its second factor: no session starts until a valid code is sent for this challenge. Planned: #57. */
+            /** @description The password is right, but the account needs its second factor: no session starts until a valid code is sent for this challenge. */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -2567,7 +2573,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
-            /** @description The refresh token is unknown, expired, revoked or already used, or the account is disabled. Code: `INVALID_REFRESH_TOKEN`. */
+            /** @description The refresh token is unknown, expired, revoked or already used, the account is disabled, or its role needs a second factor its session was not opened with. Code: `INVALID_REFRESH_TOKEN`. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -3110,7 +3116,7 @@ export interface operations {
                 departmentId?: components["parameters"]["DepartmentIdFilter"];
                 /** @description Planned: #59. Only incidents in one of these districts, by the name `listDistricts` returns. Repeat it for several values. It matches `location.district` exactly, so an incident whose district is not available (`null`) never matches; a name that is not a district matches nothing. */
                 district?: components["parameters"]["DistrictFilter"];
-                /** @description Planned: #266. Only incidents whose title or description contains this text, ignoring case and accents (`farola` finds `Farola rota` and `FAROLA`; `camion` finds `camión`). The text is matched as one piece, after removing its leading and trailing spaces: `farola rota` does not find `rota la farola`. `%` and `_` are plain characters, not wildcards. After removing those spaces it must have 3 to 100 characters, or the request returns `400`. */
+                /** @description Only incidents whose title or description contains this text, each on its own, ignoring case and accents (`farola` finds `Farola rota` and `FAROLA`; `camion` finds `camión`; `ñ` counts as `n`, so `ano` finds `año`). The text is matched as one piece, after removing its leading and trailing spaces: `farola rota` does not find `rota la farola`, nor a title that ends in `farola` with a description that starts with `rota`. `%`, `_` and `\` are plain characters, not wildcards. After removing those spaces it must have 3 to 100 characters, and no null character (U+0000), or the request returns `400`. `minLength` and `maxLength` count the trimmed text. */
                 q?: components["parameters"]["TextSearch"];
             };
             header?: never;
@@ -3758,7 +3764,7 @@ export interface operations {
                 departmentId?: components["parameters"]["DepartmentIdFilter"];
                 /** @description Planned: #59. Only incidents in one of these districts, by the name `listDistricts` returns. Repeat it for several values. It matches `location.district` exactly, so an incident whose district is not available (`null`) never matches; a name that is not a district matches nothing. */
                 district?: components["parameters"]["DistrictFilter"];
-                /** @description Planned: #266. Only incidents whose title or description contains this text, ignoring case and accents (`farola` finds `Farola rota` and `FAROLA`; `camion` finds `camión`). The text is matched as one piece, after removing its leading and trailing spaces: `farola rota` does not find `rota la farola`. `%` and `_` are plain characters, not wildcards. After removing those spaces it must have 3 to 100 characters, or the request returns `400`. */
+                /** @description Only incidents whose title or description contains this text, each on its own, ignoring case and accents (`farola` finds `Farola rota` and `FAROLA`; `camion` finds `camión`; `ñ` counts as `n`, so `ano` finds `año`). The text is matched as one piece, after removing its leading and trailing spaces: `farola rota` does not find `rota la farola`, nor a title that ends in `farola` with a description that starts with `rota`. `%`, `_` and `\` are plain characters, not wildcards. After removing those spaces it must have 3 to 100 characters, and no null character (U+0000), or the request returns `400`. `minLength` and `maxLength` count the trimmed text. */
                 q?: components["parameters"]["TextSearch"];
                 /** @description South limit of the bounding box, WGS 84 latitude in decimal degrees. */
                 minLatitude?: number;
@@ -3807,7 +3813,7 @@ export interface operations {
                 departmentId?: components["parameters"]["DepartmentIdFilter"];
                 /** @description Planned: #59. Only incidents in one of these districts, by the name `listDistricts` returns. Repeat it for several values. It matches `location.district` exactly, so an incident whose district is not available (`null`) never matches; a name that is not a district matches nothing. */
                 district?: components["parameters"]["DistrictFilter"];
-                /** @description Planned: #266. Only incidents whose title or description contains this text, ignoring case and accents (`farola` finds `Farola rota` and `FAROLA`; `camion` finds `camión`). The text is matched as one piece, after removing its leading and trailing spaces: `farola rota` does not find `rota la farola`. `%` and `_` are plain characters, not wildcards. After removing those spaces it must have 3 to 100 characters, or the request returns `400`. */
+                /** @description Only incidents whose title or description contains this text, each on its own, ignoring case and accents (`farola` finds `Farola rota` and `FAROLA`; `camion` finds `camión`; `ñ` counts as `n`, so `ano` finds `año`). The text is matched as one piece, after removing its leading and trailing spaces: `farola rota` does not find `rota la farola`, nor a title that ends in `farola` with a description that starts with `rota`. `%`, `_` and `\` are plain characters, not wildcards. After removing those spaces it must have 3 to 100 characters, and no null character (U+0000), or the request returns `400`. `minLength` and `maxLength` count the trimmed text. */
                 q?: components["parameters"]["TextSearch"];
             };
             header?: never;

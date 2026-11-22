@@ -5,6 +5,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import styles from '../incidents/Incidents.module.css';
 import { ROLE_LABELS } from '../layout/role-labels';
 import { FormField } from './FormField';
+import { MfaResetPanel } from './MfaResetPanel';
 import { changesOf, NAME_MAX_LENGTH, STAFF_ROLES } from './user-changes';
 import { canRetry, fieldErrorOf, OutcomeMessage, outcomeOf, type Outcome } from './user-outcome';
 import { useUpdateUser } from './user-queries';
@@ -287,6 +288,8 @@ export function UserEditor({ user, own, onSaved, onClose }: UserEditorProps) {
           retrying={pending === 'status'}
         />
       </section>
+
+      {!citizen && <MfaResetPanel user={known} own={own} />}
     </div>
   );
 }

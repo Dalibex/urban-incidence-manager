@@ -27,10 +27,12 @@ What each role can do today:
 | Who | App | What they can do |
 | --- | --- | --- |
 | Citizen | Mobile | Sign up, report an incident by placing it on the map, add photos, and follow their reports, their address and what the city answers |
-| Municipal operator | Web | Review new reports in an inbox with filters or on a live map with a dashboard, with the street address of each one, and see in its detail the weather when it was reported; classify, validate, reject or ask for more information; assign to a department and a technician; close or reopen the result |
+| Municipal operator | Web | Review new reports in an inbox with filters or on a live map with a dashboard and a text search, with the street address of each one, and see in its detail the weather when it was reported; classify, validate, reject or ask for more information; assign to a department and a technician; close or reopen the result |
 | Technician | Web | Accept the incidents assigned to them, find them by their street address, see the weather when each one was reported, and resolve them with their notes |
-| Administrator | Web | Everything an operator does, plus managing the staff accounts and reading the audit log |
+| Administrator | Web | Everything an operator does, plus managing the staff accounts, resetting the second factor of a lost phone, and reading the audit log |
 | Analyst | Web | Operational reports for a period, on screen or as CSV |
+
+Staff confirm each sign-in on the web with a code from an authenticator app ([ADR-0021](docs/adr/0021-multi-factor-authentication.md)).
 
 Every incident follows a fixed lifecycle ([ADR-0020](docs/adr/0020-incident-lifecycle-transitions.md)). Each change keeps who made it, when and why, and the citizen never sees the internal notes.
 
@@ -91,6 +93,7 @@ In `.env` (on Windows, copy it with `Copy-Item .env.example .env`), fill in, wit
 
 - `POSTGRES_PASSWORD`, any password for the database;
 - `JWT_SECRET`, at least 32 bytes: generate one with `openssl rand -base64 48` (on Windows, from Git Bash);
+- `MFA_ENCRYPTION_KEY`, which encrypts the second factor of staff: generate it with `openssl rand -base64 32`;
 - `SPRING_PROFILES_ACTIVE=demo` and a `DEMO_PASSWORD`, the password of the demo users.
 
 > [!IMPORTANT]
@@ -105,7 +108,7 @@ docker compose up -d --build
 docker compose --profile tiles run --rm tiles-builder
 ```
 
-Open `http://localhost:8000` and sign in as `demo.operator@example.com` with your `DEMO_PASSWORD`. The other demo users, and how to reach the system from a phone, are in the [demo script](docs/demo.md). `docker compose down` stops it and keeps the data.
+Open `http://localhost:8000` and sign in as `demo.operator@example.com` with your `DEMO_PASSWORD`. Staff accounts need a code from an authenticator app: the first sign-in shows a QR code to set it up ([demo script](docs/demo.md)). The other demo users, and how to reach the system from a phone, are in the [demo script](docs/demo.md). `docker compose down` stops it and keeps the data.
 
 ## 🧪 Testing
 

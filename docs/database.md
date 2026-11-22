@@ -91,8 +91,13 @@ constraints, the schema has these indexes:
 | `ix_audit_log_target_id` | V14 (#47) | The classification changes of one incident |
 | `ix_incident_status_priority_reported_at` | V16 (#176) | The count of the staff lists filtered by status and priority |
 | `ix_location_address_pending` | V19 (#375) | The address worker: the next pending addresses and their expiry. Partial, only the `PENDING` locations |
+| `ix_incident_title_search`, `ix_incident_description_search` | V21 (#266) | The text search `q`: trigram (`pg_trgm`) GIN indexes on `search_text(title)` and `search_text(description)`, the function of V21 that folds case and accents with `unaccent`; `search_pattern` folds the searched text the same way and escapes it for `LIKE` |
 
-The indexes of V10 to V19, apart from the unique one, have their measurement in the
+`mfa_challenges` (V20, #57) has no index on `user_id`: it holds at most a day of sign-in challenges
+of staff, because the daily clean-up deletes the expired ones, so reading it by user is a scan of a
+few rows. Add one only with a measurement.
+
+The indexes of V10 to V21, apart from the unique one, have their measurement in the
 [datasets guide](datasets.md#query-plans-of-the-indexes).
 
 ## 📚 Reference Data

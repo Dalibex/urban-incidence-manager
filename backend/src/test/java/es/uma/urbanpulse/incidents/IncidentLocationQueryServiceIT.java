@@ -73,7 +73,7 @@ class IncidentLocationQueryServiceIT extends PersistenceTestSupport {
         entityManager.persist(category);
         onlyThisTest =
                 new IncidentFilter(
-                        Set.of(), Set.of(category.getId()), Set.of(), null, null, Set.of());
+                        Set.of(), Set.of(category.getId()), Set.of(), null, null, Set.of(), null);
     }
 
     @Test
@@ -172,7 +172,8 @@ class IncidentLocationQueryServiceIT extends PersistenceTestSupport {
                         Set.of(Priority.HIGH),
                         null,
                         null,
-                        Set.of());
+                        Set.of(),
+                        null);
 
         var listed =
                 queries

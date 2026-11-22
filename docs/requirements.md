@@ -53,7 +53,7 @@ in which milestone, is in GitHub, not here.
 
 | ID | Requirement | In the MVP | Issues | After the MVP |
 | --- | --- | --- | --- | --- |
-| RF01 | **Identity and access.** Users sign up or sign in; staff authenticate. | Yes. The second factor for staff was left out of the MVP. | #35, #39, #126, #165; #57 (second factor, ADR-0021) | The second factor for staff. Planned: #57. |
+| RF01 | **Identity and access.** Users sign up or sign in; staff authenticate. | Yes, with the second factor for staff (ADR-0021). | #35, #39, #126, #165; #57 (second factor, ADR-0021) | — |
 | RF02 | **Roles and permissions.** Different permissions for citizens, operators, technicians, administrators and analysts. | Yes | #35, #39, #100, #40; [permission matrix](security.md#-permission-matrix) | A new **auditor** role that reads the audit with the administrators ([final delivery](#-final-delivery)). Planned: #355. |
 | RF03 | **Report an incident** with a title, description, position and optional category. | Yes | #43 | — |
 | RF04 | **Location.** The incident keeps coordinates, normalized address and accuracy. | Yes. Coordinates, and the accuracy while the position is the phone's GPS fix; the citizen corrects the position with a pin on the mobile map, and reports without GPS once they move it: the map's starting point on Málaga is never sent. The normalized address is resolved from the position by Nominatim after the report, never delaying it, and shown with its source in the web and mobile details and the staff lists, or said to be pending, outside Málaga or not available ([ADR-0002](adr/0002-open-street-map.md), #375). Incidents reported before it have none. | #43; #60 (#197, #198); #375 | — |
@@ -69,7 +69,7 @@ in which milestone, is in GitHub, not here.
 | ID | Requirement | In the MVP | Issues | After the MVP |
 | --- | --- | --- | --- | --- |
 | RF05 | **Evidence.** Photos or other files, with type and size validation. | Yes | #44 (ADR-0013; #192 API, #193 mobile, #194 web) | The photos in an external image service ([final delivery](#-final-delivery)). Planned: #341. Replaces the local volume of ADR-0013. |
-| RF07 | **Search.** Staff filter by status, category, date, priority, district and department. | Yes. The district filter needs RF21. | #58 (#182 API, #183 web) | The district filter comes with RF21. Planned: #59. |
+| RF07 | **Search.** Staff filter by status, category, date, priority, district and department. | Yes. The district filter needs RF21. A text search on the title and the description came after the MVP, on the web map. | #58 (#182 API, #183 web); #266 (text search) | The district filter comes with RF21. Planned: #59. |
 | RF08 | **Map** of incidents and relevant urban layers. | Partly. Incidents on the web map, with the icon of their category, clustered by zoom and refreshed on their own; the mobile report form places the incident with a pin on the base map; urban layers need urban data, which the MVP does not load. | #53 (#195 API, #196 web, #267 icons); #60 (mobile: #197, #198) | Urban layers on the staff map. Planned: #374. |
 | RF10 | **Priority**, manual or assisted, keeping its justification. | Partly. Manual priority with a required justification; assisted priority comes with RF20. | #47 | Assisted priority stays out with RF20. |
 | RF13 | **Collaboration.** Operators and technicians add comments, evidence and resolution data. | Yes. Every comment is internal in the MVP. | #50, #51, #44 | — |
@@ -109,7 +109,7 @@ issue is the parent that covers the requirement; its sub-issues are listed in it
 
 | Requirement | Status | Issue | Replaces |
 | --- | --- | --- | --- |
-| **Staff dashboard.** Operators and technicians see the incidents on a map, general indicators and filters. | Built. The web map shows the incidents with markers coloured by status, sized by priority and with the icon of their category, clustered by zoom; beside it, a dashboard counts the same incidents in total, by priority, status, category and department, and lists the latest reported. Both use the inbox filters (status, category, date, priority, department). A technician sees only the incidents assigned to them. | #53, #58, #177; customizable: #265 | — |
+| **Staff dashboard.** Operators and technicians see the incidents on a map, general indicators and filters. | Built. The web map shows the incidents with markers coloured by status, sized by priority and with the icon of their category, clustered by zoom; beside it, a dashboard counts the same incidents in total, by priority, status, category and department, and lists the latest reported. Both use the inbox filters (status, category, date, priority, department) and a text search on the title and the description (#266). A technician sees only the incidents assigned to them. | #53, #58, #177; customizable: #265 | — |
 | **Photos in an external service**, such as Cloudinary. | No. The photos are files in a local volume behind `StorageService`. | #341 | The local volume of ADR-0013 |
 | **Normalized incidents.** The reports of several citizens about the same problem become one incident, and each report stays traceable to it: a report of a problem that already has an incident is attached to it instead of creating a duplicate, and the incident lists every citizen who reported it. Built in the core, before the services. | No. Each report is its own incident. | #333 | — |
 | **Context service** that extracts, normalizes and manages external data (the chosen Málaga open data, and the weather from AEMET or another source) in its **own database**, kept up to date by periodic extraction or by asking the source when needed. | Partly. The `urbancontext` module of the core stores the weather of each new incident from Open-Meteo, in the shared schema; the open data is not loaded. | #346; the weather source: #372 | The single schema of ADR-0010 for the context; the weather provider of ADR-0018 if #372 chooses another |
@@ -130,8 +130,8 @@ in on the web gets a notice to use the phone; staff who sign in on the phone get
 web. Every screen is also protected by the API: hiding a menu entry is not access control
 ([security guide](security.md)).
 
-The sign-in screen asks for the email and password. A second factor for staff accounts is
-planned before the refactor: Planned: #57.
+The sign-in screen asks for the email and password. Staff accounts then type a code from an
+authenticator app (#57, ADR-0021); the first time, the screen shows a QR code to enrol the app.
 
 ### Web: municipal operator
 
@@ -185,7 +185,8 @@ planned before the refactor: Planned: #57.
   operator can (ADR-0020), so they also get the operator's screens (#127), and the analyst's
   *Reports* (#42).
 - **Users** (#40): list filtered by name, email and role; create a staff account with a role; edit
-  the name and role; **deactivate** (not delete) an account.
+  the name and role; **deactivate** (not delete) an account; **reset the second factor** of a
+  staff account with a reason (#57).
 - **Audit log** (#41): read-only list filtered by date, actor and action; columns date, actor,
   action, target and details.
 - **Not in the MVP:** the *Sources* screen for external data sources (it goes with RF23).
@@ -228,7 +229,7 @@ changed.
 | Topic | Original document | Now | Decided by |
 | --- | --- | --- | --- |
 | Plan of Sprint 1 | Sprint 1 included user management, evidence, validation, classification, assignment, comments, filters and the technician's queue. | Sprint 1 was the walking skeleton (sign-up and sign-in, reporting, the citizen's list, the operator's inbox and detail); the rest is in Sprint 2. The milestones are the plan. | Milestones *Sprint 1* and *Sprint 2* |
-| Audit log | `AuditLog` with the administrator's email as actor, the affected user's email as target, free text as details, and the actions `CREATE_USER`, `UPDATE_USER`, `DELETE_USER`. | `audit_log` keeps the actor's id, the target's type and id, and the values before and after as JSON, with no emails or names. Actions: `CREATE_USER`, `UPDATE_USER`, `CHANGE_ROLE`, `DISABLE_USER`, `ENABLE_USER`, `CLASSIFY_INCIDENT`. Entries can never be changed or deleted. | [Security guide](security.md#-audit-trail), #36, #41 |
+| Audit log | `AuditLog` with the administrator's email as actor, the affected user's email as target, free text as details, and the actions `CREATE_USER`, `UPDATE_USER`, `DELETE_USER`. | `audit_log` keeps the actor's id, the target's type and id, and the values before and after as JSON, with no emails or names. Actions: `CREATE_USER`, `UPDATE_USER`, `CHANGE_ROLE`, `DISABLE_USER`, `ENABLE_USER`, `CHANGE_PASSWORD`, `CLASSIFY_INCIDENT`, `ENROLL_MFA`, `RESET_MFA`. Entries can never be changed or deleted. | [Security guide](security.md#-audit-trail), #36, #41 |
 | Delete user | *Delete* with a confirmation. | *Deactivate*: the account can no longer sign in and its sessions are revoked. A user is referenced by incidents, history and the audit log, so it is never deleted. | #40, [security guide](security.md#-audit-trail) |
 | API key of an external source | `DataSourceConfig.apiKey` stored in the database and typed in the *Sources* screen. | `data_source_config` has no key: secrets come from the environment (Twelve-Factor III). The *Sources* screen is not in the MVP. | ADR-0011, migration `V4` |
 | Validate | *Validate* sets the category and priority and changes the status to `VALIDATED`. | Two steps that the same panel runs: classify (#47) and then validate (#48). Validation only checks that both are set. | ADR-0020, #47, #48 |

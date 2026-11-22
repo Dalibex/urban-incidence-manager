@@ -24,12 +24,21 @@ export interface IncidentFilters {
   reportedFrom?: string;
   /** Last day, `YYYY-MM-DD`, included. */
   reportedTo?: string;
+  /**
+   * Text in the title or the description, without the spaces around it (#266). Only the map
+   * searches: it is not one of the list filters below, so the inbox and the work queue ignore a
+   * `q` in their address, and the filters a list remembers never hold it.
+   */
+  q?: string;
 }
 
 type IncidentFilterName = keyof IncidentFilters;
 
-/** Every filter, in the order the filter bar shows them; also the names of the URL parameters. */
-const FILTER_NAMES: readonly IncidentFilterName[] = [
+/**
+ * Every list filter, in the order the filter bar shows them; also the names of the URL parameters.
+ * The text search is apart: see `searchFrom` and `withSearch`.
+ */
+const FILTER_NAMES: readonly Exclude<IncidentFilterName, 'q'>[] = [
   'status',
   'categoryId',
   'priority',
@@ -62,6 +71,10 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DAY = /^[1-9]\d{3}-\d{2}-\d{2}$/;
 // The last day of year 9999 has no next day in this format to end a range on.
 const LAST_DAY = '9999-12-31';
+
+// The limits of the text search `q` in the contract (`TextSearch`), in characters once trimmed.
+const SEARCH_MIN_LENGTH = 3;
+const SEARCH_MAX_LENGTH = 100;
 
 /**
  * The filters of an address. A value the API would reject (an unknown status, an id that is not a
@@ -104,6 +117,27 @@ export function withFilters(params: URLSearchParams, filters: IncidentFilters): 
 }
 
 /**
+ * The text search of the map in an address (#266), trimmed; `undefined` without one, or when the API
+ * would reject it, so it is dropped, never sent.
+ */
+export function searchFrom(params: URLSearchParams): string | undefined {
+  return params
+    .getAll('q')
+    .map((text) => text.trim())
+    .find((text) => searchTextProblem(text) === undefined);
+}
+
+/** The address of a search: `params` with `q` replaced by `text`, or without it. */
+export function withSearch(params: URLSearchParams, text: string | undefined): URLSearchParams {
+  const next = new URLSearchParams(params);
+  next.delete('q');
+  if (text) {
+    next.set('q', text);
+  }
+  return next;
+}
+
+/**
  * The statuses to filter by, each once and in the order of the lifecycle, so the same choice always
  * gives the same address; none means no status filter.
  */
@@ -122,7 +156,7 @@ export function filtersSearch(filters: IncidentFilters): string {
 
 /** The filters as the query of `listIncidents`; the days become the instants they start at. */
 export function toListQuery(filters: IncidentFilters): IncidentListQuery {
-  const { status, categoryId, priority, departmentId, reportedFrom, reportedTo } = filters;
+  const { status, categoryId, priority, departmentId, reportedFrom, reportedTo, q } = filters;
   return {
     ...(status && { status: [...status] }),
     ...(categoryId && { categoryId: [categoryId] }),
@@ -131,11 +165,31 @@ export function toListQuery(filters: IncidentFilters): IncidentListQuery {
     ...(reportedFrom && { reportedFrom: startOfDay(reportedFrom) }),
     // The API excludes `reportedTo`, so the last day ends where the next one starts.
     ...(reportedTo && { reportedTo: startOfDay(nextDay(reportedTo)) }),
+    ...(q && { q }),
   };
 }
 
 export function hasFilters(filters: IncidentFilters): boolean {
-  return FILTER_NAMES.some((name) => filters[name] !== undefined);
+  return filters.q !== undefined || FILTER_NAMES.some((name) => filters[name] !== undefined);
+}
+
+/**
+ * Why the API would reject `text` as a search, as the box says it; `undefined` when it would not.
+ * Counted in characters, as the contract does, so an emoji counts as one.
+ */
+export function searchTextProblem(text: string): string | undefined {
+  const length = [...text.trim()].length;
+  if (length < SEARCH_MIN_LENGTH) {
+    return `Type at least ${SEARCH_MIN_LENGTH} characters.`;
+  }
+  if (length > SEARCH_MAX_LENGTH) {
+    return `Type at most ${SEARCH_MAX_LENGTH} characters.`;
+  }
+  // The API refuses it, so an address with `%00` would fail on every Try again.
+  if (text.includes('\u0000')) {
+    return 'Remove the null character.';
+  }
+  return undefined;
 }
 
 function first<T extends string>(

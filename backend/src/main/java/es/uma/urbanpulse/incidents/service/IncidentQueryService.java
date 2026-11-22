@@ -43,14 +43,17 @@ public class IncidentQueryService {
     }
 
     /**
-     * @throws AccessDeniedException if a citizen uses a staff filter: ignoring it would give a
-     *     misleading list, and accepting {@code priority} would reveal a staff-only value
+     * @throws AccessDeniedException if a citizen uses a staff filter, any but the status and the
+     *     text: ignoring it would give a misleading list, and accepting {@code priority} would
+     *     reveal a staff-only value
      */
     public PageResponse<IncidentSummaryResponse> list(
             UUID userId, Role role, IncidentFilter filter, Pageable page) {
         if (role == Role.CITIZEN && filter.usesStaffFilters()) {
-            throw new AccessDeniedException("Citizens can only filter their reports by status.");
+            throw new AccessDeniedException(
+                    "Citizens can only filter their reports by status and search them by text.");
         }
+        planForTheText(filter);
         var visible = IncidentReadAccess.visibleTo(userId, role).and(filter.specification());
         return PageResponse.of(
                 incidents.findAll(visible, page),
@@ -66,6 +69,7 @@ public class IncidentQueryService {
      */
     public IncidentLocationListResponse locations(
             UUID userId, Role role, IncidentFilter filter, Optional<BoundingBox> box) {
+        planForTheText(filter);
         var matching = IncidentReadAccess.visibleTo(userId, role).and(filter.specification());
         if (box.isPresent()) {
             matching = matching.and(box.get().specification());
@@ -85,6 +89,7 @@ public class IncidentQueryService {
     // changes meanwhile is in the same group in all of them and each list adds up to the total.
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public IncidentStatisticsResponse statistics(UUID userId, Role role, IncidentFilter filter) {
+        planForTheText(filter);
         var matching = IncidentReadAccess.visibleTo(userId, role).and(filter.specification());
         return IncidentStatisticsAssembler.assemble(
                 filter,
@@ -92,6 +97,13 @@ public class IncidentQueryService {
                 incidents.countByPriority(matching),
                 incidents.countByCategory(matching),
                 incidents.countByDepartment(matching));
+    }
+
+    // The text is bound, never written into the SQL; a generic plan cannot see it (#266).
+    private void planForTheText(IncidentFilter filter) {
+        if (filter.text() != null) {
+            incidents.planForTheBoundValues();
+        }
     }
 
     /**
