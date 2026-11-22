@@ -175,10 +175,10 @@ Do not define a new error body. If an error needs extra information, add an opti
 |---|---|---|---|
 | `MALFORMED_REQUEST` | 400 | Any | The request cannot be read |
 | `VALIDATION_FAILED` | 422 | Any with a body, and `getIncidentReport` | The data is not valid; see `errors` |
-| `EMAIL_ALREADY_EXISTS` | 409 | `createRegistration` | An account with this email exists |
-| `INVALID_CREDENTIALS` | 401 | `createSession` | Wrong email or password (the same for both, so emails are not revealed) |
-| `ACCOUNT_DISABLED` | 403 | `createSession`, `createMfaVerification` | Right credentials, disabled account |
-| `TOO_MANY_ATTEMPTS` | 429 | `createSession`, `createRegistration`, `createMfaVerification`; planned: `listPlaces` | Rate limited; see `Retry-After` |
+| `EMAIL_ALREADY_EXISTS` | 409 | `createRegistration`, `createUser` | An account with this email exists |
+| `INVALID_CREDENTIALS` | 401 | `createSession`, `createPasswordChange` | Wrong email or password (the same for both, so emails are not revealed) |
+| `ACCOUNT_DISABLED` | 403 | `createSession`, `createPasswordChange`, `createMfaVerification` | Right credentials, disabled account |
+| `TOO_MANY_ATTEMPTS` | 429 | `createSession`, `createRegistration`, `createPasswordChange`, `createMfaVerification`; planned: `listPlaces` | Rate limited; see `Retry-After` |
 | `INVALID_REFRESH_TOKEN` | 401 | `refreshSession` | Unknown, expired, revoked or reused refresh token, or a staff session opened without the second factor: sign in again |
 | `INVALID_TRANSITION` | 409 | Lifecycle actions (Sprint 2) | The transition is not allowed (ADR-0020) |
 | `CONCURRENT_MODIFICATION` | 409 | Lifecycle actions and `updateIncident` (Sprint 2) | The incident changed since the client read its `version`: reload it and decide again (ADR-0020) |
@@ -238,7 +238,7 @@ Every listing is paginated, so no query runs without a limit (AGENTS.md, section
 - **Sorting.** Each listing documents the properties it accepts and its default in its `description`. The backend always adds `id` as the last criterion, so the order is stable and no item appears on two pages.
 - **Filters** use the name of the property they filter (`status`, `categoryId`, `priority`), repeatable for several values (`?status=REPORTED&status=VALIDATED`). Date ranges are `reportedFrom` / `reportedTo`, UTC instants. Only the parameters the contract declares as arrays repeat: any other one sent twice (`?page=0&page=5`) returns `400`.
 
-Short reference lists managed by administrators, such as `listCategories`, and lists bounded by the domain, such as the status history of one incident, return a plain array without pagination. Their `description` says why.
+Short reference lists managed by administrators, such as `listCategories`, and lists bounded by the domain, such as the photos of one incident, return a plain array without pagination. Their `description` says why. The status history of an incident and the technicians also return a plain array today, although they have no upper bound, and the map locations (`listIncidentLocations`) stop at 1,000 with a `truncated` flag: Planned: #360.
 
 ### What Spring does not do by default
 

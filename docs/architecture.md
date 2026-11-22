@@ -267,7 +267,7 @@ each one:
 
 | ADR | Scenario that would evaluate it |
 | --- | --- |
-| [0001](adr/0001-database.md), [0003](adr/0003-geospatial-data-management.md) PostgreSQL with PostGIS | QA-1, and when the map exists (#53), a viewport query with the `perf` dataset under the same p95 |
+| [0001](adr/0001-database.md), [0003](adr/0003-geospatial-data-management.md) PostgreSQL with PostGIS | QA-1, and the incident locations of the staff map (#196), all those of its filters, with the `perf` dataset under the same p95 |
 | [0002](adr/0002-open-street-map.md), [0009](adr/0009-urban-data-source.md) OpenStreetMap and Málaga open data | QA-2, plus 0 requests over each provider's usage policy (Nominatim allows one per second) |
 | [0004](adr/0004-authentication-strategy.md) Authentication | QA-3, plus a revoked or rotated refresh token is never accepted (tested by #125) |
 | [0005](adr/0005-mobile-application-technology.md), [0006](adr/0006-frontend-web-technology.md), [0007](adr/0007-client-application-architecture.md) Clients | A change in the contract breaks `pnpm typecheck` in both apps before the merge, through the generated `api-client` (`frontend` CI job) |
