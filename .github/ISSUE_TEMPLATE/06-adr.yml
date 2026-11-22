@@ -25,6 +25,14 @@ body:
     validations:
       required: true
 
+  - type: input
+    id: design_document
+    attributes:
+      label: Design document
+      description: The design document this decision comes from, as `DD-NNN (#N)`, or None.
+    validations:
+      required: true
+
   - type: textarea
     id: hypothesis
     attributes:

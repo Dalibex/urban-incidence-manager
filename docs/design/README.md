@@ -25,19 +25,21 @@ its risks and how it will be verified.
 
 It is not an ADR. The design document comes first: it compares and proposes, and the client
 reviews it. Once it is accepted, each decision it takes is recorded in its own ADR in
-[`docs/adr/`](../adr/). Which ADRs it leads to, or replaces, is not known while it is written, so
-the link goes the other way: each ADR names the design document it comes from, in its
-*Design document* line. A DD can lead to several ADRs, or to none if it decides nothing costly to
-change.
+[`docs/adr/`](../adr/). Each ADR names the design document it comes from, in its
+*Design document* line. Which ADRs a design document leads to, or replaces, is not known while it
+is written, so it links them (the *Links* row, section 8 and section 12) once they exist. A DD can
+lead to several ADRs, or to none if it decides nothing costly to change.
 
 ## 🔄 Status
 
-The status is the first row of the table at the top of each document.
+The status is the first row of the table at the top of each document; *Planned* only appears in
+the [index](#-index).
 
 | Status | Meaning | Moves on when |
 | --- | --- | --- |
-| Draft | Being written and discussed in the team; nothing in it is a decision. | The team agrees on the proposal and its pull request is merged. |
-| In review | Agreed by the team, waiting for the client. | The client gives its result. |
+| Planned | It has its issue; the document is not written yet. | Its pull request adds the document: Draft. |
+| Draft | Being written and discussed in the team; nothing in it is a decision. | The team agrees on the proposal and its pull request is merged: In review. |
+| In review | Agreed by the team, waiting for the client. | The client gives its result: Accepted or Rejected, or Draft again if it asks for changes. |
 | Accepted | Validated by the client; its ADRs can be written and the change built. | A later DD replaces it: Superseded. |
 | Superseded | Replaced by another DD, which it names. | Final. |
 | Rejected | The client or the team did not accept it; kept for its reasoning. | Final. |
@@ -51,9 +53,12 @@ The status is the first row of the table at the top of each document.
    complete and consistent, and merges it with the status *In review*. That approval does not
    accept the design.
 3. The team presents it to the client.
-4. Section 12, *Review and result*, records the date, the client's comments and the result, and
-   the status changes to *Accepted* or *Rejected*, in a pull request. Its *Recorded decisions* line
-   is optional and filled in once the ADRs exist.
+4. Section 12, *Review and result*, records the date, the client's comments and the result, in a
+   pull request:
+   - Accepted or rejected: the status changes to *Accepted* or *Rejected*. The
+     *Recorded decisions* line of section 12 is optional and filled in once the ADRs exist.
+   - Changes asked: the status goes back to *Draft*. The team makes the changes and agrees on them,
+     and the document goes through steps 2 and 3 again.
 5. Once it is built, section 12 also records what changed from the design and why.
 
 Do not mark a document *Accepted*, nor build what it proposes, without the client's review.
@@ -79,5 +84,4 @@ Do not mark a document *Accepted*, nor build what it proposes, without the clien
 | DD-005 | Audit service, auditor role and audit dashboard | Planned | #354 |
 | DD-006 | Observability and SLIs | Planned | #363 |
 
-A document that is not written yet is *Planned* under its issue; its pull request links the title
-to the file and sets its status.
+The pull request that adds a document links its title to the file and sets its status.

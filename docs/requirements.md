@@ -118,7 +118,7 @@ issue is the parent that covers the requirement; its sub-issues are listed in it
 | **Incident UUID.** A UUID identifies each incident across the services: it is its public id, a UUIDv7 for new incidents, while the keys inside the database are numeric. | Partly. The API identifies each incident by a UUID; new incidents do not get a UUIDv7 yet. | #369 | — |
 | **Reliability and resilience** when a component (an external source or a service) is not available. | Partly. Creating an incident never waits for an external source, and the weather is fetched afterwards ([QA-2](architecture.md#qa-2-create-an-incident-while-an-external-source-is-down-rf26)); there are no services yet. | #327 | — |
 | **Observability environment** that combines k6, Micrometer, structured logs, Prometheus and Grafana to evaluate the quality attributes. | Partly. k6, Micrometer, Prometheus and Grafana run for the backend (ADR-0023); the logs are plain text and not aggregated, and no service-level indicator is defined. | #362 | — |
-| **Design documents validated by the client**, with the problems of each requirement and the possible solutions. | No. | #328 and the design document of each parent above | — |
+| **Design documents validated by the client**, with the problems of each requirement and the possible solutions. | No. The folder, the template and the validation flow are in [`docs/design`](design/README.md); no design document is validated yet. | #328 and the design document of each parent above | — |
 
 ## 💻 Screens per Role
 
