@@ -31,3 +31,10 @@ ALTER TABLE location
         CHECK ((address_status = 'AVAILABLE') = (address IS NOT NULL)
            AND (address IS NULL) = (address_source IS NULL)
            AND (address IS NULL) = (address_resolved_at IS NULL));
+
+-- The address worker looks for the PENDING locations every 30 s, to resolve them and to expire the
+-- old ones. They are a handful among every location ever reported, so the index holds only them:
+-- without it each run reads the whole table (docs/datasets.md, Address worker).
+CREATE INDEX ix_location_address_pending
+    ON location (incident_id)
+    WHERE address_status = 'PENDING';

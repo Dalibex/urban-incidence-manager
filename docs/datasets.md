@@ -157,8 +157,8 @@ or repeated, so every measurement records:
 | Date and commit | When and on which commit it was measured |
 
 Three kinds are recorded below: the query plans that justify each index, the load test of QA-1, and
-the quality-attribute experiments. The last two sections say which metrics measure the weather and
-the address enrichment, which have no measurement yet.
+the quality-attribute experiments. The last section says which metrics measure the weather
+enrichment, which has no measurement yet.
 
 ### Query plans of the indexes
 
@@ -294,6 +294,28 @@ Conditions: `perf` profile with `PERF_INCIDENTS=1000000`, `EXPLAIN (ANALYZE)` ru
 8 GB) on a developer laptop, on commit `b618646` plus this change, on 2026-11-13. With the default
 100,000 incidents the same filtered page took 28 ms at p95 without the index, so the index matters
 from about a million incidents on.
+
+#### Address worker
+
+`V19__incidents_add_address_status.sql` (#375) adds `ix_location_address_pending`, a partial index
+on `location (incident_id) WHERE address_status = 'PENDING'`, for the two queries the address worker
+runs every 30 seconds (`LocationAddressRepository`): the next batch of 10 pending addresses, oldest
+report first, and the expiry of the ones still pending a day after the report.
+
+| Query | Index | Before | After |
+| --- | --- | --- | --- |
+| The next batch: 10 pending locations, oldest report first | `ix_location_address_pending` | 7.8 ms, seq scan of `location` that drops 99,980 rows | 0.4 ms, bitmap index scan |
+| The expiry of the pending addresses reported more than a day ago | `ix_location_address_pending` | 6.7 ms, the same seq scan | 0.2 ms, bitmap index scan |
+
+The index holds only the pending locations, so it stays small whatever the number of incidents: 16
+kB here. The `perf` dataset stores every address as resolved or unavailable, so for this measurement
+the locations of the 20 newest incidents were set back to `PENDING`, as the worker finds them
+between two runs, followed by `VACUUM ANALYZE`.
+
+Conditions: the same data and method as *Main Queries* above (the SQL equivalent of each JPQL
+query, the expiry inside a transaction rolled back), on PostgreSQL 18.6 with PostGIS 3.6
+(`postgis/postgis:18-3.6`) in Docker Desktop, limited to 4 CPUs and 8 GB, on commit `e6a8ce0` plus
+this change, on 2026-11-22.
 
 ### Quality-attribute experiments (#176)
 
