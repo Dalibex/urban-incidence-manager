@@ -26,15 +26,17 @@ What each role can do today:
 
 | Who | App | What they can do |
 | --- | --- | --- |
-| Citizen | Mobile | Sign up, report an incident by placing it on the map, add photos, and follow their reports and what the city answers |
-| Municipal operator | Web | Review new reports in an inbox with filters or on a live map with a dashboard, and see in the detail of each one the weather when it was reported; classify, validate, reject or ask for more information; assign to a department and a technician; close or reopen the result |
-| Technician | Web | Accept the incidents assigned to them, see the weather when each one was reported, and resolve them with their notes |
-| Administrator | Web | Everything an operator does, plus managing the staff accounts and reading the audit log |
+| Citizen | Mobile | Sign up, report an incident by placing it on the map, add photos, and follow their reports, their address and what the city answers |
+| Municipal operator | Web | Review new reports in an inbox with filters or on a live map with a dashboard, with the street address of each one, and see in its detail the weather when it was reported; classify, validate, reject or ask for more information; assign to a department and a technician; close or reopen the result |
+| Technician | Web | Accept the incidents assigned to them, find them by their street address, see the weather when each one was reported, and resolve them with their notes |
+| Administrator | Web | Everything an operator does, plus managing the staff accounts, resetting the second factor of a lost phone, and reading the audit log |
 | Analyst | Web | Operational reports for a period, on screen or as CSV |
+
+Staff confirm each sign-in on the web with a code from an authenticator app ([ADR-0021](docs/adr/0021-multi-factor-authentication.md)).
 
 Every incident follows a fixed lifecycle ([ADR-0020](docs/adr/0020-incident-lifecycle-transitions.md)). Each change keeps who made it, when and why, and the citizen never sees the internal notes.
 
-Also built: the weather of each new incident, taken from Open-Meteo after the report without ever delaying it ([ADR-0018](docs/adr/0018-weather-and-traffic-providers.md)); the deployment of the whole system behind nginx, sample data for development, the demo and the measurements ([datasets](docs/datasets.md)), load tests with k6 seen in Grafana next to the backend's metrics ([load tests](backend/load-tests/practice/README.md)), the base map, and the CI pipeline. What is not built yet says `Planned: #N` in the [requirements](docs/requirements.md).
+Also built: the weather of each new incident, taken from Open-Meteo after the report without ever delaying it ([ADR-0018](docs/adr/0018-weather-and-traffic-providers.md)), and its normalized address, taken from Nominatim the same way ([ADR-0002](docs/adr/0002-open-street-map.md)); the deployment of the whole system behind nginx, sample data for development, the demo and the measurements ([datasets](docs/datasets.md)), load tests with k6 seen in Grafana next to the backend's metrics ([load tests](backend/load-tests/practice/README.md)), the base map, and the CI pipeline. What is not built yet says `Planned: #N` in the [requirements](docs/requirements.md).
 
 ## 🔄 How It Works
 
@@ -91,6 +93,7 @@ In `.env` (on Windows, copy it with `Copy-Item .env.example .env`), fill in, wit
 
 - `POSTGRES_PASSWORD`, any password for the database;
 - `JWT_SECRET`, at least 32 bytes: generate one with `openssl rand -base64 48` (on Windows, from Git Bash);
+- `MFA_ENCRYPTION_KEY`, which encrypts the second factor of staff: generate it with `openssl rand -base64 32`;
 - `SPRING_PROFILES_ACTIVE=demo` and a `DEMO_PASSWORD`, the password of the demo users.
 
 > [!IMPORTANT]
@@ -105,7 +108,7 @@ docker compose up -d --build
 docker compose --profile tiles run --rm tiles-builder
 ```
 
-Open `http://localhost:8000` and sign in as `demo.operator@example.com` with your `DEMO_PASSWORD`. The other demo users, and how to reach the system from a phone, are in the [demo script](docs/demo.md). `docker compose down` stops it and keeps the data.
+Open `http://localhost:8000` and sign in as `demo.operator@example.com` with your `DEMO_PASSWORD`. Staff accounts need a code from an authenticator app: the first sign-in shows a QR code to set it up ([demo script](docs/demo.md)). The other demo users, and how to reach the system from a phone, are in the [demo script](docs/demo.md). `docker compose down` stops it and keeps the data.
 
 ## 🧪 Testing
 
@@ -120,7 +123,7 @@ The kinds of tests and how to run part of them are in the [testing guide](docs/t
 | --- | --- |
 | `backend/` | The Spring Boot API, its Dockerfile and the Compose file of development ([modules](docs/development.md#-backend-structure)) |
 | `frontend/` | The pnpm workspace: `apps/web`, `apps/mobile` and the shared `packages/` ([layout](docs/development.md#-client-workspace)), and the web image with nginx |
-| `docs/` | The guides below, the [ADRs](docs/adr/), the [OpenAPI contract](docs/api/openapi.yml) and the [C4 model](docs/architecture/) |
+| `docs/` | The guides below, the [design documents](docs/design/), the [ADRs](docs/adr/), the [OpenAPI contract](docs/api/openapi.yml) and the [C4 model](docs/architecture/) |
 | `tiles/` | The builder of the base map ([ADR-0016](docs/adr/0016-self-hosted-osm-base-map.md)) |
 | `egress-proxy/` | The backend's only way out to the internet in the deployment: a Squid proxy that lets it reach Open-Meteo and nothing else ([deployment guide](docs/deployment.md#networks)) |
 | `.github/`, `.githooks/` | CI workflows, issue and pull request templates, and the pre-commit hook |
@@ -147,6 +150,7 @@ Every document of the project, grouped by what you want to do.
 
 - **[Architecture overview](docs/architecture.md)**: why it is built this way, its quality scenarios and its accepted risks.
 - **[C4 model](docs/architecture/)**: the structure, from the context to the deployment.
+- **[Design documents](docs/design/)**: the proposals for the client to validate before they are built, and their status.
 - **[ADRs](docs/adr/)**: each decision and its reasons; a *Proposed* one is not decided yet.
 - **[Requirements](docs/requirements.md)**: what is built and what is planned, with its priority.
 - **[API guide](docs/api.md)** and **[OpenAPI contract](docs/api/openapi.yml)**: use the API, or add and change an endpoint.

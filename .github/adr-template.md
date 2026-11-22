@@ -3,6 +3,7 @@
 - **Status:** [Proposed | Accepted | Rejected | Deprecated | Superseded by ADR-XXXX]
 - **Decision Makers:** [Name(s) / Project Team / Project Constraint]
 - **Date:** YYYY-MM-DD
+- **Design document:** [DD-NNN](../design/DD-NNN-short-title.md), the design it comes from, or None
 
 ## Context
 

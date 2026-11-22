@@ -13,12 +13,11 @@ import org.springframework.security.web.SecurityFilterChain;
 
 /**
  * Every request needs a valid access token ({@code Authorization: Bearer}) except the public paths
- * below. Role checks live next to the code they protect, with {@code @PreAuthorize}; the endpoint ×
- * role matrix is in {@code docs/security.md}.
+ * below. The roles of each operation of the API are checked here too, in the filters, by {@link
+ * ApiAuthorizationRules}: the endpoint × role matrix of {@code docs/security.md}.
  *
  * <p>Only in a web application: a one-off process such as {@code bootstrap-admin} starts no web
- * server, receives no requests and has no {@code HttpSecurity} to build the chains with. Method
- * security stays on there ({@link MethodSecurityConfig}).
+ * server, receives no requests and has no {@code HttpSecurity} to build the chains with.
  */
 @Configuration
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
@@ -30,13 +29,15 @@ class SecurityConfig {
         "/openapi.yml", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**"
     };
 
-    // Operations of the contract marked with `security: []`: sign-up, sign-in, refresh and the
-    // password change.
+    // Operations of the contract marked with `security: []`: sign-up, sign-in, refresh, the
+    // password change and the second step of a staff sign-in (#57).
     private static final String[] PUBLIC_API_POSTS = {
         "/api/v1/registrations",
         "/api/v1/sessions",
         "/api/v1/sessions/refresh",
-        "/api/v1/password-changes"
+        "/api/v1/password-changes",
+        "/api/v1/mfa-enrollments",
+        "/api/v1/mfa-verifications"
     };
 
     /**
@@ -60,23 +61,20 @@ class SecurityConfig {
     SecurityFilterChain apiFilterChain(HttpSecurity http, SecurityProblemResponses problemResponses)
             throws Exception {
         http.authorizeHttpRequests(
-                        auth ->
-                                // A 400, 404 or 500 is rendered in a second, internal dispatch to
-                                // /error. The original request was already authorized; without this
-                                // line an anonymous caller would get 401 instead of the real error.
-                                auth.dispatcherTypeMatchers(DispatcherType.ERROR)
-                                        .permitAll()
-                                        .requestMatchers("/actuator/health/**")
-                                        .permitAll()
-                                        // Read by Prometheus without a token. It is only reachable
-                                        // inside the Compose network or on 127.0.0.1: nginx does
-                                        // not proxy /actuator in the deployment.
-                                        .requestMatchers("/actuator/prometheus")
-                                        .permitAll()
-                                        .requestMatchers(API_DOCS_PATHS)
-                                        .permitAll()
-                                        .anyRequest()
-                                        .authenticated())
+                        auth -> {
+                            // A 400, 404 or 500 is rendered in a second, internal dispatch to
+                            // /error. The original request was already authorized; without this
+                            // line an anonymous caller would get 401 instead of the real error.
+                            auth.dispatcherTypeMatchers(DispatcherType.ERROR).permitAll();
+                            auth.requestMatchers("/actuator/health/**").permitAll();
+                            // Read by Prometheus without a token. It is only reachable inside the
+                            // Compose network or on 127.0.0.1: nginx does not proxy /actuator in
+                            // the deployment.
+                            auth.requestMatchers("/actuator/prometheus").permitAll();
+                            auth.requestMatchers(API_DOCS_PATHS).permitAll();
+                            ApiAuthorizationRules.authorize(auth);
+                            auth.anyRequest().authenticated();
+                        })
                 .oauth2ResourceServer(
                         resourceServer ->
                                 resourceServer

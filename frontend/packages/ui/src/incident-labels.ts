@@ -43,6 +43,30 @@ export function historyEventLabel(previous: IncidentStatus | null, next: Inciden
 /** A value the API sends as `null` because it is unknown or not looked up yet (docs/api.md). */
 export const NOT_AVAILABLE = 'Not available';
 
+/** The `addressStatus` of the API (#375). */
+export type AddressStatus = 'PENDING' | 'AVAILABLE' | 'OUTSIDE_AREA' | 'UNAVAILABLE';
+
+/** What the screens say in place of an address the incident does not have, and why. */
+const NO_ADDRESS: Record<Exclude<AddressStatus, 'AVAILABLE'>, string> = {
+  PENDING: 'Looking up the address…',
+  OUTSIDE_AREA: 'No address: the position is outside Málaga',
+  UNAVAILABLE: NOT_AVAILABLE,
+};
+
+/**
+ * The address of an incident as the screens show it: the address itself while it is `AVAILABLE`,
+ * or the reason there is none. `missing` tells the screen to show it as a muted note.
+ */
+export function addressText(
+  address: string | null,
+  status: AddressStatus,
+): { text: string; missing: boolean } {
+  if (status === 'AVAILABLE' && address !== null) {
+    return { text: address, missing: false };
+  }
+  return { text: status === 'AVAILABLE' ? NOT_AVAILABLE : NO_ADDRESS[status], missing: true };
+}
+
 /** Time zone of Málaga, where the incidents happen: dates are shown and chosen in it. */
 const CITY_TIME_ZONE = 'Europe/Madrid';
 

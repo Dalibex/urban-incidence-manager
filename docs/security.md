@@ -12,11 +12,13 @@ How the API authenticates requests and checks permissions
 
 - **[Access Tokens](#-access-tokens)**: the JWT, its claims, its lifetime and its configuration.
 - **[Sessions and Passwords](#-sessions-and-passwords)**: refresh tokens, rotation and reuse, sign-out, password changes and rate limits.
+- **[Second Factor](#-second-factor)**: the TOTP code that staff sign-ins need, its enrolment and its reset.
 - **[First Administrator](#-first-administrator)**: the rules of the one-off process that creates it.
 - **[Audit Trail](#-audit-trail)**: what is recorded, who reads it and the rules for writing it.
 - **[Errors](#-errors)**: the `401`, `403` and `404` answers of security.
 - **[CSRF](#-csrf)**: why the protection is off, and when it must not be.
 - **[Browser Storage](#-browser-storage)**: what the web app keeps in the browser.
+- **[Data Sent Outside](#-data-sent-outside)**: what the external services receive, and how to turn each one off.
 - **[Permission Matrix](#-permission-matrix)**: who may call each operation.
 - **[Protecting a New Endpoint](#-protecting-a-new-endpoint)**: the steps and the tests.
 - **[Security Findings](#-security-findings)**: every alert, and what was done about it.
@@ -139,6 +141,7 @@ any user and role.
 | --- | --- | --- |
 | `POST /sessions` and `POST /password-changes` | 5 failed attempts per 15 minutes, counted together | Email and client address |
 | `POST /registrations` | 10 attempts per hour | Client address |
+| `POST /mfa-verifications` | 10 wrong codes per 15 minutes, separate from the password limit; and 5 wrong codes spend a challenge | Account only (not the client address) |
 
 Past the limit the API answers `429 TOO_MANY_ATTEMPTS` with `Retry-After` (seconds, rounded up),
 even for the right password. Each attempt is reserved before the password is checked, in one atomic
@@ -196,6 +199,65 @@ Known limits:
   Before the backend sends absolute links to other people (notifications, emails), list the
   public domain in `server_name`.
 
+## 🔑 Second Factor
+
+Staff accounts confirm each sign-in with a code of an authenticator app (TOTP, RFC 6238), as
+[ADR-0021](adr/0021-multi-factor-authentication.md) decided (#57). The rule is enforced by the API on
+the role of the account, whatever the client, so a staff account cannot sign in from the mobile
+app, which has no code step.
+
+- **Who:** the roles in `MFA_REQUIRED_ROLES`, every staff role by default. Citizens never get it:
+  the backend refuses to start with `CITIZEN` in the list, since the mobile app has no code step.
+  An empty value turns the second factor off, which only makes sense on a developer's machine; the
+  backend logs a warning when it starts that way.
+- **Two steps:** a right password returns `202` with a challenge and no tokens. The challenge is an
+  opaque, single-use token of 256 random bits that expires after 5 minutes. The database keeps its
+  SHA-256 hash only, like a refresh token, and the web app keeps the token in memory. The token pair
+  is issued by `POST /mfa-verifications` once a valid code is sent, in the same transaction that
+  spends the challenge.
+- **Refresh:** each refresh token records whether its session was opened with a code, and a
+  rotation keeps that mark. A refresh for an account whose role needs the second factor with a
+  token opened without it (a session from before #57, or from before a role change or a change of
+  `MFA_REQUIRED_ROLES`) refuses that token with `401` and ends it, and the user signs in again with
+  a code. Other sessions of the account, such as one just opened with a code, keep working.
+- **Codes:** 6 digits, SHA-1, 30-second steps; a code is valid for its step and one step on each
+  side. The last step used is stored per account, so a code that was already used, or an older one,
+  is refused, even with another challenge. Two verifications of one challenge at once lock the
+  account and the challenge rows: one gets the tokens, the other `401 INVALID_MFA_CHALLENGE`.
+- **Enrolment:** an account without a second factor gets `enrollmentRequired: true` and calls
+  `POST /mfa-enrollments`, which returns the secret as an `otpauth://` URI for the QR code and as
+  Base32 text. The secret belongs to that challenge until a first valid code confirms it: only then
+  is it copied to the account and the `ENROLL_MFA` entry recorded, and every other open challenge of
+  the account is spent. No operation returns the secret after that.
+- **Secret at rest:** encrypted with AES-256-GCM (random 12-byte IV per secret) with the key of
+  `MFA_ENCRYPTION_KEY`, 32 random bytes in Base64. The backend does not start without it. Losing or
+  changing the key makes every stored secret unreadable: the code step of every enrolled account
+  answers `500`, administrators included, so nobody can reset from the web and each account needs the
+  [emergency procedure](deployment.md#-reset-the-second-factor-of-the-last-administrator) (for
+  another user, the same SQL with their email and without the role condition).
+- **Reset:** `POST /users/{id}/mfa-resets`, administrators only, with a reason. It clears the secret,
+  spends the open challenges, revokes every refresh token of the user and records `RESET_MFA` with the
+  reason, in one transaction. The user enrols again on the next sign-in. A last administrator who
+  loses their phone follows the emergency procedure of the
+  [deployment guide](deployment.md#-reset-the-second-factor-of-the-last-administrator).
+- **Logs:** a wrong code is logged with the user id only. The secret, the codes and the challenge
+  tokens are never written to the logs.
+
+Known limits, also in *Accepted Risks* of the [architecture](architecture.md):
+
+- **Trust on first use.** While an account has no second factor (after the deployment of #57, after
+  a reset, and for a new account), whoever knows its password can enrol their own phone first. The
+  real user's sign-in then asks for a code their app cannot give, and an administrator resets it.
+- **Lock-out by whoever has the password.** The limit of wrong codes is per account and a right
+  password does not give the attempts back, so someone with the password can lock the real user
+  out of the code step for up to 15 minutes. The counter lives in the backend process, like the
+  password limit.
+- **A password change does not ask for a code.** Whoever knows the password of a staff account can
+  change it without the phone, and the real user is then locked out until an administrator gives
+  them a new password; their data is still protected, because a sign-in with the new password asks
+  for the code too. A password change spends the open challenges, so a sign-in started with the old
+  password cannot finish. A reset does not require a new password either.
+
 ## 👑 First Administrator
 
 Sign-up only creates citizens and staff accounts are created by an administrator (#40), so a clean
@@ -229,6 +291,8 @@ an operational log: the application logs on stdout never replace it.
 | `CREATE_USER`, `UPDATE_USER`, `CHANGE_ROLE`, `DISABLE_USER`, `ENABLE_USER` | User management (#40) |
 | `CHANGE_PASSWORD` | Password change (#165), with the account as its own actor: only its owner knows the password. `details` holds `passwordChangeRequired`, never a password or hash |
 | `CLASSIFY_INCIDENT` | Incident classification (#47) |
+| `ENROLL_MFA` | The first valid code of an enrolment (#57), with the account as its own actor. `details` never holds the secret |
+| `RESET_MFA` | An administrator resets a user's second factor (#57); `after` holds the `reason` |
 | `CREATE_USER` (`"origin": "BOOTSTRAP"`) | The one-off process that creates the first administrator (#126) |
 
 Staff read one part of the trail: the classification changes of an incident
@@ -265,13 +329,21 @@ Known limits:
 
 ## 🚫 Errors
 
-The filters answer before any controller runs, with the contract's Problem Details body
-(`application/problem+json`):
+The token and role checks answer before Spring MVC reads anything of the request (body,
+parameters, path variables, the multipart upload, `Content-Type` or `Accept`). The firewall refuses
+a header value or a parameter name when it is read, which may be inside Spring MVC;
+`ApiExceptionHandler` passes that refusal on to the same handler. Every one of these answers has
+the contract's Problem Details body (`application/problem+json`):
 
 | Status | When | `detail` |
 | --- | --- | --- |
+| `400` + `MALFORMED_REQUEST` | The firewall refuses the request: a path with `//`, `;` or `%2F`, a parameter name with a control character, or a header value it refuses when it is read | The same text for every cause, and no `instance`: the refused path is not echoed back |
 | `401` + `WWW-Authenticate: Bearer` | No token, malformed, wrong signature or type, expired, wrong issuer, unknown role or missing claim | The same text for every cause, so a client cannot probe which check failed |
-| `403` | Valid token, but the role does not allow the action | — |
+| `403` | Valid token, but the role does not allow the action, or the operation has no rule (deny by default, see the [permission matrix](#-permission-matrix)) | — |
+
+So a role that may not call an operation gets `403` before any `400`, `413`, `415` or `422` its
+request would get, and learns nothing of what a valid request looks like (#286). The `401` comes
+before the `403`.
 
 When the role allows the action but the resource is not the caller's (an incident they did not
 report, or that is not assigned to them), the service answers `404`, as if it did not exist, so the
@@ -305,17 +377,47 @@ link to this section.
 ## 💾 Browser Storage
 
 The web app keeps the tokens in memory only (`SessionContext`), never in `localStorage` or
-`sessionStorage`, where any script of the page could read them. The only thing it writes there is
+`sessionStorage`, where any script of the page could read them. The challenge of a sign-in with a
+second factor and the secret of an enrolment are kept in memory too, and only while that sign-in
+lasts. The only things it writes there are
 which parts of the map screen each user folded or opened, under a key with the user's id
-(`urbanpulse.map-preferences.<user id>`, #177). The value holds no personal data and the API never
-reads it. It stays after sign-out because it is only a layout, so on a shared browser the storage
-keeps the ids of the users who opened the map there. If the browser refuses its storage, the
-screen works with the defaults.
+(`urbanpulse.map-preferences.<user id>`, #177), and the filters each user last used on the inbox,
+the work queue and the map (`urbanpulse.list-filters.<list>.<user id>`, #263). The values hold no
+personal data and the API never reads them. They stay after sign-out because they are only a layout
+and a convenience, so on a shared browser the storage keeps the ids of the users who opened those
+screens there. If the browser refuses its storage, the screen works with the defaults.
+
+## 📤 Data Sent Outside
+
+Two public services receive the position of every new report, after the report is saved and never
+during it. The backend calls each one once per incident, again only after a failed call, over
+HTTPS, and in the deployment only through `egress-proxy`, which sees the host name and not the
+request.
+
+| Service | What it receives | Why | How to turn it off |
+| --- | --- | --- | --- |
+| Open-Meteo (`api.open-meteo.com`, [ADR-0018](adr/0018-weather-and-traffic-providers.md), #307) | The latitude and longitude of the report | The weather at the position | `WEATHER_ENRICHMENT_ENABLED=false` |
+| Nominatim of OpenStreetMap (`nominatim.openstreetmap.org`, [ADR-0002](adr/0002-open-street-map.md), #375) | The latitude and longitude of the report, and a `User-Agent` that names the application, as its usage policy asks | The normalized address at the position | `ADDRESS_ENRICHMENT_ENABLED=false` |
+
+Neither receives anything else: no title, description, photo, account, token or IP address of the
+citizen, and no identifier of the incident. A position alone can still point to a home, so the
+backend never writes it to its logs: the errors of both calls name the kind of failure, never the
+URL that holds the coordinates. With a variable set to `false` the backend calls nothing, and new
+incidents keep their weather or address pending ([deployment guide](deployment.md)).
 
 ## 🧮 Permission Matrix
 
 Paths are relative to `/api/v1`. **Public** means no token. A role in the cell can call the
 operation; the note says when the answer also depends on the resource. A role not listed gets `403`.
+
+The security filters enforce the role columns, one rule per operation in `ApiAuthorizationRules`
+(`backend/src/main/java/es/uma/urbanpulse/shared/security`), and the public operations in
+`SecurityConfig`. Under `/api/v1` a request that matches no rule is refused to every role (deny by
+default): an endpoint added without its rule answers `403`. So does a method an operation does not
+have, such as `DELETE /incidents/{id}`, `HEAD` or `OPTIONS`, instead of `405`, and a path no rule
+matches, such as `/api/v1/nothing`, instead of `404`. A path that a rule matches still reaches
+Spring MVC: `GET /incidents/` matches `/incidents/*` with an empty segment, so a role it allows gets
+`404`.
 
 | Operation | Public | CITIZEN | MUNICIPAL_OPERATOR | TECHNICIAN | ADMINISTRATOR | ANALYST |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -323,12 +425,15 @@ operation; the note says when the answer also depends on the resource. A role no
 | `POST /sessions` | ✓ | | | | | |
 | `POST /sessions/refresh` | ✓ | | | | | |
 | `POST /password-changes` | ✓ | | | | | |
+| `POST /mfa-enrollments` | ✓, the challenge is the credential | | | | | |
+| `POST /mfa-verifications` | ✓, the challenge and the code are the credentials | | | | | |
 | `DELETE /sessions/current` | | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `GET /users/me` | | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `GET /users` | | | | | ✓ | |
 | `POST /users` | | | | | ✓, staff roles only | |
 | `GET /users/{id}` | | | | | ✓ | |
 | `PATCH /users/{id}` | | | | | ✓, staff roles only, not their own role or account | |
+| `POST /users/{id}/mfa-resets` | | | | | ✓ | |
 | `GET /categories` | | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `GET /departments` | | | ✓ | ✓ | ✓ | |
 | `GET /technicians` | | | ✓ | | ✓ | |
@@ -388,20 +493,32 @@ knowing someone else's key never returns their incident (#289).
 
 1. Add the operation to the matrix above and to `docs/api/openapi.yml` (`401`, and `403` when the role
    matters).
-2. Everything under `/api/v1` already needs a token. If the operation must be public, add it to
-   `SecurityConfig` and mark it with `security: []` in the contract.
-3. Check the role with `@PreAuthorize("hasRole('MUNICIPAL_OPERATOR')")` (or `hasAnyRole(...)`) on the
-   controller method.
+2. If the operation must be public, add it to `PUBLIC_API_POSTS` in `SecurityConfig` and mark it
+   with `security: []` in the contract.
+3. Otherwise add its rule to `ApiAuthorizationRules`: one line with the method and the path, next
+   to the other operations of its resource, such as
+   `auth.requestMatchers(POST, API + "/incidents/*/closure").hasAnyRole(OPERATORS)`, or
+   `authenticated()` when every role may call it. Without the rule the operation answers `403` to
+   everyone (deny by default). A path that another rule also matches, such as `/users/me` and
+   `/users/*`, goes first. The rule is checked in the security filters, before Spring MVC reads the
+   request, so the controller needs no role annotation.
 4. Read the caller with `@AuthenticationPrincipal AuthenticatedUser user` and pass `user.id()` and
    `user.role()` to the service, which checks the relationship with the resource.
 5. In the integration tests, `@Import(TestTokens.class)` and send `tokens.bearer(Role.X)` (or
    `tokens.bearer(userId, Role.X)` for an existing user): one test per allowed role and at least one
-   for a role that gets `403`, plus one without a token (`401`).
+   for a role that gets `403`, plus one without a token (`401`). Add the operation to
+   `RoleBeforeEveryOperationIT` with a refused role and an invalid input, so its `403` comes before
+   the `400` or `422`, and add its row of the matrix to `RoleMatrixIT`, which calls it with every
+   role. `RoleMatrixIT` compares its rows with the operations Spring MVC maps, so it fails while
+   the new operation has no row.
 
-A global `@RestControllerAdvice` must not catch `AccessDeniedException` or `AuthenticationException`
-(for example through a handler for `Exception`): rethrow them. The `403` of `@PreAuthorize` is
-written by the security filters after the exception leaves the controller; if an advice catches it
-first, the client gets `500`.
+A global `@RestControllerAdvice` must not catch `AccessDeniedException`, `AuthenticationException`
+or `RequestRejectedException` (for example through a handler for `Exception`): rethrow them. A
+service that refuses an action throws `AccessDeniedException` (a citizen who filters by a staff
+filter), and the security filters write its `403` after the exception leaves the controller. The
+firewall throws `RequestRejectedException` when Spring MVC reads a header value or a parameter name
+it refuses, and its handler writes the `400`. If an advice catches either first, the client gets
+`500`.
 
 ## 🚨 Security Findings
 

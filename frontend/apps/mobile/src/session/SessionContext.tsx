@@ -231,6 +231,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (!session.ok) {
           return session;
         }
+        if (session.data) {
+          // A second-factor challenge: staff sign in on the web (ADR-0021), nothing to store here.
+          return { ok: false, failure: { kind: 'problem', status: 202, code: undefined } };
+        }
         // The role comes from the API, never from decoding the token.
         const me = await getCurrentUser(api);
         if (!me.ok) {

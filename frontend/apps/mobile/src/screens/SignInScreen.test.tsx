@@ -73,6 +73,11 @@ describe('SignInScreen', () => {
       'This account must change its password first. Sign in on the UrbanPulse website to change it.',
     ],
     [
+      'a staff account that needs its second factor',
+      { kind: 'problem', status: 202, code: undefined },
+      'Staff accounts sign in on the UrbanPulse website. The mobile app is for citizens.',
+    ],
+    [
       'too many attempts',
       { kind: 'problem', status: 429, code: undefined },
       'Too many attempts. Wait a few minutes and try again.',

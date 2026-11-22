@@ -38,4 +38,8 @@ public class RefreshToken {
 
     @Column(name = "revoked_at")
     private OffsetDateTime revokedAt;
+
+    /** The session was opened with a valid code of the second factor, or is a rotation of one. */
+    @Column(name = "second_factor", nullable = false)
+    private Boolean secondFactor;
 }

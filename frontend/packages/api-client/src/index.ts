@@ -7,19 +7,22 @@ import { createSessionFetch, type SessionOptions } from './session';
 // Never edit it by hand: the `contract` CI job fails when it differs from the contract.
 export type { components, paths } from './schema';
 export type { SessionMark, SessionOptions, SessionTokens, TokenStore } from './session';
-export { markSession } from './session';
+export { hasSessionEnded, markSession } from './session';
 export {
   callApi,
   changePassword,
+  enrollMfa,
   getCurrentUser,
   signIn,
   signOut,
   signUp,
+  verifyMfa,
   type ApiFailure,
   type ApiResult,
+  type MfaChallenge,
 } from './account';
 export { listAuditEntries, type AuditEntryListQuery } from './audit';
-export { createUser, listUsers, updateUser, type UserListQuery } from './users';
+export { createUser, listUsers, resetUserMfa, updateUser, type UserListQuery } from './users';
 export {
   acceptIncident,
   assignIncident,

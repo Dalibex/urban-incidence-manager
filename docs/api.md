@@ -70,6 +70,17 @@ Added later, together with its implementation:
 | `incidents` | `getIncidentStatistics` | #177 |
 | `urbancontext` | `getIncidentUrbanContext` | #306 |
 
+The features after the MVP that change the API were agreed ahead in #301, and say `Planned: #N`
+like the Sprint 2 ones:
+
+| Module | Operations | Implemented in |
+|---|---|---|
+| `identity` | `createMfaEnrollment`, `createMfaVerification`, `createUserMfaReset`, and the `202` of `createSession`; `ENROLL_MFA` and `RESET_MFA` join `AuditAction` with that pull request | #57 |
+| `incidents`, `geospatial` | `listDistricts`, and the `district` filter of `listIncidents`, `listIncidentLocations` and `getIncidentStatistics` | #59 |
+| `geospatial` | `listPlaces` (address search) | #179 |
+| `incidents` | The text search `q` of `listIncidents`, `listIncidentLocations` and `getIncidentStatistics` | #266 |
+| `incidents` | `icon` in `CategoryResponse`, and `categoryId` in `IncidentPosition` | #267 |
+
 ## 📏 Conventions
 
 ### Paths
@@ -138,14 +149,14 @@ Every operation lists the shared responses that can really happen, with `$ref`:
 
 | Status | Reference | When to list it |
 |---|---|---|
-| 400 | `#/components/responses/BadRequest` | The request can be malformed: a body that is not JSON, a value of the wrong type, a parameter out of range (`size` over 100, an unknown `sort` property, an identifier that is not a UUID) |
+| 400 | `#/components/responses/BadRequest` | The request can be malformed: a body that is not JSON or not valid multipart, a value of the wrong type, a parameter out of range (`size` over 100, an unknown `sort` property, an identifier that is not a UUID) |
 | 401 | `#/components/responses/Unauthorized` | Every protected operation |
 | 403 | `#/components/responses/Forbidden` | The operation depends on the role or on the relationship with the resource |
 | 404 | `#/components/responses/NotFound` | The path has an identifier |
 | 409 | `#/components/responses/Conflict` | The operation changes state that can conflict (status transitions, stale version, unique values) |
 | 413 | `#/components/responses/ContentTooLarge` | The operation receives a file with a size limit |
 | 422 | `#/components/responses/UnprocessableEntity` | The operation has a body whose data is validated (blank title, coordinates out of range, short password), or query values that are readable but not valid together (a report period over 366 days); `errors` lists every invalid field |
-| 429 | `#/components/responses/TooManyRequests` | The operation is rate limited (`createSession`, `createPasswordChange` and `createRegistration`) |
+| 429 | `#/components/responses/TooManyRequests` | The operation is rate limited (`createSession`, `createPasswordChange`, `createRegistration` and `createMfaVerification`; planned: `listPlaces`) |
 | 500 | `#/components/responses/InternalServerError` | Every operation |
 
 `400` means "I cannot read this request"; `422` means "I can read it, but the data is not valid". A form shows `422` errors next to each field; a `400` is a client bug.
@@ -166,9 +177,9 @@ Do not define a new error body. If an error needs extra information, add an opti
 | `VALIDATION_FAILED` | 422 | Any with a body, and `getIncidentReport` | The data is not valid; see `errors` |
 | `EMAIL_ALREADY_EXISTS` | 409 | `createRegistration` | An account with this email exists |
 | `INVALID_CREDENTIALS` | 401 | `createSession` | Wrong email or password (the same for both, so emails are not revealed) |
-| `ACCOUNT_DISABLED` | 403 | `createSession` | Right credentials, disabled account |
-| `TOO_MANY_ATTEMPTS` | 429 | `createSession`, `createRegistration` | Rate limited; see `Retry-After` |
-| `INVALID_REFRESH_TOKEN` | 401 | `refreshSession` | Unknown, expired, revoked or reused refresh token: sign in again |
+| `ACCOUNT_DISABLED` | 403 | `createSession`, `createMfaVerification` | Right credentials, disabled account |
+| `TOO_MANY_ATTEMPTS` | 429 | `createSession`, `createRegistration`, `createMfaVerification`; planned: `listPlaces` | Rate limited; see `Retry-After` |
+| `INVALID_REFRESH_TOKEN` | 401 | `refreshSession` | Unknown, expired, revoked or reused refresh token, or a staff session opened without the second factor: sign in again |
 | `INVALID_TRANSITION` | 409 | Lifecycle actions (Sprint 2) | The transition is not allowed (ADR-0020) |
 | `CONCURRENT_MODIFICATION` | 409 | Lifecycle actions and `updateIncident` (Sprint 2) | The incident changed since the client read its `version`: reload it and decide again (ADR-0020) |
 | `PASSWORD_CHANGE_REQUIRED` | 403 | `createSession` | Right credentials, but the password must change first |
@@ -176,6 +187,10 @@ Do not define a new error body. If an error needs extra information, add an opti
 | `ATTACHMENT_NOT_ALLOWED` | 409 | `createIncidentAttachment` | A citizen can only upload while the incident is `REPORTED` |
 | `FILE_TOO_LARGE` | 413 | `createIncidentAttachment` | The file is over the size limit |
 | `IDEMPOTENCY_KEY_REUSED` | 422 | `createIncident` | The citizen already used this `Idempotency-Key` for a different report: send a new key |
+| `INVALID_MFA_CHALLENGE` | 401 | `createMfaEnrollment`, `createMfaVerification` | The sign-in challenge is unknown, expired or used: sign in again |
+| `INVALID_MFA_CODE` | 401 | `createMfaVerification` | The code is wrong, outside its time window or already used: type another one (five per challenge) |
+| `MFA_ALREADY_ENROLLED` | 409 | `createMfaEnrollment` | The account already has a second factor: send a code instead |
+| `GEOCODING_UNAVAILABLE` | 503 | `listPlaces` (planned, #179) | The address search provider is down or too slow: place the pin by hand |
 
 Add a row in the same PR that introduces a new code.
 
@@ -187,7 +202,7 @@ Every response carries an `X-Request-ID` header (`components.headers.XRequestId`
 - Without one, the backend generates 32 hexadecimal characters.
 - The shared error responses list the header. Operations do not repeat it in their success responses: the `info` of the contract says it applies to all of them.
 - Every response with a status of `400` or more writes one log line with its status, method and path (`Answered 422 to POST /api/v1/registrations`), so even a client error that logs nothing else can be found by its `traceId`. The line never has the body, the query string or the headers, which may hold personal data.
-- `RequestIdFilter` sets it before the security filters run, so their `401` and `403` carry it too. In the code, a module never reads or writes it: `ApiExceptionHandler` and `SecurityProblemResponses` add `traceId`.
+- `RequestIdFilter` sets it before the security filters run, so their `401` and `403`, and the `400` of a request their firewall refuses (a path with `//`, `;` or `%2F`), carry it too. In the code, a module never reads or writes it: `ApiExceptionHandler` and `SecurityProblemResponses` add `traceId`.
 
 ### Retries of a report
 
@@ -221,7 +236,7 @@ Every listing is paginated, so no query runs without a limit (AGENTS.md, section
 - **Parameters** `page` (0-based, default 0), `size` (default 20, maximum 100) and `sort` (`property,asc|desc`), as `#/components/parameters/Page`, `Size` and `Sort`. A `size` over 100 returns `400`; the backend never reduces it silently. So does a `page` that starts past item 2,147,483,647 (`page` times `size`), the last one a query can skip to.
 - **Response** with `content` (the items) and `page` (`#/components/schemas/PageMetadata`: `number`, `size`, `totalElements`, `totalPages`). This is the shape Spring Data produces with `@EnableSpringDataWebSupport(pageSerializationMode = VIA_DTO)`.
 - **Sorting.** Each listing documents the properties it accepts and its default in its `description`. The backend always adds `id` as the last criterion, so the order is stable and no item appears on two pages.
-- **Filters** use the name of the property they filter (`status`, `categoryId`, `priority`), repeatable for several values (`?status=REPORTED&status=VALIDATED`). Date ranges are `reportedFrom` / `reportedTo`, UTC instants.
+- **Filters** use the name of the property they filter (`status`, `categoryId`, `priority`), repeatable for several values (`?status=REPORTED&status=VALIDATED`). Date ranges are `reportedFrom` / `reportedTo`, UTC instants. Only the parameters the contract declares as arrays repeat: any other one sent twice (`?page=0&page=5`) returns `400`.
 
 Short reference lists managed by administrators, such as `listCategories`, and lists bounded by the domain, such as the status history of one incident, return a plain array without pagination. Their `description` says why.
 
@@ -230,7 +245,7 @@ Short reference lists managed by administrators, such as `listCategories`, and l
 The contract is stricter than Spring's defaults, and the acceptance tests follow the contract:
 
 - **Paging.** A `Pageable` controller argument silently reduces `size` to 2000, turns invalid values into the defaults, and an unknown `sort` property ends in `500`. Receive `page`, `size` and `sort` as validated `@RequestParam`s (`@Min`, `@Max`), check `sort` against the properties the listing accepts, and build the `PageRequest` by hand with `id` as the last criterion.
-- **Unknown and empty parameters.** Spring ignores a query parameter no argument asks for, so a mistyped filter returns the unfiltered list, and it turns an empty value (`?categoryId=`) into `null`. A listing that documents its parameters receives them all as `@RequestParam MultiValueMap` and checks them with `QueryParameters.requireKnownAndFilled`, which answers `400` to both. Spring also splits a single value on commas and turns an empty piece (`?status=REPORTED,`) into a `null` element of the list, so the incident filters answer `400` to it too.
+- **Unknown and empty parameters.** Spring ignores a query parameter no argument asks for, so a mistyped filter returns the unfiltered list, and it turns an empty value (`?categoryId=`) into `null`. A listing that documents its parameters receives them all as `@RequestParam MultiValueMap` and checks them with `QueryParameters.requireKnownAndFilled`, which answers `400` to both. Spring also splits a single value on commas and turns an empty piece (`?status=REPORTED,`) into a `null` element of the list, so the incident filters answer `400` to it too. A typed `@RequestParam` takes only the first value of a repeated parameter, so the listing also passes the parameters that are not arrays in the contract to `QueryParameters.requireSingle`, which answers `400` when one is repeated.
 - **Validation.** A failed `@Valid` body returns `400` by default. The shared `@RestControllerAdvice` translates it to `422` with `VALIDATION_FAILED` and `errors`.
 
 ## ➕ How to Add an Endpoint

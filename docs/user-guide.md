@@ -35,8 +35,9 @@ Citizens use the **mobile app**; municipal staff (operators, technicians, admini
 analysts) use the **website**. Each app only lets in its own people:
 
 - A citizen who signs in on the website sees *Use the UrbanPulse mobile app*.
-- A staff account that signs in on the phone sees *Use the UrbanPulse website* and a *Sign out*
-  button.
+- A staff account that signs in on the phone gets *Staff accounts sign in on the UrbanPulse
+  website. The mobile app is for citizens.*, because the phone has no code step for the second
+  factor.
 
 The API checks every permission again, so this is a convenience, not the protection (see the
 [permission matrix](security.md#-permission-matrix)).
@@ -80,6 +81,25 @@ and that password, the website shows *Choose your password*: type the new passwo
 8 characters, different from the one you were given) and select *Change the password*. You go back
 to the sign-in form; sign in with the new password. *Back to sign in* leaves the password as it was,
 and the next sign-in asks again. Changing the password also ends your sessions on other devices, within about 15 minutes.
+
+**Second factor (staff, website):** after the email and the password, staff accounts type a
+six-digit code from an authenticator app on their phone (Google Authenticator, Microsoft
+Authenticator, Aegis or any other TOTP app). The first time, the website shows *Set up your second
+factor* with a QR code: scan it with the app, or type the secret shown under it, then type the code
+the app shows and select *Verify*. From then on each sign-in shows *Enter your code*. A code changes
+every 30 seconds and works only once.
+
+| Message | What to do |
+| --- | --- |
+| *That code is not correct. Check the app and type the one it shows now.* | Type the current code; check that the phone's clock is right |
+| *Your sign-in has expired. Enter your password again.* | The code step lasts 5 minutes, or too many wrong codes were typed: sign in again |
+| *Too many wrong codes. Wait a few minutes and try again.* | After 10 wrong codes in 15 minutes the account waits; a right password does not shorten it |
+| *Your code was accepted, but the sign-in could not be finished. Enter your password again.* | The server failed right after the code; sign in again from the password |
+| *UrbanPulse cannot be reached…* or *The code could not be checked…* | Your password is still valid: press *Verify* again, there is no need to type the password |
+
+If you lose the phone, ask an administrator to reset your second factor; you set it up again at the
+next sign-in. Staff accounts cannot sign in from the mobile app, which says *Staff accounts sign in
+on the UrbanPulse website. The mobile app is for citizens.*
 
 **How long you stay signed in:**
 
@@ -170,7 +190,9 @@ photo again; it is never stored twice. A photo that is too large, is not a JPEG,
 or goes over the limit of the report is refused with its reason.
 
 The report is accepted even when the address, neighbourhood or district cannot be worked out at
-that moment: they show as *Not available* until they are known.
+that moment. The street address is looked up from the position just after you send the report:
+until it arrives it says *Looking up the address…*. A position outside Málaga says *No address: the
+position is outside Málaga*, and an address that cannot be found says *Not available*.
 
 ### Follow your reports
 
@@ -184,7 +206,8 @@ Scroll down to load more. Tap a report to see:
 - **Details:** its category (*Not set yet* when nobody has classified it), when it was reported,
   when it was last updated and, once closed, when it was closed.
 - **Location:** address, neighbourhood, district, coordinates and accuracy; *Not available* when
-  a value is not known.
+  a value is not known. The address shows *© OpenStreetMap contributors* under it, the source it
+  comes from, or why there is none: *Looking up the address…* or *outside Málaga*.
 - **History:** a timeline of each change of status, oldest first, with its date and time. Your
   report shows as yours (*You*) and every other change as the *City council*'s. A rejection shows
   its **reason**. When the city needs more details, the entry shows a *Message from the city
@@ -204,11 +227,14 @@ The menu at the top shows *Inbox* and *Map*.
 
 ### Inbox
 
-The incidents, newest first, a page at a time, with the date it was reported, title, category,
-status and priority. A category or priority that is not set shows *Not classified* or *Not set*.
+The incidents, newest first, a page at a time, with the date it was reported, title, street
+address, category, status and priority. A category or priority that is not set shows *Not
+classified* or *Not set*; an address that is not there yet says *Looking up the address…*, and one
+outside Málaga or not found says so.
 
-The menu and the sign-in open it on the reports waiting for a review: the status *Reported* is
-ticked. *Clear filters* lists every incident.
+The menu and the sign-in open it with the filters you last used on it in this browser, and on the
+reports waiting for a review the first time: the status *Reported* is ticked. *Clear filters* lists
+every incident, and the menu and the sign-in then open it that way.
 
 - **Filters:** status, category, priority, department and the days it was reported (*Reported
   from* and *to*, both included, in Málaga time, or in one click with *Reported in*: *Today*,
@@ -236,7 +262,10 @@ ticked. *Clear filters* lists every incident.
   attached.* They are only shown inside the signed-in app; there is no public link to them.
 - **Location:** address, neighbourhood, district, coordinates and the accuracy the phone reported
   (for example *within 12.5 m*). A value that is not known says *Not available*: it is never left
-  empty or guessed.
+  empty or guessed. The address, such as *Calle Larios, 5, 29005 Málaga*, is looked up from the
+  position after the report and comes with *© OpenStreetMap contributors*, which opens the source;
+  until then it says *Looking up the address…*, and a position outside Málaga says so. Reload the
+  page to see an address that has just arrived.
 - **Context:** the weather at the incident's position when it was reported, such as *Rainy*, with
   the time it was recorded and *Weather data by Open-Meteo.com*, which opens the source. The weather
   arrives some seconds after the report: until then it says *Getting the weather…* and checks again
@@ -324,8 +353,9 @@ Dates are shown in Málaga time.
 ### Map
 
 The incidents on the base map of Málaga, with the same filters as the inbox, and beside it a
-summary of how many they are. The menu opens it on every status that can still change: everything
-except *Rejected* and *Closed*. The screen fills the window, so the whole map is seen without
+summary of how many they are. The menu opens it with the filters you last used on it in this
+browser, and the first time on every status that can still change: everything except *Rejected*
+and *Closed*. The screen fills the window, so the whole map is seen without
 scrolling on a window at least 800 pixels wide and about 560 tall, also with the browser zoomed
 (a 1,280-pixel laptop screen at 150 % is 853). With the filters open, the map shrinks to make room;
 below about 280 pixels of map the page scrolls instead.
@@ -351,9 +381,10 @@ below about 280 pixels of map the page scrolls instead.
   - **When something fails:** if it cannot be loaded, it says so with *Try again*. If a refresh
     fails, the counts you saw stay with a warning, never as zeros, and *Latest reported* keeps the
     incidents you saw and says from when. A chart that cannot be shown gives its figures as a table.
-- **Markers:** each incident is a dot. Its colour is its status, the same as in the lists, and its
-  size is its priority: the higher, the bigger, and a *High* one also has a dark border. *Map key*,
-  in the bottom-left corner of the map, explains both; it opens and folds, and stays as you left it.
+- **Markers:** each incident is a dot. Its colour is its status, the same as in the lists, and
+  each of the eight statuses has its own colour. Its size is its priority: the higher, the bigger,
+  and a *High* one also has a dark border. *Map key*, in the bottom-left corner of the map, explains
+  both; it opens and folds, and stays as you left it.
 - **Full screen:** the button under the zoom buttons shows the whole screen of the map, with its
   filters and summary, on the whole screen; *Escape* or the same button brings the page back.
 - **Groups:** when you zoom out, nearby incidents join into a dark circle with their number, and the
@@ -366,7 +397,9 @@ below about 280 pixels of map the page scrolls instead.
   not found*, and the next refresh removes its marker. Closing an incident does not make its
   summary say *Incident not found*.
 - **Live:** the map reads the incidents again every 15 seconds, so a new report appears without
-  reloading the page.
+  reloading the page. An open summary is read again at the same time, so it shows the same status
+  as its marker. If a refresh of the summary fails, it keeps what it showed, with a warning that the
+  incident could not be refreshed and *Try again*.
 - **List:** *List of the incidents on the map*, under the summary, has every incident on the map,
   the most relevant first. With the keyboard, *Tab* to it, *Enter* to open it and *Enter* on an
   incident to open its summary and centre the map on it.
@@ -407,12 +440,14 @@ could not be loaded.* with its own *Try again*, and the other photos still show.
 ## 🔧 Technician (Web)
 
 The menu shows *Work queue*, where you land, and *Map*: the operator's [map](#map) with only the
-incidents assigned to you, opened on *Assigned* and *In progress* like the queue.
+incidents assigned to you, opened like the queue: with the filters you last used on it in this
+browser, and the first time on *Assigned* and *In progress*.
 
 ### Work queue
 
 The incidents assigned to you now, newest first, a page at a time, with the same columns as the
-operator's inbox. It opens on the work still to do: the statuses *Assigned* and *In progress* are
+operator's inbox. The menu and the sign-in open it with the filters you last used on it in this
+browser, and on the work still to do the first time: the statuses *Assigned* and *In progress* are
 ticked. Tick other statuses, or *Clear filters*, to see the incidents you resolved. The filters are
 those of the inbox, *Reported in* included.
 
@@ -476,6 +511,11 @@ The menu shows *Users*, where you land, *Inbox*, *Map*, *Audit log* and *Reports
   - *Deactivate account* asks you to confirm. The person cannot sign in any more, and their open
     sessions end within about 15 minutes. Accounts are never deleted: incidents and the audit log
     keep referring to them. *Reactivate account* lets them sign in again.
+  - **Second factor:** in an opened staff account, *Reset second factor* is for a person who lost
+    their phone. Write the reason (it is kept in the audit log, so write no personal data) and
+    confirm. Their sessions end within about 15 minutes and they set up the second factor again at
+    their next sign-in. If you are the last administrator and lose your own phone, the maintainer
+    follows the emergency procedure of the [deployment guide](deployment.md).
   - You cannot change your own role or deactivate yourself, and a citizen account keeps its role.
   - Every change appears in the *Audit log*; a name change records that the name changed, not the
     name.

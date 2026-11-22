@@ -58,13 +58,61 @@ export function isProblem(value: unknown): value is Problem {
   return typeof value === 'object' && value !== null && 'status' in value;
 }
 
-/** Starts a session and stores its tokens. */
+/**
+ * The first step of a sign-in that needs the second factor (ADR-0021). The client keeps it in
+ * memory only, never in storage, and gives it to `enrollMfa` and `verifyMfa`.
+ */
+export type MfaChallenge = components['schemas']['MfaChallengeResponse'];
+
+/**
+ * Starts a session and stores its tokens. A staff account answers `202` instead: nothing is stored,
+ * and `data` is the challenge the screen answers with `verifyMfa`. `data` is `null` when the user
+ * is signed in.
+ */
 export async function signIn(
   client: ApiClient,
   tokenStore: TokenStore,
   credentials: components['schemas']['CreateSessionRequest'],
-): Promise<ApiResult<void>> {
+): Promise<ApiResult<MfaChallenge | null>> {
   const result = await callApi(() => client.POST('/sessions', { body: credentials }));
+  if (!result.ok) {
+    return result;
+  }
+  if (!('accessToken' in result.data)) {
+    return { ok: true, data: result.data };
+  }
+  await tokenStore.save(result.data);
+  return { ok: true, data: null };
+}
+
+/**
+ * Starts the enrolment of the second factor for a challenge with `enrollmentRequired`: the secret
+ * and the `otpauth` URI to show as a QR code. Calling it again replaces the secret; `409` with
+ * `MFA_ALREADY_ENROLLED` when the account has one, `401` with `INVALID_MFA_CHALLENGE` when the
+ * challenge is unknown, expired or used.
+ */
+export function enrollMfa(
+  client: ApiClient,
+  challengeToken: string,
+): Promise<ApiResult<components['schemas']['MfaEnrollmentResponse']>> {
+  return callApi(() => client.POST('/mfa-enrollments', { body: { challengeToken } }));
+}
+
+/**
+ * Answers a challenge with the code of the authenticator app and stores the tokens. `401` with
+ * `INVALID_MFA_CODE` means the user types another code; `401` with `INVALID_MFA_CHALLENGE`, that
+ * the sign-in starts again with the password, and so does `403` with `ACCOUNT_DISABLED`. `429` with
+ * `TOO_MANY_ATTEMPTS` does not spend the challenge: the user waits and tries again.
+ */
+export async function verifyMfa(
+  client: ApiClient,
+  tokenStore: TokenStore,
+  challengeToken: string,
+  code: string,
+): Promise<ApiResult<void>> {
+  const result = await callApi(() =>
+    client.POST('/mfa-verifications', { body: { challengeToken, code } }),
+  );
   if (!result.ok) {
     return result;
   }

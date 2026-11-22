@@ -10,6 +10,12 @@ spring:
   web:
     locale: en
     locale-resolver: fixed
+  # One thread per scheduled job: the address worker waits a second between its calls to Nominatim
+  # (#375), and with one thread that wait would delay the weather worker too.
+  task:
+    scheduling:
+      pool:
+        size: 3
   jpa:
     open-in-view: false
     # SQL is not logged by default (it would also be logged in production). To see it locally,
@@ -66,6 +72,19 @@ urbanpulse:
     sign-up-attempts:
       max: 10
       window: PT1H
+    # Second factor of the staff (#57, ADR-0021, docs/security.md). Without MFA_ENCRYPTION_KEY the
+    # application does not start (MfaProperties checks it). An empty MFA_REQUIRED_ROLES asks no role
+    # for a code.
+    mfa:
+      required-roles: ${MFA_REQUIRED_ROLES:MUNICIPAL_OPERATOR,TECHNICIAN,ADMINISTRATOR,ANALYST}
+      encryption-key: ${MFA_ENCRYPTION_KEY:}
+      issuer: ${MFA_ISSUER:UrbanPulse}
+      challenge-ttl: PT5M
+      code-attempts-per-challenge: 5
+      # Wrong codes per account, kept in memory like the other limits.
+      code-attempts:
+        max: 10
+        window: PT15M
   # The weather of each incident from Open-Meteo, after the report (ADR-0018, docs/deployment.md).
   weather:
     enabled: ${WEATHER_ENRICHMENT_ENABLED:true}
@@ -76,6 +95,21 @@ urbanpulse:
     batch-size: ${WEATHER_ENRICHMENT_BATCH_SIZE:20}
     open-meteo-timeout: ${OPEN_METEO_TIMEOUT:PT2S}
     max-delay: ${WEATHER_MAX_DELAY:PT1H}
+  # The normalized address of each incident from Nominatim, after the report (#375,
+  # docs/deployment.md). The public Nominatim allows one call per second and asks for a User-Agent
+  # that identifies the application.
+  address:
+    enabled: ${ADDRESS_ENRICHMENT_ENABLED:true}
+    nominatim-base-url: https://nominatim.openstreetmap.org
+    # Empty: the calls go straight to Nominatim.
+    nominatim-proxy: ${NOMINATIM_PROXY:}
+    nominatim-user-agent: UrbanPulse (+https://github.com/Dalibex/urban-incidence-manager)
+    interval: PT30S
+    batch-size: 10
+    request-spacing: PT1S
+    nominatim-timeout: PT3S
+    # A pending address older than this becomes UNAVAILABLE.
+    max-delay: PT24H
   storage:
     # Relative to the working directory: backend/ from the IDE or ./mvnw, /app in the image (#275).
     base-path: ${STORAGE_BASE_PATH:./storage}

@@ -1,13 +1,16 @@
-import type { Role } from '@urbanpulse/domain';
+import { useSyncExternalStore } from 'react';
 import { NavLink } from 'react-router';
 
+import { rememberedVersion, subscribeToRemembered } from '../incidents/filters/remembered-filters';
 import { SECTIONS, type Section } from '../routing/sections';
-import { useSession } from '../session/SessionContext';
+import { useSession, type SessionUser } from '../session/SessionContext';
 import styles from './AppLayout.module.css';
 import { ROLE_LABELS } from './role-labels';
 
 export function Navbar() {
   const { user, signOut } = useSession();
+  // A screen remembers its filters after it renders, so the links read them again when it has.
+  useSyncExternalStore(subscribeToRemembered, rememberedVersion);
   if (!user) {
     return null;
   }
@@ -22,7 +25,7 @@ export function Navbar() {
             {sections.map((section) => (
               <li key={section.path}>
                 <NavLink
-                  to={linkOf(section, user.role)}
+                  to={linkOf(section, user)}
                   className={({ isActive }) => (isActive ? styles.activeLink : styles.link)}
                 >
                   {section.label}
@@ -45,9 +48,6 @@ export function Navbar() {
   );
 }
 
-function linkOf({ link, path }: Section, role: Role): string {
-  if (typeof link === 'function') {
-    return link(role);
-  }
-  return link ?? path;
+function linkOf({ link, path }: Section, user: SessionUser): string {
+  return link ? link(user) : path;
 }

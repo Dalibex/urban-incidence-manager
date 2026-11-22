@@ -72,6 +72,8 @@ const CREATED: components['schemas']['IncidentResponse'] = {
     longitude: -4.4214,
     accuracy: 12.5,
     address: null,
+    addressStatus: 'UNAVAILABLE' as const,
+    addressSource: null,
     neighborhood: null,
     district: null,
   },

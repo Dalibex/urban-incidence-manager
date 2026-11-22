@@ -53,6 +53,13 @@ export interface paths {
          *     password does not reveal that an account has to change it. The client then calls
          *     `createPasswordChange` and signs in again.
          *
+         *     Second factor (ADR-0021). When the password is right and the role of the
+         *     account is in `MFA_REQUIRED_ROLES` (by default every staff role), the answer is `202` with a
+         *     challenge and **no tokens**. The client sends a code from the authenticator app with
+         *     `createMfaVerification`, which returns the token pair; an account that has not enrolled yet
+         *     calls `createMfaEnrollment` first. `ACCOUNT_DISABLED` and `PASSWORD_CHANGE_REQUIRED` are
+         *     checked before the challenge is created. Other roles get `201` as before.
+         *
          *     Roles: public.
          */
         post: operations["createSession"];
@@ -77,6 +84,11 @@ export interface paths {
          *     stops working. Sending a revoked refresh token again (already used, or signed out) before
          *     it expires fails and also revokes every session of its user, because someone else may hold
          *     a copy of it. The answer does not say whether the token was reused, expired or unknown.
+         *
+         *     Second factor (ADR-0021): when the role of the account is in `MFA_REQUIRED_ROLES` and the
+         *     session was not opened with a code (`createMfaVerification`), as a session from before the
+         *     second factor was deployed or from before a role change, the refresh fails and that refresh
+         *     token ends; the user signs in again with a code. Other sessions of the user are kept.
          *
          *     A client must not try to refresh again when this operation returns `401`: it signs the
          *     user out instead.
@@ -144,6 +156,97 @@ export interface paths {
          *     Roles: public.
          */
         post: operations["createPasswordChange"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/mfa-enrollments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start the enrolment of the second factor
+         * @description For a challenge of `createSession` whose `enrollmentRequired` is `true`:
+         *     creates a new TOTP secret for that challenge and returns it as an `otpauth://` URI, which
+         *     the web app shows as a QR code for an authenticator app. The enrolment stays pending, and
+         *     the second factor does not protect the account, until `createMfaVerification` receives a
+         *     first valid code for the same challenge.
+         *
+         *     The pending secret belongs to the challenge, not to the account: two sign-ins enrolling at
+         *     once (two tabs, or someone else with the password) never replace each other's secret. The
+         *     first valid code confirms its own secret and cancels every other pending enrolment of the
+         *     account: their challenges are spent, and get `INVALID_MFA_CHALLENGE` in both operations.
+         *     That client goes back to the password step, and its new challenge asks for a code.
+         *
+         *     Calling this operation again for the same challenge replaces its pending secret, so a QR
+         *     shown before stops working. The secret is returned only here and only while the enrolment
+         *     is pending: once confirmed, no operation returns it again. It is stored encrypted, and never
+         *     written to the logs.
+         *
+         *     Accepted risk of ADR-0021 (trust on first use): while an account has no confirmed second
+         *     factor (when #57 is deployed, after `createUserMfaReset`, and for a new account), whoever knows
+         *     its password can enrol their own phone first. The real user's sign-in then asks for a code
+         *     their app cannot give (`INVALID_MFA_CODE`), and an administrator resets it.
+         *
+         *     The challenge token is the credential, in the body and not in the path, so it does not reach
+         *     the access logs. A challenge that is unknown, expired or already used gets
+         *     `INVALID_MFA_CHALLENGE`: the client goes back to the password step.
+         *
+         *     Roles: public (the challenge is the credential).
+         */
+        post: operations["createMfaEnrollment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/mfa-verifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Finish the sign-in with a code of the second factor
+         * @description Checks a code of the authenticator app for a challenge of `createSession` and,
+         *     if it is valid, returns the token pair of ADR-0004 and spends the challenge. If the
+         *     enrolment of the account is pending (`createMfaEnrollment`), a valid code also confirms it
+         *     and records an `ENROLL_MFA` audit entry, in the same transaction that issues the tokens.
+         *
+         *     A code is valid for its 30-second time step and one step on each side; a code that was
+         *     already used is refused. A wrong code does not spend the challenge, so the user can type
+         *     another one, up to five wrong codes per challenge: the fifth spends it, and the next request
+         *     gets `INVALID_MFA_CHALLENGE`. Wrong codes are written to the log without the code.
+         *
+         *     Brute force: wrong codes also have their own limit per account, keyed by the account only
+         *     (not by the client address) and separate from the password limit: 10 wrong codes per 15
+         *     minutes. A right password does not give these attempts back; only a valid code does. Whoever
+         *     has the password can use them up and lock the real user out for a while; that is accepted,
+         *     like the trust on first use of `createMfaEnrollment`. Past the limit, `429`
+         *     `TOO_MANY_ATTEMPTS` with `Retry-After`, even for a right code (*Rate limits* in
+         *     `docs/security.md`).
+         *
+         *     The account is checked again here: if it was disabled after the password step, or its role
+         *     no longer needs the second factor, the answer is `403` `ACCOUNT_DISABLED` or `401`
+         *     `INVALID_MFA_CHALLENGE`, and no token is issued. Of two verifications at once of the same
+         *     challenge with a valid code, one gets the tokens and the other `INVALID_MFA_CHALLENGE`. A
+         *     challenge with `enrollmentRequired` and no `createMfaEnrollment` yet has no secret to match,
+         *     so any code gets `INVALID_MFA_CODE`.
+         *
+         *     Roles: public (the challenge and the code are the credentials).
+         */
+        post: operations["createMfaVerification"];
         delete?: never;
         options?: never;
         head?: never;
@@ -244,6 +347,37 @@ export interface paths {
         patch: operations["updateUser"];
         trace?: never;
     };
+    "/users/{userId}/mfa-resets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset the second factor of a user
+         * @description For a user who lost their phone (ADR-0021): removes their TOTP secret, revokes
+         *     every refresh token and open sign-in challenge of the user, and records a `RESET_MFA` audit
+         *     entry with the actor, the instant, the user (`target`) and the `reason` the administrator
+         *     gives, in one transaction, as ADR-0021 asks. The user enrols again on their next sign-in.
+         *
+         *     A reset is a resource with a body, not a `DELETE`, because the audit needs that reason and a
+         *     `DELETE` has no body.
+         *
+         *     A user without a second factor also gets `204`, and then nothing changes and nothing is
+         *     recorded.
+         *
+         *     Roles: `ADMINISTRATOR`.
+         */
+        post: operations["createUserMfaReset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/technicians": {
         parameters: {
             query?: never;
@@ -342,9 +476,9 @@ export interface paths {
          *     `id` is always added as the last criterion so the order is stable between pages.
          *
          *     Filters always apply inside what the caller may see, so they never widen it, and every
-         *     filter used must match. `status` is open to every role that can list. The other filters are
-         *     for staff: a `CITIZEN` who uses one gets `403`. An unknown parameter, or one without a value
-         *     (`?categoryId=`), returns `400`.
+         *     filter used must match. `status` and the text search `q` (Planned: #266) are open to every
+         *     role that can list. The other filters are for staff: a `CITIZEN` who uses one gets `403`.
+         *     An unknown parameter, or one without a value (`?categoryId=`), returns `400`.
          */
         get: operations["listIncidents"];
         put?: never;
@@ -355,8 +489,9 @@ export interface paths {
          *     body.
          *
          *     No external source is called while reporting (RF26): `address`, `neighborhood` and
-         *     `district` start as `null` ("not available yet") and are filled in later, when enrichment
-         *     exists.
+         *     `district` start as `null` ("not available yet"). The address starts with `addressStatus`
+         *     `PENDING` and is resolved from the position after the report (#375);
+         *     `neighborhood` and `district` are filled in later, when that enrichment exists.
          *
          *     Retries (#289): a client that may retry the report sends an `Idempotency-Key`. A request
          *     with a key the same citizen already used, and the same body, creates nothing: it answers
@@ -702,6 +837,7 @@ export interface paths {
          *     come from configuration (`EVIDENCE_MAX_FILE_SIZE`, `EVIDENCE_MAX_FILES_PER_INCIDENT`).
          *
          *     A file over the size limit returns `413`. Another type, or too many files, returns `422`.
+         *     A body that is not valid `multipart/form-data` returns `400`.
          *
          *     The same content uploaded again to the same incident, such as a retry, stores nothing new
          *     and returns `200` with the existing attachment, so a client can retry safely.
@@ -814,7 +950,8 @@ export interface paths {
          * @description The indicators of the staff dashboard (#177), shown beside the map: how many incidents
          *     match, and how they split by status, priority, category and department. It takes the same
          *     filters and the same scope as `listIncidentLocations`, without the bounding box, so it
-         *     counts the incidents the map draws. Unlike the map it has no cap: it counts every one.
+         *     counts the incidents the map draws, also while the text search `q` (Planned: #266) narrows
+         *     them. Unlike the map it has no cap: it counts every one.
          *     An unknown parameter, or one without a value, returns `400`, like `listIncidents`.
          *
          *     Every group of a dimension adds up to `total`: they are read from one snapshot, so an
@@ -830,6 +967,71 @@ export interface paths {
          *     assignments). `CITIZEN` and `ANALYST` get `403`.
          */
         get: operations["getIncidentStatistics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/districts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the districts of Málaga
+         * @description Planned: #59. The districts of Málaga whose official boundaries are loaded, ordered by name,
+         *     for the `district` filter of the staff lists, the map and the dashboard. Their names are the
+         *     values of `location.district` and of that filter. It is a short reference list (Málaga has
+         *     eleven districts) that changes only with a new import of the boundaries, so it is not
+         *     paginated.
+         *
+         *     Roles: `MUNICIPAL_OPERATOR`, `TECHNICIAN`, `ADMINISTRATOR`. `CITIZEN` and `ANALYST` get
+         *     `403`.
+         */
+        get: operations["listDistricts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/places": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search an address or a place in Málaga
+         * @description Planned: #179. Address search of the report form of the mobile app: the places of the
+         *     municipality of Málaga that match `q`, the most relevant first, so the citizen can move the
+         *     pin there instead of panning from the city centre. The backend asks OpenStreetMap's
+         *     Nominatim (ADR-0002) through its adapter; the phone never calls Nominatim.
+         *
+         *     - **Search on submit.** The client sends one request when the user submits the search,
+         *       never while typing: Nominatim's usage policy forbids autocomplete.
+         *     - **Málaga only.** The search is bounded to the municipality; a place outside it is never
+         *       returned. No match is `200` with an empty list.
+         *     - **At most five places.** The list is bounded, so it is not paginated.
+         *     - **Rate limits.** The backend sends Nominatim at most one request per second, for every
+         *       user together, and each user to 10 searches a minute, so one user cannot use up what the
+         *       others share. It keeps repeated searches in a cache, as the policy asks. Over either
+         *       limit it answers `429` with `Retry-After` instead of waiting.
+         *     - **Provider down.** If Nominatim does not answer in time, or answers with an error, the
+         *       answer is `503` `GEOCODING_UNAVAILABLE`. The report does not depend on it: the user can
+         *       still place the pin by hand (RF26).
+         *
+         *     Roles: `CITIZEN`. Other roles get `403`.
+         */
+        get: operations["listPlaces"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1095,6 +1297,43 @@ export interface components {
              */
             refreshTokenExpiresAt: string;
         };
+        /** @description The first step of a sign-in that needs the second factor (ADR-0021): no tokens yet. */
+        MfaChallengeResponse: {
+            /** @description Opaque, single-use credential of this sign-in, for `createMfaEnrollment` and `createMfaVerification`. The client keeps it in memory only, never in storage. */
+            challengeToken: string;
+            /**
+             * Format: date-time
+             * @description When the challenge expires (UTC), a few minutes after it was created.
+             */
+            challengeExpiresAt: string;
+            /** @description `true` when the account has no confirmed second factor yet: the client calls `createMfaEnrollment` and shows the QR code before asking for a code. */
+            enrollmentRequired: boolean;
+        };
+        /** @description The challenge of the sign-in that is enrolling. */
+        CreateMfaEnrollmentRequest: {
+            challengeToken: string;
+        };
+        /** @description A pending enrolment of the second factor. The secret is shown only now, while the enrolment is pending. */
+        MfaEnrollmentResponse: {
+            /**
+             * Format: uri
+             * @description `otpauth://totp/` URI (RFC 6238: SHA-1, 6 digits, 30-second steps) with the issuer and the email of the account, for the web app to show as a QR code.
+             */
+            otpauthUri: string;
+            /** @description The same secret in Base32, for a user who types it into the authenticator app instead of scanning the QR code. */
+            secret: string;
+        };
+        /** @description Why the second factor of the user is reset, for the audit trail. */
+        CreateUserMfaResetRequest: {
+            /** @description The reason, as the administrator writes it (for example, a lost phone). It is kept in the `RESET_MFA` entry; write no personal data in it. */
+            reason: string;
+        };
+        /** @description A code of the authenticator app for a sign-in challenge. */
+        CreateMfaVerificationRequest: {
+            challengeToken: string;
+            /** @description The six digits the authenticator app shows now. */
+            code: string;
+        };
         /** @description Public profile of a user. It never includes the password or its hash. */
         UserResponse: {
             /**
@@ -1192,7 +1431,7 @@ export interface components {
          * @example CHANGE_ROLE
          * @enum {string}
          */
-        AuditAction: "CREATE_USER" | "UPDATE_USER" | "CHANGE_ROLE" | "DISABLE_USER" | "ENABLE_USER" | "CHANGE_PASSWORD" | "CLASSIFY_INCIDENT";
+        AuditAction: "CREATE_USER" | "UPDATE_USER" | "CHANGE_ROLE" | "DISABLE_USER" | "ENABLE_USER" | "CHANGE_PASSWORD" | "CLASSIFY_INCIDENT" | "ENROLL_MFA" | "RESET_MFA";
         /**
          * @description The kind of record an audit entry is about.
          * @example USER
@@ -1295,7 +1534,14 @@ export interface components {
              * @example Broken or flickering street lights.
              */
             description: string | null;
+            /** @description The icon of the category on the map and in the dashboard. `null` when the category has none: the clients draw their generic icon, the same as for an incident without category. Planned: #267. It is optional only until then, because the backend does not send it yet; that pull request makes it required. */
+            icon?: components["schemas"]["CategoryIcon"] | null;
         };
+        /**
+         * @description Which icon represents a category (#267). The clients map each value to a drawing of their own icon set, so the API names the meaning and never ships an image or the icon name of a library. A new value is added with the category that needs it. Planned: #267.
+         * @enum {string}
+         */
+        CategoryIcon: "STREET_LIGHTING" | "PAVEMENT" | "WASTE" | "URBAN_FURNITURE" | "PARKS" | "SIGNAGE";
         /** @description Category of an incident, embedded so a listing needs no extra request. */
         CategorySummary: {
             /**
@@ -1347,7 +1593,7 @@ export interface components {
              */
             accuracy?: number;
         };
-        /** @description Position of the incident and what is known about the place. `null` in `accuracy`, `address`, `neighborhood` or `district` means "not available": unknown or not looked up yet, never "none". */
+        /** @description Position of the incident and what is known about the place. `null` in `accuracy`, `address`, `neighborhood` or `district` means "not available": unknown or not looked up yet, never "none". `addressStatus` says why there is no `address`. */
         IncidentLocation: {
             /**
              * Format: double
@@ -1368,10 +1614,13 @@ export interface components {
              */
             accuracy: number | null;
             /**
-             * @description Normalized address. `null` while not available.
-             * @example null
+             * @description Normalized address of Málaga, resolved from the position after the report: the street, the house number and the postcode when the source has them. Set only while `addressStatus` is `AVAILABLE`; `null` otherwise.
+             * @example Calle Larios, 5, 29005 Málaga
              */
             address: string | null;
+            addressStatus: components["schemas"]["AddressStatus"];
+            /** @description Where the address comes from, with the attribution its licence asks for: a client that shows the address shows the attribution next to it. `null` while there is no address. */
+            addressSource: components["schemas"]["ContextSource"] | null;
             /**
              * @description Neighbourhood of Málaga. `null` while not available.
              * @example null
@@ -1383,7 +1632,7 @@ export interface components {
              */
             district: string | null;
         };
-        /** @description One incident in a listing. `priority` is staff-only: it is absent in the responses to a citizen. */
+        /** @description One incident in a listing. `priority`, `address` and `addressStatus` are staff-only: they are absent in the responses to a citizen. */
         IncidentSummaryResponse: {
             /**
              * Format: uuid
@@ -1397,6 +1646,13 @@ export interface components {
             priority?: components["schemas"]["Priority"] | null;
             /** @description `null` while the incident has no category. */
             category: components["schemas"]["CategorySummary"] | null;
+            /**
+             * @description Staff only. The normalized address, as in `IncidentLocation`; `null` while `addressStatus` is not `AVAILABLE`.
+             * @example Calle Larios, 5, 29005 Málaga
+             */
+            address?: string | null;
+            /** @description Staff only. Why there is no `address`, as in `IncidentLocation`. */
+            addressStatus?: components["schemas"]["AddressStatus"];
             /**
              * Format: date-time
              * @example 2026-11-02T09:58:31Z
@@ -1695,6 +1951,11 @@ export interface components {
              */
             id: string;
             status: components["schemas"]["IncidentStatus"];
+            /**
+             * Format: uuid
+             * @description The category of the incident, whose `icon` from `listCategories` the marker shows. `null` while the incident has no category. Planned: #267. It is optional only until then, because the backend does not send it yet; that pull request makes it required.
+             */
+            categoryId?: string | null;
             /** @description `null` while the incident has no priority. */
             priority: components["schemas"]["Priority"] | null;
             /**
@@ -1840,6 +2101,22 @@ export interface components {
             rows: components["schemas"]["IncidentReportRow"][];
         };
         /**
+         * @description Whether the normalized address of an incident is there (#375). A new incident
+         *     starts `PENDING`, and the address worker ends it as `AVAILABLE`, `OUTSIDE_AREA` or
+         *     `UNAVAILABLE`, usually within a minute.
+         *
+         *     - `PENDING`: the address has not been resolved yet.
+         *     - `AVAILABLE`: `address` and `addressSource` are set.
+         *     - `OUTSIDE_AREA`: the position is outside the municipality of Málaga, so there is no
+         *       address to give.
+         *     - `UNAVAILABLE`: there is no address: the source has no street at the position, refused
+         *       the request, or did not answer within a day of the report, or the incident was reported
+         *       before the addresses existed.
+         * @example AVAILABLE
+         * @enum {string}
+         */
+        AddressStatus: "PENDING" | "AVAILABLE" | "OUTSIDE_AREA" | "UNAVAILABLE";
+        /**
          * @description Whether the urban context of an incident is there (ADR-0018). A new incident starts
          *     `PENDING`, and the enrichment ends it as `COMPLETE`, `ERROR` or `UNAVAILABLE`; only the
          *     `dev` dataset has a context of each status.
@@ -1891,6 +2168,26 @@ export interface components {
             /** @description `null` while there is no weather: always when `status` is `PENDING`, `ERROR` or `UNAVAILABLE`, and with `PARTIAL` when the weather is the part that is missing. */
             weather: components["schemas"]["WeatherContext"] | null;
         };
+        /** @description A district of Málaga, from its official boundaries (ADR-0009). Planned: #59. */
+        DistrictResponse: {
+            /** @description The official name, as `location.district` and the `district` filter use it. */
+            name: string;
+        };
+        /** @description A place of Málaga found by the address search, from OpenStreetMap data (ODbL; the map shows the attribution). Planned: #179. */
+        PlaceResponse: {
+            /** @description The address or place as the provider writes it, for the list of results. */
+            displayName: string;
+            /**
+             * Format: double
+             * @description WGS 84 latitude in decimal degrees.
+             */
+            latitude: number;
+            /**
+             * Format: double
+             * @description WGS 84 longitude in decimal degrees.
+             */
+            longitude: number;
+        };
     };
     responses: {
         /** @description The file is over the size limit. Code: `FILE_TOO_LARGE`. */
@@ -1914,7 +2211,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description The request is malformed: the body is not valid JSON, a value has the wrong type, or a parameter is out of range (for example `size` over 100). Validation of well-formed data returns `422` instead. */
+        /** @description The request is malformed: the body is not valid JSON or not valid multipart, a value has the wrong type, a parameter is out of range (for example `size` over 100), or a parameter that takes one value is repeated (`?page=0&page=5`). Validation of well-formed data returns `422` instead. */
         BadRequest: {
             headers: {
                 "X-Request-ID": components["headers"]["XRequestId"];
@@ -2111,6 +2408,10 @@ export interface components {
         ReportedToFilter: string;
         /** @description Only incidents whose active assignment is in one of these departments. Repeat it for several values. A previous assignment does not count. */
         DepartmentIdFilter: string[];
+        /** @description Planned: #59. Only incidents in one of these districts, by the name `listDistricts` returns. Repeat it for several values. It matches `location.district` exactly, so an incident whose district is not available (`null`) never matches; a name that is not a district matches nothing. */
+        DistrictFilter: string[];
+        /** @description Planned: #266. Only incidents whose title or description contains this text, ignoring case and accents (`farola` finds `Farola rota` and `FAROLA`; `camion` finds `camión`). The text is matched as one piece, after removing its leading and trailing spaces: `farola rota` does not find `rota la farola`. `%` and `_` are plain characters, not wildcards. After removing those spaces it must have 3 to 100 characters, or the request returns `400`. */
+        TextSearch: string;
         /** @description Page number, starting at 0. A page that starts past item 2,147,483,647 (`page` times `size`) returns `400`. */
         Page: number;
         /** @description Items per page. A value over 100 returns `400`; it is never silently reduced. */
@@ -2199,6 +2500,15 @@ export interface operations {
                     "application/json": components["schemas"]["SessionResponse"];
                 };
             };
+            /** @description The password is right, but the account needs its second factor: no session starts until a valid code is sent for this challenge. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MfaChallengeResponse"];
+                };
+            };
             400: components["responses"]["BadRequest"];
             /** @description The email or the password is wrong. Code: `INVALID_CREDENTIALS`. */
             401: {
@@ -2257,7 +2567,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
-            /** @description The refresh token is unknown, expired, revoked or already used, or the account is disabled. Code: `INVALID_REFRESH_TOKEN`. */
+            /** @description The refresh token is unknown, expired, revoked or already used, the account is disabled, or its role needs a second factor its session was not opened with. Code: `INVALID_REFRESH_TOKEN`. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -2356,6 +2666,130 @@ export interface operations {
                      *       "code": "ACCOUNT_DISABLED",
                      *       "detail": "This account is disabled.",
                      *       "instance": "/api/v1/password-changes",
+                     *       "traceId": "4bf92f3577b34da6a3ce929d0e0e4736"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    createMfaEnrollment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateMfaEnrollmentRequest"];
+            };
+        };
+        responses: {
+            /** @description The pending enrolment, with the secret to show as a QR code. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MfaEnrollmentResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description The challenge is unknown, expired or already used. Code: `INVALID_MFA_CHALLENGE`. Sign in again. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "type": "about:blank",
+                     *       "title": "Unauthorized",
+                     *       "status": 401,
+                     *       "code": "INVALID_MFA_CHALLENGE",
+                     *       "detail": "The sign-in has expired. Sign in again.",
+                     *       "instance": "/api/v1/mfa-enrollments",
+                     *       "traceId": "4bf92f3577b34da6a3ce929d0e0e4736"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account already has a second factor, so the challenge asks for a code, not an enrolment. Code: `MFA_ALREADY_ENROLLED`. An administrator resets it with `createUserMfaReset` when the phone is lost. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "type": "about:blank",
+                     *       "title": "Conflict",
+                     *       "status": 409,
+                     *       "code": "MFA_ALREADY_ENROLLED",
+                     *       "detail": "This account already has a second factor.",
+                     *       "instance": "/api/v1/mfa-enrollments",
+                     *       "traceId": "4bf92f3577b34da6a3ce929d0e0e4736"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    createMfaVerification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateMfaVerificationRequest"];
+            };
+        };
+        responses: {
+            /** @description Signed in. The body holds the new token pair. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description The code is wrong, outside its time window or already used, code `INVALID_MFA_CODE`: the user types another one. Or the challenge is unknown, expired or already used, code `INVALID_MFA_CHALLENGE`: the client goes back to the password step. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account was disabled after the password step. Code: `ACCOUNT_DISABLED`. No token is issued. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "type": "about:blank",
+                     *       "title": "Forbidden",
+                     *       "status": 403,
+                     *       "code": "ACCOUNT_DISABLED",
+                     *       "detail": "This account is disabled.",
+                     *       "instance": "/api/v1/mfa-verifications",
                      *       "traceId": "4bf92f3577b34da6a3ce929d0e0e4736"
                      *     }
                      */
@@ -2538,6 +2972,37 @@ export interface operations {
             500: components["responses"]["InternalServerError"];
         };
     };
+    createUserMfaReset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Identifier of the user. */
+                userId: components["parameters"]["UserId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateUserMfaResetRequest"];
+            };
+        };
+        responses: {
+            /** @description The user has no second factor now. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
     listTechnicians: {
         parameters: {
             query?: never;
@@ -2643,6 +3108,10 @@ export interface operations {
                 reportedTo?: components["parameters"]["ReportedToFilter"];
                 /** @description Only incidents whose active assignment is in one of these departments. Repeat it for several values. A previous assignment does not count. */
                 departmentId?: components["parameters"]["DepartmentIdFilter"];
+                /** @description Planned: #59. Only incidents in one of these districts, by the name `listDistricts` returns. Repeat it for several values. It matches `location.district` exactly, so an incident whose district is not available (`null`) never matches; a name that is not a district matches nothing. */
+                district?: components["parameters"]["DistrictFilter"];
+                /** @description Planned: #266. Only incidents whose title or description contains this text, ignoring case and accents (`farola` finds `Farola rota` and `FAROLA`; `camion` finds `camión`). The text is matched as one piece, after removing its leading and trailing spaces: `farola rota` does not find `rota la farola`. `%` and `_` are plain characters, not wildcards. After removing those spaces it must have 3 to 100 characters, or the request returns `400`. */
+                q?: components["parameters"]["TextSearch"];
             };
             header?: never;
             path?: never;
@@ -3287,6 +3756,10 @@ export interface operations {
                 reportedTo?: components["parameters"]["ReportedToFilter"];
                 /** @description Only incidents whose active assignment is in one of these departments. Repeat it for several values. A previous assignment does not count. */
                 departmentId?: components["parameters"]["DepartmentIdFilter"];
+                /** @description Planned: #59. Only incidents in one of these districts, by the name `listDistricts` returns. Repeat it for several values. It matches `location.district` exactly, so an incident whose district is not available (`null`) never matches; a name that is not a district matches nothing. */
+                district?: components["parameters"]["DistrictFilter"];
+                /** @description Planned: #266. Only incidents whose title or description contains this text, ignoring case and accents (`farola` finds `Farola rota` and `FAROLA`; `camion` finds `camión`). The text is matched as one piece, after removing its leading and trailing spaces: `farola rota` does not find `rota la farola`. `%` and `_` are plain characters, not wildcards. After removing those spaces it must have 3 to 100 characters, or the request returns `400`. */
+                q?: components["parameters"]["TextSearch"];
                 /** @description South limit of the bounding box, WGS 84 latitude in decimal degrees. */
                 minLatitude?: number;
                 /** @description West limit of the bounding box, WGS 84 longitude in decimal degrees. */
@@ -3332,6 +3805,10 @@ export interface operations {
                 reportedTo?: components["parameters"]["ReportedToFilter"];
                 /** @description Only incidents whose active assignment is in one of these departments. Repeat it for several values. A previous assignment does not count. */
                 departmentId?: components["parameters"]["DepartmentIdFilter"];
+                /** @description Planned: #59. Only incidents in one of these districts, by the name `listDistricts` returns. Repeat it for several values. It matches `location.district` exactly, so an incident whose district is not available (`null`) never matches; a name that is not a district matches nothing. */
+                district?: components["parameters"]["DistrictFilter"];
+                /** @description Planned: #266. Only incidents whose title or description contains this text, ignoring case and accents (`farola` finds `Farola rota` and `FAROLA`; `camion` finds `camión`). The text is matched as one piece, after removing its leading and trailing spaces: `farola rota` does not find `rota la farola`. `%` and `_` are plain characters, not wildcards. After removing those spaces it must have 3 to 100 characters, or the request returns `400`. */
+                q?: components["parameters"]["TextSearch"];
             };
             header?: never;
             path?: never;
@@ -3352,6 +3829,78 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             500: components["responses"]["InternalServerError"];
+        };
+    };
+    listDistricts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The districts. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DistrictResponse"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    listPlaces: {
+        parameters: {
+            query: {
+                /** @description The address or place to search, as the user typed it (`Calle Larios 5`). Leading and trailing spaces are ignored; then it must have 3 to 200 characters, or the request returns `400`. */
+                q: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The matching places, the most relevant first; empty when nothing matches. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaceResponse"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+            /** @description The address search provider is down or too slow. Code: `GEOCODING_UNAVAILABLE`. The user places the pin by hand, or searches again later. */
+            503: {
+                headers: {
+                    "X-Request-ID": components["headers"]["XRequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "type": "about:blank",
+                     *       "title": "Service Unavailable",
+                     *       "status": 503,
+                     *       "code": "GEOCODING_UNAVAILABLE",
+                     *       "detail": "The address search is not available now. Place the pin on the map.",
+                     *       "instance": "/api/v1/places",
+                     *       "traceId": "4bf92f3577b34da6a3ce929d0e0e4736"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     getIncidentReport: {

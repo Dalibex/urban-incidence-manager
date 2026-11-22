@@ -84,13 +84,19 @@ describe('incidentListOf', () => {
 
 describe('signInReturnPath', () => {
   it('goes back to the screen that asked for the sign-in, with its address', () => {
-    expect(signInReturnPath({ returnTo: `${PATHS.inbox}?priority=HIGH` })).toBe(
+    expect(signInReturnPath({ returnTo: `${PATHS.inbox}?priority=HIGH` }, 'user-1')).toBe(
       `${PATHS.inbox}?priority=HIGH`,
     );
   });
 
+  it('goes back only for the user who left, another one goes to their own screen (#263)', () => {
+    const state = { returnTo: `${PATHS.inbox}?priority=HIGH`, userId: 'user-1' };
+    expect(signInReturnPath(state, 'user-1')).toBe(state.returnTo);
+    expect(signInReturnPath(state, 'user-2')).toBe(PATHS.home);
+  });
+
   it("goes to the user's own screen when the sign-in was opened directly", () => {
-    expect(signInReturnPath(null)).toBe(PATHS.home);
-    expect(signInReturnPath({ returnTo: 42 })).toBe(PATHS.home);
+    expect(signInReturnPath(null, 'user-1')).toBe(PATHS.home);
+    expect(signInReturnPath({ returnTo: 42 }, 'user-1')).toBe(PATHS.home);
   });
 });
