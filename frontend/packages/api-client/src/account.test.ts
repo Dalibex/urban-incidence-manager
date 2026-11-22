@@ -3,8 +3,10 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   callApi,
   createApiClient,
+  enrollMfa,
   getCurrentUser,
   signIn,
+  verifyMfa,
   type SessionTokens,
   type TokenStore,
 } from './index';
@@ -72,12 +74,12 @@ describe('callApi results', () => {
 
     expect(await signIn(client, store, { email: 'a@b.es', password: 'secret-1' })).toEqual({
       ok: true,
-      data: undefined,
+      data: null,
     });
     expect(await store.load()).toEqual(TOKENS);
   });
 
-  it('stores nothing and fails when the sign-in asks for a second factor', async () => {
+  it('stores nothing and returns the challenge when the sign-in asks for a second factor', async () => {
     const store = memoryStore(null);
     const challenge = {
       challengeToken: 'c-1',
@@ -88,10 +90,77 @@ describe('callApi results', () => {
     const client = createApiClient(BASE_URL, { tokenStore: store, fetch });
 
     expect(await signIn(client, store, { email: 'a@b.es', password: 'secret-1' })).toEqual({
-      ok: false,
-      failure: { kind: 'problem', status: 202, code: undefined },
+      ok: true,
+      data: challenge,
     });
     expect(await store.load()).toBeNull();
+  });
+});
+
+describe('second factor', () => {
+  it('asks for the enrolment of a challenge and returns the secret', async () => {
+    const enrollment = {
+      otpauthUri: 'otpauth://totp/UrbanPulse:a%40b.es?secret=ABC',
+      secret: 'ABC',
+    };
+    const fetch = vi.fn<(request: Request) => Promise<Response>>(async () => json(201, enrollment));
+    const client = createApiClient(BASE_URL, { tokenStore: memoryStore(null), fetch });
+
+    expect(await enrollMfa(client, 'c-1')).toEqual({ ok: true, data: enrollment });
+    expect(await fetch.mock.calls[0]![0].json()).toEqual({ challengeToken: 'c-1' });
+  });
+
+  it('reports an enrolment of an account that has a second factor by its code', async () => {
+    const fetch = vi.fn(async () =>
+      json(409, { type: 'about:blank', status: 409, code: 'MFA_ALREADY_ENROLLED' }),
+    );
+    const client = createApiClient(BASE_URL, { tokenStore: memoryStore(null), fetch });
+
+    expect(await enrollMfa(client, 'c-1')).toEqual({
+      ok: false,
+      failure: { kind: 'problem', status: 409, code: 'MFA_ALREADY_ENROLLED' },
+    });
+  });
+
+  it('stores the tokens when the code is right', async () => {
+    const store = memoryStore(null);
+    const fetch = vi.fn<(request: Request) => Promise<Response>>(async () => json(201, TOKENS));
+    const client = createApiClient(BASE_URL, { tokenStore: store, fetch });
+
+    expect(await verifyMfa(client, store, 'c-1', '123456')).toEqual({ ok: true, data: undefined });
+    expect(await fetch.mock.calls[0]![0].json()).toEqual({
+      challengeToken: 'c-1',
+      code: '123456',
+    });
+    expect(await store.load()).toEqual(TOKENS);
+  });
+
+  it.each(['INVALID_MFA_CODE', 'INVALID_MFA_CHALLENGE'])(
+    'stores nothing and reports %s when the code is refused',
+    async (code) => {
+      const store = memoryStore(null);
+      const fetch = vi.fn(async () => json(401, { type: 'about:blank', status: 401, code }));
+      const client = createApiClient(BASE_URL, { tokenStore: store, fetch });
+
+      expect(await verifyMfa(client, store, 'c-1', '000000')).toEqual({
+        ok: false,
+        failure: { kind: 'problem', status: 401, code },
+      });
+      expect(await store.load()).toBeNull();
+    },
+  );
+
+  it('reports a network failure when the code cannot be sent', async () => {
+    const store = memoryStore(null);
+    const fetch = vi.fn(async () => {
+      throw new TypeError('Failed to fetch');
+    });
+    const client = createApiClient(BASE_URL, { tokenStore: store, fetch });
+
+    expect(await verifyMfa(client, store, 'c-1', '123456')).toEqual({
+      ok: false,
+      failure: { kind: 'network' },
+    });
   });
 });
 

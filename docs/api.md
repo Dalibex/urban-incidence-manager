@@ -156,7 +156,7 @@ Every operation lists the shared responses that can really happen, with `$ref`:
 | 409 | `#/components/responses/Conflict` | The operation changes state that can conflict (status transitions, stale version, unique values) |
 | 413 | `#/components/responses/ContentTooLarge` | The operation receives a file with a size limit |
 | 422 | `#/components/responses/UnprocessableEntity` | The operation has a body whose data is validated (blank title, coordinates out of range, short password), or query values that are readable but not valid together (a report period over 366 days); `errors` lists every invalid field |
-| 429 | `#/components/responses/TooManyRequests` | The operation is rate limited (`createSession`, `createPasswordChange` and `createRegistration`; planned: `createMfaVerification` and `listPlaces`) |
+| 429 | `#/components/responses/TooManyRequests` | The operation is rate limited (`createSession`, `createPasswordChange`, `createRegistration` and `createMfaVerification`; planned: `listPlaces`) |
 | 500 | `#/components/responses/InternalServerError` | Every operation |
 
 `400` means "I cannot read this request"; `422` means "I can read it, but the data is not valid". A form shows `422` errors next to each field; a `400` is a client bug.
@@ -175,11 +175,11 @@ Do not define a new error body. If an error needs extra information, add an opti
 |---|---|---|---|
 | `MALFORMED_REQUEST` | 400 | Any | The request cannot be read |
 | `VALIDATION_FAILED` | 422 | Any with a body, and `getIncidentReport` | The data is not valid; see `errors` |
-| `EMAIL_ALREADY_EXISTS` | 409 | `createRegistration` | An account with this email exists |
-| `INVALID_CREDENTIALS` | 401 | `createSession` | Wrong email or password (the same for both, so emails are not revealed) |
-| `ACCOUNT_DISABLED` | 403 | `createSession`; planned: `createMfaVerification` | Right credentials, disabled account |
-| `TOO_MANY_ATTEMPTS` | 429 | `createSession`, `createRegistration`; planned: `createMfaVerification`, `listPlaces` | Rate limited; see `Retry-After` |
-| `INVALID_REFRESH_TOKEN` | 401 | `refreshSession` | Unknown, expired, revoked or reused refresh token: sign in again |
+| `EMAIL_ALREADY_EXISTS` | 409 | `createRegistration`, `createUser` | An account with this email exists |
+| `INVALID_CREDENTIALS` | 401 | `createSession`, `createPasswordChange` | Wrong email or password (the same for both, so emails are not revealed) |
+| `ACCOUNT_DISABLED` | 403 | `createSession`, `createPasswordChange`, `createMfaVerification` | Right credentials, disabled account |
+| `TOO_MANY_ATTEMPTS` | 429 | `createSession`, `createRegistration`, `createPasswordChange`, `createMfaVerification`; planned: `listPlaces` | Rate limited; see `Retry-After` |
+| `INVALID_REFRESH_TOKEN` | 401 | `refreshSession` | Unknown, expired, revoked or reused refresh token, or a staff session opened without the second factor: sign in again |
 | `INVALID_TRANSITION` | 409 | Lifecycle actions (Sprint 2) | The transition is not allowed (ADR-0020) |
 | `CONCURRENT_MODIFICATION` | 409 | Lifecycle actions and `updateIncident` (Sprint 2) | The incident changed since the client read its `version`: reload it and decide again (ADR-0020) |
 | `PASSWORD_CHANGE_REQUIRED` | 403 | `createSession` | Right credentials, but the password must change first |
@@ -187,9 +187,9 @@ Do not define a new error body. If an error needs extra information, add an opti
 | `ATTACHMENT_NOT_ALLOWED` | 409 | `createIncidentAttachment` | A citizen can only upload while the incident is `REPORTED` |
 | `FILE_TOO_LARGE` | 413 | `createIncidentAttachment` | The file is over the size limit |
 | `IDEMPOTENCY_KEY_REUSED` | 422 | `createIncident` | The citizen already used this `Idempotency-Key` for a different report: send a new key |
-| `INVALID_MFA_CHALLENGE` | 401 | `createMfaEnrollment`, `createMfaVerification` (planned, #57) | The sign-in challenge is unknown, expired or used: sign in again |
-| `INVALID_MFA_CODE` | 401 | `createMfaVerification` (planned, #57) | The code is wrong, outside its time window or already used: type another one (five per challenge) |
-| `MFA_ALREADY_ENROLLED` | 409 | `createMfaEnrollment` (planned, #57) | The account already has a second factor: send a code instead |
+| `INVALID_MFA_CHALLENGE` | 401 | `createMfaEnrollment`, `createMfaVerification` | The sign-in challenge is unknown, expired or used: sign in again |
+| `INVALID_MFA_CODE` | 401 | `createMfaVerification` | The code is wrong, outside its time window or already used: type another one (five per challenge) |
+| `MFA_ALREADY_ENROLLED` | 409 | `createMfaEnrollment` | The account already has a second factor: send a code instead |
 | `GEOCODING_UNAVAILABLE` | 503 | `listPlaces` (planned, #179) | The address search provider is down or too slow: place the pin by hand |
 
 Add a row in the same PR that introduces a new code.
@@ -238,7 +238,7 @@ Every listing is paginated, so no query runs without a limit (AGENTS.md, section
 - **Sorting.** Each listing documents the properties it accepts and its default in its `description`. The backend always adds `id` as the last criterion, so the order is stable and no item appears on two pages.
 - **Filters** use the name of the property they filter (`status`, `categoryId`, `priority`), repeatable for several values (`?status=REPORTED&status=VALIDATED`). Date ranges are `reportedFrom` / `reportedTo`, UTC instants. Only the parameters the contract declares as arrays repeat: any other one sent twice (`?page=0&page=5`) returns `400`.
 
-Short reference lists managed by administrators, such as `listCategories`, and lists bounded by the domain, such as the status history of one incident, return a plain array without pagination. Their `description` says why.
+Short reference lists managed by administrators, such as `listCategories`, and lists bounded by the domain, such as the photos of one incident, return a plain array without pagination. Their `description` says why. The status history of an incident and the technicians also return a plain array today, although they have no upper bound, and the map locations (`listIncidentLocations`) stop at 1,000 with a `truncated` flag: Planned: #360.
 
 ### What Spring does not do by default
 

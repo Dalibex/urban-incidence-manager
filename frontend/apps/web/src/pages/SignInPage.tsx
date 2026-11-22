@@ -1,8 +1,10 @@
+import type { MfaChallenge } from '@urbanpulse/api-client';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Navigate, useLocation } from 'react-router';
 
 import { signInReturnPath } from '../routing/access';
 import { type Credentials, useSession } from '../session/SessionContext';
+import { MfaStep } from './MfaStep';
 import styles from './Page.module.css';
 import { PasswordChangeForm } from './PasswordChangeForm';
 import { QuickSignIn } from './QuickSignIn';
@@ -25,8 +27,11 @@ export function SignInPage() {
   const [error, setError] = useState<string | null>(null);
   const [passwordChange, setPasswordChange] = useState<PendingPasswordChange | null>(null);
   const [passwordChanged, setPasswordChanged] = useState(false);
+  // In memory only, like the password: a reload starts again with the password.
+  const [challenge, setChallenge] = useState<MfaChallenge | null>(null);
   // Only a failure of the form marks its fields invalid; a quick sign-in leaves them untouched.
   const [errorFromForm, setErrorFromForm] = useState(false);
+  const [backFromMfa, setBackFromMfa] = useState(false);
   const passwordField = useRef<HTMLInputElement>(null);
 
   // Back from the password change, whose form is gone with the focus: the next step is the password.
@@ -36,6 +41,14 @@ export function SignInPage() {
     }
   }, [passwordChanged]);
 
+  // Back from the code step, which is gone with the focus. The password field describes itself with
+  // the message, so a screen reader reads why the sign-in starts again.
+  useEffect(() => {
+    if (backFromMfa) {
+      passwordField.current?.focus();
+    }
+  }, [backFromMfa]);
+
   if (user) {
     return <Navigate to={signInReturnPath(location.state, user.id)} replace />;
   }
@@ -44,6 +57,17 @@ export function SignInPage() {
     setPasswordChange(null);
     setPassword('');
     setPasswordChanged(changed);
+  }
+
+  function leaveMfaStep(message: string | null) {
+    setChallenge(null);
+    setError(message);
+    setErrorFromForm(false);
+    setBackFromMfa(true);
+  }
+
+  if (challenge) {
+    return <MfaStep challenge={challenge} onRestart={leaveMfaStep} />;
   }
 
   if (passwordChange) {
@@ -65,11 +89,17 @@ export function SignInPage() {
     setSubmitting(true);
     setError(null);
     setPasswordChanged(false);
+    setBackFromMfa(false);
     setErrorFromForm(source === 'form');
     try {
       const result = await signIn(credentials);
-      // On success the session changes and this page redirects; only a failure needs a message.
       if (result.ok) {
+        // Signed in, the session changes and this page redirects. A staff account has a second
+        // step first: the password is no longer needed, so it does not stay on the screen.
+        if (result.data) {
+          setPassword('');
+          setChallenge(result.data);
+        }
         return;
       }
       if (result.failure.kind === 'problem' && result.failure.code === 'PASSWORD_CHANGE_REQUIRED') {
@@ -95,6 +125,7 @@ export function SignInPage() {
 
   const fieldErrorProps =
     error && errorFromForm ? { 'aria-invalid': true, 'aria-describedby': ERROR_ID } : {};
+  const passwordProps = error && backFromMfa ? { 'aria-describedby': ERROR_ID } : fieldErrorProps;
 
   return (
     <main className={styles.standalone}>
@@ -138,7 +169,7 @@ export function SignInPage() {
               required
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              {...fieldErrorProps}
+              {...passwordProps}
             />
           </label>
           <button type="submit" className={styles.primaryButton} disabled={submitting}>

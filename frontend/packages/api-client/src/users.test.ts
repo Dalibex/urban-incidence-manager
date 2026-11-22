@@ -3,6 +3,7 @@ import {
   createApiClient,
   createUser,
   listUsers,
+  resetUserMfa,
   updateUser,
   type SessionTokens,
   type TokenStore,
@@ -179,6 +180,44 @@ describe('updateUser', () => {
       ok: false,
       failure: { kind: 'problem', status: 404, code: undefined },
       fieldErrors: [],
+    });
+  });
+});
+
+describe('resetUserMfa', () => {
+  it('sends the reason to the reset of the user', async () => {
+    const fetch = vi.fn<(request: Request) => Promise<Response>>(
+      async () => new Response(null, { status: 204 }),
+    );
+    const client = createApiClient(BASE_URL, { tokenStore: memoryStore(TOKENS), fetch });
+
+    const result = await resetUserMfa(client, USER_ID, 'Lost phone');
+
+    expect(result).toEqual({ ok: true, data: undefined });
+    const request = fetch.mock.calls[0]![0];
+    expect(request.method).toBe('POST');
+    expect(new URL(request.url).pathname).toBe(`/api/v1/users/${USER_ID}/mfa-resets`);
+    expect(await request.json()).toEqual({ reason: 'Lost phone' });
+  });
+
+  it('answers 404 for a user that does not exist', async () => {
+    const { client } = clientAnswering(404, { status: 404 });
+
+    expect(await resetUserMfa(client, USER_ID, 'Lost phone')).toEqual({
+      ok: false,
+      failure: { kind: 'problem', status: 404, code: undefined },
+      fieldErrors: [],
+    });
+  });
+
+  it('carries the per-field errors of a 422, so the screen can mark the reason', async () => {
+    const errors = [{ field: 'reason', message: 'must not be blank' }];
+    const { client } = clientAnswering(422, { status: 422, code: 'VALIDATION_FAILED', errors });
+
+    expect(await resetUserMfa(client, USER_ID, ' ')).toEqual({
+      ok: false,
+      failure: { kind: 'problem', status: 422, code: 'VALIDATION_FAILED' },
+      fieldErrors: errors,
     });
   });
 });
