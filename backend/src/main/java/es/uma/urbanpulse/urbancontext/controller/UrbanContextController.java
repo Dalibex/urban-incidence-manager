@@ -4,7 +4,6 @@ import es.uma.urbanpulse.shared.security.AuthenticatedUser;
 import es.uma.urbanpulse.urbancontext.dto.UrbanContextResponse;
 import es.uma.urbanpulse.urbancontext.service.UrbanContextQueryService;
 import java.util.UUID;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,7 +17,6 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1/incidents/{incidentId}/urban-context")
-@PreAuthorize("hasAnyRole('MUNICIPAL_OPERATOR', 'TECHNICIAN', 'ADMINISTRATOR')")
 class UrbanContextController {
 
     private final UrbanContextQueryService contexts;

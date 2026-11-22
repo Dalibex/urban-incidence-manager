@@ -423,8 +423,9 @@ Nominatim ([ADR-0002](adr/0002-open-street-map.md)): the report saves its locati
 with the address `PENDING`, and a worker of `geospatial` resolves it every 30 seconds, one call per
 second at most. Without internet, set `ADDRESS_ENRICHMENT_ENABLED=false` and the address stays
 pending. The providers proposed for traffic (TomTom,
-[ADR-0024](adr/0024-traffic-provider.md)) and for notification delivery (Brevo and Twilio,
-[ADR-0019](adr/0019-notification-delivery-providers.md)) are not decided yet: both ADRs are
+[ADR-0024](adr/0024-traffic-provider.md)) and for notification delivery (Brevo for email and the Expo push service,
+[ADR-0019](adr/0019-notification-delivery-providers.md) amended by
+[ADR-0031](adr/0031-push-and-email-notifications.md)) are not decided yet: the three ADRs are
 *Proposed*.
 
 ## 🧯 Troubleshooting

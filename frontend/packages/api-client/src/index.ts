@@ -7,7 +7,7 @@ import { createSessionFetch, type SessionOptions } from './session';
 // Never edit it by hand: the `contract` CI job fails when it differs from the contract.
 export type { components, paths } from './schema';
 export type { SessionMark, SessionOptions, SessionTokens, TokenStore } from './session';
-export { markSession } from './session';
+export { hasSessionEnded, markSession } from './session';
 export {
   callApi,
   changePassword,

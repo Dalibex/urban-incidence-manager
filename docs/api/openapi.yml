@@ -3,9 +3,9 @@
 # This file is the source of truth for the API: the backend implements it and the clients generate
 # their types from it. The contract of a feature is merged before or together with its
 # implementation, never after it: the Sprint 1 operations were agreed ahead in #93 and the committed
-# Sprint 2 ones in #204, and a later feature writes its contract first. An operation that is not
-# built yet says `Planned: #N`, naming the issue that implements it, whose pull request removes the
-# mark. How to do it: docs/api.md.
+# Sprint 2 ones in #204, the features after the MVP in #301, and a later feature writes its contract
+# first. An operation that is not built yet says `Planned: #N`, naming the issue that implements it,
+# whose pull request removes the mark. How to do it: docs/api.md.
 openapi: 3.1.0
 
 info:
@@ -138,6 +138,13 @@ paths:
         password does not reveal that an account has to change it. The client then calls
         `createPasswordChange` and signs in again.
 
+        Second factor (ADR-0021), Planned: #57. When the password is right and the role of the
+        account is in `MFA_REQUIRED_ROLES` (by default every staff role), the answer is `202` with a
+        challenge and **no tokens**. The client sends a code from the authenticator app with
+        `createMfaVerification`, which returns the token pair; an account that has not enrolled yet
+        calls `createMfaEnrollment` first. `ACCOUNT_DISABLED` and `PASSWORD_CHANGE_REQUIRED` are
+        checked before the challenge is created. Other roles get `201` as before.
+
         Roles: public.
       security: []
       requestBody:
@@ -153,6 +160,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SessionResponse"
+        "202":
+          description: >-
+            The password is right, but the account needs its second factor: no session starts until
+            a valid code is sent for this challenge. Planned: #57.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaChallengeResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -338,6 +353,198 @@ paths:
                 code: ACCOUNT_DISABLED
                 detail: This account is disabled.
                 instance: /api/v1/password-changes
+                traceId: 4bf92f3577b34da6a3ce929d0e0e4736
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # --- identity: second factor (#57, ADR-0021) --------------------------------------------------
+
+  /mfa-enrollments:
+    post:
+      tags: [identity]
+      operationId: createMfaEnrollment
+      summary: Start the enrolment of the second factor
+      description: |
+        Planned: #57. For a challenge of `createSession` whose `enrollmentRequired` is `true`:
+        creates a new TOTP secret for that challenge and returns it as an `otpauth://` URI, which
+        the web app shows as a QR code for an authenticator app. The enrolment stays pending, and
+        the second factor does not protect the account, until `createMfaVerification` receives a
+        first valid code for the same challenge.
+
+        The pending secret belongs to the challenge, not to the account: two sign-ins enrolling at
+        once (two tabs, or someone else with the password) never replace each other's secret. The
+        first valid code confirms its own secret and cancels every other pending enrolment of the
+        account: their challenges are spent, and get `INVALID_MFA_CHALLENGE` in both operations.
+        That client goes back to the password step, and its new challenge asks for a code.
+
+        Calling this operation again for the same challenge replaces its pending secret, so a QR
+        shown before stops working. The secret is returned only here and only while the enrolment
+        is pending: once confirmed, no operation returns it again. It is stored encrypted, and never
+        written to the logs.
+
+        Accepted risk of ADR-0021 (trust on first use): while an account has no confirmed second
+        factor (when #57 is deployed, after `createUserMfaReset`, and for a new account), whoever knows
+        its password can enrol their own phone first. The real user then gets
+        `MFA_ALREADY_ENROLLED`, and an administrator resets it.
+
+        The challenge token is the credential, in the body and not in the path, so it does not reach
+        the access logs. A challenge that is unknown, expired or already used gets
+        `INVALID_MFA_CHALLENGE`: the client goes back to the password step.
+
+        Roles: public (the challenge is the credential).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMfaEnrollmentRequest"
+      responses:
+        "201":
+          description: The pending enrolment, with the secret to show as a QR code.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaEnrollmentResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          description: >-
+            The challenge is unknown, expired or already used. Code: `INVALID_MFA_CHALLENGE`. Sign
+            in again.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: about:blank
+                title: Unauthorized
+                status: 401
+                code: INVALID_MFA_CHALLENGE
+                detail: The sign-in has expired. Sign in again.
+                instance: /api/v1/mfa-enrollments
+                traceId: 4bf92f3577b34da6a3ce929d0e0e4736
+        "409":
+          description: >-
+            The account already has a second factor, so the challenge asks for a code, not an
+            enrolment. Code: `MFA_ALREADY_ENROLLED`. An administrator resets it with
+            `createUserMfaReset` when the phone is lost.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: about:blank
+                title: Conflict
+                status: 409
+                code: MFA_ALREADY_ENROLLED
+                detail: This account already has a second factor.
+                instance: /api/v1/mfa-enrollments
+                traceId: 4bf92f3577b34da6a3ce929d0e0e4736
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /mfa-verifications:
+    post:
+      tags: [identity]
+      operationId: createMfaVerification
+      summary: Finish the sign-in with a code of the second factor
+      description: |
+        Planned: #57. Checks a code of the authenticator app for a challenge of `createSession` and,
+        if it is valid, returns the token pair of ADR-0004 and spends the challenge. If the
+        enrolment of the account is pending (`createMfaEnrollment`), a valid code also confirms it
+        and records an `ENROLL_MFA` audit entry, in the same transaction that issues the tokens.
+        #57 adds `ENROLL_MFA` and `RESET_MFA` to `AuditAction` when it records them, as that schema
+        asks, so the audit filter never offers an action the backend does not know yet.
+
+        A code is valid for its 30-second time step and one step on each side; a code that was
+        already used is refused. A wrong code does not spend the challenge, so the user can type
+        another one, up to five wrong codes per challenge: the fifth spends it, and the next request
+        gets `INVALID_MFA_CHALLENGE`. Wrong codes are written to the log without the code.
+
+        Brute force: wrong codes also have their own limit per account, keyed by the account only
+        (not by the client address) and separate from the password limit: 10 wrong codes per 15
+        minutes. A right password does not give these attempts back; only a valid code does. Whoever
+        has the password can use them up and lock the real user out for a while; that is accepted,
+        like the trust on first use of `createMfaEnrollment`. Past the limit, `429`
+        `TOO_MANY_ATTEMPTS` with `Retry-After`, even for a right code. #57 adds its row to *Rate
+        limits* in `docs/security.md`.
+
+        The account is checked again here: if it was disabled after the password step, or its role
+        no longer needs the second factor, the answer is `403` `ACCOUNT_DISABLED` or `401`
+        `INVALID_MFA_CHALLENGE`, and no token is issued. Of two verifications at once of the same
+        challenge with a valid code, one gets the tokens and the other `INVALID_MFA_CHALLENGE`. A
+        challenge with `enrollmentRequired` and no `createMfaEnrollment` yet has no secret to match,
+        so any code gets `INVALID_MFA_CODE`.
+
+        Roles: public (the challenge and the code are the credentials).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMfaVerificationRequest"
+      responses:
+        "201":
+          description: Signed in. The body holds the new token pair.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          description: >-
+            The code is wrong, outside its time window or already used, code `INVALID_MFA_CODE`: the
+            user types another one. Or the challenge is unknown, expired or already used, code
+            `INVALID_MFA_CHALLENGE`: the client goes back to the password step.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              examples:
+                invalidCode:
+                  summary: The code is not valid
+                  value:
+                    type: about:blank
+                    title: Unauthorized
+                    status: 401
+                    code: INVALID_MFA_CODE
+                    detail: The code is not correct.
+                    instance: /api/v1/mfa-verifications
+                    traceId: 4bf92f3577b34da6a3ce929d0e0e4736
+                invalidChallenge:
+                  summary: The challenge is no longer valid
+                  value:
+                    type: about:blank
+                    title: Unauthorized
+                    status: 401
+                    code: INVALID_MFA_CHALLENGE
+                    detail: The sign-in has expired. Sign in again.
+                    instance: /api/v1/mfa-verifications
+                    traceId: 4bf92f3577b34da6a3ce929d0e0e4736
+        "403":
+          description: >-
+            The account was disabled after the password step. Code: `ACCOUNT_DISABLED`. No token is
+            issued.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: about:blank
+                title: Forbidden
+                status: 403
+                code: ACCOUNT_DISABLED
+                detail: This account is disabled.
+                instance: /api/v1/mfa-verifications
                 traceId: 4bf92f3577b34da6a3ce929d0e0e4736
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
@@ -555,6 +762,48 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /users/{userId}/mfa-resets:
+    post:
+      tags: [identity]
+      operationId: createUserMfaReset
+      summary: Reset the second factor of a user
+      description: |
+        Planned: #57. For a user who lost their phone (ADR-0021): removes their TOTP secret, revokes
+        every refresh token and open sign-in challenge of the user, and records a `RESET_MFA` audit
+        entry with the actor, the instant, the user (`target`) and the `reason` the administrator
+        gives, in one transaction, as ADR-0021 asks. The user enrols again on their next sign-in.
+
+        A reset is a resource with a body, not a `DELETE`, because the audit needs that reason and a
+        `DELETE` has no body.
+
+        A user without a second factor also gets `204`, and then nothing changes and nothing is
+        recorded.
+
+        Roles: `ADMINISTRATOR`.
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserMfaResetRequest"
+      responses:
+        "204":
+          description: The user has no second factor now.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /technicians:
     get:
       tags: [identity]
@@ -701,9 +950,9 @@ paths:
         `id` is always added as the last criterion so the order is stable between pages.
 
         Filters always apply inside what the caller may see, so they never widen it, and every
-        filter used must match. `status` is open to every role that can list. The other filters are
-        for staff: a `CITIZEN` who uses one gets `403`. An unknown parameter, or one without a value
-        (`?categoryId=`), returns `400`.
+        filter used must match. `status` and the text search `q` (Planned: #266) are open to every
+        role that can list. The other filters are for staff: a `CITIZEN` who uses one gets `403`.
+        An unknown parameter, or one without a value (`?categoryId=`), returns `400`.
       parameters:
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
@@ -714,6 +963,8 @@ paths:
         - $ref: "#/components/parameters/ReportedFromFilter"
         - $ref: "#/components/parameters/ReportedToFilter"
         - $ref: "#/components/parameters/DepartmentIdFilter"
+        - $ref: "#/components/parameters/DistrictFilter"
+        - $ref: "#/components/parameters/TextSearch"
       responses:
         "200":
           description: One page of incidents.
@@ -1406,6 +1657,7 @@ paths:
         come from configuration (`EVIDENCE_MAX_FILE_SIZE`, `EVIDENCE_MAX_FILES_PER_INCIDENT`).
 
         A file over the size limit returns `413`. Another type, or too many files, returns `422`.
+        A body that is not valid `multipart/form-data` returns `400`.
 
         The same content uploaded again to the same incident, such as a retry, stores nothing new
         and returns `200` with the existing attachment, so a client can retry safely.
@@ -1558,6 +1810,8 @@ paths:
         - $ref: "#/components/parameters/ReportedFromFilter"
         - $ref: "#/components/parameters/ReportedToFilter"
         - $ref: "#/components/parameters/DepartmentIdFilter"
+        - $ref: "#/components/parameters/DistrictFilter"
+        - $ref: "#/components/parameters/TextSearch"
         - name: minLatitude
           in: query
           description: South limit of the bounding box, WGS 84 latitude in decimal degrees.
@@ -1619,7 +1873,8 @@ paths:
         The indicators of the staff dashboard (#177), shown beside the map: how many incidents
         match, and how they split by status, priority, category and department. It takes the same
         filters and the same scope as `listIncidentLocations`, without the bounding box, so it
-        counts the incidents the map draws. Unlike the map it has no cap: it counts every one.
+        counts the incidents the map draws, also while the text search `q` (Planned: #266) narrows
+        them. Unlike the map it has no cap: it counts every one.
         An unknown parameter, or one without a value, returns `400`, like `listIncidents`.
 
         Every group of a dimension adds up to `total`: they are read from one snapshot, so an
@@ -1640,6 +1895,8 @@ paths:
         - $ref: "#/components/parameters/ReportedFromFilter"
         - $ref: "#/components/parameters/ReportedToFilter"
         - $ref: "#/components/parameters/DepartmentIdFilter"
+        - $ref: "#/components/parameters/DistrictFilter"
+        - $ref: "#/components/parameters/TextSearch"
       responses:
         "200":
           description: The counts.
@@ -1655,6 +1912,116 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "500":
           $ref: "#/components/responses/InternalServerError"
+
+  # --- geospatial (#59, #179) ---------------------------------------------------------------------
+
+  /districts:
+    get:
+      tags: [geospatial]
+      operationId: listDistricts
+      summary: List the districts of Málaga
+      description: |
+        Planned: #59. The districts of Málaga whose official boundaries are loaded, ordered by name,
+        for the `district` filter of the staff lists, the map and the dashboard. Their names are the
+        values of `location.district` and of that filter. It is a short reference list (Málaga has
+        eleven districts) that changes only with a new import of the boundaries, so it is not
+        paginated.
+
+        Roles: `MUNICIPAL_OPERATOR`, `TECHNICIAN`, `ADMINISTRATOR`. `CITIZEN` and `ANALYST` get
+        `403`.
+      responses:
+        "200":
+          description: The districts.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DistrictResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /places:
+    get:
+      tags: [geospatial]
+      operationId: listPlaces
+      summary: Search an address or a place in Málaga
+      description: |
+        Planned: #179. Address search of the report form of the mobile app: the places of the
+        municipality of Málaga that match `q`, the most relevant first, so the citizen can move the
+        pin there instead of panning from the city centre. The backend asks OpenStreetMap's
+        Nominatim (ADR-0002) through its adapter; the phone never calls Nominatim.
+
+        - **Search on submit.** The client sends one request when the user submits the search,
+          never while typing: Nominatim's usage policy forbids autocomplete.
+        - **Málaga only.** The search is bounded to the municipality; a place outside it is never
+          returned. No match is `200` with an empty list.
+        - **At most five places.** The list is bounded, so it is not paginated.
+        - **Rate limits.** The backend sends Nominatim at most one request per second, for every
+          user together, and each user to 10 searches a minute, so one user cannot use up what the
+          others share. It keeps repeated searches in a cache, as the policy asks. Over either
+          limit it answers `429` with `Retry-After` instead of waiting.
+        - **Provider down.** If Nominatim does not answer in time, or answers with an error, the
+          answer is `503` `GEOCODING_UNAVAILABLE`. The report does not depend on it: the user can
+          still place the pin by hand (RF26).
+
+        Roles: `CITIZEN`. Other roles get `403`.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: >-
+            The address or place to search, as the user typed it (`Calle Larios 5`). Leading and
+            trailing spaces are ignored; then it must have 3 to 200 characters, or the request
+            returns `400`.
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 200
+            examples: [Calle Larios 5]
+      responses:
+        "200":
+          description: The matching places, the most relevant first; empty when nothing matches.
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 5
+                items:
+                  $ref: "#/components/schemas/PlaceResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "503":
+          description: >-
+            The address search provider is down or too slow. Code: `GEOCODING_UNAVAILABLE`. The user
+            places the pin by hand, or searches again later.
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: about:blank
+                title: Service Unavailable
+                status: 503
+                code: GEOCODING_UNAVAILABLE
+                detail: The address search is not available now. Place the pin on the map.
+                instance: /api/v1/places
+                traceId: 4bf92f3577b34da6a3ce929d0e0e4736
 
   # --- analytics (#42) ---------------------------------------------------------------------------
 
@@ -1946,6 +2313,39 @@ components:
       style: form
       explode: true
 
+    DistrictFilter:
+      name: district
+      in: query
+      description: >-
+        Planned: #59. Only incidents in one of these districts, by the name `listDistricts` returns.
+        Repeat it for several values. It matches `location.district` exactly, so an incident whose
+        district is not available (`null`) never matches; a name that is not a district matches
+        nothing.
+      schema:
+        type: array
+        items:
+          type: string
+          minLength: 1
+          maxLength: 100
+          examples: [Centro]
+      style: form
+      explode: true
+
+    TextSearch:
+      name: q
+      in: query
+      description: >-
+        Planned: #266. Only incidents whose title or description contains this text, ignoring case
+        and accents (`farola` finds `Farola rota` and `FAROLA`; `camion` finds `camión`). The text
+        is matched as one piece, after removing its leading and trailing spaces: `farola rota` does
+        not find `rota la farola`. `%` and `_` are plain characters, not wildcards. After removing
+        those spaces it must have 3 to 100 characters, or the request returns `400`.
+      schema:
+        type: string
+        minLength: 3
+        maxLength: 100
+        examples: [farola]
+
     Page:
       name: page
       in: query
@@ -2192,6 +2592,85 @@ components:
           format: date-time
           description: When the refresh token expires (UTC). After it, the user signs in again.
           examples: ["2026-11-16T10:00:00Z"]
+
+    MfaChallengeResponse:
+      type: object
+      description: >-
+        The first step of a sign-in that needs the second factor (ADR-0021): no tokens yet.
+        Planned: #57.
+      required: [challengeToken, challengeExpiresAt, enrollmentRequired]
+      properties:
+        challengeToken:
+          type: string
+          description: >-
+            Opaque, single-use credential of this sign-in, for `createMfaEnrollment` and
+            `createMfaVerification`. The client keeps it in memory only, never in storage.
+        challengeExpiresAt:
+          type: string
+          format: date-time
+          description: When the challenge expires (UTC), a few minutes after it was created.
+        enrollmentRequired:
+          type: boolean
+          description: >-
+            `true` when the account has no confirmed second factor yet: the client calls
+            `createMfaEnrollment` and shows the QR code before asking for a code.
+
+    CreateMfaEnrollmentRequest:
+      type: object
+      description: "The challenge of the sign-in that is enrolling. Planned: #57."
+      required: [challengeToken]
+      properties:
+        challengeToken:
+          type: string
+          minLength: 1
+          maxLength: 200
+
+    MfaEnrollmentResponse:
+      type: object
+      description: >-
+        A pending enrolment of the second factor. The secret is shown only now, while the enrolment
+        is pending. Planned: #57.
+      required: [otpauthUri, secret]
+      properties:
+        otpauthUri:
+          type: string
+          format: uri
+          description: >-
+            `otpauth://totp/` URI (RFC 6238: SHA-1, 6 digits, 30-second steps) with the issuer and
+            the email of the account, for the web app to show as a QR code.
+        secret:
+          type: string
+          description: >-
+            The same secret in Base32, for a user who types it into the authenticator app instead of
+            scanning the QR code.
+
+    CreateUserMfaResetRequest:
+      type: object
+      description: "Why the second factor of the user is reset, for the audit trail. Planned: #57."
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+          pattern: "\\S"
+          description: >-
+            The reason, as the administrator writes it (for example, a lost phone). It is kept in
+            the `RESET_MFA` entry; write no personal data in it.
+
+    CreateMfaVerificationRequest:
+      type: object
+      description: "A code of the authenticator app for a sign-in challenge. Planned: #57."
+      required: [challengeToken, code]
+      properties:
+        challengeToken:
+          type: string
+          minLength: 1
+          maxLength: 200
+        code:
+          type: string
+          pattern: "^[0-9]{6}$"
+          description: The six digits the authenticator app shows now.
 
     UserResponse:
       type: object
@@ -2467,6 +2946,23 @@ components:
           type: [string, "null"]
           description: Help text for the citizen. `null` when the category has none.
           examples: [Broken or flickering street lights.]
+        icon:
+          description: >-
+            The icon of the category on the map and in the dashboard. `null` when the category has
+            none: the clients draw their generic icon, the same as for an incident without category.
+            Planned: #267. It is optional only until then, because the backend does not send it
+            yet; that pull request makes it required.
+          oneOf:
+            - $ref: "#/components/schemas/CategoryIcon"
+            - type: "null"
+
+    CategoryIcon:
+      type: string
+      description: >-
+        Which icon represents a category (#267). The clients map each value to a drawing of their
+        own icon set, so the API names the meaning and never ships an image or the icon name of a
+        library. A new value is added with the category that needs it. Planned: #267.
+      enum: [STREET_LIGHTING, PAVEMENT, WASTE, URBAN_FURNITURE, PARKS, SIGNAGE]
 
     CategorySummary:
       type: object
@@ -3046,6 +3542,13 @@ components:
           examples: [3f1c2a9e-7b4d-4c1a-9e2f-5d6b7a8c9d0e]
         status:
           $ref: "#/components/schemas/IncidentStatus"
+        categoryId:
+          type: [string, "null"]
+          format: uuid
+          description: >-
+            The category of the incident, whose `icon` from `listCategories` the marker shows.
+            `null` while the incident has no category. Planned: #267. It is optional only until
+            then, because the backend does not send it yet; that pull request makes it required.
         priority:
           description: "`null` while the incident has no priority."
           oneOf:
@@ -3352,6 +3855,38 @@ components:
             - $ref: "#/components/schemas/WeatherContext"
             - type: "null"
 
+    DistrictResponse:
+      type: object
+      description: "A district of Málaga, from its official boundaries (ADR-0009). Planned: #59."
+      required: [name]
+      properties:
+        name:
+          type: string
+          description: The official name, as `location.district` and the `district` filter use it.
+
+    PlaceResponse:
+      type: object
+      description: >-
+        A place of Málaga found by the address search, from OpenStreetMap data (ODbL; the map shows
+        the attribution). Planned: #179.
+      required: [displayName, latitude, longitude]
+      properties:
+        displayName:
+          type: string
+          description: The address or place as the provider writes it, for the list of results.
+        latitude:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+          description: WGS 84 latitude in decimal degrees.
+        longitude:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+          description: WGS 84 longitude in decimal degrees.
+
   responses:
     ContentTooLarge:
       description: "The file is over the size limit. Code: `FILE_TOO_LARGE`."
@@ -3373,9 +3908,10 @@ components:
 
     BadRequest:
       description: >-
-        The request is malformed: the body is not valid JSON, a value has the wrong type, or a
-        parameter is out of range (for example `size` over 100). Validation of well-formed data
-        returns `422` instead.
+        The request is malformed: the body is not valid JSON or not valid multipart, a value has
+        the wrong type, a parameter is out of range (for example `size` over 100), or a parameter
+        that takes one value is repeated (`?page=0&page=5`). Validation of well-formed data returns
+        `422` instead.
       headers:
         X-Request-ID:
           $ref: "#/components/headers/XRequestId"

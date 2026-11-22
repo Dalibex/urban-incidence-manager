@@ -19,18 +19,24 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Each incident status has its own colour on the web map, its key and dashboard, the lists and the mobile app: validated, assigned and in progress no longer share blue, nor rejected and closed grey. Every colour keeps at least 4.5:1 contrast on white, the eight stay apart for the common red-green colour blindness, and the status is still written beside them (#288).
+- The web inbox, work queue and map reopen from the menu with the filters last used on each one in that browser, for each user, and so does the sign-in of an operator or a technician, instead of always starting from the default filters; the default filters apply only the first time, and *Clear filters* is remembered too (#263).
 - PostgreSQL gets 256 MB of shared memory (`shm_size`) in both Compose files instead of Docker's 64 MB: with a million incidents, concurrent map, dashboard and report queries failed with `500` (#176).
 - The staff lists filtered by status and priority count their incidents with a new index (migration `V16`): from 254 ms to 4 ms with a million incidents (#176).
 - `STORAGE_BASE_PATH` in `backend/.env.example` is `./storage`, so the backend run from the IDE or `./mvnw` keeps the photos in `backend/storage/`, which Git ignores. Both Compose files fix the folder of the backend container to its volume at `/app/storage` and no longer read `STORAGE_BASE_PATH` from `.env`, so a different value can no longer leave the photos outside the volume. Change it to `./storage` in a `backend/.env` copied before (#275).
 - In the deployment the first administrator is created with `docker compose --profile admin run --rm bootstrap-admin`, a one-off service with the backend's image and settings, instead of `docker compose run --rm backend --spring.profiles.include=bootstrap-admin`. Only that service receives `BOOTSTRAP_ADMIN_*`, so the running backend no longer keeps the administrator's password in its environment. The services of the internal network and the Docker host can no longer reach each other. Development keeps its command (#307).
+- Under `/api/v1`, a request that matches no permission rule is refused: a signed-in user who calls a method an operation does not have (`DELETE` on an incident, `HEAD`, `OPTIONS`) gets `403` instead of `405`, and a path no rule matches gets `403` instead of `404` (#286).
 
 ### Fixed
 
+- Every listing answers `400` with `MALFORMED_REQUEST` when a parameter that takes one value is sent twice, such as `?page=0&page=5` or `?size=1&size=500` on `/incidents`, instead of using the first value without telling the client. The filters that take several values, such as `status` or `categoryId`, still repeat (#408).
+- A role that may not call an operation gets `403` before the server reads anything of its request: an operator who sends an invalid incident, an analyst who asks the audit trail for over 100 entries per page or uploads a photo over the size limit, no longer gets `400`, `413`, `415` or `422`, nor learns what a valid request looks like. A path the firewall refuses, such as `/api/v1//incidents` or one with `;` or `%2F`, still answers `400`, now with the Problem body, the `MALFORMED_REQUEST` code and its `traceId` like every other error. A parameter name with a control character, or a header value the firewall refuses when it is read, answers the same `400` instead of `500` (#286).
 - Screen readers find the heading of the web incident detail while it loads or after it failed to load, and read "Getting your location…" on the mobile report as one progress element (#180).
 - Every text the backend stores refuses U+0000 with `422`, instead of a `500` or, on sign-up, a false `409 EMAIL_ALREADY_EXISTS`. Names, titles, descriptions and comments of no-break spaces are blank, and the lengths, the password minimum among them, count characters instead of UTF-16 units. Sign-in and the current password of a password change keep their checks, and the password maximum is still 72 bytes of UTF-8 (#285).
 - In the deployment Compose the backend trusted the `X-Forwarded-*` headers from any private address, so a process on the server could call it without nginx, invent client addresses to get around the sign-in and sign-up limits, and change the `Location` of its answers. Now it trusts only nginx, which has a fixed address on the `internal` network (#307).
 - Two photos uploaded at the same time to an incident with one place left could both be saved and go over `EVIDENCE_MAX_FILES_PER_INCIDENT`, and a citizen's photo uploaded while an operator validated the incident could be saved after it left `REPORTED`. Now the second one answers `422` or `409` and its file is removed (#275).
 - After a password change, or after an account was disabled and enabled again, an old refresh token sent by another tab or device was taken as stolen and closed every session of the user, including the one just opened with the new password. Now it only gets `401` (#275).
+- An evidence upload whose multipart body the server cannot read, such as a boundary that is never closed or missing, answers `400` with the code `MALFORMED_REQUEST` instead of a `500`, and no longer writes an `ERROR` line in the log (#407).
 
 ### Fixed
 
@@ -47,6 +53,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
 ### Fixed
 
 - Mobile: with the GPS position outside the area the map covers, the report was saved at that position while the map showed the pin on its border. The app now says the position is outside the map and waits for the citizen to place the pin (#290).
+- Web: after an incident action the map dashboard shows the change at once instead of up to 30 seconds later, and after a change to a staff account so do the technicians of the assignment form and the audit log. The incident detail no longer goes back to the old status, with a `409` on the next action, when a slower reload answers after the action; the summary of an incident on the map refreshes with its marker, and keeps what it showed when a refresh fails; and an action that answers after signing out no longer puts its incident in the cache of the next user of the tab (#287).
 
 ## [0.2.0] - 2026-11-14
 

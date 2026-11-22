@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { act, cleanup, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { components } from '@urbanpulse/api-client';
 import { describe, expect, it } from 'vitest';
@@ -72,20 +72,48 @@ describe('technician work queue (#187)', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
-  it('opens on the work still to do, from the sign-in and from the menu', async () => {
+  // The menu opens the defaults the first time (routing/sections.test.ts) and the last filters
+  // afterwards (#263).
+  it('opens on the work still to do, from the sign-in', async () => {
     const requests: URLSearchParams[] = [];
-    const router = renderApp(PATHS.home, { role: 'TECHNICIAN', fetch: queueApi([], requests) });
+    renderApp(PATHS.home, { role: 'TECHNICIAN', fetch: queueApi([], requests) });
 
     await screen.findByText('No incidents match these filters.');
     expect(tickedStatuses()).toEqual(['Assigned', 'In progress']);
     expect(requests.at(-1)!.getAll('status')).toEqual(['ASSIGNED', 'IN_PROGRESS']);
+  });
+
+  // #263, AC1
+  it('reopens the queue from the menu with the filters last used on it', async () => {
+    const router = renderApp(PATHS.home, { role: 'TECHNICIAN', fetch: queueApi([]) });
+    await screen.findByText('No incidents match these filters.');
 
     await userEvent.click(statusChoice('Resolved'));
+    await act(() => router.navigate('/elsewhere'));
     const menu = screen.getByRole('navigation', { name: 'Main' });
     await userEvent.click(within(menu).getByRole('link', { name: 'Work queue' }));
 
+    await screen.findByText('No incidents match these filters.');
+    expect(tickedStatuses()).toEqual(['Assigned', 'In progress', 'Resolved']);
+    expect(router.state.location.search).toBe(
+      '?status=ASSIGNED&status=IN_PROGRESS&status=RESOLVED',
+    );
+  });
+
+  // #263, AC2
+  it('gives another technician of the browser their own filters, or the defaults', async () => {
+    const first = renderApp(PATHS.home, { role: 'TECHNICIAN', fetch: queueApi([]) });
+    await screen.findByText('No incidents match these filters.');
+    await userEvent.click(statusChoice('Resolved'));
+    await act(() => first.navigate('/elsewhere'));
+    cleanup();
+
+    renderApp('/elsewhere', { role: 'TECHNICIAN', userId: 'user-2', fetch: queueApi([]) });
+    const menu = screen.getByRole('navigation', { name: 'Main' });
+    await userEvent.click(within(menu).getByRole('link', { name: 'Work queue' }));
+
+    await screen.findByText('No incidents match these filters.');
     expect(tickedStatuses()).toEqual(['Assigned', 'In progress']);
-    expect(router.state.location.search).toBe('?status=ASSIGNED&status=IN_PROGRESS');
   });
 
   it('asks the API for the statuses chosen, starting again on the first page', async () => {
