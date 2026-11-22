@@ -71,13 +71,18 @@ final class IncidentFilterParameters {
         }
         String text = Texts.strip(q);
         int length = Texts.length(text);
-        if (length < TEXT_MIN_LENGTH || length > TEXT_MAX_LENGTH || Texts.hasNullCharacter(text)) {
+        if (length < TEXT_MIN_LENGTH || length > TEXT_MAX_LENGTH) {
             throw new MalformedRequestException(
                     "The parameter q must have "
                             + TEXT_MIN_LENGTH
                             + " to "
                             + TEXT_MAX_LENGTH
                             + " characters without the spaces around it.");
+        }
+        // PostgreSQL refuses U+0000 in a text, so it would end in a 500.
+        if (Texts.hasNullCharacter(text)) {
+            throw new MalformedRequestException(
+                    "The parameter q cannot contain the null character.");
         }
         return text;
     }

@@ -404,5 +404,22 @@ describe('incident map on the web (#196, test #76)', () => {
       expect(cleared.value).toBe('');
       expect(screen.queryByText('Type at least 3 characters.')).toBeNull();
     });
+
+    it('clears it too from the Clear filters of the open filter bar', async () => {
+      renderApp(`${PATHS.map}?status=REPORTED`, {
+        role: 'MUNICIPAL_OPERATOR',
+        fetch: mapApi([positions([POTHOLE])]),
+      });
+      const box = await screen.findByRole('searchbox', { name: 'Search' });
+      await userEvent.type(box, 'ab{Enter}');
+      await userEvent.click(screen.getByRole('button', { name: 'Filters (1)' }));
+
+      // With the bar open, its own button is the only Clear filters.
+      await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+
+      const cleared = screen.getByRole('searchbox', { name: 'Search' }) as HTMLInputElement;
+      expect(cleared.value).toBe('');
+      expect(screen.queryByText('Type at least 3 characters.')).toBeNull();
+    });
   });
 });

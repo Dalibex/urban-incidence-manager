@@ -108,6 +108,14 @@ export function MapPage() {
     (firstFilter.current ?? filtersButton.current)?.focus();
   };
 
+  // The filter bar has its own Clear filters, which hands over no filters at all.
+  const changeFromFilterBar = (next: IncidentFilters) => {
+    if (!hasFilters(next)) {
+      setSearchKey((key) => key + 1);
+    }
+    changeFilters(next);
+  };
+
   return (
     // The whole screen fills the height under the navbar (AppLayout), and the full-screen button
     // of the map takes all of it, filters included (map-config.ts).
@@ -156,7 +164,7 @@ export function MapPage() {
         <div id={FILTERS_ID} className={styles.filters}>
           <IncidentFilterBar
             filters={filters}
-            onChange={changeFilters}
+            onChange={changeFromFilterBar}
             firstFilterRef={firstFilter}
           />
         </div>

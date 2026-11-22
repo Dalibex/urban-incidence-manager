@@ -314,6 +314,13 @@ class IncidentTextSearchApiIT {
             expectMalformed(LOCATIONS, "q", "farola", "q", "bache");
             expectMalformed(STATISTICS, "q", "farola", "q", "bache");
         }
+
+        // PostgreSQL refuses U+0000 in a text: without the check it would be a 500.
+        @Test
+        @DisplayName("rejects the null character")
+        void rejectsTheNullCharacter() throws Exception {
+            expectMalformed(INCIDENTS, "q", "ab\u0000c");
+        }
     }
 
     private UUID user(Role role) {
