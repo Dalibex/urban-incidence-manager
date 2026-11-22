@@ -227,8 +227,9 @@ public class UserAdministrationService {
      * Removes the second factor of a user who lost their phone (#57, ADR-0021): clears the secret,
      * spends every open sign-in challenge, revokes every refresh token and records {@code
      * RESET_MFA} with the reason, in one transaction. Once it commits, the account gets back its
-     * wrong-code attempts. The user enrols again at the next sign-in. A user without a second
-     * factor is left as it is, and nothing is recorded.
+     * wrong-code attempts, also when it had no second factor yet (its first enrolment may have used
+     * them up). The user enrols again at the next sign-in. A user without a second factor is left
+     * as it is otherwise, and nothing is recorded.
      *
      * <p>The user row is locked first, like {@link #update}, so a verification of a code that runs
      * at the same time either finishes before or finds the secret gone.
@@ -244,6 +245,14 @@ public class UserAdministrationService {
         if (!errors.isEmpty()) {
             throw new InvalidUserChangeException(errors);
         }
+        // After the commit: a reset that rolls back leaves the limit as it was.
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        mfa.restoreCodeAttempts(userId);
+                    }
+                });
         if (user.getMfaSecret() == null) {
             return;
         }
@@ -257,14 +266,6 @@ public class UserAdministrationService {
                 AuditTarget.user(userId),
                 Map.of(),
                 Map.of(REASON, Texts.strip(request.reason())));
-        // After the commit: a reset that rolls back leaves the limit as it was.
-        TransactionSynchronizationManager.registerSynchronization(
-                new TransactionSynchronization() {
-                    @Override
-                    public void afterCommit() {
-                        mfa.restoreCodeAttempts(userId);
-                    }
-                });
     }
 
     /**

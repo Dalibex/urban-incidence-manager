@@ -611,6 +611,32 @@ class SecondFactorApiIT {
         result.andExpect(status().isCreated()).andExpect(jsonPath("$.accessToken").isNotEmpty());
     }
 
+    // T7: a first enrolment can use up the attempts too; the reset of that account, which has no
+    // second factor yet, gives them back although it changes nothing else.
+    @Test
+    void aResetOfAnAccountStillEnrollingGivesItsCodeAttemptsBack() throws Exception {
+        // Arrange
+        var enrolling = account(Role.TECHNICIAN);
+        var administrator = account(Role.ADMINISTRATOR);
+        for (var i = 0; i < WRONG_CODES_PER_ACCOUNT / WRONG_CODES_PER_CHALLENGE; i++) {
+            var spent = challenge(enrolling.email());
+            for (var j = 0; j < WRONG_CODES_PER_CHALLENGE; j++) {
+                expectProblem(verify(spent, "000000"), 401, "INVALID_MFA_CODE");
+            }
+        }
+        expectProblem(verify(challenge(enrolling.email()), "000000"), 429, "TOO_MANY_ATTEMPTS");
+        reset(enrolling.id(), "Locked out while enrolling", administrator.id())
+                .andExpect(status().isNoContent());
+        var challenge = challenge(enrolling.email());
+        var secret = secretOf(enroll(challenge).andExpect(status().isCreated()));
+
+        // Act
+        var result = verify(challenge, codeAt(secret, 0));
+
+        // Assert
+        result.andExpect(status().isCreated()).andExpect(jsonPath("$.accessToken").isNotEmpty());
+    }
+
     // T7: administrators may reset their own second factor: their sessions end, and the entry
     // names them as the actor and the target.
     @Test

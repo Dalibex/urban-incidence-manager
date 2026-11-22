@@ -112,7 +112,8 @@ export function MfaStep({ challenge, onRestart }: MfaStepProps) {
         return;
       }
       if ('codeAccepted' in result) {
-        // The challenge is spent, so a retry cannot work; the session was revoked, no token stays.
+        // The challenge is spent, so a retry cannot work. The tokens were cleared here and the server
+        // was asked to revoke the session.
         onRestart(SIGN_IN_NOT_FINISHED);
         return;
       }
