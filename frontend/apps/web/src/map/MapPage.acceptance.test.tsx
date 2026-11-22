@@ -284,4 +284,108 @@ describe('incident map on the web (#196, test #76)', () => {
       'REOPENED',
     ]);
   });
+
+  describe('search (#266)', () => {
+    it('searches the typed text on submit, on the map and on its summary', async () => {
+      const requests: URLSearchParams[] = [];
+      const statisticsRequests: URLSearchParams[] = [];
+      const router = renderApp(PATHS.map, {
+        role: 'MUNICIPAL_OPERATOR',
+        fetch: fakeApi({
+          'GET /incident-locations': (request) => {
+            requests.push(new URL(request.url).searchParams);
+            return positions([POTHOLE])();
+          },
+          'GET /categories': () => json(200, []),
+          'GET /departments': () => json(200, []),
+          'GET /incident-statistics': (request) => {
+            statisticsRequests.push(new URL(request.url).searchParams);
+            return statistics();
+          },
+          'GET /incidents': latest,
+        }),
+      });
+      await screen.findByText('1 incident on the map');
+
+      // Typing alone asks nothing: the search runs on submit.
+      await userEvent.type(screen.getByRole('searchbox', { name: 'Search' }), '  Farola rota ');
+      expect(requests.every((params) => !params.has('q'))).toBe(true);
+      await userEvent.keyboard('{Enter}');
+
+      await waitFor(() => expect(requests.at(-1)?.get('q')).toBe('Farola rota'));
+      await waitFor(() => expect(statisticsRequests.at(-1)?.get('q')).toBe('Farola rota'));
+      expect(new URLSearchParams(router.state.location.search).get('q')).toBe('Farola rota');
+      // The folded filters name it, so nobody forgets the map is narrowed.
+      expect(screen.getByText('Search: “Farola rota”')).toBeDefined();
+    });
+
+    it('keeps the search box at hand while the filters are folded', async () => {
+      renderApp(`${PATHS.map}?q=farola`, {
+        role: 'MUNICIPAL_OPERATOR',
+        fetch: mapApi([positions([POTHOLE])]),
+      });
+
+      const box = await screen.findByRole('searchbox', { name: 'Search' });
+      expect((box as HTMLInputElement).value).toBe('farola');
+      expect(
+        screen.getByRole('button', { name: 'Filters (1)' }).getAttribute('aria-expanded'),
+      ).toBe('false');
+    });
+
+    it('does not send a text that is too short, and says why', async () => {
+      const requests: URLSearchParams[] = [];
+      renderApp(PATHS.map, {
+        role: 'MUNICIPAL_OPERATOR',
+        fetch: mapApi([positions([POTHOLE])], requests),
+      });
+      await screen.findByText('1 incident on the map');
+      const box = screen.getByRole('searchbox', { name: 'Search' });
+
+      await userEvent.type(box, 'ab');
+      await userEvent.click(screen.getByRole('button', { name: 'Search' }));
+
+      expect(box.getAttribute('aria-invalid')).toBe('true');
+      expect(screen.getByText('Type at least 3 characters.').id).toBe(
+        box.getAttribute('aria-describedby'),
+      );
+      expect(requests.every((params) => !params.has('q'))).toBe(true);
+
+      // Fixing the text clears the message once it is searched.
+      await userEvent.type(box, 'c{Enter}');
+      await waitFor(() => expect(requests.at(-1)?.get('q')).toBe('abc'));
+      expect(box.getAttribute('aria-invalid')).toBeNull();
+      expect(screen.queryByText('Type at least 3 characters.')).toBeNull();
+    });
+
+    it('removes the search when the box is emptied and submitted', async () => {
+      const requests: URLSearchParams[] = [];
+      renderApp(`${PATHS.map}?q=farola`, {
+        role: 'MUNICIPAL_OPERATOR',
+        fetch: mapApi([positions([POTHOLE])], requests),
+      });
+      const box = await screen.findByRole('searchbox', { name: 'Search' });
+
+      await userEvent.clear(box);
+      await userEvent.keyboard('{Enter}');
+
+      await waitFor(() => expect(requests.at(-1)?.has('q')).toBe(false));
+    });
+
+    it('offers to clear a search that finds nothing, and clears the box too', async () => {
+      renderApp(`${PATHS.map}?q=nothing`, {
+        role: 'MUNICIPAL_OPERATOR',
+        fetch: mapApi([positions([])]),
+      });
+
+      const message = await screen.findByText('No incidents match these filters.');
+      await userEvent.click(
+        within(message.parentElement!).getByRole('button', { name: 'Clear filters' }),
+      );
+
+      expect(await screen.findByText('There are no incidents to show.')).toBeDefined();
+      expect((screen.getByRole('searchbox', { name: 'Search' }) as HTMLInputElement).value).toBe(
+        '',
+      );
+    });
+  });
 });

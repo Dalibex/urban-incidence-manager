@@ -4,6 +4,7 @@ import {
   filtersFrom,
   filtersSearch,
   hasFilters,
+  searchTextProblem,
   toListQuery,
   withFilters,
   type IncidentFilters,
@@ -146,5 +147,39 @@ describe('hasFilters', () => {
   it('tells whether any filter is set', () => {
     expect(hasFilters({})).toBe(false);
     expect(hasFilters({ reportedTo: '2026-11-05' })).toBe(true);
+  });
+});
+
+// #266: the text search of the map, `q` in the address and in the API.
+describe('the text search', () => {
+  it('reads it from the address without the spaces around it', () => {
+    expect(filtersFrom(new URLSearchParams('q=%20%20farola%20rota%20'))).toEqual({
+      q: 'farola rota',
+    });
+  });
+
+  it('drops a text the API would reject, so the list shows more, never an error', () => {
+    expect(filtersFrom(new URLSearchParams('q=ab'))).toEqual({});
+    expect(filtersFrom(new URLSearchParams('q=%20ab%20'))).toEqual({});
+    expect(filtersFrom(new URLSearchParams(`q=${'a'.repeat(101)}`))).toEqual({});
+  });
+
+  it('takes 3 and 100 characters, counting an emoji as one', () => {
+    expect(filtersFrom(new URLSearchParams('q=abc')).q).toBe('abc');
+    expect(filtersFrom(new URLSearchParams(`q=${'a'.repeat(100)}`)).q).toBe('a'.repeat(100));
+    expect(filtersFrom(new URLSearchParams({ q: '💡💡💡' })).q).toBe('💡💡💡');
+  });
+
+  it('round-trips through the address and reaches the API', () => {
+    const params = withFilters(new URLSearchParams(), { q: '50% farola' });
+    expect(filtersFrom(params)).toEqual({ q: '50% farola' });
+    expect(toListQuery({ q: '50% farola' })).toEqual({ q: '50% farola' });
+    expect(hasFilters({ q: '50% farola' })).toBe(true);
+  });
+
+  it('says why a text cannot be searched', () => {
+    expect(searchTextProblem('farola')).toBeUndefined();
+    expect(searchTextProblem('  ab ')).toBe('Type at least 3 characters.');
+    expect(searchTextProblem('a'.repeat(101))).toBe('Type at most 100 characters.');
   });
 });

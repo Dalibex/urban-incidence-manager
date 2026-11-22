@@ -19,6 +19,7 @@ import { filterSummary } from './filter-summary';
 import { IncidentPanel } from './IncidentPanel';
 import { MapDashboard } from './MapDashboard';
 import { MapKey } from './MapKey';
+import { MapSearch } from './MapSearch';
 import styles from './Map.module.css';
 import { INCIDENT_ZOOM, MAP_SCREEN_ID } from './map-config';
 import { useMapPreferences } from './map-preferences';
@@ -41,7 +42,8 @@ const FILTERS_ID = 'map-filters';
  * the summary, which opens the same panel from the keyboard.
  *
  * The filters fold behind a button, so the map keeps the room; while folded, a line says which
- * ones apply, so nobody forgets that the map is filtered.
+ * ones apply, so nobody forgets that the map is filtered. The text search (#266) stays in the
+ * toolbar, outside the fold, so an incident can be found without opening the filters.
  */
 export function MapPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -116,6 +118,7 @@ export function MapPage() {
         <h1 id="page-title" className={styles.pageTitle}>
           Map
         </h1>
+        <MapSearch value={filters.q} onSearch={(q) => changeFilters({ ...filters, q })} />
         <button
           ref={filtersButton}
           type="button"

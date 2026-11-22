@@ -24,6 +24,11 @@ export interface IncidentFilters {
   reportedFrom?: string;
   /** Last day, `YYYY-MM-DD`, included. */
   reportedTo?: string;
+  /**
+   * Text in the title or the description, without the spaces around it (#266). Only the map has a
+   * box for it; a list keeps it from the address like any other filter.
+   */
+  q?: string;
 }
 
 type IncidentFilterName = keyof IncidentFilters;
@@ -36,6 +41,7 @@ const FILTER_NAMES: readonly IncidentFilterName[] = [
   'departmentId',
   'reportedFrom',
   'reportedTo',
+  'q',
 ];
 
 export const PRIORITIES: readonly Priority[] = ['HIGH', 'MEDIUM', 'LOW'];
@@ -63,6 +69,10 @@ const DAY = /^[1-9]\d{3}-\d{2}-\d{2}$/;
 // The last day of year 9999 has no next day in this format to end a range on.
 const LAST_DAY = '9999-12-31';
 
+// The limits of the text search `q` in the contract (`TextSearch`), in characters once trimmed.
+const SEARCH_MIN_LENGTH = 3;
+const SEARCH_MAX_LENGTH = 100;
+
 /**
  * The filters of an address. A value the API would reject (an unknown status, an id that is not a
  * UUID, a day that does not exist, a first day after the last one) is dropped, never sent: the list
@@ -77,6 +87,10 @@ export function filtersFrom(params: URLSearchParams): IncidentFilters {
     departmentId: first(params, 'departmentId', isUuid),
     reportedFrom: first(params, 'reportedFrom', isDay),
     reportedTo: first(params, 'reportedTo', isDay),
+    q: params
+      .getAll('q')
+      .map((text) => text.trim())
+      .find((text) => searchTextProblem(text) === undefined),
   };
   if (filters.reportedFrom && filters.reportedTo && filters.reportedFrom > filters.reportedTo) {
     // Which of the two is wrong cannot be told, so neither is applied.
@@ -122,7 +136,7 @@ export function filtersSearch(filters: IncidentFilters): string {
 
 /** The filters as the query of `listIncidents`; the days become the instants they start at. */
 export function toListQuery(filters: IncidentFilters): IncidentListQuery {
-  const { status, categoryId, priority, departmentId, reportedFrom, reportedTo } = filters;
+  const { status, categoryId, priority, departmentId, reportedFrom, reportedTo, q } = filters;
   return {
     ...(status && { status: [...status] }),
     ...(categoryId && { categoryId: [categoryId] }),
@@ -131,11 +145,27 @@ export function toListQuery(filters: IncidentFilters): IncidentListQuery {
     ...(reportedFrom && { reportedFrom: startOfDay(reportedFrom) }),
     // The API excludes `reportedTo`, so the last day ends where the next one starts.
     ...(reportedTo && { reportedTo: startOfDay(nextDay(reportedTo)) }),
+    ...(q && { q }),
   };
 }
 
 export function hasFilters(filters: IncidentFilters): boolean {
   return FILTER_NAMES.some((name) => filters[name] !== undefined);
+}
+
+/**
+ * Why the API would reject `text` as a search, as the box says it; `undefined` when it would not.
+ * Counted in characters, as the contract does, so an emoji counts as one.
+ */
+export function searchTextProblem(text: string): string | undefined {
+  const length = [...text.trim()].length;
+  if (length < SEARCH_MIN_LENGTH) {
+    return `Type at least ${SEARCH_MIN_LENGTH} characters.`;
+  }
+  if (length > SEARCH_MAX_LENGTH) {
+    return `Type at most ${SEARCH_MAX_LENGTH} characters.`;
+  }
+  return undefined;
 }
 
 function first<T extends string>(
