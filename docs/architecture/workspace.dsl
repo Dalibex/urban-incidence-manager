@@ -118,7 +118,7 @@ workspace "UrbanPulse" "C4 Model" {
                 tags "Database"
                 url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0001-database.md
 
-                db_relational = component "Relational Schema" "Table groups created by Flyway: identity (users, refresh_token, audit_log), incidents (incident, location, category, department, assignment, status_change, comment, attachment), urbancontext (urban_context, external_observation, data_source_config; also urban_asset and incident_asset, used by geospatial), notifications (notification)." "SQL tables" {
+                db_relational = component "Relational Schema" "Table groups created by Flyway: identity (users, refresh_token, mfa_challenges, audit_log), incidents (incident, location, category, department, assignment, status_change, comment, attachment), urbancontext (urban_context, external_observation, data_source_config; also urban_asset and incident_asset, used by geospatial), notifications (notification)." "SQL tables" {
                     url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0014-database-migrations-flyway.md
                 }
                 db_postgis = component "Spatial Engine (PostGIS)" "geography(Point, 4326) in location.coordinates and urban_asset.geometry with GiST indexes; distance and containment operators." "PostGIS extension" {
@@ -246,7 +246,7 @@ workspace "UrbanPulse" "C4 Model" {
         urbanpulse.nginx -> urbanpulse.backend.notifications "Proxies /api (in-app notifications)" "HTTP/JSON"
         urbanpulse.nginx -> urbanpulse.backend.analytics "Proxies /api (reports)" "HTTP/JSON, CSV"
 
-        urbanpulse.backend.identity -> urbanpulse.postgres "users, refresh_token (hashed), audit_log" "JPA/JDBC"
+        urbanpulse.backend.identity -> urbanpulse.postgres "users (encrypted TOTP secret), refresh_token and mfa_challenges (hashed), audit_log" "JPA/JDBC"
         urbanpulse.backend.incidents -> urbanpulse.postgres "Incident tables (ACID)" "JPA/JDBC"
         urbanpulse.backend.urbancontext -> urbanpulse.postgres "urban_context, external_observation, data_source_config" "JPA/JDBC"
         urbanpulse.backend.geospatial -> urbanpulse.postgres "urban_asset, incident_asset; PostGIS spatial queries" "JPA/JDBC"

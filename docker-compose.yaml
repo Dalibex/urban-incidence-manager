@@ -39,6 +39,11 @@ x-backend: &backend
     JWT_ACCESS_TOKEN_TTL: ${JWT_ACCESS_TOKEN_TTL:-PT15M}
     REFRESH_TOKEN_TTL: ${REFRESH_TOKEN_TTL:-P14D}
     REFRESH_TOKEN_RETENTION: ${REFRESH_TOKEN_RETENTION:-P30D}
+    # Second factor of the staff (docs/security.md). Without MFA_ENCRYPTION_KEY the backend does not
+    # start.
+    MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY}
+    MFA_REQUIRED_ROLES: ${MFA_REQUIRED_ROLES-MUNICIPAL_OPERATOR,TECHNICIAN,ADMINISTRATOR,ANALYST}
+    MFA_ISSUER: ${MFA_ISSUER:-UrbanPulse}
     # Data profile (docs/datasets.md): empty in a real deployment, demo for the demo.
     SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-}
     DEMO_PASSWORD: ${DEMO_PASSWORD:-}

@@ -1427,7 +1427,7 @@ export interface components {
          * @example CHANGE_ROLE
          * @enum {string}
          */
-        AuditAction: "CREATE_USER" | "UPDATE_USER" | "CHANGE_ROLE" | "DISABLE_USER" | "ENABLE_USER" | "CHANGE_PASSWORD" | "CLASSIFY_INCIDENT";
+        AuditAction: "CREATE_USER" | "UPDATE_USER" | "CHANGE_ROLE" | "DISABLE_USER" | "ENABLE_USER" | "CHANGE_PASSWORD" | "CLASSIFY_INCIDENT" | "ENROLL_MFA" | "RESET_MFA";
         /**
          * @description The kind of record an audit entry is about.
          * @example USER

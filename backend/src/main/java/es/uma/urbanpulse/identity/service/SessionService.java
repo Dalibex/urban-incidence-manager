@@ -1,9 +1,13 @@
 package es.uma.urbanpulse.identity.service;
 
 import es.uma.urbanpulse.identity.dto.CreateSessionRequest;
+import es.uma.urbanpulse.identity.dto.MfaChallengeResponse;
 import es.uma.urbanpulse.identity.dto.SessionResponse;
+import es.uma.urbanpulse.identity.dto.SignInResponse;
+import es.uma.urbanpulse.identity.entity.MfaChallenge;
 import es.uma.urbanpulse.identity.entity.RefreshToken;
 import es.uma.urbanpulse.identity.entity.User;
+import es.uma.urbanpulse.identity.repository.MfaChallengeRepository;
 import es.uma.urbanpulse.identity.repository.RefreshTokenRepository;
 import es.uma.urbanpulse.identity.repository.UserRepository;
 import java.time.Clock;
@@ -29,6 +33,8 @@ public class SessionService {
     private final AccessTokenService accessTokens;
     private final CredentialCheck credentials;
     private final AccountSecurityProperties properties;
+    private final MfaChallengeRepository challenges;
+    private final MfaProperties mfa;
     private final Clock clock;
 
     public SessionService(
@@ -37,12 +43,16 @@ public class SessionService {
             AccessTokenService accessTokens,
             CredentialCheck credentials,
             AccountSecurityProperties properties,
+            MfaChallengeRepository challenges,
+            MfaProperties mfa,
             Clock clock) {
         this.users = users;
         this.refreshTokens = refreshTokens;
         this.accessTokens = accessTokens;
         this.credentials = credentials;
         this.properties = properties;
+        this.challenges = challenges;
+        this.mfa = mfa;
         this.clock = clock;
     }
 
@@ -51,14 +61,21 @@ public class SessionService {
      * change its password gets no session; that is only said when the password is right, so a wrong
      * one does not reveal it.
      *
+     * <p>A role in {@code MFA_REQUIRED_ROLES} gets no session either, but a challenge of the second
+     * factor (#57, ADR-0021): {@link MfaService} opens the session once a valid code is sent for
+     * it.
+     *
      * <p>Not transactional on purpose: bcrypt would hold a database connection. The read and the
-     * insert of the new session have their own.
+     * insert of the new session or challenge have their own.
      */
-    public SessionResponse signIn(CreateSessionRequest request, String clientAddress) {
+    public SignInResponse signIn(CreateSessionRequest request, String clientAddress) {
         var email = EmailAddresses.normalize(request.email());
         var user = credentials.verify(email, request.password(), clientAddress);
         if (Boolean.TRUE.equals(user.getPasswordChangeRequired())) {
             throw new PasswordChangeRequiredException();
+        }
+        if (mfa.requiredFor(user.getRole())) {
+            return createChallenge(user);
         }
         return openSession(user);
     }
@@ -125,7 +142,23 @@ public class SessionService {
         refreshTokens.endAll(userId, now());
     }
 
-    private SessionResponse openSession(User user) {
+    /** Only the hash of the token is stored, like a refresh token. */
+    private MfaChallengeResponse createChallenge(User user) {
+        var now = now();
+        var plainToken = RefreshTokens.generate();
+        var challenge = new MfaChallenge();
+        challenge.setUser(user);
+        challenge.setTokenHash(RefreshTokens.hash(plainToken));
+        challenge.setEnrollment(user.getMfaSecret() == null);
+        challenge.setCreatedAt(now);
+        challenge.setExpiresAt(now.plus(mfa.challengeTtl()));
+        var saved = challenges.save(challenge);
+        return new MfaChallengeResponse(
+                plainToken, saved.getExpiresAt().toInstant(), saved.getEnrollment());
+    }
+
+    /** Issues a token pair; {@link MfaService} calls it inside the transaction of a valid code. */
+    SessionResponse openSession(User user) {
         var now = now();
         var plainToken = RefreshTokens.generate();
         var refreshToken = new RefreshToken();

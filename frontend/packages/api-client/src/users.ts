@@ -46,3 +46,21 @@ export function updateUser(
     'the user',
   );
 }
+
+/**
+ * Removes the second factor of a user and revokes their sessions, so they enrol again at the next
+ * sign-in (#57). `reason` is kept in the audit entry. Answers `204` also when the user had none;
+ * `404` when the user does not exist; `422` for a blank reason. Administrators only.
+ */
+export function resetUserMfa(
+  client: ApiClient,
+  userId: string,
+  reason: string,
+): Promise<ApiResult<void>> {
+  return callApi(() =>
+    client.POST('/users/{userId}/mfa-resets', {
+      params: { path: { userId } },
+      body: { reason },
+    }),
+  );
+}

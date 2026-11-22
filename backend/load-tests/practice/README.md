@@ -17,7 +17,8 @@ towards the backend's limit), the perf users and a position inside Málaga for e
 ## Stack
 
 From `backend/`, with `.env` created from `.env.example` (set `GRAFANA_ADMIN_PASSWORD`,
-`SPRING_PROFILES_ACTIVE=perf` and `WEATHER_ENRICHMENT_ENABLED=false`):
+`SPRING_PROFILES_ACTIVE=perf`, `WEATHER_ENRICHMENT_ENABLED=false` and an empty `MFA_REQUIRED_ROLES=`,
+because the scripts sign staff in without the code of the second factor):
 
 ```bash
 docker compose -p qaobs --profile app --profile observability up -d --build

@@ -21,6 +21,7 @@ tests ([ADR-0011](adr/0011-deployment-12factor.md)).
 - **[Configuration](#-configuration)**: every environment variable, in development and in the deployment.
 - **[Build the Base Map](#-build-the-base-map)**: build the map of Málaga, once and whenever you want newer data.
 - **[Create the First Administrator](#-create-the-first-administrator)**: the one-off process for a deployment with no accounts.
+- **[Reset the Second Factor of the Last Administrator](#-reset-the-second-factor-of-the-last-administrator)**: the emergency procedure when no other administrator can do it.
 - **[Reach the API from a Phone](#-reach-the-api-from-a-phone)**: the addresses a phone needs with each Compose file.
 - **[Volumes](#-volumes)**: where the data lives, and what deletes it.
 - **[Back Up and Restore](#-back-up-and-restore)**: copy the database and the photos, and bring them back.
@@ -45,7 +46,8 @@ backend and the web app, so the machine needs no Java and no Node. From the repo
    cp .env.example .env
    ```
 
-   Fill in `POSTGRES_PASSWORD`, `JWT_SECRET` (`openssl rand -base64 48`) and, for step 3,
+   Fill in `POSTGRES_PASSWORD`, `JWT_SECRET` (`openssl rand -base64 48`),
+   `MFA_ENCRYPTION_KEY` (`openssl rand -base64 32`) and, for step 3,
    `BOOTSTRAP_ADMIN_NAME`, `BOOTSTRAP_ADMIN_EMAIL` and `BOOTSTRAP_ADMIN_PASSWORD`. Set `HTTP_PORT`, and
    `TILES_BASE_URL` to the address the browsers and phones use to reach this machine, plus
    `/tiles`. Every variable is in *Configuration*.
@@ -163,7 +165,7 @@ out of them: Compose reads `$` as the start of a variable.
 
 The deployment `.env.example` is the example without secrets: every secret is empty, there is no
 sample data and nothing but nginx publishes a port. Its secrets are `POSTGRES_PASSWORD`,
-`JWT_SECRET`, `DEMO_PASSWORD` (only with the `demo` profile) and `BOOTSTRAP_ADMIN_PASSWORD` (only
+`JWT_SECRET`, `MFA_ENCRYPTION_KEY`, `DEMO_PASSWORD` (only with the `demo` profile) and `BOOTSTRAP_ADMIN_PASSWORD` (only
 while you create the first administrator).
 
 | Variable | Development (`backend/.env.example`) | Deployment (`.env.example`) | Secret | Used by | What it is |
@@ -175,6 +177,9 @@ while you create the first administrator).
 | `POSTGRES_PORT` | `5432` | — | | `postgres` | Port on your machine, development only |
 | `BACKEND_PORT` | `8080` | — | | `backend` | Port on your machine, development only; inside the container the API always listens on 8080 |
 | `JWT_SECRET` | empty | empty | ✓ | `backend` | Signs the access tokens, at least 32 bytes ([security guide](security.md)). The backend does not start without it |
+| `MFA_ENCRYPTION_KEY` | empty | empty | ✓ | `backend` | Encrypts the TOTP secrets of the second factor: 32 random bytes in Base64 (`openssl rand -base64 32`). The backend does not start without it. Losing or changing it makes every staff user enrol again ([security guide](security.md#-second-factor)) |
+| `MFA_REQUIRED_ROLES` | the four staff roles | the four staff roles | | `backend` | Roles that need the second factor, separated by commas. Empty turns it off: only on a developer's machine |
+| `MFA_ISSUER` | `UrbanPulse` | `UrbanPulse` | | `backend` | Name the authenticator app shows next to the account |
 | `JWT_ACCESS_TOKEN_TTL` | `PT15M` | `PT15M` | | `backend` | Lifetime of an access token |
 | `REFRESH_TOKEN_TTL` | `P14D` | `P14D` | | `backend` | Lifetime of a refresh token |
 | `REFRESH_TOKEN_RETENTION` | `P30D` | `P30D` | | `backend` | How long an expired refresh token is kept before the daily clean-up deletes it ([security guide](security.md)) |
@@ -289,7 +294,9 @@ configuration as the backend. The rules it follows are in the
    docker compose --profile app run --rm backend --spring.profiles.include=bootstrap-admin
    ```
 
-3. Sign in on the web with that email and password.
+3. Sign in on the web with that email and password. A staff account needs its second factor, so
+   the first sign-in shows a QR code to scan with an authenticator app and asks for a code
+   ([security guide](security.md#-second-factor)).
 
 > [!IMPORTANT]
 > Then empty `BOOTSTRAP_ADMIN_PASSWORD` in `.env`, so the password does not stay on the disk of the
@@ -318,6 +325,39 @@ How it behaves (what it checks, and why, is in the [security guide](security.md#
   active profile, so list the data profile too:
   `./mvnw spring-boot:run "-Dspring-boot.run.profiles=bootstrap-admin"` on an empty database,
   `"-Dspring-boot.run.profiles=dev,bootstrap-admin"` on one that loaded `dev`.
+
+## 🆘 Reset the Second Factor of the Last Administrator
+
+An administrator who lost their phone gets their second factor reset by another administrator, on
+the *Users* screen. When no other enabled administrator exists, the maintainer resets it in the
+database, as [ADR-0021](adr/0021-multi-factor-authentication.md) asks: one transaction that clears
+the secret, ends the open sign-ins and sessions of the account, and records who did it and why in
+the audit trail. With the deployment running, from the repository root:
+
+```bash
+docker compose exec -T postgres psql -U urbanpulse -d urbanpulse -v ON_ERROR_STOP=1   -v email='admin@example.com' -v reason='Lost phone; reset by <maintainer> on <date>' <<'SQL'
+BEGIN;
+SELECT id AS uid FROM users WHERE email = :'email' AND role = 'ADMINISTRATOR' \gset
+UPDATE users SET mfa_secret = NULL, mfa_last_time_step = NULL WHERE id = :'uid';
+UPDATE mfa_challenges SET spent_at = now() WHERE user_id = :'uid' AND spent_at IS NULL;
+UPDATE refresh_tokens SET revoked_at = COALESCE(revoked_at, now()), expires_at = now()
+  WHERE user_id = :'uid' AND expires_at > now();
+INSERT INTO audit_log (actor_id, instant, action, target_id, target_type, details)
+  VALUES (:'uid', now(), 'RESET_MFA', :'uid', 'USER',
+          jsonb_build_object('before', '{}'::jsonb,
+                             'after', jsonb_build_object('reason', :'reason', 'origin', 'EMERGENCY')));
+COMMIT;
+SQL
+```
+
+- Use the user and database of your `.env` (`POSTGRES_USER`, `POSTGRES_DB`).
+- If the email is not an administrator, `\gset` sets nothing and the script stops before any change.
+- The entry has the administrator as its own actor, because `actor_id` must be an account and the
+  maintainer has none; `"origin": "EMERGENCY"` and the reason, with the maintainer's name, say who
+  did it. Write no other personal data in the reason: the entry can never be deleted.
+- The administrator enrols again on the next sign-in. Do it soon: until then, whoever knows the
+  password could enrol their own phone (trust on first use, in the
+  [security guide](security.md#-second-factor)).
 
 ## 📱 Reach the API from a Phone
 

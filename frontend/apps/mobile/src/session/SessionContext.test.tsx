@@ -1,4 +1,4 @@
-import { createApiClient, getCurrentUser, signOut } from '@urbanpulse/api-client';
+import { createApiClient, getCurrentUser, signIn, signOut } from '@urbanpulse/api-client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, waitFor } from '@testing-library/react-native';
 
@@ -108,6 +108,28 @@ describe('SessionProvider', () => {
     });
     expect(secureTokenStore.clear).not.toHaveBeenCalled();
     warn.mockRestore();
+  });
+
+  // ADR-0021: staff answer a second-factor challenge on the web; the phone has no step for it.
+  it('fails the sign-in of an account that needs a second factor, without opening a session', async () => {
+    jest.mocked(signIn).mockResolvedValueOnce({
+      ok: true,
+      data: {
+        challengeToken: 'c-1',
+        challengeExpiresAt: '2026-11-21T10:05:00Z',
+        enrollmentRequired: false,
+      },
+    });
+    const { session } = await renderSession();
+
+    const result = await act(() => session().signIn({ email: 'a@b.es', password: 'secret-1' }));
+
+    expect(result).toEqual({
+      ok: false,
+      failure: { kind: 'problem', status: 202, code: undefined },
+    });
+    expect(getCurrentUser).not.toHaveBeenCalled();
+    expect(session().user).toBeNull();
   });
 
   it('discards a saved session that cannot be read', async () => {

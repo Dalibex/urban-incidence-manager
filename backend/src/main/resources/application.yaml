@@ -66,6 +66,19 @@ urbanpulse:
     sign-up-attempts:
       max: 10
       window: PT1H
+    # Second factor of the staff (#57, ADR-0021, docs/security.md). Without MFA_ENCRYPTION_KEY the
+    # application does not start (MfaProperties checks it). An empty MFA_REQUIRED_ROLES asks no role
+    # for a code.
+    mfa:
+      required-roles: ${MFA_REQUIRED_ROLES:MUNICIPAL_OPERATOR,TECHNICIAN,ADMINISTRATOR,ANALYST}
+      encryption-key: ${MFA_ENCRYPTION_KEY:}
+      issuer: ${MFA_ISSUER:UrbanPulse}
+      challenge-ttl: PT5M
+      code-attempts-per-challenge: 5
+      # Wrong codes per account, kept in memory like the other limits.
+      code-attempts:
+        max: 10
+        window: PT15M
   # The weather of each incident from Open-Meteo, after the report (ADR-0018, docs/deployment.md).
   weather:
     enabled: ${WEATHER_ENRICHMENT_ENABLED:true}

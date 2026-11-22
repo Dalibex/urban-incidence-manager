@@ -325,7 +325,8 @@ The run fails when an operation of a role has a p95 of 500 ms or more, or when a
 
 Run it against the backend in Docker with the `perf` dataset loaded. First start the stack on an
 empty database, from `backend/`, with `SPRING_PROFILES_ACTIVE=perf` in `.env` (*Activate it*
-above):
+above) and an empty `MFA_REQUIRED_ROLES=`: the script signs staff in without the code of the second
+factor ([security guide](security.md#-second-factor)):
 
 ```bash
 docker compose --profile app up --build -d

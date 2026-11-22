@@ -2810,6 +2810,8 @@ components:
           ENABLE_USER,
           CHANGE_PASSWORD,
           CLASSIFY_INCIDENT,
+          ENROLL_MFA,
+          RESET_MFA,
         ]
       examples: [CHANGE_ROLE]
 

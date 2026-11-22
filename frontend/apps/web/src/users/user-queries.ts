@@ -1,6 +1,7 @@
 import {
   createUser,
   listUsers,
+  resetUserMfa,
   updateUser,
   type ApiClient,
   type components,
@@ -104,4 +105,21 @@ export function useUpdateUser(userId: string) {
 export function useReloadUsers() {
   const queryClient = useQueryClient();
   return () => queryClient.invalidateQueries({ queryKey: USERS_KEY });
+}
+
+/**
+ * Resets the second factor of a user (#57). The call resolves with the API's answer, a failure
+ * included. The API audits it, so the audit log reloads.
+ */
+export function useResetUserMfa(userId: string) {
+  const { api } = useSession();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (reason: string) => resetUserMfa(api, userId, reason),
+    onSuccess: (result) => {
+      if (result.ok) {
+        void queryClient.invalidateQueries({ queryKey: ['audit-entries'] });
+      }
+    },
+  });
 }

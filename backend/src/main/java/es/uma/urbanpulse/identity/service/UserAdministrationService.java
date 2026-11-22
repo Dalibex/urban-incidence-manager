@@ -1,16 +1,21 @@
 package es.uma.urbanpulse.identity.service;
 
+import es.uma.urbanpulse.identity.dto.CreateUserMfaResetRequest;
 import es.uma.urbanpulse.identity.dto.CreateUserRequest;
 import es.uma.urbanpulse.identity.dto.UpdateUserRequest;
 import es.uma.urbanpulse.identity.dto.UserResponse;
 import es.uma.urbanpulse.identity.entity.AuditAction;
 import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.identity.entity.User;
+import es.uma.urbanpulse.identity.repository.MfaChallengeRepository;
 import es.uma.urbanpulse.identity.repository.UserRepository;
 import es.uma.urbanpulse.shared.error.FieldError;
 import es.uma.urbanpulse.shared.text.Texts;
 import es.uma.urbanpulse.shared.web.PageResponse;
 import jakarta.validation.Validator;
+import java.time.Clock;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Map;
@@ -38,6 +43,7 @@ public class UserAdministrationService {
     private static final String PASSWORD_CHANGE_REQUIRED = "passwordChangeRequired";
     private static final String NAME = "name";
     private static final String CHANGED = "changed";
+    private static final String REASON = "reason";
 
     private final UserRepository users;
     private final PasswordEncoder passwordEncoder;
@@ -45,6 +51,8 @@ public class UserAdministrationService {
     private final AuditService audit;
     private final Validator validator;
     private final TransactionTemplate transactions;
+    private final MfaChallengeRepository challenges;
+    private final Clock clock;
 
     UserAdministrationService(
             UserRepository users,
@@ -52,13 +60,17 @@ public class UserAdministrationService {
             SessionService sessions,
             AuditService audit,
             Validator validator,
-            PlatformTransactionManager transactionManager) {
+            PlatformTransactionManager transactionManager,
+            MfaChallengeRepository challenges,
+            Clock clock) {
         this.users = users;
         this.passwordEncoder = passwordEncoder;
         this.sessions = sessions;
         this.audit = audit;
         this.validator = validator;
         this.transactions = new TransactionTemplate(transactionManager);
+        this.challenges = challenges;
+        this.clock = clock;
     }
 
     @Transactional(readOnly = true)
@@ -204,6 +216,41 @@ public class UserAdministrationService {
                     Map.of(ENABLED, !wasEnabled));
         }
         return UserResponse.from(user);
+    }
+
+    /**
+     * Removes the second factor of a user who lost their phone (#57, ADR-0021): clears the secret,
+     * spends every open sign-in challenge, revokes every refresh token and records {@code
+     * RESET_MFA} with the reason, in one transaction. The user enrols again at the next sign-in. A
+     * user without a second factor is left as it is, and nothing is recorded.
+     *
+     * <p>The user row is locked first, like {@link #update}, so a verification of a code that runs
+     * at the same time either finishes before or finds the secret gone.
+     *
+     * @throws UserNotFoundException if no user has the id
+     * @throws InvalidUserChangeException if the reason is not valid; nothing changes then
+     */
+    @Transactional
+    public void resetMfa(UUID administratorId, UUID userId, CreateUserMfaResetRequest request) {
+        var user =
+                users.findLockedById(userId).orElseThrow(() -> new UserNotFoundException(userId));
+        var errors = constraintErrors(request);
+        if (!errors.isEmpty()) {
+            throw new InvalidUserChangeException(errors);
+        }
+        if (user.getMfaSecret() == null) {
+            return;
+        }
+        user.setMfaSecret(null);
+        user.setMfaLastTimeStep(null);
+        challenges.spendOpen(userId, OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC));
+        sessions.revokeAllSessions(userId);
+        audit.record(
+                administratorId,
+                AuditAction.RESET_MFA,
+                AuditTarget.user(userId),
+                Map.of(),
+                Map.of(REASON, Texts.strip(request.reason())));
     }
 
     /**

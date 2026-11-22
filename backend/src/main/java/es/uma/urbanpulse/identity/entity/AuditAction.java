@@ -20,5 +20,9 @@ public enum AuditAction {
     CHANGE_PASSWORD,
 
     // Incident classification (#47).
-    CLASSIFY_INCIDENT
+    CLASSIFY_INCIDENT,
+
+    // Second factor of the staff (#57).
+    ENROLL_MFA,
+    RESET_MFA
 }

@@ -4,8 +4,10 @@ import {
   markSession as markStoreSession,
   signIn as signInOnApi,
   signOut as signOutOnApi,
+  verifyMfa as verifyMfaOnApi,
   type ApiClient,
   type ApiResult,
+  type MfaChallenge,
   type SessionMark,
   type SessionTokens,
   type TokenStore,
@@ -32,7 +34,10 @@ interface SessionValue {
   /** True after the API rejected the refresh token, until the next sign-in. */
   expired: boolean;
   api: ApiClient;
-  signIn: (credentials: Credentials) => Promise<ApiResult<void>>;
+  /** `data` is the second-factor challenge of a staff account, or `null` once signed in. */
+  signIn: (credentials: Credentials) => Promise<ApiResult<MfaChallenge | null>>;
+  /** Answers the challenge of `signIn` with the code of the authenticator app. */
+  verifyMfa: (challengeToken: string, code: string) => Promise<ApiResult<void>>;
   signOut: () => Promise<void>;
   /**
    * Shows a change the API accepted on an account, such as a new name, when that account is the
@@ -94,26 +99,35 @@ export function SessionProvider({ initialUser = null, fetch, children }: Session
     return { api: client, tokenStore: store };
   });
 
-  const value = useMemo<SessionValue>(
-    () => ({
+  const value = useMemo<SessionValue>(() => {
+    /** Reads the user of the tokens just stored and shows them signed in. */
+    async function openSession(): Promise<ApiResult<void>> {
+      // The role comes from the API, never from decoding the token.
+      const me = await getCurrentUser(api);
+      if (!me.ok) {
+        // Revokes the new session on the server too, not only on this device.
+        await signOutOnApi(api, tokenStore);
+        return me;
+      }
+      setExpired(false);
+      setUser(me.data);
+      return { ok: true, data: undefined };
+    }
+    return {
       user,
       expired,
       api,
       signIn: async (credentials) => {
         const session = await signInOnApi(api, tokenStore, credentials);
-        if (!session.ok) {
+        if (!session.ok || session.data) {
           return session;
         }
-        // The role comes from the API, never from decoding the token.
-        const me = await getCurrentUser(api);
-        if (!me.ok) {
-          // Revokes the new session on the server too, not only on this device.
-          await signOutOnApi(api, tokenStore);
-          return me;
-        }
-        setExpired(false);
-        setUser(me.data);
-        return { ok: true, data: undefined };
+        const opened = await openSession();
+        return opened.ok ? { ok: true, data: null } : opened;
+      },
+      verifyMfa: async (challengeToken, code) => {
+        const session = await verifyMfaOnApi(api, tokenStore, challengeToken, code);
+        return session.ok ? openSession() : session;
       },
       signOut: async () => {
         try {
@@ -130,9 +144,8 @@ export function SessionProvider({ initialUser = null, fetch, children }: Session
         setUser((current) => (current?.id === id ? { id, name, email, role } : current));
       },
       markSession: () => markStoreSession(tokenStore),
-    }),
-    [user, expired, api, tokenStore, queryClient],
-  );
+    };
+  }, [user, expired, api, tokenStore, queryClient]);
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 

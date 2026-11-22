@@ -75,7 +75,7 @@ same REST API and a set of TypeScript packages ([ADR-0007](adr/0007-client-appli
 | --- | --- | --- | --- |
 | Web app (staff) | React + Vite | [ADR-0006](adr/0006-frontend-web-technology.md) | Yes |
 | Mobile app (citizens) | React Native + Expo | [ADR-0005](adr/0005-mobile-application-technology.md) | Yes |
-| Backend API | Spring Boot, REST, contract first | [ADR-0008](adr/0008-backend.md), [ADR-0010](adr/0010-modular-monolith.md) | Yes |
+| Backend API | Spring Boot, REST, contract first | [ADR-0008](adr/0008-backend.md), [ADR-0010](adr/0010-modular-monolith.md) | Yes; the second factor of staff ([ADR-0021](adr/0021-multi-factor-authentication.md)) since #57 |
 | Database | PostgreSQL with PostGIS, Flyway migrations | [ADR-0001](adr/0001-database.md), [ADR-0003](adr/0003-geospatial-data-management.md), [ADR-0014](adr/0014-database-migrations-flyway.md) | Yes |
 | Tiles builder | One-off process that builds the base map | [ADR-0016](adr/0016-self-hosted-osm-base-map.md) | Yes |
 | Evidence storage | Docker volume behind a storage interface | [ADR-0013](adr/0013-evidence-storage.md) | Yes, in the API (#192), the mobile upload (#193) and the web gallery (#194) |
@@ -248,6 +248,8 @@ Known limits the team accepts for now. A review does not report them (*Sprint re
 | The sign-in and sign-up rate-limit counters live in the backend process | A restart resets them, and they are only correct with one replica | [Security guide](security.md), *Rate limits*; [ADR-0022](adr/0022-redis-from-measurements.md) |
 | The sign-in limit is per email and address | One address can still try 5 passwords on each of many emails | [Security guide](security.md), *Rate limits* |
 | Clients behind one public address share the rate limits | A university wifi shares the 10 sign-ups per hour, and someone on the same network can block a person's sign-in | [Security guide](security.md), *Rate limits*; #159 |
+| Trust on first use of the second factor: while a staff account has no second factor (after #57 is deployed, after a reset, and for a new account), whoever knows its password can enrol their own phone first | The real user gets `MFA_ALREADY_ENROLLED` and needs an administrator to reset it | [Security guide](security.md), *Second factor*; [ADR-0021](adr/0021-multi-factor-authentication.md) |
+| The limit of wrong second-factor codes is per account, and a right password does not give the attempts back | Whoever has the password can lock the real user out of the code step for up to 15 minutes; the counter also lives in the backend process | [Security guide](security.md), *Second factor* and *Rate limits* |
 | The API documentation is public (`/swagger-ui.html`, `/v3/api-docs`, `/openapi.yml`) | Anyone can read the contract, which is public by design | [Security guide](security.md), *Permission matrix*; [API guide](api.md) says how to turn it off |
 | The audit trigger guards against mistakes, not against the database owner | Someone with the owner or superuser account can disable it; a user who appears in the audit trail cannot be deleted | [Security guide](security.md), *Audit trail* |
 | Everything runs on one machine | If the machine stops, the whole system stops; nginx is also the single entry point, but keeps no data | [ADR-0011](adr/0011-deployment-12factor.md); [deployment guide](deployment.md), *If nginx Goes Down* |

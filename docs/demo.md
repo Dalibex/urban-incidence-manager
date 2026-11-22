@@ -31,6 +31,14 @@ weeks, so that every status of the lifecycle has an example, each with a history
 
 Every user signs in with the password in `DEMO_PASSWORD`. It is never written in the repository.
 
+The four staff users also need the second factor ([security guide](security.md#-second-factor)).
+Enrol them before the demo: sign in once with each one on the web, scan the QR code with an
+authenticator app on the presenter's phone (Google Authenticator, Microsoft Authenticator, Aegis…)
+and type the code it shows. From then on each sign-in asks for the current code of that account.
+On a database created again (`docker compose down -v`) the accounts have to enrol again. On a
+developer's machine, `MFA_REQUIRED_ROLES=` (empty) in `backend/.env` turns the second factor off;
+never in a deployment.
+
 | Status | Incidents |
 | --- | --- |
 | `REPORTED` | Street light flickering on Calle Larios (no category, address not resolved yet); loose paving stones in Plaza de la Merced (the operator asked for a photo); overflowing recycling containers in El Palo |
@@ -87,7 +95,7 @@ The backend from the terminal and the clients from their development servers, as
 To change role with one click instead of typing the email and the password, turn on the quick
 sign-in (#167). It is off by default and only exists for the demo and for development: the buttons
 call the normal sign-in with the users of the table above, and the API treats them as any other
-sign-in. Both apps read these variables when they start, so set them before `pnpm dev:web` and
+sign-in, so a staff button then asks for the code of the second factor too. Both apps read these variables when they start, so set them before `pnpm dev:web` and
 `pnpm dev:mobile`, or restart those that are already running.
 
 It only works *In development*: the web image of the deployment is built without any `.env`.
