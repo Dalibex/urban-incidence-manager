@@ -57,5 +57,4 @@ tokens** issued by our own API.
 - [ADR-0005: Use React Native for the mobile application](0005-mobile-application-technology.md)
 - [ADR-0006: Use React for the web application](0006-frontend-web-technology.md)
 - [ADR-0021: Require a TOTP second factor for staff accounts](0021-multi-factor-authentication.md)
-  (Accepted; not built yet, Planned: #57): tokens for staff roles will be issued only after the
-  second factor.
+  (Accepted): tokens for staff roles are issued only after the second factor.
