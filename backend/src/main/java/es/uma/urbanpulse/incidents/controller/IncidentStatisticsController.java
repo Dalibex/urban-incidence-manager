@@ -43,12 +43,13 @@ class IncidentStatisticsController {
                     OffsetDateTime reportedFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
                     OffsetDateTime reportedTo,
-            @RequestParam(required = false) List<UUID> departmentId) {
+            @RequestParam(required = false) List<UUID> departmentId,
+            @RequestParam(required = false) String q) {
         QueryParameters.requireKnownAndFilled(parameters, IncidentFilterParameters.NAMES);
         QueryParameters.requireSingle(parameters, IncidentFilterParameters.SINGLE_NAMES);
         var filter =
                 IncidentFilterParameters.toFilter(
-                        status, categoryId, priority, reportedFrom, reportedTo, departmentId);
+                        status, categoryId, priority, reportedFrom, reportedTo, departmentId, q);
         return incidents.statistics(user.id(), user.role(), filter);
     }
 }

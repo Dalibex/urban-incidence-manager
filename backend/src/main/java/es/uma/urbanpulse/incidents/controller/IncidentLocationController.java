@@ -61,6 +61,7 @@ class IncidentLocationController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
                     OffsetDateTime reportedTo,
             @RequestParam(required = false) List<UUID> departmentId,
+            @RequestParam(required = false) String q,
             @RequestParam(required = false) Double minLatitude,
             @RequestParam(required = false) Double minLongitude,
             @RequestParam(required = false) Double maxLatitude,
@@ -69,7 +70,7 @@ class IncidentLocationController {
         QueryParameters.requireSingle(parameters, SINGLE_PARAMETERS);
         var filter =
                 IncidentFilterParameters.toFilter(
-                        status, categoryId, priority, reportedFrom, reportedTo, departmentId);
+                        status, categoryId, priority, reportedFrom, reportedTo, departmentId, q);
         var box = BoundingBox.fromLimits(minLatitude, minLongitude, maxLatitude, maxLongitude);
         return incidents.locations(user.id(), user.role(), filter, box);
     }
