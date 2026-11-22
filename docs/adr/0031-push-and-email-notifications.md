@@ -19,8 +19,8 @@ What the citizen app already is, and what a push channel has to fit:
 
 - **The citizen app is an Expo app** ([ADR-0005](0005-mobile-application-technology.md)) that runs
   as a **development build**, not in Expo Go, because the base map needs a native module
-  ([development guide](../development.md)). Expo Go does not receive push notifications from
-  SDK 53 on; the app is on SDK 58.
+  ([development guide](../development.md)). Expo Go on Android does not receive push
+  notifications from SDK 53 on; the app is on SDK 58.
 - **The team builds and tests on Android.** An iPhone needs a Mac with Xcode and a paid Apple
   developer account, which the team does not have.
 - **A provider must never affect the incident** (`AGENTS.md`, section 8): delivery happens after
@@ -83,15 +83,48 @@ and **sends no SMS**.
   - **Push tokens:**
     - The app asks for the permission only when the citizen turns push on in *Profile*. Android 13
       and later shows its own permission prompt for notifications. The app then sends its Expo push
-      token to the API, which accepts only the `ExponentPushToken[…]` format.
-    - A token belongs to one device and one user: the table of #373 has numeric keys (#369) and a
-      unique token. Registering a token already held by another user moves it to the new user, so
-      a shared phone never shows the notifications of the previous citizen.
-    - Signing out on the phone, or turning push off, deletes the token of that device. A sign-out
-      without network cannot reach the API, so the backend also deletes the tokens registered
-      under a session when it revokes that session or the session expires, and the app sends the
-      device's token again, or deletes it, at every sign-in, depending on whether the new user has
-      push on. #373 tests this case.
+      token to the API, which accepts only Expo's formats, `ExponentPushToken[…]` and
+      `ExpoPushToken[…]`.
+    - A token belongs to one device and one user, **not to a session**: the table of #373 has
+      numeric keys (#369), a unique token and the time it was last registered. A session is a
+      refresh token, and every refresh revokes it and opens a new one
+      ([security guide](../security.md#-sessions-and-passwords)), so a token tied to a session
+      would stop receiving pushes at the first refresh. Refreshing, or letting a session expire,
+      never touches a token.
+    - **Push on or off** is the citizen's `PUSH` channel, one setting per user, as above. Turning it
+      off on one phone stops the `PUSH` rows for every device of that citizen and deletes that
+      phone's token.
+    - **Registering** is idempotent: the app sends the token at every sign-in and at every start
+      while signed in, when the citizen has push on, and each time the backend updates the time it
+      was last registered. Registering a token already held by another user moves it to the new
+      user, so a shared phone never shows the notifications of the previous citizen. Registering
+      requires the session of the access token (`sid`) to be active, checked in the database on
+      this endpoint only: the refresh token named by `sid` must be neither revoked nor expired, and
+      a registration that fails this gets `401`. An access token whose refresh token a refresh just
+      rotated also gets it, and the client recovers with its usual refresh and retry. So an access token
+      issued before every session ended, still valid for its last minutes, cannot bring back a
+      deleted token, and a registration still in flight when the citizen signs out cannot either.
+    - **A token is deleted** when:
+      - the citizen signs out on the phone or turns push off (the app deletes it through the API);
+      - a citizen signs in on the phone with push off (the app deletes the device's token, which
+        may still belong to the previous citizen: this deletion goes by the token's value, whoever
+        holds it, as the move on registering does);
+      - Expo answers `DeviceNotRegistered`, in a ticket or a receipt (the app was uninstalled or
+        the token is no longer valid);
+      - the backend ends every session of the user at once (a password change, a disabled account
+        or the reuse of a revoked refresh token): every token of that user goes, and each phone
+        registers its token again only when the citizen signs in again;
+      - it has not been registered for 60 days, which a scheduled job checks.
+    - **The trade-off:** a citizen who does not open the app keeps getting pushes for 60 days after
+      the last time it registered, even after their session expires at 14 days; an incident that
+      takes weeks to resolve still reaches them. The price is a phone whose session ended without
+      reaching the API: a sign-out without network, or a session that expired after 14 days unused.
+      That phone shows the sign-in screen but keeps receiving the previous citizen's pushes until
+      another citizen signs in on it (which moves or deletes the token), the previous citizen signs
+      in and out again with network, ends every session by changing the password, or the 60 days
+      pass. Tying the token to the session chain instead would end that sooner, at the session's
+      expiry, but would also stop the pushes of every citizen idle for 14 days. #373 tests both
+      cases.
   - **Android delivery:** on Android, Expo delivers through Firebase Cloud Messaging. The team needs:
     - an Expo account shared by the team, with the app's project, whose `projectId` goes in the
       app's configuration (the token is requested for that project);
@@ -161,8 +194,9 @@ and **sends no SMS**.
     records the outcome.
   - Tests and CI need no keys and send nothing.
 - **Negatives:**
-  - **Push works only in a development or release build, never in Expo Go.** The app already
-    needs one for the map, but testing push needs a build with the notifications library.
+  - **On Android, push works only in a development or release build, never in Expo Go** (Expo Go
+    on iOS still receives them, but the team has no iPhone build). The app already needs a build
+    for the map, but testing push needs one with the notifications library.
   - **Two more accounts and two more secrets:** an Expo account for the team with the app's
     project (the app has none yet: no `projectId` in its configuration, built on each machine), a
     Firebase project for Android delivery, the Expo access token and the Brevo key. This differs
@@ -175,10 +209,26 @@ and **sends no SMS**.
   - **At least once:** Expo, and a crash between sending and recording, may deliver a notification
     twice. Our side still creates one row per change and channel (#373, failure case "processed
     twice").
-  - **New migrations in #373:** the push token table, the push delivery table, the new channel,
-    and on `notification` the status change, the unique key, the attempt count and the next
-    attempt time. The `egress-proxy` list also changes.
+  - **New migrations in #373:** the push token table (with the time each token was last
+    registered), the push delivery table, the new channel, and on `notification` the status
+    change, the unique key, the attempt count and the next attempt time. The `egress-proxy` list
+    also changes.
+  - **A phone whose session ended without reaching the API** (signed out without network, or
+    unused for 14 days) keeps getting the previous citizen's pushes for up to 60 days, unless
+    another citizen signs in on it first (see *Push tokens*).
+  - **Registering a push token checks the session in the database,** unlike the other requests,
+    which trust the access token until it expires ([ADR-0004](0004-authentication-strategy.md)).
+    It is one indexed lookup on an infrequent request.
   - The C4 model shows the Expo push service instead of Twilio.
+- **When this ADR is accepted,** Brevo and the delivery mechanism are decided too, so ADR-0019
+  becomes *Accepted, amended by ADR-0031* (its Twilio and SMS part does not apply). The same
+  commit changes every mention of either ADR as proposed:
+  - the *Status* and *Amended by* lines of ADR-0019, and the `notifications` row of ADR-0010;
+  - the two lists of *Proposed* ADRs in `architecture.md`;
+  - the provider paragraph of `development.md` ("the three ADRs are *Proposed*");
+  - RF14 and the *Notification channels* row of `requirements.md`;
+  - the `Proposed` tags of the `brevo` and `expoPush` systems in `workspace.dsl`, regenerating
+    the draw.io file.
 
 ## How it will be evaluated
 
