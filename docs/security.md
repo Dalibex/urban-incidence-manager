@@ -265,13 +265,21 @@ Known limits:
 
 ## 🚫 Errors
 
-The filters answer before any controller runs, with the contract's Problem Details body
-(`application/problem+json`):
+The token and role checks answer before Spring MVC reads anything of the request (body,
+parameters, path variables, the multipart upload, `Content-Type` or `Accept`). The firewall refuses
+a header value or a parameter name when it is read, which may be inside Spring MVC;
+`ApiExceptionHandler` passes that refusal on to the same handler. Every one of these answers has
+the contract's Problem Details body (`application/problem+json`):
 
 | Status | When | `detail` |
 | --- | --- | --- |
+| `400` + `MALFORMED_REQUEST` | The firewall refuses the request: a path with `//`, `;` or `%2F`, a parameter name with a control character, or a header value it refuses when it is read | The same text for every cause, and no `instance`: the refused path is not echoed back |
 | `401` + `WWW-Authenticate: Bearer` | No token, malformed, wrong signature or type, expired, wrong issuer, unknown role or missing claim | The same text for every cause, so a client cannot probe which check failed |
-| `403` | Valid token, but the role does not allow the action | — |
+| `403` | Valid token, but the role does not allow the action, or the operation has no rule (deny by default, see the [permission matrix](#-permission-matrix)) | — |
+
+So a role that may not call an operation gets `403` before any `400`, `413`, `415` or `422` its
+request would get, and learns nothing of what a valid request looks like (#286). The `401` comes
+before the `403`.
 
 When the role allows the action but the resource is not the caller's (an incident they did not
 report, or that is not assigned to them), the service answers `404`, as if it did not exist, so the
@@ -317,6 +325,15 @@ screens there. If the browser refuses its storage, the screen works with the def
 
 Paths are relative to `/api/v1`. **Public** means no token. A role in the cell can call the
 operation; the note says when the answer also depends on the resource. A role not listed gets `403`.
+
+The security filters enforce the role columns, one rule per operation in `ApiAuthorizationRules`
+(`backend/src/main/java/es/uma/urbanpulse/shared/security`), and the public operations in
+`SecurityConfig`. Under `/api/v1` a request that matches no rule is refused to every role (deny by
+default): an endpoint added without its rule answers `403`. So does a method an operation does not
+have, such as `DELETE /incidents/{id}`, `HEAD` or `OPTIONS`, instead of `405`, and a path no rule
+matches, such as `/api/v1/nothing`, instead of `404`. A path that a rule matches still reaches
+Spring MVC: `GET /incidents/` matches `/incidents/*` with an empty segment, so a role it allows gets
+`404`.
 
 | Operation | Public | CITIZEN | MUNICIPAL_OPERATOR | TECHNICIAN | ADMINISTRATOR | ANALYST |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -389,20 +406,32 @@ knowing someone else's key never returns their incident (#289).
 
 1. Add the operation to the matrix above and to `docs/api/openapi.yml` (`401`, and `403` when the role
    matters).
-2. Everything under `/api/v1` already needs a token. If the operation must be public, add it to
-   `SecurityConfig` and mark it with `security: []` in the contract.
-3. Check the role with `@PreAuthorize("hasRole('MUNICIPAL_OPERATOR')")` (or `hasAnyRole(...)`) on the
-   controller method.
+2. If the operation must be public, add it to `PUBLIC_API_POSTS` in `SecurityConfig` and mark it
+   with `security: []` in the contract.
+3. Otherwise add its rule to `ApiAuthorizationRules`: one line with the method and the path, next
+   to the other operations of its resource, such as
+   `auth.requestMatchers(POST, API + "/incidents/*/closure").hasAnyRole(OPERATORS)`, or
+   `authenticated()` when every role may call it. Without the rule the operation answers `403` to
+   everyone (deny by default). A path that another rule also matches, such as `/users/me` and
+   `/users/*`, goes first. The rule is checked in the security filters, before Spring MVC reads the
+   request, so the controller needs no role annotation.
 4. Read the caller with `@AuthenticationPrincipal AuthenticatedUser user` and pass `user.id()` and
    `user.role()` to the service, which checks the relationship with the resource.
 5. In the integration tests, `@Import(TestTokens.class)` and send `tokens.bearer(Role.X)` (or
    `tokens.bearer(userId, Role.X)` for an existing user): one test per allowed role and at least one
-   for a role that gets `403`, plus one without a token (`401`).
+   for a role that gets `403`, plus one without a token (`401`). Add the operation to
+   `RoleBeforeEveryOperationIT` with a refused role and an invalid input, so its `403` comes before
+   the `400` or `422`, and add its row of the matrix to `RoleMatrixIT`, which calls it with every
+   role. `RoleMatrixIT` compares its rows with the operations Spring MVC maps, so it fails while
+   the new operation has no row.
 
-A global `@RestControllerAdvice` must not catch `AccessDeniedException` or `AuthenticationException`
-(for example through a handler for `Exception`): rethrow them. The `403` of `@PreAuthorize` is
-written by the security filters after the exception leaves the controller; if an advice catches it
-first, the client gets `500`.
+A global `@RestControllerAdvice` must not catch `AccessDeniedException`, `AuthenticationException`
+or `RequestRejectedException` (for example through a handler for `Exception`): rethrow them. A
+service that refuses an action throws `AccessDeniedException` (a citizen who filters by a staff
+filter), and the security filters write its `403` after the exception leaves the controller. The
+firewall throws `RequestRejectedException` when Spring MVC reads a header value or a parameter name
+it refuses, and its handler writes the `400`. If an advice catches either first, the client gets
+`500`.
 
 ## 🚨 Security Findings
 
