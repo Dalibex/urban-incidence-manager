@@ -15,6 +15,8 @@ and this project follows [Semantic Versioning](https://semver.org/).
 - A *Context* section in the web incident detail shows staff the weather when the incident was reported, such as *Rainy*, with the time it was recorded and the attribution to Open-Meteo. While the weather is on its way it says so and checks again for two minutes; when there is none, it says *Weather not available* and why (#308).
 - `POST /incidents` takes an optional `Idempotency-Key` header, and the mobile app sends one per report: submitting a report again after its answer was lost returns the incident already saved instead of creating a second one. The same key with a different report answers `422` with `IDEMPOTENCY_KEY_REUSED`. Migration `V18` adds the key to the incident (#289).
 
+- A search box on the web map finds incidents by a piece of their title or description, ignoring case and accents (`camion` finds `CAMIÓN`). It stays in the toolbar, also in full screen and with the filters folded, searches when submitted, and narrows the map, its summary and the latest incidents; the search stays in the address with the other filters. The API takes it as `q` on `GET /incidents`, `GET /incident-locations` and `GET /incident-statistics`, open to every role that can list, with 3 to 100 characters once trimmed or `400`. Migration `V21` adds the `unaccent` and `pg_trgm` extensions and one trigram index each on the title and the description (#266).
+
 ### Changed
 
 - PostgreSQL gets 256 MB of shared memory (`shm_size`) in both Compose files instead of Docker's 64 MB: with a million incidents, concurrent map, dashboard and report queries failed with `500` (#176).
