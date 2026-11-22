@@ -387,8 +387,9 @@ export interface paths {
         };
         /**
          * List the active technicians
-         * @description Enabled technicians, ordered by name and then by id, for the assignment form. It is a short
-         *     list of staff, so it is not paginated. It returns only what the form needs, without emails.
+         * @description Enabled technicians, ordered by name and then by id, for the assignment form. It is not
+         *     paginated yet, although the list has no upper bound. Planned: #360. It returns only what the
+         *     form needs, without emails.
          *
          *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`.
          */
@@ -470,7 +471,8 @@ export interface paths {
          *     - `CITIZEN`: only the incidents they reported.
          *     - `TECHNICIAN`: only the incidents actively assigned to them.
          *     - `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`: all incidents.
-         *     - `ANALYST`: no access yet (`403`); analytics comes in a later milestone.
+         *     - `ANALYST`: no access (`403`); analysts read the aggregated report instead
+         *       (`getIncidentReport`, #42).
          *
          *     Sortable properties: `reportedAt`, `updatedAt`. Default `reportedAt,desc` (newest first);
          *     `id` is always added as the last criterion so the order is stable between pages.
@@ -913,8 +915,8 @@ export interface paths {
         /**
          * List the positions of incidents for the map
          * @description A lightweight list for the map, with the same filters and the same scope as `listIncidents`
-         *     and an optional bounding box (#195). It is not paginated, because the map needs one answer
-         *     for the whole view: the server returns at most 1,000 items, puts the most relevant first
+         *     and an optional bounding box (#195). It is not paginated yet (Planned: #360): the server
+         *     returns at most 1,000 items for the whole view, puts the most relevant first
          *     (priority from `HIGH` to none, then newest) and sets `truncated` when it left some out. An
          *     empty result is `200`. An unknown parameter, or one without a value, returns `400`, like
          *     `listIncidents`.
@@ -1087,8 +1089,9 @@ export interface paths {
         };
         /**
          * Get the status history of an incident
-         * @description Every status change of the incident, oldest first. It is not paginated: the lifecycle of
-         *     ADR-0020 bounds it to a few entries per incident.
+         * @description Every status change of the incident, oldest first. It is not paginated yet, although the
+         *     history has no upper bound: information requests, reassignments and reopening can repeat.
+         *     Planned: #360.
          *
          *     A citizen only gets the entries visible to them, with the reason only where ADR-0020 says
          *     the citizen sees it, and without the staff-only properties. Staff get every entry.
