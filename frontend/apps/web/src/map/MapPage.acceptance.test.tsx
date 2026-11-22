@@ -285,6 +285,175 @@ describe('incident map on the web (#196, test #76)', () => {
     ]);
   });
 
+  describe('search (#266)', () => {
+    it('searches the typed text on submit, on the map and on its summary', async () => {
+      const requests: URLSearchParams[] = [];
+      const statisticsRequests: URLSearchParams[] = [];
+      const router = renderApp(PATHS.map, {
+        role: 'MUNICIPAL_OPERATOR',
+        fetch: fakeApi({
+          'GET /incident-locations': (request) => {
+            requests.push(new URL(request.url).searchParams);
+            return positions([POTHOLE])();
+          },
+          'GET /categories': () => json(200, []),
+          'GET /departments': () => json(200, []),
+          'GET /incident-statistics': (request) => {
+            statisticsRequests.push(new URL(request.url).searchParams);
+            return statistics();
+          },
+          'GET /incidents': latest,
+        }),
+      });
+      await screen.findByText('1 incident on the map');
+
+      // Typing alone asks nothing: the search runs on submit.
+      await userEvent.type(screen.getByRole('searchbox', { name: 'Search' }), '  Farola rota ');
+      expect(requests.every((params) => !params.has('q'))).toBe(true);
+      await userEvent.keyboard('{Enter}');
+
+      await waitFor(() => expect(requests.at(-1)?.get('q')).toBe('Farola rota'));
+      await waitFor(() => expect(statisticsRequests.at(-1)?.get('q')).toBe('Farola rota'));
+      expect(new URLSearchParams(router.state.location.search).get('q')).toBe('Farola rota');
+      // The folded filters name it, so nobody forgets the map is narrowed.
+      expect(screen.getByText('Search: “Farola rota”')).toBeDefined();
+    });
+
+    it('keeps the search box at hand while the filters are folded', async () => {
+      renderApp(`${PATHS.map}?q=farola`, {
+        role: 'MUNICIPAL_OPERATOR',
+        fetch: mapApi([positions([POTHOLE])]),
+      });
+
+      const box = await screen.findByRole('searchbox', { name: 'Search' });
+      expect((box as HTMLInputElement).value).toBe('farola');
+      expect(
+        screen.getByRole('button', { name: 'Filters (1)' }).getAttribute('aria-expanded'),
+      ).toBe('false');
+    });
+
+    it('does not send a text that is too short, and says why', async () => {
+      const requests: URLSearchParams[] = [];
+      renderApp(PATHS.map, {
+        role: 'MUNICIPAL_OPERATOR',
+        fetch: mapApi([positions([POTHOLE])], requests),
+      });
+      await screen.findByText('1 incident on the map');
+      const box = screen.getByRole('searchbox', { name: 'Search' });
+
+      await userEvent.type(box, 'ab');
+      await userEvent.click(screen.getByRole('button', { name: 'Search' }));
+
+      expect(box.getAttribute('aria-invalid')).toBe('true');
+      // Announced, since the focus is on the button, and linked to the box for later.
+      const reason = screen.getByRole('alert');
+      expect(reason.textContent).toBe('Type at least 3 characters.');
+      expect(reason.id).toBe(box.getAttribute('aria-describedby'));
+      expect(requests.every((params) => !params.has('q'))).toBe(true);
+
+      // Fixing the text clears the message once it is searched.
+      await userEvent.type(box, 'c{Enter}');
+      await waitFor(() => expect(requests.at(-1)?.get('q')).toBe('abc'));
+      expect(box.getAttribute('aria-invalid')).toBeNull();
+      expect(screen.queryByText('Type at least 3 characters.')).toBeNull();
+    });
+
+    it('removes the search when the box is emptied and submitted', async () => {
+      const requests: URLSearchParams[] = [];
+      renderApp(`${PATHS.map}?q=farola`, {
+        role: 'MUNICIPAL_OPERATOR',
+        fetch: mapApi([positions([POTHOLE])], requests),
+      });
+      const box = await screen.findByRole('searchbox', { name: 'Search' });
+
+      await userEvent.clear(box);
+      await userEvent.keyboard('{Enter}');
+
+      await waitFor(() => expect(requests.at(-1)?.has('q')).toBe(false));
+    });
+
+    // Escape and the ✕ of a search box empty it without a submit.
+    it('stops searching when the box is emptied without a submit, keeping the focus', async () => {
+      const requests: URLSearchParams[] = [];
+      const router = renderApp(`${PATHS.map}?q=farola`, {
+        role: 'MUNICIPAL_OPERATOR',
+        fetch: mapApi([positions([POTHOLE])], requests),
+      });
+      const box = await screen.findByRole('searchbox', { name: 'Search' });
+
+      await userEvent.clear(box);
+
+      await waitFor(() => expect(requests.at(-1)?.has('q')).toBe(false));
+      expect(new URLSearchParams(router.state.location.search).has('q')).toBe(false);
+      expect(document.activeElement).toBe(box);
+    });
+
+    it('offers to clear a search that finds nothing, and clears the box too', async () => {
+      renderApp(`${PATHS.map}?q=nothing`, {
+        role: 'MUNICIPAL_OPERATOR',
+        fetch: mapApi([positions([])]),
+      });
+
+      const message = await screen.findByText('No incidents match these filters.');
+      await userEvent.click(
+        within(message.parentElement!).getByRole('button', { name: 'Clear filters' }),
+      );
+
+      expect(await screen.findByText('There are no incidents to show.')).toBeDefined();
+      expect((screen.getByRole('searchbox', { name: 'Search' }) as HTMLInputElement).value).toBe(
+        '',
+      );
+    });
+
+    it('also clears a text that was never searched, and its message', async () => {
+      renderApp(`${PATHS.map}?status=REPORTED`, {
+        role: 'MUNICIPAL_OPERATOR',
+        fetch: mapApi([positions([POTHOLE])]),
+      });
+      const box = await screen.findByRole('searchbox', { name: 'Search' });
+      await userEvent.type(box, 'ab{Enter}');
+      expect(screen.getByRole('alert').textContent).toBe('Type at least 3 characters.');
+
+      await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+
+      const cleared = screen.getByRole('searchbox', { name: 'Search' }) as HTMLInputElement;
+      expect(cleared.value).toBe('');
+      expect(screen.queryByText('Type at least 3 characters.')).toBeNull();
+    });
+
+    it('clears it too from the Clear filters of the open filter bar', async () => {
+      renderApp(`${PATHS.map}?status=REPORTED`, {
+        role: 'MUNICIPAL_OPERATOR',
+        fetch: mapApi([positions([POTHOLE])]),
+      });
+      const box = await screen.findByRole('searchbox', { name: 'Search' });
+      await userEvent.type(box, 'ab{Enter}');
+      await userEvent.click(screen.getByRole('button', { name: 'Filters (1)' }));
+
+      // With the bar open, its own button is the only Clear filters.
+      await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+
+      const cleared = screen.getByRole('searchbox', { name: 'Search' }) as HTMLInputElement;
+      expect(cleared.value).toBe('');
+      expect(screen.queryByText('Type at least 3 characters.')).toBeNull();
+    });
+
+    // A search is typed for the moment; the filters a list remembers (#263) never hold it.
+    it('is not remembered with the filters of the map', async () => {
+      const router = renderApp(`${PATHS.map}?priority=HIGH&q=farola`, {
+        role: 'MUNICIPAL_OPERATOR',
+        fetch: mapApi([positions([])]),
+      });
+      await screen.findByText('No incidents match these filters.');
+
+      await act(() => router.navigate('/elsewhere'));
+      await userEvent.click(screen.getByRole('link', { name: 'Map' }));
+
+      await screen.findByText('No incidents match these filters.');
+      expect(router.state.location.search).toBe('?priority=HIGH');
+    });
+  });
+
   // #263, AC1
   it('reopens from the menu with the filters last used on it, also none', async () => {
     const router = renderApp(`${PATHS.map}?status=CLOSED&priority=HIGH`, {

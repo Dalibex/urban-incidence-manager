@@ -10,6 +10,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Set;
 import java.util.UUID;
+import org.hibernate.query.criteria.HibernateCriteriaBuilder;
 import org.springframework.data.jpa.domain.Specification;
 
 /**
@@ -23,6 +24,8 @@ import org.springframework.data.jpa.domain.Specification;
  * @param reportedFrom only incidents reported at or after this instant; {@code null} for no limit
  * @param reportedTo only incidents reported before this instant; {@code null} for no limit
  * @param departmentIds only incidents whose active assignment is in one of these departments
+ * @param text only incidents whose title or description contains it, ignoring case and accents
+ *     (#266); {@code null} for no text search. It arrives trimmed and within its limits.
  */
 public record IncidentFilter(
         Set<IncidentStatus> statuses,
@@ -30,7 +33,14 @@ public record IncidentFilter(
         Set<Priority> priorities,
         Instant reportedFrom,
         Instant reportedTo,
-        Set<UUID> departmentIds) {
+        Set<UUID> departmentIds,
+        String text) {
+
+    // The SQL functions of V21: search_text folds case and accents; search_pattern folds a searched
+    // text the same way and then escapes it for LIKE, with \ as the escape character.
+    private static final String SEARCH_TEXT = "search_text";
+    private static final String SEARCH_PATTERN = "search_pattern";
+    private static final char LIKE_ESCAPE = '\\';
 
     /**
      * @throws MalformedRequestException if {@code reportedFrom} is not earlier than {@code
@@ -47,8 +57,9 @@ public record IncidentFilter(
     }
 
     /**
-     * Whether it uses a filter only staff may use. {@code status} is open to every role that can
-     * list, because the citizen's own reports use it; the others are not (docs/security.md).
+     * Whether it uses a filter only staff may use. {@code status} and the text search are open to
+     * every role that can list, because the citizen's own reports use them; the others are not
+     * (docs/security.md).
      */
     public boolean usesStaffFilters() {
         return !categoryIds.isEmpty()
@@ -88,6 +99,9 @@ public record IncidentFilter(
         if (!departmentIds.isEmpty()) {
             conditions.add(activelyAssignedToOneOf(departmentIds));
         }
+        if (text != null) {
+            conditions.add(containsText(text));
+        }
         return Specification.allOf(conditions);
     }
 
@@ -103,6 +117,28 @@ public record IncidentFilter(
                             cb.isTrue(assignment.get("isActive")),
                             assignment.get("department").get("id").in(departmentIds));
             return cb.exists(subquery);
+        };
+    }
+
+    // Contained in the title or in the description, each on its own, so a match never runs from the
+    // end of one into the other. Both sides go through the same folding, which the trigram indexes
+    // of V21 are built on. The escaping happens in SQL, after the folding: Java cannot tell which
+    // characters unaccent turns into % _ or \.
+    private static Specification<Incident> containsText(String text) {
+        return (incident, query, cb) -> {
+            // Bound, never written into the SQL, whatever standard_conforming_strings says. A
+            // generic plan cannot see it, so IncidentQueryService plans each search for its text.
+            var bound = ((HibernateCriteriaBuilder) cb).value(text);
+            var folded = cb.function(SEARCH_PATTERN, String.class, bound);
+            return cb.or(
+                    cb.like(
+                            cb.function(SEARCH_TEXT, String.class, incident.get("title")),
+                            folded,
+                            LIKE_ESCAPE),
+                    cb.like(
+                            cb.function(SEARCH_TEXT, String.class, incident.get("description")),
+                            folded,
+                            LIKE_ESCAPE));
         };
     }
 }

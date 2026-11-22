@@ -40,6 +40,18 @@ public interface IncidentRepository
     Optional<Incident> findOne(Specification<Incident> spec);
 
     /**
+     * Makes PostgreSQL plan every statement of the current transaction for the values bound to it,
+     * never with a generic plan, until the transaction ends. The text search (#266) needs it: a
+     * generic plan cannot see the text, and walks the whole date index for one no incident has.
+     *
+     * @return the new value of the setting
+     */
+    @Query(
+            value = "SELECT set_config('plan_cache_mode', 'force_custom_plan', true)",
+            nativeQuery = true)
+    String planForTheBoundValues();
+
+    /**
      * Locks the incident row until the transaction ends ({@code SELECT ... FOR UPDATE}), so two
      * photos added at once are checked against the limit one after the other, and a status change
      * waits for the photo or the photo sees the new status (#275).

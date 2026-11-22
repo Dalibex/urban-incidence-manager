@@ -98,12 +98,13 @@ class IncidentController {
                     OffsetDateTime reportedFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
                     OffsetDateTime reportedTo,
-            @RequestParam(required = false) List<UUID> departmentId) {
+            @RequestParam(required = false) List<UUID> departmentId,
+            @RequestParam(required = false) String q) {
         QueryParameters.requireKnownAndFilled(parameters, LIST_PARAMETERS);
         QueryParameters.requireSingle(parameters, SINGLE_PARAMETERS);
         var filter =
                 IncidentFilterParameters.toFilter(
-                        status, categoryId, priority, reportedFrom, reportedTo, departmentId);
+                        status, categoryId, priority, reportedFrom, reportedTo, departmentId, q);
         return incidents.list(
                 user.id(),
                 user.role(),
