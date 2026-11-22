@@ -1,5 +1,5 @@
 import type { components } from '@urbanpulse/api-client';
-import { formatInstant, NOT_AVAILABLE } from '@urbanpulse/ui';
+import { addressText, formatInstant, NOT_AVAILABLE } from '@urbanpulse/ui';
 import { Fragment, type ReactNode } from 'react';
 import { Link, useLocation, useParams } from 'react-router';
 
@@ -235,7 +235,7 @@ function LocationPanel({ location }: { location: IncidentLocation }) {
       </h2>
       <dl className={styles.facts}>
         <Fact label="Address">
-          <Known value={location.address} />
+          <Address location={location} />
         </Fact>
         <Fact label="Neighbourhood">
           <Known value={location.neighborhood} />
@@ -263,6 +263,31 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
     <>
       <dt>{label}</dt>
       <dd>{children}</dd>
+    </>
+  );
+}
+
+/**
+ * The address resolved from the position after the report (#375), with the attribution its source
+ * asks for, or why there is none: pending, outside Málaga or not available.
+ */
+function Address({ location }: { location: IncidentLocation }) {
+  const { text, missing } = addressText(location.address, location.addressStatus);
+  if (missing) {
+    return <span className={styles.muted}>{text}</span>;
+  }
+  const source = location.addressSource;
+  return (
+    <>
+      {text}
+      {source && (
+        <span className={styles.addressSource}>
+          <a className={styles.link} href={source.url} target="_blank" rel="noreferrer">
+            {source.attribution}
+            <span className={styles.visuallyHidden}> (opens in a new tab)</span>
+          </a>
+        </span>
+      )}
     </>
   );
 }

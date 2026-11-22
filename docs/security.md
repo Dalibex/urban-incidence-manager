@@ -17,6 +17,7 @@ How the API authenticates requests and checks permissions
 - **[Errors](#-errors)**: the `401`, `403` and `404` answers of security.
 - **[CSRF](#-csrf)**: why the protection is off, and when it must not be.
 - **[Browser Storage](#-browser-storage)**: what the web app keeps in the browser.
+- **[Data Sent Outside](#-data-sent-outside)**: what the external services receive, and how to turn each one off.
 - **[Permission Matrix](#-permission-matrix)**: who may call each operation.
 - **[Protecting a New Endpoint](#-protecting-a-new-endpoint)**: the steps and the tests.
 - **[Security Findings](#-security-findings)**: every alert, and what was done about it.
@@ -321,6 +322,24 @@ personal data and the API never reads them: the text search of the map (#266), w
 is never kept there. They stay after sign-out because they are only a layout
 and a convenience, so on a shared browser the storage keeps the ids of the users who opened those
 screens there. If the browser refuses its storage, the screen works with the defaults.
+
+## 📤 Data Sent Outside
+
+Two public services receive the position of every new report, after the report is saved and never
+during it. The backend calls each one once per incident, again only after a failed call, over
+HTTPS, and in the deployment only through `egress-proxy`, which sees the host name and not the
+request.
+
+| Service | What it receives | Why | How to turn it off |
+| --- | --- | --- | --- |
+| Open-Meteo (`api.open-meteo.com`, [ADR-0018](adr/0018-weather-and-traffic-providers.md), #307) | The latitude and longitude of the report | The weather at the position | `WEATHER_ENRICHMENT_ENABLED=false` |
+| Nominatim of OpenStreetMap (`nominatim.openstreetmap.org`, [ADR-0002](adr/0002-open-street-map.md), #375) | The latitude and longitude of the report, and a `User-Agent` that names the application, as its usage policy asks | The normalized address at the position | `ADDRESS_ENRICHMENT_ENABLED=false` |
+
+Neither receives anything else: no title, description, photo, account, token or IP address of the
+citizen, and no identifier of the incident. A position alone can still point to a home, so the
+backend never writes it to its logs: the errors of both calls name the kind of failure, never the
+URL that holds the coordinates. With a variable set to `false` the backend calls nothing, and new
+incidents keep their weather or address pending ([deployment guide](deployment.md)).
 
 ## 🧮 Permission Matrix
 

@@ -17,7 +17,8 @@ towards the backend's limit), the perf users and a position inside Málaga for e
 ## Stack
 
 From `backend/`, with `.env` created from `.env.example` (set `GRAFANA_ADMIN_PASSWORD`,
-`SPRING_PROFILES_ACTIVE=perf` and `WEATHER_ENRICHMENT_ENABLED=false`):
+`SPRING_PROFILES_ACTIVE=perf`, `WEATHER_ENRICHMENT_ENABLED=false` and
+`ADDRESS_ENRICHMENT_ENABLED=false`):
 
 ```bash
 docker compose -p qaobs --profile app --profile observability up -d --build
@@ -43,9 +44,11 @@ repetitions without touching the development data. Remove them with
 
 `run.sh` runs each configuration three times, resets the database to the same `perf` rows before
 every repetition that creates incidents, and warms the backend up for 30 s before measuring. When
-it recreates the backend it starts it with `WEATHER_ENRICHMENT_ENABLED=false`, and `exp2-constant`,
-which does not recreate it, relies on the same value in `.env`, so the reports of a load test never
-call the real Open-Meteo ([ADR-0018](../../../docs/adr/0018-weather-and-traffic-providers.md)):
+it recreates the backend it starts it with `WEATHER_ENRICHMENT_ENABLED=false` and
+`ADDRESS_ENRICHMENT_ENABLED=false`, and `exp2-constant`, which does not recreate it, relies on the
+same values in `.env`, so the reports of a load test never call the real Open-Meteo
+([ADR-0018](../../../docs/adr/0018-weather-and-traffic-providers.md)) or the public Nominatim
+([ADR-0002](../../../docs/adr/0002-open-street-map.md)):
 
 ```bash
 ./run.sh exp1

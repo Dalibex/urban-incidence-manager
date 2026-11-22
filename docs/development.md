@@ -394,7 +394,7 @@ backend/
     |   |-- identity/        users, roles, sign-up and sessions, access and refresh tokens, audit trail
     |   |-- incidents/       incidents, location, categories, lifecycle, assignments, comments, attachments
     |   |-- urbancontext/    external context of an incident: its weather from Open-Meteo, after the report
-    |   |-- geospatial/      districts, neighbourhoods, urban assets (PostGIS)
+    |   |-- geospatial/      districts, neighbourhoods, urban assets (PostGIS); the address of an incident from Nominatim
     |   |-- notifications/   notifications (no delivery provider integrated yet)
     |   |-- analytics/       read-only reports over the incidents (operational report)
     |   `-- shared/          cross-cutting code, not a module
@@ -418,7 +418,11 @@ The weather of each new incident comes from Open-Meteo ([ADR-0018](adr/0018-weat
 the report only inserts its `PENDING` `urban_context`, and a scheduled worker of `urbancontext`
 fills it every 30 seconds. The backend run from the IDE calls Open-Meteo too, so it needs
 internet; without it, set `WEATHER_ENRICHMENT_ENABLED=false` in `backend/.env` and the weather
-stays pending. The tests never call it. The providers proposed for traffic (TomTom,
+stays pending. The tests never call it. The address of each new incident works the same way with
+Nominatim ([ADR-0002](adr/0002-open-street-map.md)): the report saves its location
+with the address `PENDING`, and a worker of `geospatial` resolves it every 30 seconds, one call per
+second at most. Without internet, set `ADDRESS_ENRICHMENT_ENABLED=false` and the address stays
+pending. The providers proposed for traffic (TomTom,
 [ADR-0024](adr/0024-traffic-provider.md)) and for notification delivery (Brevo for email and the Expo push service,
 [ADR-0019](adr/0019-notification-delivery-providers.md) amended by
 [ADR-0031](adr/0031-push-and-email-notifications.md)) are not decided yet: the three ADRs are
