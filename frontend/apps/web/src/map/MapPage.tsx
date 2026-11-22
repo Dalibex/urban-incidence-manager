@@ -53,6 +53,8 @@ export function MapPage() {
   const departments = useDepartments();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  // Changed by Clear filters, so the search box also drops a text that was never searched.
+  const [searchKey, setSearchKey] = useState(0);
   const preferences = useMapPreferences();
   const mapRef = useRef<MapRef>(null);
   const firstFilter = useRef<HTMLInputElement>(null);
@@ -102,6 +104,7 @@ export function MapPage() {
   // when the bar is open, on the button that opens it when it is folded.
   const clearFilters = () => {
     changeFilters({});
+    setSearchKey((key) => key + 1);
     (firstFilter.current ?? filtersButton.current)?.focus();
   };
 
@@ -118,7 +121,11 @@ export function MapPage() {
         <h1 id="page-title" className={styles.pageTitle}>
           Map
         </h1>
-        <MapSearch value={filters.q} onSearch={(q) => changeFilters({ ...filters, q })} />
+        <MapSearch
+          key={searchKey}
+          value={filters.q}
+          onSearch={(q) => changeFilters({ ...filters, q })}
+        />
         <button
           ref={filtersButton}
           type="button"

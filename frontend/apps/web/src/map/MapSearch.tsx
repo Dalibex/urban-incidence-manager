@@ -64,7 +64,9 @@ export function MapSearch({ value, onSearch }: MapSearchProps) {
         Search
       </button>
       {problem && (
-        <p id={problemId} className={styles.searchProblem}>
+        // An alert: after pressing Search the focus is on the button, where a description of the
+        // box is not read.
+        <p id={problemId} className={styles.searchProblem} role="alert">
           {problem}
         </p>
       )}

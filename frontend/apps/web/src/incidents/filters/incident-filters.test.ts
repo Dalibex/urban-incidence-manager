@@ -167,7 +167,10 @@ describe('the text search', () => {
   it('takes 3 and 100 characters, counting an emoji as one', () => {
     expect(filtersFrom(new URLSearchParams('q=abc')).q).toBe('abc');
     expect(filtersFrom(new URLSearchParams(`q=${'a'.repeat(100)}`)).q).toBe('a'.repeat(100));
-    expect(filtersFrom(new URLSearchParams({ q: '💡💡💡' })).q).toBe('💡💡💡');
+    // Counts where characters and UTF-16 units disagree: 100 emoji are 200 units, `a💡` is 3.
+    expect(filtersFrom(new URLSearchParams({ q: '💡'.repeat(100) })).q).toBe('💡'.repeat(100));
+    expect(filtersFrom(new URLSearchParams({ q: 'a💡' })).q).toBeUndefined();
+    expect(searchTextProblem('a💡')).toBe('Type at least 3 characters.');
   });
 
   it('round-trips through the address and reaches the API', () => {

@@ -345,9 +345,10 @@ describe('incident map on the web (#196, test #76)', () => {
       await userEvent.click(screen.getByRole('button', { name: 'Search' }));
 
       expect(box.getAttribute('aria-invalid')).toBe('true');
-      expect(screen.getByText('Type at least 3 characters.').id).toBe(
-        box.getAttribute('aria-describedby'),
-      );
+      // Announced, since the focus is on the button, and linked to the box for later.
+      const reason = screen.getByRole('alert');
+      expect(reason.textContent).toBe('Type at least 3 characters.');
+      expect(reason.id).toBe(box.getAttribute('aria-describedby'));
       expect(requests.every((params) => !params.has('q'))).toBe(true);
 
       // Fixing the text clears the message once it is searched.
@@ -386,6 +387,22 @@ describe('incident map on the web (#196, test #76)', () => {
       expect((screen.getByRole('searchbox', { name: 'Search' }) as HTMLInputElement).value).toBe(
         '',
       );
+    });
+
+    it('also clears a text that was never searched, and its message', async () => {
+      renderApp(`${PATHS.map}?status=REPORTED`, {
+        role: 'MUNICIPAL_OPERATOR',
+        fetch: mapApi([positions([POTHOLE])]),
+      });
+      const box = await screen.findByRole('searchbox', { name: 'Search' });
+      await userEvent.type(box, 'ab{Enter}');
+      expect(screen.getByRole('alert').textContent).toBe('Type at least 3 characters.');
+
+      await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+
+      const cleared = screen.getByRole('searchbox', { name: 'Search' }) as HTMLInputElement;
+      expect(cleared.value).toBe('');
+      expect(screen.queryByText('Type at least 3 characters.')).toBeNull();
     });
   });
 });
