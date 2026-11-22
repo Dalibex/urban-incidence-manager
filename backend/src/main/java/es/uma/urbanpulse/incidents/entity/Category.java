@@ -2,6 +2,8 @@ package es.uma.urbanpulse.incidents.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -26,6 +28,10 @@ public class Category {
     private String name;
 
     private String description;
+
+    /** {@code null} for the generic icon. */
+    @Enumerated(EnumType.STRING)
+    private CategoryIcon icon;
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = Boolean.TRUE;

@@ -2932,7 +2932,7 @@ components:
     CategoryResponse:
       type: object
       description: Category an incident can be classified in.
-      required: [id, name, description]
+      required: [id, name, description, icon]
       properties:
         id:
           type: string
@@ -2949,8 +2949,6 @@ components:
           description: >-
             The icon of the category on the map and in the dashboard. `null` when the category has
             none: the clients draw their generic icon, the same as for an incident without category.
-            Planned: #267. It is optional only until then, because the backend does not send it
-            yet; that pull request makes it required.
           oneOf:
             - $ref: "#/components/schemas/CategoryIcon"
             - type: "null"
@@ -2960,8 +2958,9 @@ components:
       description: >-
         Which icon represents a category (#267). The clients map each value to a drawing of their
         own icon set, so the API names the meaning and never ships an image or the icon name of a
-        library. A new value is added with the category that needs it. Planned: #267.
+        library. A new value is added with the category that needs it.
       enum: [STREET_LIGHTING, PAVEMENT, WASTE, URBAN_FURNITURE, PARKS, SIGNAGE]
+      examples: [STREET_LIGHTING]
 
     CategorySummary:
       type: object
@@ -3511,7 +3510,7 @@ components:
     IncidentPosition:
       type: object
       description: An incident on the map. The side panel reads the rest with `getIncident`.
-      required: [id, status, priority, latitude, longitude]
+      required: [id, status, categoryId, priority, latitude, longitude]
       properties:
         id:
           type: string
@@ -3524,8 +3523,8 @@ components:
           format: uuid
           description: >-
             The category of the incident, whose `icon` from `listCategories` the marker shows.
-            `null` while the incident has no category. Planned: #267. It is optional only until
-            then, because the backend does not send it yet; that pull request makes it required.
+            `null` while the incident has no category.
+          examples: [a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d]
         priority:
           description: "`null` while the incident has no priority."
           oneOf:
