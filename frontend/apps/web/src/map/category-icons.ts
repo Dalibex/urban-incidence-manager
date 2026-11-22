@@ -1,7 +1,8 @@
 import type { components } from '@urbanpulse/api-client';
 import { colors } from '@urbanpulse/ui';
-// Lucide, ISC licence (https://lucide.dev/license): each icon as plain drawing data, so the map
-// (which needs an image) and the page (inline SVG) draw the same thing.
+// Lucide (https://lucide.dev/license): ISC, and MIT for the icons it takes from Feather, such as
+// Trash2; the build ships both notices in `licenses.md`. Each icon is plain drawing data, so the
+// map (which needs an image) and the page (inline SVG) draw the same thing.
 import {
   Armchair,
   Construction,
