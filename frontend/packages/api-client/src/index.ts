@@ -11,15 +11,18 @@ export { hasSessionEnded, markSession } from './session';
 export {
   callApi,
   changePassword,
+  enrollMfa,
   getCurrentUser,
   signIn,
   signOut,
   signUp,
+  verifyMfa,
   type ApiFailure,
   type ApiResult,
+  type MfaChallenge,
 } from './account';
 export { listAuditEntries, type AuditEntryListQuery } from './audit';
-export { createUser, listUsers, updateUser, type UserListQuery } from './users';
+export { createUser, listUsers, resetUserMfa, updateUser, type UserListQuery } from './users';
 export {
   acceptIncident,
   assignIncident,

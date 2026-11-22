@@ -29,13 +29,15 @@ class SecurityConfig {
         "/openapi.yml", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**"
     };
 
-    // Operations of the contract marked with `security: []`: sign-up, sign-in, refresh and the
-    // password change.
+    // Operations of the contract marked with `security: []`: sign-up, sign-in, refresh, the
+    // password change and the second step of a staff sign-in (#57).
     private static final String[] PUBLIC_API_POSTS = {
         "/api/v1/registrations",
         "/api/v1/sessions",
         "/api/v1/sessions/refresh",
-        "/api/v1/password-changes"
+        "/api/v1/password-changes",
+        "/api/v1/mfa-enrollments",
+        "/api/v1/mfa-verifications"
     };
 
     /**

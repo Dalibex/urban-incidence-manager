@@ -50,6 +50,7 @@ final class ApiAuthorizationRules {
         auth.requestMatchers(POST, API + "/users").hasRole(ADMINISTRATOR);
         auth.requestMatchers(GET, API + "/users/*").hasRole(ADMINISTRATOR);
         auth.requestMatchers(PATCH, API + "/users/*").hasRole(ADMINISTRATOR);
+        auth.requestMatchers(POST, API + "/users/*/mfa-resets").hasRole(ADMINISTRATOR);
         auth.requestMatchers(GET, API + "/technicians").hasAnyRole(OPERATORS);
         auth.requestMatchers(GET, API + "/audit-entries").hasRole(ADMINISTRATOR);
 

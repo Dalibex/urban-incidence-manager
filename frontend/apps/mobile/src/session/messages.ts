@@ -19,6 +19,10 @@ export function signInMessage(failure: ApiFailure): string {
       // Only a staff account created by an administrator gets it, and its screens are on the web.
       return 'This account must change its password first. Sign in on the UrbanPulse website to change it.';
   }
+  if (failure.status === 202) {
+    // The API asks a staff account for the second factor, which has no screen on the phone.
+    return 'Staff accounts sign in on the UrbanPulse website. The mobile app is for citizens.';
+  }
   return failure.status === 429 ? TOO_MANY : 'Sign-in failed. Try again in a moment.';
 }
 

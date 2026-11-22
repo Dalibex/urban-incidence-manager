@@ -35,8 +35,9 @@ Citizens use the **mobile app**; municipal staff (operators, technicians, admini
 analysts) use the **website**. Each app only lets in its own people:
 
 - A citizen who signs in on the website sees *Use the UrbanPulse mobile app*.
-- A staff account that signs in on the phone sees *Use the UrbanPulse website* and a *Sign out*
-  button.
+- A staff account that signs in on the phone gets *Staff accounts sign in on the UrbanPulse
+  website. The mobile app is for citizens.*, because the phone has no code step for the second
+  factor.
 
 The API checks every permission again, so this is a convenience, not the protection (see the
 [permission matrix](security.md#-permission-matrix)).
@@ -80,6 +81,25 @@ and that password, the website shows *Choose your password*: type the new passwo
 8 characters, different from the one you were given) and select *Change the password*. You go back
 to the sign-in form; sign in with the new password. *Back to sign in* leaves the password as it was,
 and the next sign-in asks again. Changing the password also ends your sessions on other devices, within about 15 minutes.
+
+**Second factor (staff, website):** after the email and the password, staff accounts type a
+six-digit code from an authenticator app on their phone (Google Authenticator, Microsoft
+Authenticator, Aegis or any other TOTP app). The first time, the website shows *Set up your second
+factor* with a QR code: scan it with the app, or type the secret shown under it, then type the code
+the app shows and select *Verify*. From then on each sign-in shows *Enter your code*. A code changes
+every 30 seconds and works only once.
+
+| Message | What to do |
+| --- | --- |
+| *That code is not correct. Check the app and type the one it shows now.* | Type the current code; check that the phone's clock is right |
+| *Your sign-in has expired. Enter your password again.* | The code step lasts 5 minutes, or too many wrong codes were typed: sign in again |
+| *Too many wrong codes. Wait a few minutes and try again.* | After 10 wrong codes in 15 minutes the account waits; a right password does not shorten it |
+| *Your code was accepted, but the sign-in could not be finished. Enter your password again.* | The server failed right after the code; sign in again from the password |
+| *UrbanPulse cannot be reached…* or *The code could not be checked…* | Your password is still valid: press *Verify* again, there is no need to type the password |
+
+If you lose the phone, ask an administrator to reset your second factor; you set it up again at the
+next sign-in. Staff accounts cannot sign in from the mobile app, which says *Staff accounts sign in
+on the UrbanPulse website. The mobile app is for citizens.*
 
 **How long you stay signed in:**
 
@@ -491,6 +511,11 @@ The menu shows *Users*, where you land, *Inbox*, *Map*, *Audit log* and *Reports
   - *Deactivate account* asks you to confirm. The person cannot sign in any more, and their open
     sessions end within about 15 minutes. Accounts are never deleted: incidents and the audit log
     keep referring to them. *Reactivate account* lets them sign in again.
+  - **Second factor:** in an opened staff account, *Reset second factor* is for a person who lost
+    their phone. Write the reason (it is kept in the audit log, so write no personal data) and
+    confirm. Their sessions end within about 15 minutes and they set up the second factor again at
+    their next sign-in. If you are the last administrator and lose your own phone, the maintainer
+    follows the emergency procedure of the [deployment guide](deployment.md).
   - You cannot change your own role or deactivate yourself, and a citizen account keeps its role.
   - Every change appears in the *Audit log*; a name change records that the name changed, not the
     name.

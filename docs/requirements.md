@@ -53,7 +53,7 @@ in which milestone, is in GitHub, not here.
 
 | ID | Requirement | In the MVP | Issues | After the MVP |
 | --- | --- | --- | --- | --- |
-| RF01 | **Identity and access.** Users sign up or sign in; staff authenticate. | Yes. The second factor for staff was left out of the MVP. | #35, #39, #126, #165; #57 (second factor, ADR-0021) | The second factor for staff. Planned: #57. |
+| RF01 | **Identity and access.** Users sign up or sign in; staff authenticate. | Yes, with the second factor for staff (ADR-0021). | #35, #39, #126, #165; #57 (second factor, ADR-0021) | — |
 | RF02 | **Roles and permissions.** Different permissions for citizens, operators, technicians, administrators and analysts. | Yes | #35, #39, #100, #40; [permission matrix](security.md#-permission-matrix) | A new **auditor** role that reads the audit with the administrators ([final delivery](#-final-delivery)). Planned: #355. |
 | RF03 | **Report an incident** with a title, description, position and optional category. | Yes | #43 | — |
 | RF04 | **Location.** The incident keeps coordinates, normalized address and accuracy. | Yes. Coordinates, and the accuracy while the position is the phone's GPS fix; the citizen corrects the position with a pin on the mobile map, and reports without GPS once they move it: the map's starting point on Málaga is never sent. The normalized address is resolved from the position by Nominatim after the report, never delaying it, and shown with its source in the web and mobile details and the staff lists, or said to be pending, outside Málaga or not available ([ADR-0002](adr/0002-open-street-map.md), #375). Incidents reported before it have none. | #43; #60 (#197, #198); #375 | — |
@@ -130,8 +130,8 @@ in on the web gets a notice to use the phone; staff who sign in on the phone get
 web. Every screen is also protected by the API: hiding a menu entry is not access control
 ([security guide](security.md)).
 
-The sign-in screen asks for the email and password. A second factor for staff accounts is
-planned before the refactor: Planned: #57.
+The sign-in screen asks for the email and password. Staff accounts then type a code from an
+authenticator app (#57, ADR-0021); the first time, the screen shows a QR code to enrol the app.
 
 ### Web: municipal operator
 
@@ -184,7 +184,8 @@ planned before the refactor: Planned: #57.
   operator can (ADR-0020), so they also get the operator's screens (#127), and the analyst's
   *Reports* (#42).
 - **Users** (#40): list filtered by name, email and role; create a staff account with a role; edit
-  the name and role; **deactivate** (not delete) an account.
+  the name and role; **deactivate** (not delete) an account; **reset the second factor** of a
+  staff account with a reason (#57).
 - **Audit log** (#41): read-only list filtered by date, actor and action; columns date, actor,
   action, target and details.
 - **Not in the MVP:** the *Sources* screen for external data sources (it goes with RF23).

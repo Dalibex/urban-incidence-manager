@@ -141,3 +141,17 @@
   opacity: 0.5;
   cursor: progress;
 }
+
+/* The QR code of the second-factor setup. A light background whatever the theme: scanners need it. */
+.qr {
+  align-self: flex-start;
+  padding: var(--space-xs);
+  background: #ffffff;
+  line-height: 0;
+}
+
+.secret {
+  overflow-wrap: anywhere;
+  font-size: var(--font-size-body);
+  user-select: all;
+}
