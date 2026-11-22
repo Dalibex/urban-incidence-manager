@@ -214,11 +214,13 @@ export function MapPage() {
             <IncidentMap
               ref={mapRef}
               positions={positions}
+              categories={categories.data}
               selectedId={selectedId}
               onSelect={select}
             />
           </Suspense>
           <MapKey
+            categories={categories.data}
             open={preferences.isOpen('key')}
             onToggle={(open) => preferences.setPanel('key', open)}
           />

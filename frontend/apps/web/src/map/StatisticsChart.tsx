@@ -1,8 +1,14 @@
 import { colors } from '@urbanpulse/ui';
-import Plotly, { type Config, type Data, type Layout } from 'plotly.js-basic-dist-min';
+import Plotly, {
+  type Config,
+  type Data,
+  type Layout,
+  type LayoutAxis,
+} from 'plotly.js-basic-dist-min';
 import { useMemo, useState } from 'react';
 import createPlotlyComponent from 'react-plotly.js/factory';
 
+import { iconDataUrl } from './category-icons';
 import { chartDescription, chartHeight, formatCount, type DashboardChart } from './dashboard-data';
 import { ChartTable } from './ChartTable';
 
@@ -70,8 +76,39 @@ function toTraces({ bars }: DashboardChart): Data[] {
   ];
 }
 
+/** Room between a bar's name and the plot for its icon, in pixels. */
+const ICON_ROOM_PX = 20;
+/** How much of a bar's band its icon takes. */
+const ICON_BAND_SHARE = 0.75;
+
+/**
+ * The icon of each bar that has one, right of its name (#267). Plotly draws images, not markup;
+ * each one is as tall as its share of the band and keeps its proportions.
+ */
+function iconImages(bars: DashboardChart['bars']): Partial<Layout>['images'] {
+  return bars.flatMap((bar) =>
+    bar.icon
+      ? [
+          {
+            source: iconDataUrl(bar.icon, colors.text, 32),
+            xref: 'paper' as const,
+            yref: 'y' as const,
+            x: 0,
+            y: bar.label,
+            sizex: 1,
+            sizey: ICON_BAND_SHARE,
+            sizing: 'contain' as const,
+            xanchor: 'right' as const,
+            yanchor: 'middle' as const,
+          },
+        ]
+      : [],
+  );
+}
+
 function toLayout({ bars }: DashboardChart): Partial<Layout> {
   const largest = Math.max(0, ...bars.map((bar) => bar.count));
+  const withIcons = bars.some((bar) => bar.icon);
   return {
     height: chartHeight(bars.length),
     autosize: true,
@@ -90,6 +127,15 @@ function toLayout({ bars }: DashboardChart): Partial<Layout> {
       fixedrange: true,
     },
     // The groups keep the order of the API, from the top down.
-    yaxis: { type: 'category', autorange: 'reversed', automargin: true, fixedrange: true },
+    // `ticklabelstandoff` is in Plotly since 2.29 but not yet in its types, hence the assertion.
+    yaxis: {
+      type: 'category',
+      autorange: 'reversed',
+      automargin: true,
+      fixedrange: true,
+      // The names step aside to leave the icons room between them and the bars.
+      ticklabelstandoff: withIcons ? ICON_ROOM_PX : 0,
+    } as Partial<LayoutAxis>,
+    images: iconImages(bars),
   };
 }

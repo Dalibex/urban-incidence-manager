@@ -16,6 +16,7 @@
     "@urbanpulse/api-client": "workspace:*",
     "@urbanpulse/domain": "workspace:*",
     "@urbanpulse/ui": "workspace:*",
+    "lucide": "~1.77.0",
     "maplibre-gl": "^6.17.0",
     "plotly.js-basic-dist-min": "^4.2.0",
     "pmtiles": "^4.5.0",

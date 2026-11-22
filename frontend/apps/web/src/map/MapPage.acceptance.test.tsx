@@ -40,6 +40,7 @@ const latest = () =>
 const POTHOLE: IncidentPosition = {
   id: '9b2e4f1a-3c5d-4e6f-8a7b-1c2d3e4f5a6b',
   status: 'REPORTED',
+  categoryId: null,
   priority: 'HIGH',
   latitude: 36.7213,
   longitude: -4.4214,
@@ -48,6 +49,7 @@ const POTHOLE: IncidentPosition = {
 const LAMP: IncidentPosition = {
   id: '1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d',
   status: 'ASSIGNED',
+  categoryId: null,
   priority: null,
   latitude: 36.7155,
   longitude: -4.4302,

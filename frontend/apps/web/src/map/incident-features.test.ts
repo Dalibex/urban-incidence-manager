@@ -6,6 +6,7 @@ import {
   CLUSTER_COLOR,
   HIGH_BORDER,
   PRIORITY_MARKS,
+  markerIconId,
   priorityRank,
   toFeatureCollection,
 } from './incident-features';
@@ -13,7 +14,14 @@ import {
 describe('toFeatureCollection', () => {
   it('orders each position as [longitude, latitude], as GeoJSON does (#76 T1)', () => {
     const collection = toFeatureCollection([
-      { id: 'a', status: 'REPORTED', priority: 'HIGH', latitude: 36.7213, longitude: -4.4214 },
+      {
+        id: 'a',
+        status: 'REPORTED',
+        categoryId: null,
+        priority: 'HIGH',
+        latitude: 36.7213,
+        longitude: -4.4214,
+      },
     ]);
 
     expect(collection.features[0]!.geometry.coordinates).toEqual([-4.4214, 36.7213]);
@@ -21,7 +29,14 @@ describe('toFeatureCollection', () => {
 
   it('keeps the id, the status color and the priority as a rank a cluster can compare', () => {
     const collection = toFeatureCollection([
-      { id: 'a', status: 'REOPENED', priority: null, latitude: 36.7, longitude: -4.4 },
+      {
+        id: 'a',
+        status: 'REOPENED',
+        categoryId: null,
+        priority: null,
+        latitude: 36.7,
+        longitude: -4.4,
+      },
     ]);
 
     expect(collection.features[0]!.properties).toEqual({
@@ -29,7 +44,36 @@ describe('toFeatureCollection', () => {
       status: 'REOPENED',
       priorityRank: 0,
       color: statusColor('REOPENED'),
+      icon: markerIconId('GENERIC', statusColor('REOPENED')),
     });
+  });
+
+  // #267: the icon is the category; the glyph is white or dark to read on the status colour.
+  it('names the image of the icon of each category, in the glyph colour of its status', () => {
+    const categories = [
+      {
+        id: 'lighting',
+        name: 'Street lighting',
+        description: null,
+        icon: 'STREET_LIGHTING' as const,
+      },
+    ];
+    const at = { priority: null, latitude: 36.7, longitude: -4.4 };
+
+    const collection = toFeatureCollection(
+      [
+        { id: 'a', status: 'VALIDATED', categoryId: 'lighting', ...at },
+        { id: 'b', status: 'REPORTED', categoryId: 'lighting', ...at },
+        { id: 'c', status: 'REPORTED', categoryId: 'inactive', ...at },
+      ],
+      categories,
+    );
+
+    expect(collection.features.map(({ properties }) => properties.icon)).toEqual([
+      'category-STREET_LIGHTING-light',
+      'category-STREET_LIGHTING-dark',
+      'category-GENERIC-dark',
+    ]);
   });
 });
 

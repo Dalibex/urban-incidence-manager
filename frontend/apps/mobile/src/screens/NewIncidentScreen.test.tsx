@@ -34,11 +34,13 @@ const LIGHTING = {
   id: 'fd4a9835-80be-4b73-bc9f-a042bed62b61',
   name: 'Street lighting',
   description: 'Broken, flickering or always-on street lights.',
+  icon: 'STREET_LIGHTING' as const,
 };
 const WASTE = {
   id: 'cffa0e9c-1e8e-4502-aa41-1d0d4e2306ee',
   name: 'Waste',
   description: null,
+  icon: 'WASTE' as const,
 };
 
 const LOCATED: UseIncidentLocationResult = {

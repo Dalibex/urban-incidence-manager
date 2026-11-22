@@ -1,22 +1,31 @@
+import type { components } from '@urbanpulse/api-client';
 import { INCIDENT_STATUSES } from '@urbanpulse/domain';
 import { STATUS_LABELS, statusColor } from '@urbanpulse/ui';
 import type { CSSProperties } from 'react';
 
+import { GENERIC_ICON } from './category-icons';
+import { CategoryIconGlyph } from './CategoryIconGlyph';
+import { NOT_CLASSIFIED } from './dashboard-data';
 import { HIGH_BORDER, PRIORITY_MARKS, PRIORITY_RANK } from './incident-features';
 import styles from './Map.module.css';
 
+type Category = components['schemas']['CategoryResponse'];
+
 interface MapKeyProps {
+  /** The categories, each with its icon; while they are not loaded, only the generic icon. */
+  categories?: readonly Category[];
   open: boolean;
   onToggle: (open: boolean) => void;
 }
 
 /**
  * What the map draws, in the bottom-left corner of the map (#177): the color is the status, the
- * size the priority, and a group shows how many incidents it holds and their highest priority. The
+ * size the priority, the icon the category (#267), and a group shows how many incidents it holds
+ * and their highest priority. The
  * list and the panel say the same in words. Folded unless the user opened it, so it does not cover
  * the map; the attribution of the base map keeps the other corner (ADR-0016).
  */
-export function MapKey({ open, onToggle }: MapKeyProps) {
+export function MapKey({ categories, open, onToggle }: MapKeyProps) {
   return (
     <details
       className={styles.mapKey}
@@ -57,13 +66,27 @@ export function MapKey({ open, onToggle }: MapKeyProps) {
           </li>
         ))}
       </ul>
+      <p className={styles.legendTitle}>Icon: category</p>
+      <ul className={styles.legendItems}>
+        {categories?.map(({ id, name, icon }) => (
+          <li key={id}>
+            <CategoryIconGlyph icon={icon ?? GENERIC_ICON} className={styles.legendIcon} />
+            {name}
+          </li>
+        ))}
+        <li>
+          <CategoryIconGlyph icon={GENERIC_ICON} className={styles.legendIcon} />
+          {NOT_CLASSIFIED}
+        </li>
+      </ul>
       <p className={styles.legendTitle}>Groups</p>
       <ul className={styles.legendItems}>
         <li>
           <span className={styles.groupSwatch} aria-hidden="true">
             8
           </span>
-          The number of incidents, with their highest priority written under it
+          The number of incidents, with their highest priority written under it; zoom in to see
+          their categories
         </li>
       </ul>
     </details>

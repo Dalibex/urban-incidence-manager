@@ -179,7 +179,12 @@ describe('createIncident', () => {
 
 describe('listCategories', () => {
   const CATEGORIES: components['schemas']['CategoryResponse'][] = [
-    { id: 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d', name: 'Lighting', description: null },
+    {
+      id: 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d',
+      name: 'Lighting',
+      description: null,
+      icon: 'STREET_LIGHTING',
+    },
   ];
 
   it('returns the active categories', async () => {

@@ -392,6 +392,11 @@
   text-align: right;
 }
 
+.chartTable .legendIcon {
+  margin-right: var(--space-xs);
+  vertical-align: -3px;
+}
+
 .legendTitle {
   margin: var(--space-sm) 0 var(--space-xs);
   font-weight: 600;
@@ -429,6 +434,11 @@
   border-radius: 50%;
   background: var(--color-text-muted);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-text-muted) 50%, transparent);
+}
+
+/* A category icon in the legend, in the colour of the text, as the page draws icons. */
+.legendIcon {
+  flex: none;
 }
 
 .groupSwatch {
