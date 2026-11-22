@@ -13,8 +13,10 @@ REPETITIONS="${REPETITIONS:-3}"
 BACKEND_PORT="${BACKEND_PORT:-$(sed -n 's/^BACKEND_PORT=//p' ../../.env 2>/dev/null | tr -d '\r')}"
 export BACKEND_PORT="${BACKEND_PORT:-8080}"
 # The experiments report incidents: without this, the weather worker would call the real Open-Meteo
-# for each one (ADR-0018 forbids it in a load test).
+# for each one (ADR-0018 forbids it in a load test), and the address worker the public Nominatim,
+# whose usage policy forbids bulk requests (#375).
 export WEATHER_ENRICHMENT_ENABLED=false
+export ADDRESS_ENRICHMENT_ENABLED=false
 export K6_PROMETHEUS_RW_SERVER_URL="${K6_PROMETHEUS_RW_SERVER_URL:-http://localhost:9090/api/v1/write}"
 export K6_PROMETHEUS_RW_TREND_STATS="p(50),p(95),p(99),max"
 mkdir -p results logs

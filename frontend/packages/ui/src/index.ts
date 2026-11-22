@@ -1,5 +1,7 @@
 export { colors, fontSizes, spacing, type ColorToken } from './tokens';
 export {
+  addressText,
+  type AddressStatus,
   formatInstant,
   historyEventLabel,
   NOT_AVAILABLE,

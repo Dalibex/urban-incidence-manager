@@ -34,6 +34,12 @@ const VALIDATED: Incident = {
     longitude: -4.4214,
     accuracy: 12.5,
     address: 'Calle Larios 12',
+    addressStatus: 'AVAILABLE' as const,
+    addressSource: {
+      name: 'OpenStreetMap',
+      attribution: '© OpenStreetMap contributors',
+      url: 'https://www.openstreetmap.org/copyright',
+    },
     neighborhood: 'Centro Histórico',
     district: 'Centro',
   },

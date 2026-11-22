@@ -28,9 +28,9 @@ incidents in Málaga covering every status, each with a history allowed by
 and incidents and how to walk through them. It is separate from the development dataset: the
 development data keeps the cases developers need (several citizens and technicians, an urban context
 of each status, assets, notifications); the demo data is small and easy to follow in front of an
-audience, and stores the weather of its incidents as the worker of
-[ADR-0018](adr/0018-weather-and-traffic-providers.md) would, so its incidents need no call to
-Open-Meteo.
+audience, and stores the weather and the address of its incidents as the workers
+([ADR-0018](adr/0018-weather-and-traffic-providers.md), #375) would, so its incidents need no call
+to Open-Meteo or Nominatim.
 
 It follows the pattern of every data profile (*Data Profiles* in the
 [database guide](database.md)):
@@ -54,6 +54,10 @@ PostGIS container.
   CC BY 4.0, and wherever the weather is shown it says "Weather data by Open-Meteo.com"
   ([ADR-0018](adr/0018-weather-and-traffic-providers.md)). A report made during the demo gets its
   weather from Open-Meteo, which needs internet.
+- Each demo incident with an address has it `AVAILABLE`, from `OpenStreetMap`, stored 30 seconds
+  after its report; the first one has none and shows *Not available*. A report made during the
+  demo gets its address from Nominatim some seconds later, which needs internet too
+  ([ADR-0002](adr/0002-open-street-map.md)).
 
 ## 📈 Performance Dataset
 
@@ -76,7 +80,7 @@ With the default volume of 100,000 incidents:
 | --- | --- | --- |
 | `users` | 5,055 | 5,000 citizens (one per twenty incidents) and a fixed staff of 10 operators, 40 technicians, 2 administrators and 3 analysts. A few citizens report many incidents: the top tenth reports about half of them. |
 | `incident` | 100,000 | Reported between November 2025 and mid-October 2026. Older incidents are mostly closed (about 59% closed, 10% rejected overall), recent ones still in progress. Categories in realistic proportions; a quarter of the unvalidated incidents have none. |
-| `location` | 100,000 | Clustered around twelve places of Málaga, the city centre the busiest. About 8% without address, neighbourhood and district, and 5% without accuracy ("not available"). |
+| `location` | 100,000 | Clustered around twelve places of Málaga, the city centre the busiest. About 8% without address, neighbourhood and district (their address `UNAVAILABLE`), and 5% without accuracy ("not available"). The rest have their address `AVAILABLE`, stored 30 seconds after the report, so the address worker has nothing pending. |
 | `status_change` | about 487,000 | The history of each incident, only transitions of [ADR-0020](adr/0020-incident-lifecycle-transitions.md); 12% include an information request. |
 | `assignment`, `comment`, `attachment`, `notification` | about 80,000, 30,000, 40,000 and 94,000 | One assignment per assigned incident, a comment on 30% of the incidents, attachment metadata on 40%, and a notification of the last change. |
 
@@ -290,6 +294,28 @@ Conditions: `perf` profile with `PERF_INCIDENTS=1000000`, `EXPLAIN (ANALYZE)` ru
 8 GB) on a developer laptop, on commit `b618646` plus this change, on 2026-11-13. With the default
 100,000 incidents the same filtered page took 28 ms at p95 without the index, so the index matters
 from about a million incidents on.
+
+#### Address worker
+
+`V19__incidents_add_address_status.sql` (#375) adds `ix_location_address_pending`, a partial index
+on `location (incident_id) WHERE address_status = 'PENDING'`, for the two queries the address worker
+runs every 30 seconds (`LocationAddressRepository`): the next batch of 10 pending addresses, oldest
+report first, and the expiry of the ones still pending a day after the report.
+
+| Query | Index | Before | After |
+| --- | --- | --- | --- |
+| The next batch: 10 pending locations, oldest report first | `ix_location_address_pending` | 7.8 ms, seq scan of `location` that drops 99,980 rows | 0.4 ms, bitmap index scan |
+| The expiry of the pending addresses reported more than a day ago | `ix_location_address_pending` | 6.7 ms, the same seq scan | 0.2 ms, bitmap index scan |
+
+The index holds only the pending locations, so it stays small whatever the number of incidents: 16
+kB here. The `perf` dataset stores every address as resolved or unavailable, so for this measurement
+the locations of the 20 newest incidents were set back to `PENDING`, as the worker finds them
+between two runs, followed by `VACUUM ANALYZE`.
+
+Conditions: the same data and method as *Main Queries* above (the SQL equivalent of each JPQL
+query, the expiry inside a transaction rolled back), on PostgreSQL 18.6 with PostGIS 3.6
+(`postgis/postgis:18-3.6`) in Docker Desktop, limited to 4 CPUs and 8 GB, on commit `e6a8ce0` plus
+this change, on 2026-11-22.
 
 ### Quality-attribute experiments (#176)
 

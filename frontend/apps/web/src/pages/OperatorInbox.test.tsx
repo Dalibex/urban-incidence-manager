@@ -57,6 +57,12 @@ const STREETLIGHT: Incident = {
     longitude: -4.4214,
     accuracy: 12.5,
     address: 'Calle Larios 12',
+    addressStatus: 'AVAILABLE' as const,
+    addressSource: {
+      name: 'OpenStreetMap',
+      attribution: '© OpenStreetMap contributors',
+      url: 'https://www.openstreetmap.org/copyright',
+    },
     neighborhood: 'Centro Histórico',
     district: 'Centro',
   },
@@ -120,6 +126,8 @@ function inboxApi(incident: Incident, history: StatusChange[]) {
     status: incident.status,
     priority: incident.priority,
     category: incident.category,
+    address: incident.location.address,
+    addressStatus: incident.location.addressStatus,
     reportedAt: incident.reportedAt,
     updatedAt: incident.updatedAt,
   };
@@ -246,6 +254,55 @@ describe('operator inbox', () => {
     expect(screen.getAllByText(CITIZEN.name).length).toBeGreaterThan(0);
   });
 
+  // #378, T4: the list and the detail show the address resolved from the position, the detail
+  // with the attribution OpenStreetMap asks for.
+  it('shows the address in the list and in the detail, with its source', async () => {
+    renderApp(PATHS.inbox, {
+      role: 'MUNICIPAL_OPERATOR',
+      fetch: inboxApi(STREETLIGHT, STREETLIGHT_HISTORY),
+    });
+
+    const table = await screen.findByRole('table');
+    expect(within(table).getByRole('columnheader', { name: /address/i })).toBeDefined();
+    const row = (await within(table).findByText('Street light off')).closest('tr')!;
+    expect(within(row).getByText('Calle Larios 12')).toBeDefined();
+
+    await openDetail('Street light off');
+
+    const location = await screen.findByRole('region', { name: 'Location' });
+    expect(within(location).getByText('Calle Larios 12')).toBeDefined();
+    const source = within(location).getByRole('link', { name: /OpenStreetMap contributors/ });
+    expect(source.getAttribute('href')).toBe('https://www.openstreetmap.org/copyright');
+    expect(source.getAttribute('target')).toBe('_blank');
+  });
+
+  // #378, T4: without an address the screens say why, in the list and in the detail, and never
+  // show a source.
+  it.each([
+    ['PENDING', 'Looking up the address…'],
+    ['OUTSIDE_AREA', 'No address: the position is outside Málaga'],
+    ['UNAVAILABLE', 'Not available'],
+  ] as const)('says why there is no address when it is %s', async (addressStatus, text) => {
+    const withoutAddress: Incident = {
+      ...STREETLIGHT,
+      location: { ...STREETLIGHT.location, address: null, addressStatus, addressSource: null },
+    };
+    renderApp(PATHS.inbox, {
+      role: 'MUNICIPAL_OPERATOR',
+      fetch: inboxApi(withoutAddress, STREETLIGHT_HISTORY),
+    });
+
+    const row = (await screen.findByText('Street light off')).closest('tr')!;
+    expect(within(row).getByText(text)).toBeDefined();
+
+    await openDetail('Street light off');
+
+    const location = await screen.findByRole('region', { name: 'Location' });
+    expect(within(location).getAllByText(text).length).toBeGreaterThan(0);
+    expect(within(location).queryByRole('link')).toBeNull();
+    expect(within(location).queryByText('Calle Larios 12')).toBeNull();
+  });
+
   // #69, T6: an unknown place is "not available", never empty, "null" or a made-up value.
   it('shows missing accuracy, address, neighbourhood and district as not available', async () => {
     const unlocated: Incident = {
@@ -256,6 +313,8 @@ describe('operator inbox', () => {
         longitude: -4.4214,
         accuracy: null,
         address: null,
+        addressStatus: 'UNAVAILABLE' as const,
+        addressSource: null,
         neighborhood: null,
         district: null,
       },

@@ -123,27 +123,39 @@ INSERT INTO incident (id, reporter_id, priority_setter_id, category_id, title, d
      'CLOSED', 'LOW', 'Small pothole, little traffic', 'MANUAL',
      '2026-09-25T08:30:00Z', '2026-09-27T09:00:00Z', '2026-09-27T09:00:00Z');
 
-INSERT INTO location (id, incident_id, coordinates, accuracy, address, neighborhood, district) VALUES
+-- The address of each incident as the address worker (#375) leaves it: resolved 30 s after
+-- the report, or unavailable.
+INSERT INTO location (id, incident_id, coordinates, accuracy, address, neighborhood, district,
+                      address_status, address_source, address_resolved_at) VALUES
     ('d3000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000001',
-     ST_SetSRID(ST_MakePoint(-4.4189, 36.7213), 4326)::geography, 35.0, NULL, NULL, NULL),
+     ST_SetSRID(ST_MakePoint(-4.4189, 36.7213), 4326)::geography, 35.0, NULL, NULL, NULL, 'UNAVAILABLE', NULL, NULL),
     ('d3000000-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000002',
-     ST_SetSRID(ST_MakePoint(-4.4482, 36.6969), 4326)::geography, 8.0, 'Parque del Oeste', 'Parque del Oeste', 'Carretera de Cádiz'),
+     ST_SetSRID(ST_MakePoint(-4.4482, 36.6969), 4326)::geography, 8.0, 'Parque del Oeste', 'Parque del Oeste', 'Carretera de Cádiz', 'AVAILABLE', 'OpenStreetMap',
+     (SELECT reported_at + interval '30 seconds' FROM incident WHERE id = 'd1000000-0000-4000-8000-000000000002')),
     ('d3000000-0000-4000-8000-000000000003', 'd1000000-0000-4000-8000-000000000003',
-     ST_SetSRID(ST_MakePoint(-4.4775, 36.7166), 4326)::geography, 5.0, 'Avenida Plutarco, 22', 'Teatinos', 'Teatinos-Universidad'),
+     ST_SetSRID(ST_MakePoint(-4.4775, 36.7166), 4326)::geography, 5.0, 'Avenida Plutarco, 22', 'Teatinos', 'Teatinos-Universidad', 'AVAILABLE', 'OpenStreetMap',
+     (SELECT reported_at + interval '30 seconds' FROM incident WHERE id = 'd1000000-0000-4000-8000-000000000003')),
     ('d3000000-0000-4000-8000-000000000004', 'd1000000-0000-4000-8000-000000000004',
-     ST_SetSRID(ST_MakePoint(-4.4290, 36.7228), 4326)::geography, 12.0, 'Calle Mármoles, 30', 'El Perchel', 'Centro'),
+     ST_SetSRID(ST_MakePoint(-4.4290, 36.7228), 4326)::geography, 12.0, 'Calle Mármoles, 30', 'El Perchel', 'Centro', 'AVAILABLE', 'OpenStreetMap',
+     (SELECT reported_at + interval '30 seconds' FROM incident WHERE id = 'd1000000-0000-4000-8000-000000000004')),
     ('d3000000-0000-4000-8000-000000000005', 'd1000000-0000-4000-8000-000000000005',
-     ST_SetSRID(ST_MakePoint(-4.4247, 36.7393), 4326)::geography, 20.0, 'Parque de Ciudad Jardín', 'Ciudad Jardín', 'Ciudad Jardín'),
+     ST_SetSRID(ST_MakePoint(-4.4247, 36.7393), 4326)::geography, 20.0, 'Parque de Ciudad Jardín', 'Ciudad Jardín', 'Ciudad Jardín', 'AVAILABLE', 'OpenStreetMap',
+     (SELECT reported_at + interval '30 seconds' FROM incident WHERE id = 'd1000000-0000-4000-8000-000000000005')),
     ('d3000000-0000-4000-8000-000000000006', 'd1000000-0000-4000-8000-000000000006',
-     ST_SetSRID(ST_MakePoint(-4.4400, 36.7064), 4326)::geography, 6.0, 'Calle Héroe de Sostoa, 120', 'Princesa', 'Carretera de Cádiz'),
+     ST_SetSRID(ST_MakePoint(-4.4400, 36.7064), 4326)::geography, 6.0, 'Calle Héroe de Sostoa, 120', 'Princesa', 'Carretera de Cádiz', 'AVAILABLE', 'OpenStreetMap',
+     (SELECT reported_at + interval '30 seconds' FROM incident WHERE id = 'd1000000-0000-4000-8000-000000000006')),
     ('d3000000-0000-4000-8000-000000000007', 'd1000000-0000-4000-8000-000000000007',
-     ST_SetSRID(ST_MakePoint(-4.4385, 36.6955), 4326)::geography, 15.0, 'Parque de Huelin', 'Huelin', 'Carretera de Cádiz'),
+     ST_SetSRID(ST_MakePoint(-4.4385, 36.6955), 4326)::geography, 15.0, 'Parque de Huelin', 'Huelin', 'Carretera de Cádiz', 'AVAILABLE', 'OpenStreetMap',
+     (SELECT reported_at + interval '30 seconds' FROM incident WHERE id = 'd1000000-0000-4000-8000-000000000007')),
     ('d3000000-0000-4000-8000-000000000008', 'd1000000-0000-4000-8000-000000000008',
-     ST_SetSRID(ST_MakePoint(-4.4615, 36.6890), 4326)::geography, 10.0, 'Parque Litoral', 'Sacaba Beach', 'Carretera de Cádiz'),
+     ST_SetSRID(ST_MakePoint(-4.4615, 36.6890), 4326)::geography, 10.0, 'Parque Litoral', 'Sacaba Beach', 'Carretera de Cádiz', 'AVAILABLE', 'OpenStreetMap',
+     (SELECT reported_at + interval '30 seconds' FROM incident WHERE id = 'd1000000-0000-4000-8000-000000000008')),
     ('d3000000-0000-4000-8000-000000000009', 'd1000000-0000-4000-8000-000000000009',
-     ST_SetSRID(ST_MakePoint(-4.4395, 36.7155), 4326)::geography, 7.0, 'Avenida de Andalucía, 40', 'La Trinidad', 'Cruz de Humilladero'),
+     ST_SetSRID(ST_MakePoint(-4.4395, 36.7155), 4326)::geography, 7.0, 'Avenida de Andalucía, 40', 'La Trinidad', 'Cruz de Humilladero', 'AVAILABLE', 'OpenStreetMap',
+     (SELECT reported_at + interval '30 seconds' FROM incident WHERE id = 'd1000000-0000-4000-8000-000000000009')),
     ('d3000000-0000-4000-8000-000000000010', 'd1000000-0000-4000-8000-000000000010',
-     ST_SetSRID(ST_MakePoint(-4.4166, 36.7189), 4326)::geography, 4.0, 'Paseo del Parque, 10', 'Centro Histórico', 'Centro');
+     ST_SetSRID(ST_MakePoint(-4.4166, 36.7189), 4326)::geography, 4.0, 'Paseo del Parque, 10', 'Centro Histórico', 'Centro', 'AVAILABLE', 'OpenStreetMap',
+     (SELECT reported_at + interval '30 seconds' FROM incident WHERE id = 'd1000000-0000-4000-8000-000000000010'));
 
 -- Only transitions of the ADR-0020 table (IncidentTransition), made by who may make them. The
 -- associated data has the format Incident.changeStatus writes.

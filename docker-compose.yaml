@@ -62,9 +62,13 @@ x-backend: &backend
     WEATHER_ENRICHMENT_BATCH_SIZE: ${WEATHER_ENRICHMENT_BATCH_SIZE:-20}
     OPEN_METEO_TIMEOUT: ${OPEN_METEO_TIMEOUT:-PT2S}
     WEATHER_MAX_DELAY: ${WEATHER_MAX_DELAY:-PT1H}
-    # The backend has no route to the internet: its calls to Open-Meteo go through egress-proxy,
-    # which only lets it reach the hosts of egress-proxy/squid.conf. Fixed here, not in .env.
+    # Address of each incident from Nominatim (#375, docs/deployment.md).
+    ADDRESS_ENRICHMENT_ENABLED: ${ADDRESS_ENRICHMENT_ENABLED:-true}
+    # The backend has no route to the internet: its calls to Open-Meteo and Nominatim go through
+    # egress-proxy, which only lets it reach the hosts of egress-proxy/squid.conf. Fixed here, not
+    # in .env.
     OPEN_METEO_PROXY: http://egress-proxy:3128
+    NOMINATIM_PROXY: http://egress-proxy:3128
     # Every request comes from nginx, so Tomcat takes the client address, the scheme, the host
     # and the port from the X-Forwarded-* headers that nginx writes (frontend/nginx.conf). Fixed
     # here, not in .env: development reaches the backend without nginx and must ignore those
