@@ -206,6 +206,18 @@ describe('resetUserMfa', () => {
     expect(await resetUserMfa(client, USER_ID, 'Lost phone')).toEqual({
       ok: false,
       failure: { kind: 'problem', status: 404, code: undefined },
+      fieldErrors: [],
+    });
+  });
+
+  it('carries the per-field errors of a 422, so the screen can mark the reason', async () => {
+    const errors = [{ field: 'reason', message: 'must not be blank' }];
+    const { client } = clientAnswering(422, { status: 422, code: 'VALIDATION_FAILED', errors });
+
+    expect(await resetUserMfa(client, USER_ID, ' ')).toEqual({
+      ok: false,
+      failure: { kind: 'problem', status: 422, code: 'VALIDATION_FAILED' },
+      fieldErrors: errors,
     });
   });
 });

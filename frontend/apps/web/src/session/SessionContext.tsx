@@ -6,6 +6,7 @@ import {
   signOut as signOutOnApi,
   verifyMfa as verifyMfaOnApi,
   type ApiClient,
+  type ApiFailure,
   type ApiResult,
   type MfaChallenge,
   type SessionMark,
@@ -24,6 +25,13 @@ export interface SessionUser {
   role: Role;
 }
 
+/**
+ * The answer to a code. `codeAccepted` marks the one failure after the API accepted it: the
+ * challenge is spent and the new session was revoked, so only the password can start again.
+ */
+export type MfaVerification =
+  ApiResult<void> | { ok: false; failure: ApiFailure; codeAccepted: true };
+
 export interface Credentials {
   email: string;
   password: string;
@@ -37,7 +45,7 @@ interface SessionValue {
   /** `data` is the second-factor challenge of a staff account, or `null` once signed in. */
   signIn: (credentials: Credentials) => Promise<ApiResult<MfaChallenge | null>>;
   /** Answers the challenge of `signIn` with the code of the authenticator app. */
-  verifyMfa: (challengeToken: string, code: string) => Promise<ApiResult<void>>;
+  verifyMfa: (challengeToken: string, code: string) => Promise<MfaVerification>;
   signOut: () => Promise<void>;
   /**
    * Shows a change the API accepted on an account, such as a new name, when that account is the
@@ -127,7 +135,11 @@ export function SessionProvider({ initialUser = null, fetch, children }: Session
       },
       verifyMfa: async (challengeToken, code) => {
         const session = await verifyMfaOnApi(api, tokenStore, challengeToken, code);
-        return session.ok ? openSession() : session;
+        if (!session.ok) {
+          return session;
+        }
+        const opened = await openSession();
+        return opened.ok ? opened : { ...opened, codeAccepted: true };
       },
       signOut: async () => {
         try {

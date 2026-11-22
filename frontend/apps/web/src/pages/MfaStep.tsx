@@ -6,6 +6,7 @@ import { useSession } from '../session/SessionContext';
 import {
   CODE_LENGTH,
   INCOMPLETE_CODE,
+  SIGN_IN_NOT_FINISHED,
   UNEXPECTED_ENROLLMENT_ERROR,
   UNEXPECTED_MFA_ERROR,
   endsChallenge,
@@ -110,6 +111,11 @@ export function MfaStep({ challenge, onRestart }: MfaStepProps) {
       if (result.ok) {
         return;
       }
+      if ('codeAccepted' in result) {
+        // The challenge is spent, so a retry cannot work; the session was revoked, no token stays.
+        onRestart(SIGN_IN_NOT_FINISHED);
+        return;
+      }
       if (endsChallenge(result.failure)) {
         onRestart(mfaCodeMessage(result.failure));
         return;
@@ -129,14 +135,17 @@ export function MfaStep({ challenge, onRestart }: MfaStepProps) {
     }
   }
 
+  // An account found enrolled already has no QR code to scan: it gets the normal texts.
+  const showsSetup = challenge.enrollmentRequired && enrollment.state !== 'none';
+
   return (
     <main className={styles.standalone}>
       <section className={styles.page} aria-labelledby="page-title">
         <h1 id="page-title" className={styles.title}>
-          {challenge.enrollmentRequired ? 'Set up your second factor' : 'Enter your code'}
+          {showsSetup ? 'Set up your second factor' : 'Enter your code'}
         </h1>
         <p className={styles.summary}>
-          {challenge.enrollmentRequired
+          {showsSetup
             ? 'Your account needs a second step. Scan the QR code with an authenticator app, then type the code it shows.'
             : 'Type the code your authenticator app shows now.'}
         </p>
@@ -188,10 +197,12 @@ export function MfaStep({ challenge, onRestart }: MfaStepProps) {
                 name="code"
                 inputMode="numeric"
                 autoComplete="one-time-code"
-                maxLength={CODE_LENGTH}
                 value={code}
-                // Whatever is not a digit is dropped, such as the space some apps print in the code.
-                onChange={(event) => setCode(event.target.value.replace(/\D/g, ''))}
+                // Whatever is not a digit is dropped, such as the space some apps print in the code,
+                // before the limit: with `maxLength` a pasted "123 456" would lose its last digit.
+                onChange={(event) =>
+                  setCode(event.target.value.replace(/\D/g, '').slice(0, CODE_LENGTH))
+                }
                 {...(error && { 'aria-invalid': true, 'aria-describedby': ERROR_ID })}
               />
             </label>

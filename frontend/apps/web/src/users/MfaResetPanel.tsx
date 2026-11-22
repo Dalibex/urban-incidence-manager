@@ -3,7 +3,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 
 import styles from '../incidents/Incidents.module.css';
 import { FormField } from './FormField';
-import { canRetry, OutcomeMessage, outcomeOf, type Outcome } from './user-outcome';
+import { canRetry, fieldErrorOf, OutcomeMessage, outcomeOf, type Outcome } from './user-outcome';
 import { useResetUserMfa } from './user-queries';
 import userStyles from './Users.module.css';
 
@@ -73,6 +73,9 @@ export function MfaResetPanel({ user, own }: MfaResetPanelProps) {
       const result = await reset.mutateAsync(reason.trim());
       const answer = outcomeOf(result);
       setOutcome(answer);
+      if (answer.kind === 'invalid') {
+        reasonField.current?.focus();
+      }
       if (answer.kind === 'saved') {
         setConfirming(false);
         setReason('');
@@ -99,7 +102,11 @@ export function MfaResetPanel({ user, own }: MfaResetPanelProps) {
             they set it up again with a new QR code.
             {own && ' This is your own account: you will have to sign in again too.'}
           </p>
-          <FormField id={`${titleId}-reason`} label="Reason" error={reasonError}>
+          <FormField
+            id={`${titleId}-reason`}
+            label="Reason"
+            error={reasonError ?? fieldErrorOf(outcome, 'reason')}
+          >
             {(control) => (
               <textarea
                 {...control}

@@ -5,6 +5,10 @@ export const UNEXPECTED_ENROLLMENT_ERROR = 'The setup could not be started. Try 
 export const CODE_LENGTH = 6;
 export const INCOMPLETE_CODE = `Enter the ${CODE_LENGTH} digits the app shows.`;
 
+/** The code was accepted but the session could not be read: the challenge is spent. */
+export const SIGN_IN_NOT_FINISHED =
+  'Your code was accepted, but the sign-in could not be finished. Enter your password again.';
+
 const NETWORK = 'UrbanPulse cannot be reached. Check your connection and try again.';
 
 /**

@@ -143,6 +143,66 @@ describe('second factor step', () => {
     expect((screen.getByLabelText('Password') as HTMLInputElement).value).toBe('');
   });
 
+  it('puts the focus on the password, which points at the message, when the challenge ends', async () => {
+    renderApp(PATHS.signIn, {
+      fetch: fakeApi({
+        ...challengeAnswer(),
+        'POST /mfa-verifications': problem(401, 'INVALID_MFA_CHALLENGE'),
+      }),
+    });
+
+    await enterPassword();
+    await enterCode();
+
+    const password = await screen.findByLabelText('Password');
+    await waitFor(() => expect(document.activeElement).toBe(password));
+    expect(document.getElementById(password.getAttribute('aria-describedby')!)?.textContent).toBe(
+      'Your sign-in has expired. Enter your password again.',
+    );
+    expect(password.getAttribute('aria-invalid')).toBeNull();
+  });
+
+  it('puts the focus on the password when the user goes back to sign in', async () => {
+    renderApp(PATHS.signIn, { fetch: fakeApi({ ...challengeAnswer() }) });
+
+    await enterPassword();
+    await userEvent.click(await screen.findByRole('button', { name: 'Back to sign in' }));
+
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText('Password')));
+  });
+
+  // The API spent the challenge with the code, and the user could not be read afterwards.
+  it('goes back to the password, with no tokens kept, when the sign-in cannot finish', async () => {
+    const fetch = fakeApi({
+      ...challengeAnswer(),
+      'POST /mfa-verifications': () => json(201, TOKENS),
+      'GET /users/me': problem(500),
+      'DELETE /sessions/current': () => new Response(null, { status: 204 }),
+    });
+    renderApp(PATHS.signIn, { fetch });
+
+    await enterPassword();
+    await enterCode();
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Your code was accepted, but the sign-in could not be finished. Enter your password again.',
+    );
+    expect(screen.getByLabelText('Password')).toBeDefined();
+    expect(screen.queryByLabelText('Code')).toBeNull();
+    // The new session is revoked on the server, not only forgotten here.
+    expect(fetch.mock.calls.some(([request]) => request.method === 'DELETE')).toBe(true);
+  });
+
+  it('accepts a code pasted with a space, such as 123 456', async () => {
+    renderApp(PATHS.signIn, { fetch: fakeApi({ ...challengeAnswer() }) });
+
+    await enterPassword();
+    await userEvent.click(await screen.findByLabelText('Code'));
+    await userEvent.paste('123 456');
+
+    expect((screen.getByLabelText('Code') as HTMLInputElement).value).toBe('123456');
+  });
+
   it('goes back to the password when the account was disabled meanwhile', async () => {
     const fetch = fakeApi({
       ...challengeAnswer(),
@@ -334,5 +394,8 @@ describe('second factor enrolment', () => {
 
     expect(await screen.findByLabelText('Code')).toBeDefined();
     expect(screen.queryByRole('img', { name: /QR code/ })).toBeNull();
+    // With no QR code to scan, the set-up texts would be wrong: the normal ones are shown.
+    expect(screen.getByRole('heading', { name: 'Enter your code' })).toBeDefined();
+    expect(screen.getByText('Type the code your authenticator app shows now.')).toBeDefined();
   });
 });

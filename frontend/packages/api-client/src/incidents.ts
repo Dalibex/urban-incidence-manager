@@ -257,9 +257,10 @@ export function createIncidentComment(
   );
 }
 
+/** `what` names the resource of a success; leave it out for a call that answers `204`, with none. */
 export async function callForm<T>(
   call: () => Promise<{ data?: T; error?: unknown; response: Response }>,
-  what: string,
+  what?: string,
 ): Promise<FormResult<T>> {
   let result: { data?: T; error?: unknown; response: Response };
   try {
@@ -272,10 +273,10 @@ export async function callForm<T>(
   }
   if (result.response.ok) {
     // The contract always returns the resource on success; anything else is an implementation bug.
-    if (!result.data) {
+    if (what !== undefined && !result.data) {
       throw new Error(`The API did not return ${what}.`);
     }
-    return { ok: true, data: result.data };
+    return { ok: true, data: result.data as T };
   }
   const problem = isProblem(result.error) ? result.error : undefined;
   return {

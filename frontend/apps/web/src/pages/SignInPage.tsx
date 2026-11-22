@@ -31,6 +31,7 @@ export function SignInPage() {
   const [challenge, setChallenge] = useState<MfaChallenge | null>(null);
   // Only a failure of the form marks its fields invalid; a quick sign-in leaves them untouched.
   const [errorFromForm, setErrorFromForm] = useState(false);
+  const [backFromMfa, setBackFromMfa] = useState(false);
   const passwordField = useRef<HTMLInputElement>(null);
 
   // Back from the password change, whose form is gone with the focus: the next step is the password.
@@ -39,6 +40,14 @@ export function SignInPage() {
       passwordField.current?.focus();
     }
   }, [passwordChanged]);
+
+  // Back from the code step, which is gone with the focus. The password field describes itself with
+  // the message, so a screen reader reads why the sign-in starts again.
+  useEffect(() => {
+    if (backFromMfa) {
+      passwordField.current?.focus();
+    }
+  }, [backFromMfa]);
 
   if (user) {
     return <Navigate to={signInReturnPath(location.state)} replace />;
@@ -54,6 +63,7 @@ export function SignInPage() {
     setChallenge(null);
     setError(message);
     setErrorFromForm(false);
+    setBackFromMfa(true);
   }
 
   if (challenge) {
@@ -79,6 +89,7 @@ export function SignInPage() {
     setSubmitting(true);
     setError(null);
     setPasswordChanged(false);
+    setBackFromMfa(false);
     setErrorFromForm(source === 'form');
     try {
       const result = await signIn(credentials);
@@ -114,6 +125,7 @@ export function SignInPage() {
 
   const fieldErrorProps =
     error && errorFromForm ? { 'aria-invalid': true, 'aria-describedby': ERROR_ID } : {};
+  const passwordProps = error && backFromMfa ? { 'aria-describedby': ERROR_ID } : fieldErrorProps;
 
   return (
     <main className={styles.standalone}>
@@ -157,7 +169,7 @@ export function SignInPage() {
               required
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              {...fieldErrorProps}
+              {...passwordProps}
             />
           </label>
           <button type="submit" className={styles.primaryButton} disabled={submitting}>

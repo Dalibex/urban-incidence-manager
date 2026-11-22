@@ -134,6 +134,113 @@ describe('reset of the second factor', () => {
     expect(answers).toHaveLength(0);
   });
 
+  it('does not send a reason of more than 500 characters', async () => {
+    const fetch = usersApi();
+    renderApp(PATHS.users, { role: 'ADMINISTRATOR', fetch });
+
+    await openReset();
+    // `paste` instead of `type`: 501 keystrokes would be slow and prove nothing more.
+    await userEvent.click(screen.getByLabelText('Reason'));
+    await userEvent.paste('a'.repeat(501));
+    await userEvent.click(screen.getByRole('button', { name: 'Yes, reset' }));
+
+    expect(await screen.findByText('The reason can have at most 500 characters.')).toBeDefined();
+    expect(document.activeElement).toBe(screen.getByLabelText('Reason'));
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a 422 of the server under the reason and keeps what was typed', async () => {
+    renderApp(PATHS.users, {
+      role: 'ADMINISTRATOR',
+      fetch: usersApi({
+        [RESET_PATH]: () =>
+          json(422, {
+            status: 422,
+            code: 'VALIDATION_FAILED',
+            errors: [{ field: 'reason', message: 'The reason must have text.' }],
+          }),
+      }),
+    });
+
+    await openReset();
+    await userEvent.type(screen.getByLabelText('Reason'), 'Lost phone');
+    await userEvent.click(screen.getByRole('button', { name: 'Yes, reset' }));
+
+    expect(await screen.findByText('The reason must have text.')).toBeDefined();
+    const reason = screen.getByLabelText('Reason');
+    expect(reason.getAttribute('aria-invalid')).toBe('true');
+    expect(reason).toHaveProperty('value', 'Lost phone');
+    expect(document.activeElement).toBe(reason);
+  });
+
+  it('offers to try again when the server cannot be reached, keeping the reason', async () => {
+    const answers = [
+      () => {
+        throw new TypeError('Failed to fetch');
+      },
+      noContent,
+    ];
+    renderApp(PATHS.users, {
+      role: 'ADMINISTRATOR',
+      fetch: usersApi({ [RESET_PATH]: () => answers.shift()!() }),
+    });
+
+    await openReset();
+    await userEvent.type(screen.getByLabelText('Reason'), 'Lost phone');
+    await userEvent.click(screen.getByRole('button', { name: 'Yes, reset' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('The server cannot be reached.');
+    expect(screen.getByLabelText('Reason')).toHaveProperty('value', 'Lost phone');
+    await userEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
+
+    expect(await screen.findByText(/^Second factor reset\./)).toBeDefined();
+  });
+
+  it('sends one request when the button is pressed twice', async () => {
+    let release: () => void = () => undefined;
+    let sent = 0;
+    renderApp(PATHS.users, {
+      role: 'ADMINISTRATOR',
+      fetch: usersApi({
+        [RESET_PATH]: () => {
+          sent += 1;
+          return new Promise<Response>((resolve) => {
+            release = () => resolve(noContent());
+          });
+        },
+      }),
+    });
+
+    await openReset();
+    await userEvent.type(screen.getByLabelText('Reason'), 'Lost phone');
+    await userEvent.click(screen.getByRole('button', { name: 'Yes, reset' }));
+    // The button is disabled while the request is on its way: a second press does nothing.
+    await userEvent.click(await screen.findByRole('button', { name: 'Resetting…' }));
+    release();
+
+    expect(await screen.findByText(/^Second factor reset\./)).toBeDefined();
+    expect(sent).toBe(1);
+  });
+
+  it('warns that resetting your own account ends your session, then says it is reset', async () => {
+    const fetch = usersApi({ [`POST /users/${ME.id}/mfa-resets`]: noContent });
+    renderApp(PATHS.users, { role: 'ADMINISTRATOR', fetch });
+
+    await userEvent.click(await screen.findByRole('button', { name: `Edit ${ME.name}` }));
+    await userEvent.click(screen.getByRole('button', { name: 'Reset second factor' }));
+    expect(
+      screen.getByText(/This is your own account: you will have to sign in again too\./),
+    ).toBeDefined();
+    await userEvent.type(screen.getByLabelText('Reason'), 'New phone');
+    await userEvent.click(screen.getByRole('button', { name: 'Yes, reset' }));
+
+    expect(
+      await screen.findByText(
+        `Second factor reset. ${ME.name} sets it up again at the next sign-in.`,
+      ),
+    ).toBeDefined();
+  });
+
   it('is not offered for a citizen account', async () => {
     renderApp(PATHS.users, { role: 'ADMINISTRATOR', fetch: usersApi() });
 

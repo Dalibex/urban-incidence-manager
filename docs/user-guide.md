@@ -94,6 +94,7 @@ every 30 seconds and works only once.
 | *That code is not correct. Check the app and type the one it shows now.* | Type the current code; check that the phone's clock is right |
 | *Your sign-in has expired. Enter your password again.* | The code step lasts 5 minutes, or too many wrong codes were typed: sign in again |
 | *Too many wrong codes. Wait a few minutes and try again.* | After 10 wrong codes in 15 minutes the account waits; a right password does not shorten it |
+| *Your code was accepted, but the sign-in could not be finished. Enter your password again.* | The server failed right after the code; sign in again from the password |
 | *UrbanPulse cannot be reached…* or *The code could not be checked…* | Your password is still valid: press *Verify* again, there is no need to type the password |
 
 If you lose the phone, ask an administrator to reset your second factor; you set it up again at the
