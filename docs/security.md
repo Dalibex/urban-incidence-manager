@@ -394,7 +394,8 @@ same network can read the metrics too (nothing more, since the rest still needs 
 being authenticated or knowing an id never gives access to an incident (see `AGENTS.md`, section 6).
 Listings only return the caller's incidents; reading one that is not theirs answers `404`. The
 filters of `GET /incidents` apply inside that scope, so they never widen it. A `CITIZEN` may only
-filter by `status`: any other filter answers `403`, because ignoring it would give a misleading list
+filter by `status` and search with `q` (#266), which only read their own reports: any other filter
+answers `403`, because ignoring it would give a misleading list
 and accepting `priority` would reveal a staff-only value by trying values. A photo follows the rule
 of its incident: the id of an attachment is not a public URL, and a photo of an incident the caller
 may not see answers `404` too (ADR-0013). The `Idempotency-Key` of `POST /incidents` belongs to the
