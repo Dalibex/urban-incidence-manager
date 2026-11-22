@@ -80,7 +80,7 @@ Only the toolchain is installed by hand: Java 25, Docker and Node 24
 `application.yaml` reads them, both Compose files pass them to the containers, and the
 [deployment guide](deployment.md) lists each one, secrets marked. `.env.example`,
 `backend/.env.example`, `frontend/apps/web/.env.example` and `frontend/apps/mobile/.env.example` are
-versioned; every `.env` is ignored. The backend does not start without `JWT_SECRET`.
+versioned; every `.env` is ignored. The backend does not start without `JWT_SECRET` and `MFA_ENCRYPTION_KEY`.
 
 The clients read their configuration when they are built: the web calls the relative `/api/v1` by
 default (`VITE_API_BASE_URL`) and loads the map style from the relative `/tiles/style.json`

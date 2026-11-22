@@ -91,6 +91,7 @@ In `.env` (on Windows, copy it with `Copy-Item .env.example .env`), fill in, wit
 
 - `POSTGRES_PASSWORD`, any password for the database;
 - `JWT_SECRET`, at least 32 bytes: generate one with `openssl rand -base64 48` (on Windows, from Git Bash);
+- `MFA_ENCRYPTION_KEY`, which encrypts the second factor of staff: generate it with `openssl rand -base64 32`;
 - `SPRING_PROFILES_ACTIVE=demo` and a `DEMO_PASSWORD`, the password of the demo users.
 
 > [!IMPORTANT]
@@ -105,7 +106,7 @@ docker compose up -d --build
 docker compose --profile tiles run --rm tiles-builder
 ```
 
-Open `http://localhost:8000` and sign in as `demo.operator@example.com` with your `DEMO_PASSWORD`. The other demo users, and how to reach the system from a phone, are in the [demo script](docs/demo.md). `docker compose down` stops it and keeps the data.
+Open `http://localhost:8000` and sign in as `demo.operator@example.com` with your `DEMO_PASSWORD`. Staff accounts need a code from an authenticator app: the first sign-in shows a QR code to set it up ([demo script](docs/demo.md)). The other demo users, and how to reach the system from a phone, are in the [demo script](docs/demo.md). `docker compose down` stops it and keeps the data.
 
 ## 🧪 Testing
 

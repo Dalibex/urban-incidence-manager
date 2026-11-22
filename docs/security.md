@@ -223,8 +223,10 @@ app, which has no code step.
   the account is spent. No operation returns the secret after that.
 - **Secret at rest:** encrypted with AES-256-GCM (random 12-byte IV per secret) with the key of
   `MFA_ENCRYPTION_KEY`, 32 random bytes in Base64. The backend does not start without it. Losing or
-  changing the key makes every stored secret unreadable, so every staff user must enrol again (an
-  administrator resets each one).
+  changing the key makes every stored secret unreadable: the code step of every enrolled account
+  answers `500`, administrators included, so nobody can reset from the web and each account needs the
+  [emergency procedure](deployment.md#-reset-the-second-factor-of-the-last-administrator) (for
+  another user, the same SQL with their email and without the role condition).
 - **Reset:** `POST /users/{id}/mfa-resets`, administrators only, with a reason. It clears the secret,
   spends the open challenges, revokes every refresh token of the user and records `RESET_MFA` with the
   reason, in one transaction. The user enrols again on the next sign-in. A last administrator who
@@ -237,7 +239,7 @@ Known limits, also in *Accepted Risks* of the [architecture](architecture.md):
 
 - **Trust on first use.** While an account has no second factor (after the deployment of #57, after
   a reset, and for a new account), whoever knows its password can enrol their own phone first. The
-  real user then gets `MFA_ALREADY_ENROLLED`, and an administrator resets it.
+  real user's sign-in then asks for a code their app cannot give, and an administrator resets it.
 - **Lock-out by whoever has the password.** The limit of wrong codes is per account and a right
   password does not give the attempts back, so someone with the password can lock the real user
   out of the code step for up to 15 minutes. The counter lives in the backend process, like the

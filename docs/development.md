@@ -61,8 +61,10 @@ Copy-Item .env.example .env
 ```
 
 Replace `POSTGRES_PASSWORD` in `.env` and fill in `JWT_SECRET`, the secret that signs the access
-tokens ([security guide](security.md)). The backend does not start without it. Generate one with
-(in Windows, from Git Bash):
+tokens ([security guide](security.md)), and `MFA_ENCRYPTION_KEY`, the key of the second factor of
+staff (`openssl rand -base64 32`). The backend does not start without them. Set
+`MFA_REQUIRED_ROLES=` (empty) if you want to sign staff in locally without a code. Generate the
+secret with (in Windows, from Git Bash):
 
 ```bash
 openssl rand -base64 48
@@ -439,6 +441,8 @@ Maven and the hook need JDK 25 in `JAVA_HOME`. The fixes for Windows, and the co
 
 - **`JWT_SECRET` is missing or too short:** fill it in `backend/.env` with at least 32 bytes
   (*Create the Local Environment File*).
+- **`MFA_ENCRYPTION_KEY` is missing or not 32 bytes:** fill it in `backend/.env` with the output of
+  `openssl rand -base64 32`.
 - **The value has quotes:** the backend reads `.env` as a properties file, so the quotes become part
   of the value. Write `JWT_SECRET=abc...`, not `JWT_SECRET="abc..."`.
 - **Flyway refuses the database after changing the data profile:** a database loaded with one

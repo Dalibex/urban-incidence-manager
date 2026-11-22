@@ -340,7 +340,7 @@ BEGIN;
 SELECT id AS uid FROM users WHERE email = :'email' AND role = 'ADMINISTRATOR' \gset
 UPDATE users SET mfa_secret = NULL, mfa_last_time_step = NULL WHERE id = :'uid';
 UPDATE mfa_challenges SET spent_at = now() WHERE user_id = :'uid' AND spent_at IS NULL;
-UPDATE refresh_tokens SET revoked_at = COALESCE(revoked_at, now()), expires_at = now()
+UPDATE refresh_token SET revoked_at = COALESCE(revoked_at, now()), expires_at = now()
   WHERE user_id = :'uid' AND expires_at > now();
 INSERT INTO audit_log (actor_id, instant, action, target_id, target_type, details)
   VALUES (:'uid', now(), 'RESET_MFA', :'uid', 'USER',
