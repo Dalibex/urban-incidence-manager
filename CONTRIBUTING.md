@@ -219,6 +219,8 @@ Keep each entry consistent with the rest of the file:
 A significant technical decision (technology, architecture, persistence, security, infrastructure) is
 recorded as an ADR in [`docs/adr/`](docs/adr/), using the [ADR template](.github/adr-template.md) and the
 ADR issue template. A new ADR starts as **Proposed** and becomes **Accepted** only when the team agrees.
+An ADR that records a decision of a [design document](docs/design/) names it in its *Design document*
+line, and the design document links its ADRs once they exist.
 
 ## 👥 Team workflow
 

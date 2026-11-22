@@ -2,6 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useQueryClient } from '@tanstack/react-query';
 import type { components } from '@urbanpulse/api-client';
 import {
+  addressText,
   buildTimeline,
   CITY_COUNCIL,
   colors,
@@ -150,7 +151,11 @@ function IncidentData({ incident }: { incident: Incident }) {
         )}
       </Section>
       <Section title={SECTIONS.location}>
-        <Field label="Address" value={location.address ?? NOT_AVAILABLE} />
+        <Field
+          label="Address"
+          value={addressText(location.address, location.addressStatus).text}
+          source={location.addressSource?.attribution}
+        />
         <Field label="Neighbourhood" value={location.neighborhood ?? NOT_AVAILABLE} />
         <Field label="District" value={location.district ?? NOT_AVAILABLE} />
         <Field
@@ -254,12 +259,18 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function Field({ label, value }: { label: string; value: string }) {
+/**
+ * @param source the attribution the licence of the value asks for, shown under it, such as the
+ *   one of the address (#375)
+ */
+function Field({ label, value, source }: { label: string; value: string; source?: string }) {
+  const announced = source ? `${label}: ${value}. ${source}` : `${label}: ${value}`;
   return (
     // One element for screen readers, so the label and its value are read together.
-    <View style={styles.field} accessible accessibilityLabel={`${label}: ${value}`}>
+    <View style={styles.field} accessible accessibilityLabel={announced}>
       <Text style={screenStyles.note}>{label}</Text>
       <Text style={screenStyles.body}>{value}</Text>
+      {source && <Text style={screenStyles.note}>{source}</Text>}
     </View>
   );
 }

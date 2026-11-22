@@ -53,16 +53,16 @@ in which milestone, is in GitHub, not here.
 
 | ID | Requirement | In the MVP | Issues | After the MVP |
 | --- | --- | --- | --- | --- |
-| RF01 | **Identity and access.** Users sign up or sign in; staff authenticate. | Yes. The second factor for staff was left out of the MVP. | #35, #39, #126, #165; #57 (second factor, ADR-0021) | The second factor for staff. Planned: #57. |
+| RF01 | **Identity and access.** Users sign up or sign in; staff authenticate. | Yes, with the second factor for staff (ADR-0021). | #35, #39, #126, #165; #57 (second factor, ADR-0021) | — |
 | RF02 | **Roles and permissions.** Different permissions for citizens, operators, technicians, administrators and analysts. | Yes | #35, #39, #100, #40; [permission matrix](security.md#-permission-matrix) | A new **auditor** role that reads the audit with the administrators ([final delivery](#-final-delivery)). Planned: #355. |
 | RF03 | **Report an incident** with a title, description, position and optional category. | Yes | #43 | — |
-| RF04 | **Location.** The incident keeps coordinates, normalized address and accuracy. | Partly. Coordinates, and the accuracy while the position is the phone's GPS fix; the citizen corrects the position with a pin on the mobile map, and reports without GPS once they move it: the map's starting point on Málaga is never sent. The normalized address has no issue. | #43; #60 (#197, #198) | The normalized address from the position. Planned: #375. |
+| RF04 | **Location.** The incident keeps coordinates, normalized address and accuracy. | Yes. Coordinates, and the accuracy while the position is the phone's GPS fix; the citizen corrects the position with a pin on the mobile map, and reports without GPS once they move it: the map's starting point on Málaga is never sent. The normalized address is resolved from the position by Nominatim after the report, never delaying it, and shown with its source in the web and mobile details and the staff lists, or said to be pending, outside Málaga or not available ([ADR-0002](adr/0002-open-street-map.md), #375). Incidents reported before it have none. | #43; #60 (#197, #198); #375 | — |
 | RF06 | **Consultation and tracking.** A user sees the detail, status, dates and visible history of their incidents. | Yes | #45 (citizen), #46 (staff), #100, #169 (timeline) | — |
 | RF09 | **Validation.** An operator validates, requests more information or rejects a report with a reason. | Yes | #48 (#188, #189) | — |
 | RF11 | **Assignment** of a validated incident to a department, team or technician. | Yes | #49 (#184, #185), #190 | — |
 | RF12 | **Lifecycle.** Status changes follow the allowed transitions and are audited. | Yes | ADR-0020; #37, #99, #101, #102, #49, #51, #52 | — |
 | RF18 | **Audit** of administrative actions, assisted decisions and relevant changes. | Partly. Administrative actions and classification; assisted decisions come with RF20. | #36, #40, #41, #47 | Every change of every incident and who made it, an audit dashboard and an audit service with its own database ([final delivery](#-final-delivery)). Planned: #353. Replaces the single schema of ADR-0010 for the audit. |
-| RF26 | **Controlled degradation.** An external source being down does not prevent creating an incident. | Yes. Creating an incident calls no external source; it has to stay that way when RF21–RF25 arrive. | #43 | It also holds when one of the new services is down ([final delivery](#-final-delivery)). Planned: #327. |
+| RF26 | **Controlled degradation.** An external source being down does not prevent creating an incident. | Yes. Creating an incident calls no external source: the weather and the address are fetched after the report; it has to stay that way when RF21–RF25 arrive. | #43 | It also holds when one of the new services is down ([final delivery](#-final-delivery)). Planned: #327. |
 
 ### Medium
 
@@ -102,7 +102,7 @@ section states them in the team's words; the course text stays outside the repos
 
 Each design proposal goes to the client in a design document: the lecturers validate it when the
 team presents it in class, with the problems of each requirement and the possible solutions. The
-design documents will live in `docs/design` (Planned: #328).
+design documents, their template and how they are validated are in [`docs/design`](design/README.md).
 
 **Status** says what the code does today: *Built*, *Partly* (the note says what exists) or *No*. The
 issue is the parent that covers the requirement; its sub-issues are listed in it.
@@ -114,11 +114,11 @@ issue is the parent that covers the requirement; its sub-issues are listed in it
 | **Normalized incidents.** The reports of several citizens about the same problem become one incident, and each report stays traceable to it: a report of a problem that already has an incident is attached to it instead of creating a duplicate, and the incident lists every citizen who reported it. Built in the core, before the services. | No. Each report is its own incident. | #333 | — |
 | **Context service** that extracts, normalizes and manages external data (the chosen Málaga open data, and the weather from AEMET or another source) in its **own database**, kept up to date by periodic extraction or by asking the source when needed. | Partly. The `urbancontext` module of the core stores the weather of each new incident from Open-Meteo, in the shared schema; the open data is not loaded. | #346; the weather source: #372 | The single schema of ADR-0010 for the context; the weather provider of ADR-0018 if #372 chooses another |
 | **Audit service** with its **own database**: every status of an incident, every change and who made it, with an analysis dashboard and a new **auditor** role that reads it with the administrators. The audit is the internal observability of the system (who changed what and why); its own database is a privacy measure. | Partly. The core's audit log records administrative actions and classifications, and administrators read it in a list; status changes are in each incident's history. There is no auditor role, dashboard or separate database. | #353 | The single schema of ADR-0010 for the audit |
-| **Paginated bulk reads.** Every bulk REST read is paginated. | Partly. The incidents, the users, the audit entries, and the comments and classification changes of an incident are paginated ([API conventions](api.md#listings)); the map locations, the status changes of an incident and the technicians are not. The categories, the departments and the photos of an incident are short or bounded lists, not bulk reads, for the client to confirm in #328. | #360 | — |
+| **Paginated bulk reads.** Every bulk REST read is paginated. | Partly. The incidents, the users, the audit entries, and the comments and classification changes of an incident are paginated ([API conventions](api.md#listings)); the map locations, the status changes of an incident and the technicians are not. The categories, the departments and the photos of an incident are short or bounded lists, not bulk reads, for the client to confirm in DD-001 (#412). | #360 | — |
 | **Incident UUID.** A UUID identifies each incident across the services: it is its public id, a UUIDv7 for new incidents, while the keys inside the database are numeric. | Partly. The API identifies each incident by a UUID; new incidents do not get a UUIDv7 yet. | #369 | — |
 | **Reliability and resilience** when a component (an external source or a service) is not available. | Partly. Creating an incident never waits for an external source, and the weather is fetched afterwards ([QA-2](architecture.md#qa-2-create-an-incident-while-an-external-source-is-down-rf26)); there are no services yet. | #327 | — |
 | **Observability environment** that combines k6, Micrometer, structured logs, Prometheus and Grafana to evaluate the quality attributes. | Partly. k6, Micrometer, Prometheus and Grafana run for the backend (ADR-0023); the logs are plain text and not aggregated, and no service-level indicator is defined. | #362 | — |
-| **Design documents validated by the client**, with the problems of each requirement and the possible solutions. | No. | #328 and the design document of each parent above | — |
+| **Design documents validated by the client**, with the problems of each requirement and the possible solutions. | No. The folder, the template and the validation flow are in [`docs/design`](design/README.md); no design document is validated yet. | #328 and the design document of each parent above | — |
 
 ## 💻 Screens per Role
 
@@ -130,14 +130,14 @@ in on the web gets a notice to use the phone; staff who sign in on the phone get
 web. Every screen is also protected by the API: hiding a menu entry is not access control
 ([security guide](security.md)).
 
-The sign-in screen asks for the email and password. A second factor for staff accounts is
-planned before the refactor: Planned: #57.
+The sign-in screen asks for the email and password. Staff accounts then type a code from an
+authenticator app (#57, ADR-0021); the first time, the screen shows a QR code to enrol the app.
 
 ### Web: municipal operator
 
 - **Menu:** *Inbox* and *Map*.
-- **Inbox** (#46): incidents newest first, with the filters of #58 (status, category, date,
-  priority, department, and district when #59 is done). The menu opens it filtered by `REPORTED`
+- **Inbox** (#46): incidents newest first, with their street address (#375) and the filters of
+  #58 (status, category, date, priority, department, and district when #59 is done). The menu opens it filtered by `REPORTED`
   (#183).
 - **Map** (#196): markers coloured by status and sized by priority, with the same filters as the
   inbox, clustered by zoom, each cluster labelled with its highest priority; refreshed every 15
@@ -148,7 +148,8 @@ planned before the refactor: Planned: #57.
   total, by priority, charts by status, category and department, and the latest reported; each
   part folds and is remembered. The filters fold behind a button, with quick ranges of days. A
   customizable dashboard is planned in #265.
-- **Incident detail** (#46): report data, photos (#44), the weather when it was reported in the
+- **Incident detail** (#46): report data, the address with its source (#375), photos (#44), the
+  weather when it was reported in the
   *Context* section (#308), and the history and internal comments (#50) in one timeline. The
   actions depend on the status (ADR-0020):
 
@@ -171,7 +172,7 @@ planned before the refactor: Planned: #57.
 - **Map** (#196): the operator's map with the incidents assigned to them, and its dashboard
   (#177) with their counts; the menu opens it on `ASSIGNED` and `IN_PROGRESS`, like the queue.
 - **Work queue** (#51): the incidents assigned to them, with the filters and columns of the inbox
-  (date reported, title, category, status and priority). It opens on `ASSIGNED` and `IN_PROGRESS`
+  (date reported, title, address, category, status and priority). It opens on `ASSIGNED` and `IN_PROGRESS`
   (#187).
 - **Incident detail** (#51): report data, photos (#194), the weather in the *Context* section
   (#308) and the history, read-only. *Accept* (`ASSIGNED` → `IN_PROGRESS`), *Comment* (#50) and
@@ -183,7 +184,8 @@ planned before the refactor: Planned: #57.
   operator can (ADR-0020), so they also get the operator's screens (#127), and the analyst's
   *Reports* (#42).
 - **Users** (#40): list filtered by name, email and role; create a staff account with a role; edit
-  the name and role; **deactivate** (not delete) an account.
+  the name and role; **deactivate** (not delete) an account; **reset the second factor** of a
+  staff account with a reason (#57).
 - **Audit log** (#41): read-only list filtered by date, actor and action; columns date, actor,
   action, target and details.
 - **Not in the MVP:** the *Sources* screen for external data sources (it goes with RF23).

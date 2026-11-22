@@ -228,15 +228,20 @@ SELECT i.id,
 FROM perf_incident i
 JOIN perf_shape s ON s.id = i.id;
 
--- A few positions without accuracy, and a few places not resolved yet ("not available").
-INSERT INTO location (id, incident_id, coordinates, accuracy, address, neighborhood, district)
+-- A few positions without accuracy, and a few places not resolved ("not available"). A resolved
+-- address is stored as the address worker (#375) leaves it, 30 s after the report.
+INSERT INTO location (id, incident_id, coordinates, accuracy, address, neighborhood, district,
+                      address_status, address_source, address_resolved_at)
 SELECT format('f3000000-0000-4000-8000-%s', lpad(to_hex(i.n), 12, '0'))::uuid,
        i.id,
        ST_SetSRID(ST_MakePoint(i.longitude, i.latitude), 4326)::geography,
        CASE WHEN i.r_accuracy < 0.05 THEN NULL ELSE round((3 + i.r_accuracy * 40)::numeric, 1) END,
        CASE WHEN i.r_place < 0.08 THEN NULL ELSE format('%s, %s', i.street, 1 + floor(i.r_number * 150)::int) END,
        CASE WHEN i.r_place < 0.08 THEN NULL ELSE i.neighborhood END,
-       CASE WHEN i.r_place < 0.08 THEN NULL ELSE i.district END
+       CASE WHEN i.r_place < 0.08 THEN NULL ELSE i.district END,
+       CASE WHEN i.r_place < 0.08 THEN 'UNAVAILABLE' ELSE 'AVAILABLE' END,
+       CASE WHEN i.r_place < 0.08 THEN NULL ELSE 'OpenStreetMap' END,
+       CASE WHEN i.r_place < 0.08 THEN NULL ELSE i.reported_at + interval '30 seconds' END
 FROM perf_incident i;
 
 -- The report, then the information request when there is one, then the steps of the path, one gap

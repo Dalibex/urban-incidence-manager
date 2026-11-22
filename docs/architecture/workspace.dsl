@@ -78,7 +78,7 @@ workspace "UrbanPulse" "C4 Model" {
                 tags "Backend"
                 url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0008-backend.md
 
-                identity = component "identity" "Users, roles and permissions; sign-up, login with in-memory attempt limits, short-lived JWTs, rotating hashed refresh tokens; audit log. A TOTP second factor for staff is accepted (ADR-0021) but not built yet (#57)." "Spring Security / Spring Data JPA" {
+                identity = component "identity" "Users, roles and permissions; sign-up, login with in-memory attempt limits, short-lived JWTs, rotating hashed refresh tokens and a TOTP second factor for staff (ADR-0021); audit log." "Spring Security / Spring Data JPA" {
                     tags "Identity"
                     url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0004-authentication-strategy.md
                 }
@@ -89,11 +89,11 @@ workspace "UrbanPulse" "C4 Model" {
                     tags "UrbanContext"
                     url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0009-urban-data-source.md
                 }
-                geospatial = component "geospatial" "Location and territory: districts, neighbourhoods, urban assets and spatial queries over local data." "Spring Service / Spring Data JPA / PostGIS" {
+                geospatial = component "geospatial" "Location and territory: districts, neighbourhoods, urban assets and spatial queries over local data, and a scheduled worker that resolves the normalized address of each new incident with Nominatim after the report (ADR-0002)." "Spring Service / Spring Data JPA / PostGIS" {
                     tags "Geospatial"
                     url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0003-geospatial-data-management.md
                 }
-                notifications = component "notifications" "Notifications created on incident status changes and their delivery status; email (Brevo) and SMS (Twilio) adapters behind one sender interface per channel." "Spring Service / Spring Data JPA" {
+                notifications = component "notifications" "Notifications created on incident status changes and their delivery status; email (Brevo) and push (Expo push service) adapters behind one sender interface per channel." "Spring Service / Spring Data JPA" {
                     tags "Notifications"
                     url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0019-notification-delivery-providers.md
                 }
@@ -118,7 +118,7 @@ workspace "UrbanPulse" "C4 Model" {
                 tags "Database"
                 url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0001-database.md
 
-                db_relational = component "Relational Schema" "Table groups created by Flyway: identity (users, refresh_token, audit_log), incidents (incident, location, category, department, assignment, status_change, comment, attachment), urbancontext (urban_context, external_observation, data_source_config; also urban_asset and incident_asset, used by geospatial), notifications (notification)." "SQL tables" {
+                db_relational = component "Relational Schema" "Table groups created by Flyway: identity (users, refresh_token, mfa_challenges, audit_log), incidents (incident, location, category, department, assignment, status_change, comment, attachment), urbancontext (urban_context, external_observation, data_source_config; also urban_asset and incident_asset, used by geospatial), notifications (notification)." "SQL tables" {
                     url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0014-database-migrations-flyway.md
                 }
                 db_postgis = component "Spatial Engine (PostGIS)" "geography(Point, 4326) in location.coordinates and urban_asset.geometry with GiST indexes; distance and containment operators." "PostGIS extension" {
@@ -185,9 +185,9 @@ workspace "UrbanPulse" "C4 Model" {
             url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0019-notification-delivery-providers.md
         }
 
-        twilio = softwareSystem "Twilio" "SMS API (Programmable Messaging)." {
+        expoPush = softwareSystem "Expo push service" "Push notifications to the citizen app; delivers on Android through Firebase Cloud Messaging." {
             tags "ExternalAPI,Proposed"
-            url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0019-notification-delivery-providers.md
+            url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0031-push-and-email-notifications.md
         }
 
         llm = softwareSystem "LLM Provider" "External model for classification, summarization, and RAG (to be decided; no module yet)." {
@@ -206,12 +206,12 @@ workspace "UrbanPulse" "C4 Model" {
         urbanpulse -> openmeteo "Current weather" "HTTPS"
         urbanpulse -> tomtom "Current traffic flow" "HTTPS"
         urbanpulse -> brevo "Sends notification emails" "HTTPS"
-        urbanpulse -> twilio "Sends notification SMS" "HTTPS"
+        urbanpulse -> expoPush "Sends push notifications" "HTTPS"
         urbanpulse -> llm "Intelligent assistance" "HTTPS" {
             tags "Future"
         }
         brevo -> citizen "Delivers notification emails" "Email"
-        twilio -> citizen "Delivers notification SMS" "SMS"
+        expoPush -> citizen "Delivers push notifications" "Push"
 
         ### Level 2: containers
         citizen -> urbanpulse.frontend_mobile "Reports incidents and attaches evidence"
@@ -233,7 +233,7 @@ workspace "UrbanPulse" "C4 Model" {
         urbanpulse.backend -> openmeteo "Current weather" "HTTPS"
         urbanpulse.backend -> tomtom "Current traffic flow" "HTTPS"
         urbanpulse.backend -> brevo "Sends notification emails" "HTTPS (REST API)"
-        urbanpulse.backend -> twilio "Sends notification SMS" "HTTPS (REST API)"
+        urbanpulse.backend -> expoPush "Sends push notifications" "HTTPS (REST API)"
         urbanpulse.backend -> llm "Intelligent assistance" "HTTPS" {
             tags "Future"
         }
@@ -246,7 +246,7 @@ workspace "UrbanPulse" "C4 Model" {
         urbanpulse.nginx -> urbanpulse.backend.notifications "Proxies /api (in-app notifications)" "HTTP/JSON"
         urbanpulse.nginx -> urbanpulse.backend.analytics "Proxies /api (reports)" "HTTP/JSON, CSV"
 
-        urbanpulse.backend.identity -> urbanpulse.postgres "users, refresh_token (hashed), audit_log" "JPA/JDBC"
+        urbanpulse.backend.identity -> urbanpulse.postgres "users (encrypted TOTP secret), refresh_token and mfa_challenges (hashed), audit_log" "JPA/JDBC"
         urbanpulse.backend.incidents -> urbanpulse.postgres "Incident tables (ACID)" "JPA/JDBC"
         urbanpulse.backend.urbancontext -> urbanpulse.postgres "urban_context, external_observation, data_source_config" "JPA/JDBC"
         urbanpulse.backend.geospatial -> urbanpulse.postgres "urban_asset, incident_asset; PostGIS spatial queries" "JPA/JDBC"
@@ -260,9 +260,10 @@ workspace "UrbanPulse" "C4 Model" {
         urbanpulse.backend.urbancontext -> opendata "Queries authoritative data" "HTTPS"
         urbanpulse.backend.urbancontext -> openstreet "Geocoding and asset fallback" "HTTPS"
         urbanpulse.backend.urbancontext -> openmeteo "Current weather at the incident" "HTTPS"
+        urbanpulse.backend.geospatial -> openstreet "Address of the incident by reverse geocoding (Nominatim), after the report" "HTTPS"
         urbanpulse.backend.urbancontext -> tomtom "Traffic flow near the incident" "HTTPS"
         urbanpulse.backend.notifications -> brevo "Sends transactional email" "HTTPS (REST API)"
-        urbanpulse.backend.notifications -> twilio "Sends SMS" "HTTPS (Twilio Java SDK)"
+        urbanpulse.backend.notifications -> expoPush "Sends push notifications" "HTTPS (REST API)"
 
         ### Level 3: database components
         urbanpulse.backend -> urbanpulse.postgres.db_relational "Each module reads and writes its own tables; analytics only reads" "JPA/JDBC"
@@ -338,10 +339,10 @@ workspace "UrbanPulse" "C4 Model" {
                     web_service = deploymentNode "web" "The only published port, HTTP_PORT (8000 by default). HTTP only: HTTPS is not set up yet (docs/deployment.md)" "Image built from frontend/Dockerfile (unprivileged nginx)" {
                         nginx_instance = containerInstance urbanpulse.nginx
                     }
-                    backend_service = deploymentNode "backend" "No published port and no route to the internet: internal network only; it reaches Open-Meteo through egress-proxy (ADR-0011)" "Image built from backend/Dockerfile" {
+                    backend_service = deploymentNode "backend" "No published port and no route to the internet: internal network only; it reaches Open-Meteo and Nominatim through egress-proxy (ADR-0011)" "Image built from backend/Dockerfile" {
                         backend_instance = containerInstance urbanpulse.backend
                     }
-                    egress_proxy = infrastructureNode "egress-proxy" "The backend's only way out to the internet: lets it open an HTTPS tunnel to api.open-meteo.com and refuses everything else (ADR-0011, ADR-0018)" "Squid, image built from egress-proxy/Dockerfile"
+                    egress_proxy = infrastructureNode "egress-proxy" "The backend's only way out to the internet: lets it open an HTTPS tunnel to api.open-meteo.com and nominatim.openstreetmap.org and refuses everything else (ADR-0011, ADR-0018, ADR-0002)" "Squid, image built from egress-proxy/Dockerfile"
                     evidence_volume = deploymentNode "evidence_data" "Mounted in backend at /app/storage" "Docker named volume" {
                         evidence_instance = containerInstance urbanpulse.evidence_storage
                     }
@@ -362,7 +363,7 @@ workspace "UrbanPulse" "C4 Model" {
             phone = deploymentNode "Phone" "Runs the citizen app; release builds allow HTTPS only" "Android or iOS" {
                 mobile_instance = containerInstance urbanpulse.frontend_mobile
             }
-            server.compose.backend_service.backend_instance -> server.compose.egress_proxy "Calls Open-Meteo through it" "HTTPS tunnel (CONNECT)"
+            server.compose.backend_service.backend_instance -> server.compose.egress_proxy "Calls Open-Meteo and Nominatim through it" "HTTPS tunnel (CONNECT)"
 
             server.compose.db_service.postgres_instance -> server.compose.postgres_volume "Stores the database files" "Volume mount"
             server.compose.tiles_service.tiles_instance -> server.compose.tiles_volume "Writes malaga.pmtiles, the style, fonts and sprites" "Volume mount"
@@ -431,10 +432,10 @@ workspace "UrbanPulse" "C4 Model" {
         # Dynamic views follow the decided architecture, so the clients go through nginx. In
         # development the Vite server stands in its place for the web app and for the mobile base
         # map; the mobile app calls /api directly.
-        # A citizen, because staff accounts will add the TOTP challenge of ADR-0021 (#57) before any token.
+        # A citizen, because staff accounts add the TOTP challenge of ADR-0021 before any token.
         dynamic urbanpulse.backend "Dynamic_SignIn" {
             title "Sign-in and refresh token rotation"
-            description "ADR-0004 for a citizen: a 15-minute access token and a refresh token stored only as a hash. Every refresh revokes the token used; presenting it again ends every session. Staff accounts will add a TOTP step first (ADR-0021, not built yet: #57)."
+            description "ADR-0004 for a citizen: a 15-minute access token and a refresh token stored only as a hash. Every refresh revokes the token used; presenting it again ends every session. Staff accounts add a TOTP step first (ADR-0021)."
             citizen -> urbanpulse.frontend_mobile "Signs in with email and password"
             urbanpulse.frontend_mobile -> urbanpulse.nginx "POST /api/v1/sessions"
             urbanpulse.nginx -> urbanpulse.backend.identity "Proxies the request"
@@ -451,7 +452,7 @@ workspace "UrbanPulse" "C4 Model" {
 
         dynamic urbanpulse.backend "Dynamic_ReportIncident" {
             title "Reporting an incident from the mobile app"
-            description "RF03 and RF26: the report saves only a PENDING urban context, so no external source can block it. The scheduled worker of urbancontext fills its weather from Open-Meteo afterwards (ADR-0018), and is not shown."
+            description "RF03 and RF26: the report saves only a PENDING urban context and a PENDING address, so no external source can block it. The scheduled workers of urbancontext and geospatial fill the weather from Open-Meteo (ADR-0018) and the address from Nominatim (ADR-0002) afterwards, and are not shown."
             citizen -> urbanpulse.frontend_mobile "Writes a title and description, picks an optional category and confirms the position"
             urbanpulse.frontend_mobile -> urbanpulse.nginx "POST /api/v1/incidents with the access token"
             urbanpulse.nginx -> urbanpulse.backend.incidents "Proxies the request; shared.security validates the token"

@@ -7,8 +7,21 @@ urbanpulse:
       secret: test-secret-for-integration-tests-only-0123456789
       # Fixed too, so a JWT_ACCESS_TOKEN_TTL in the developer's .env does not change the tests.
       access-token-ttl: PT15M
+    mfa:
+      # Fixed and public: it only encrypts second-factor secrets inside the tests.
+      encryption-key: dGVzdC1rZXktb2YtdGhlLXNlY29uZC1mYWN0b3ItMzI=
+      # No role asks for a code, so the tests that sign staff in keep getting their tokens with the
+      # password alone. The tests of the second factor set the four staff roles with
+      # @SpringBootTest(properties = ...). Fixed, so an MFA_REQUIRED_ROLES in .env does not count.
+      required-roles: ""
   # The scheduled worker never runs in the tests, and nothing reaches the real Open-Meteo: a test
   # calls WeatherEnrichmentWorker.enrichPending() with a fake server or a test double.
   weather:
     enabled: false
     open-meteo-base-url: http://127.0.0.1:9
+  # The same for the address worker and Nominatim: a test calls
+  # AddressEnrichmentWorker.resolvePending(), and no test waits a second between two calls.
+  address:
+    enabled: false
+    nominatim-base-url: http://127.0.0.1:9
+    request-spacing: PT0S

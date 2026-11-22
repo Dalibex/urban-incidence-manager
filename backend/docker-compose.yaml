@@ -50,6 +50,11 @@ services:
       JWT_ACCESS_TOKEN_TTL: ${JWT_ACCESS_TOKEN_TTL:-PT15M}
       REFRESH_TOKEN_TTL: ${REFRESH_TOKEN_TTL:-P14D}
       REFRESH_TOKEN_RETENTION: ${REFRESH_TOKEN_RETENTION:-P30D}
+      # Second factor of the staff (docs/security.md). Without MFA_ENCRYPTION_KEY the backend does
+      # not start.
+      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY}
+      MFA_REQUIRED_ROLES: ${MFA_REQUIRED_ROLES-MUNICIPAL_OPERATOR,TECHNICIAN,ADMINISTRATOR,ANALYST}
+      MFA_ISSUER: ${MFA_ISSUER:-UrbanPulse}
       # Data profile (docs/datasets.md): empty for no sample data, dev for the development dataset,
       # demo for the demo dataset, which also needs DEMO_PASSWORD (docs/demo.md), perf for the
       # performance dataset, of PERF_INCIDENTS incidents.
@@ -73,6 +78,8 @@ services:
       WEATHER_ENRICHMENT_BATCH_SIZE: ${WEATHER_ENRICHMENT_BATCH_SIZE:-20}
       OPEN_METEO_TIMEOUT: ${OPEN_METEO_TIMEOUT:-PT2S}
       WEATHER_MAX_DELAY: ${WEATHER_MAX_DELAY:-PT1H}
+      # Address of each incident from Nominatim (#375, docs/deployment.md).
+      ADDRESS_ENRICHMENT_ENABLED: ${ADDRESS_ENRICHMENT_ENABLED:-true}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8080}:8080"
     depends_on:
