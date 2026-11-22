@@ -355,7 +355,8 @@ below about 280 pixels of map the page scrolls instead.
 - **Markers:** each incident is a dot. Its colour is its status, the same as in the lists, its
   size is its priority: the higher, the bigger, and a *High* one also has a dark border, and the
   icon inside it is its category, such as a bulb for *Street lighting*. An incident without
-  category, or of a category without an icon of its own such as *Other*, shows three dots. *Map
+  category, of a category without an icon of its own such as *Other*, or of a retired category,
+  shows three dots. *Map
   key*, in the bottom-left corner of the map, explains the three, with each category and its icon;
   it opens and folds, and stays as you left it.
 - **Full screen:** the button under the zoom buttons shows the whole screen of the map, with its

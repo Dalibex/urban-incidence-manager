@@ -46,12 +46,14 @@ describe('toFeatureCollection', () => {
       status: 'REOPENED',
       priorityRank: 0,
       color: statusColor('REOPENED'),
-      icon: 'category-GENERIC-light',
+      icon: markerIconId('GENERIC', statusColor('REOPENED')),
     });
   });
 
-  // #267: the icon is the category; the glyph is white or dark to read on the status colour.
-  it('names the image of the icon of each category, in the glyph colour of its status', () => {
+  // #267: the icon is the category, drawn on the colour of the status. Which glyph colour reads on
+  // which fill is checked with fixed colours in `markerIconId` below, so a new palette (#288)
+  // changes no expectation here.
+  it('names the image of the icon of each category, on the colour of its status', () => {
     const categories = [
       {
         id: 'lighting',
@@ -72,9 +74,9 @@ describe('toFeatureCollection', () => {
     );
 
     expect(collection.features.map(({ properties }) => properties.icon)).toEqual([
-      'category-STREET_LIGHTING-light',
-      'category-STREET_LIGHTING-dark',
-      'category-GENERIC-dark',
+      markerIconId('STREET_LIGHTING', statusColor('VALIDATED')),
+      markerIconId('STREET_LIGHTING', statusColor('REPORTED')),
+      markerIconId('GENERIC', statusColor('REPORTED')),
     ]);
   });
 });
@@ -82,6 +84,12 @@ describe('toFeatureCollection', () => {
 // The map adds the images of markerIconImages (IncidentMap); a marker naming any other image
 // would draw without icon, and the map tests replace the map, so this checks the wiring.
 describe('markerIconId', () => {
+  it('names the icon and a white glyph on a dark fill, a dark one on a light fill', () => {
+    expect(markerIconId('WASTE', '#1d4ed8')).toBe('category-WASTE-light');
+    expect(markerIconId('WASTE', '#facc15')).toBe('category-WASTE-dark');
+    expect(markerIconId('GENERIC', '#000000')).toBe('category-GENERIC-light');
+  });
+
   it('names an image the map adds, for every icon on every status colour', () => {
     const added = new Set(markerIconImages().map(({ id }) => id));
 

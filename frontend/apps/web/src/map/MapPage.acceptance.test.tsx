@@ -12,18 +12,27 @@ type IncidentPosition = components['schemas']['IncidentPosition'];
 type Incident = components['schemas']['IncidentResponse'];
 
 // MapLibre draws with WebGL, which jsdom does not have. The real map is checked by hand (#76 T1,
-// T3, T12, T13); here a stand-in shows its markers as buttons, so a click selects as on the map.
-vi.mock('./IncidentMap', () => ({
-  IncidentMap: ({ positions, onSelect }: IncidentMapProps) => (
-    <div role="region" aria-label="Map stand-in">
-      {positions.map((position) => (
-        <button key={position.id} type="button" onClick={() => onSelect(position.id)}>
-          Marker {position.id}
-        </button>
-      ))}
-    </div>
-  ),
-}));
+// T3, T12, T13); here a stand-in shows its markers as buttons, so a click selects as on the map,
+// each with the icon it would draw (#267).
+vi.mock('./IncidentMap', async () => {
+  const { iconKeyOf } = await import('./category-icons');
+  return {
+    IncidentMap: ({ positions, categories, onSelect }: IncidentMapProps) => (
+      <div role="region" aria-label="Map stand-in">
+        {positions.map((position) => (
+          <button
+            key={position.id}
+            type="button"
+            data-icon={iconKeyOf(position.categoryId, categories)}
+            onClick={() => onSelect(position.id)}
+          >
+            Marker {position.id}
+          </button>
+        ))}
+      </div>
+    ),
+  };
+});
 
 // The summary beside the map (#177) has its own tests (MapDashboard.acceptance.test.tsx); here its
 // charts are left out, so Plotly is not loaded.
@@ -72,7 +81,7 @@ const POTHOLE_DETAIL: Incident = {
 type Answer = () => Response;
 
 /** A fake API whose positions come from `answers`, one per call, the last one repeated. */
-function mapApi(answers: Answer[], requests: URLSearchParams[] = []) {
+function mapApi(answers: Answer[], requests: URLSearchParams[] = [], categories: unknown[] = []) {
   let call = 0;
   return fakeApi({
     'GET /incident-locations': (request) => {
@@ -82,7 +91,7 @@ function mapApi(answers: Answer[], requests: URLSearchParams[] = []) {
       return answer();
     },
     [`GET /incidents/${POTHOLE.id}`]: () => json(200, POTHOLE_DETAIL),
-    'GET /categories': () => json(200, []),
+    'GET /categories': () => json(200, categories),
     'GET /departments': () => json(200, []),
     'GET /incident-statistics': statistics,
     'GET /incidents': latest,
@@ -113,6 +122,29 @@ describe('incident map on the web (#196, test #76)', () => {
 
     expect(await screen.findByText('2 incidents on the map')).toBeDefined();
     expect(markers()).toEqual([`Marker ${POTHOLE.id}`, `Marker ${LAMP.id}`]);
+  });
+
+  // #267: the map gets the categories, so each marker draws the icon of its own.
+  it('gives each marker the icon of its category', async () => {
+    const lighting = {
+      id: 'c1',
+      name: 'Street lighting',
+      description: null,
+      icon: 'STREET_LIGHTING',
+    };
+    renderApp(PATHS.map, {
+      role: 'MUNICIPAL_OPERATOR',
+      fetch: mapApi([positions([{ ...POTHOLE, categoryId: 'c1' }, LAMP])], [], [lighting]),
+    });
+    await screen.findByText('2 incidents on the map');
+
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole('region', { name: 'Map stand-in' }))
+          .getAllByRole('button')
+          .map((marker) => marker.dataset.icon),
+      ).toEqual(['STREET_LIGHTING', 'GENERIC']),
+    );
   });
 
   // T2: the filters of the list apply to the map, through the address.

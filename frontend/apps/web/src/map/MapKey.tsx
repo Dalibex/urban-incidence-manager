@@ -76,7 +76,9 @@ export function MapKey({ categories, open, onToggle }: MapKeyProps) {
         ))}
         <li>
           <CategoryIconGlyph icon={GENERIC_ICON} className={styles.legendIcon} />
-          {categories ? NOT_CLASSIFIED : `${NOT_CLASSIFIED}, or any category until they load`}
+          {categories
+            ? `${NOT_CLASSIFIED}, or a retired category`
+            : `${NOT_CLASSIFIED}, or any category while they are not loaded`}
         </li>
       </ul>
       <p className={styles.legendTitle}>Groups</p>

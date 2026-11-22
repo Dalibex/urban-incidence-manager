@@ -36,7 +36,7 @@ describe('the category icons of the map key', () => {
     expect(items.map((item) => item.textContent)).toEqual([
       'Street lighting',
       'Other',
-      NOT_CLASSIFIED,
+      `${NOT_CLASSIFIED}, or a retired category`,
     ]);
     for (const item of items) {
       expect(item.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
@@ -46,14 +46,14 @@ describe('the category icons of the map key', () => {
     expect(drawingOf(items[0]!)).not.toBe(drawingOf(items[1]!));
   });
 
-  // Until the categories load (or if they fail), every marker shows the generic icon, so the key
+  // Until the categories load, or if they cannot, every marker shows the generic icon, so the key
   // says so instead of calling all of them not classified.
-  it('says the generic icon stands for any category until the categories load', () => {
+  it('says the generic icon stands for any category while the categories are not loaded', () => {
     render(<MapKey open onToggle={() => {}} />);
 
     const items = within(keySection('Icon: category')).getAllByRole('listitem');
     expect(items.map((item) => item.textContent)).toEqual([
-      'Not classified, or any category until they load',
+      `${NOT_CLASSIFIED}, or any category while they are not loaded`,
     ]);
   });
 });

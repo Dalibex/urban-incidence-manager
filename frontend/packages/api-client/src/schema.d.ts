@@ -439,8 +439,9 @@ export interface paths {
         };
         /**
          * List the active categories
-         * @description Active categories, ordered by name, for the category drop-down of the report form. It is a
-         *     short reference list managed by administrators, so it is not paginated.
+         * @description Active categories, ordered by name, for the category drop-down of the report form and the
+         *     icons of the map and the dashboard (#267). It is a short reference list managed by
+         *     administrators, so it is not paginated.
          *
          *     Roles: any authenticated user.
          */
