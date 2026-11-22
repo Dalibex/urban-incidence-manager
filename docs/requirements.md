@@ -56,13 +56,13 @@ in which milestone, is in GitHub, not here.
 | RF01 | **Identity and access.** Users sign up or sign in; staff authenticate. | Yes. The second factor for staff was left out of the MVP. | #35, #39, #126, #165; #57 (second factor, ADR-0021) | The second factor for staff. Planned: #57. |
 | RF02 | **Roles and permissions.** Different permissions for citizens, operators, technicians, administrators and analysts. | Yes | #35, #39, #100, #40; [permission matrix](security.md#-permission-matrix) | A new **auditor** role that reads the audit with the administrators ([final delivery](#-final-delivery)). Planned: #355. |
 | RF03 | **Report an incident** with a title, description, position and optional category. | Yes | #43 | — |
-| RF04 | **Location.** The incident keeps coordinates, normalized address and accuracy. | Partly. Coordinates, and the accuracy while the position is the phone's GPS fix; the citizen corrects the position with a pin on the mobile map, and reports without GPS once they move it: the map's starting point on Málaga is never sent. The normalized address has no issue. | #43; #60 (#197, #198) | The normalized address from the position. Planned: #375. |
+| RF04 | **Location.** The incident keeps coordinates, normalized address and accuracy. | Yes. Coordinates, and the accuracy while the position is the phone's GPS fix; the citizen corrects the position with a pin on the mobile map, and reports without GPS once they move it: the map's starting point on Málaga is never sent. The normalized address is resolved from the position by Nominatim after the report, never delaying it, and shown with its source in the web and mobile details and the staff lists, or said to be pending, outside Málaga or not available ([ADR-0002](adr/0002-open-street-map.md), #375). Incidents reported before it have none. | #43; #60 (#197, #198); #375 | — |
 | RF06 | **Consultation and tracking.** A user sees the detail, status, dates and visible history of their incidents. | Yes | #45 (citizen), #46 (staff), #100, #169 (timeline) | — |
 | RF09 | **Validation.** An operator validates, requests more information or rejects a report with a reason. | Yes | #48 (#188, #189) | — |
 | RF11 | **Assignment** of a validated incident to a department, team or technician. | Yes | #49 (#184, #185), #190 | — |
 | RF12 | **Lifecycle.** Status changes follow the allowed transitions and are audited. | Yes | ADR-0020; #37, #99, #101, #102, #49, #51, #52 | — |
 | RF18 | **Audit** of administrative actions, assisted decisions and relevant changes. | Partly. Administrative actions and classification; assisted decisions come with RF20. | #36, #40, #41, #47 | Every change of every incident and who made it, an audit dashboard and an audit service with its own database ([final delivery](#-final-delivery)). Planned: #353. Replaces the single schema of ADR-0010 for the audit. |
-| RF26 | **Controlled degradation.** An external source being down does not prevent creating an incident. | Yes. Creating an incident calls no external source; it has to stay that way when RF21–RF25 arrive. | #43 | It also holds when one of the new services is down ([final delivery](#-final-delivery)). Planned: #327. |
+| RF26 | **Controlled degradation.** An external source being down does not prevent creating an incident. | Yes. Creating an incident calls no external source: the weather and the address are fetched after the report; it has to stay that way when RF21–RF25 arrive. | #43 | It also holds when one of the new services is down ([final delivery](#-final-delivery)). Planned: #327. |
 
 ### Medium
 
@@ -136,8 +136,8 @@ planned before the refactor: Planned: #57.
 ### Web: municipal operator
 
 - **Menu:** *Inbox* and *Map*.
-- **Inbox** (#46): incidents newest first, with the filters of #58 (status, category, date,
-  priority, department, and district when #59 is done). The menu opens it filtered by `REPORTED`
+- **Inbox** (#46): incidents newest first, with their street address (#375) and the filters of
+  #58 (status, category, date, priority, department, and district when #59 is done). The menu opens it filtered by `REPORTED`
   (#183).
 - **Map** (#196): markers coloured by status and sized by priority, with the same filters as the
   inbox, clustered by zoom, each cluster labelled with its highest priority; refreshed every 15
@@ -148,7 +148,8 @@ planned before the refactor: Planned: #57.
   total, by priority, charts by status, category and department, and the latest reported; each
   part folds and is remembered. The filters fold behind a button, with quick ranges of days. A
   customizable dashboard is planned in #265.
-- **Incident detail** (#46): report data, photos (#44), the weather when it was reported in the
+- **Incident detail** (#46): report data, the address with its source (#375), photos (#44), the
+  weather when it was reported in the
   *Context* section (#308), and the history and internal comments (#50) in one timeline. The
   actions depend on the status (ADR-0020):
 
@@ -171,7 +172,7 @@ planned before the refactor: Planned: #57.
 - **Map** (#196): the operator's map with the incidents assigned to them, and its dashboard
   (#177) with their counts; the menu opens it on `ASSIGNED` and `IN_PROGRESS`, like the queue.
 - **Work queue** (#51): the incidents assigned to them, with the filters and columns of the inbox
-  (date reported, title, category, status and priority). It opens on `ASSIGNED` and `IN_PROGRESS`
+  (date reported, title, address, category, status and priority). It opens on `ASSIGNED` and `IN_PROGRESS`
   (#187).
 - **Incident detail** (#51): report data, photos (#194), the weather in the *Context* section
   (#308) and the history, read-only. *Accept* (`ASSIGNED` → `IN_PROGRESS`), *Comment* (#50) and
