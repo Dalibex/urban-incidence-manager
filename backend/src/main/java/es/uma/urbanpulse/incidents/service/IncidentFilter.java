@@ -35,8 +35,10 @@ public record IncidentFilter(
         Set<UUID> departmentIds,
         String text) {
 
-    // The SQL function of V21 that folds case and accents, the same on the column and the text.
+    // The SQL functions of V21: search_text folds case and accents; search_pattern folds a searched
+    // text the same way and then escapes it for LIKE, with \ as the escape character.
     private static final String SEARCH_TEXT = "search_text";
+    private static final String SEARCH_PATTERN = "search_pattern";
     private static final char LIKE_ESCAPE = '\\';
 
     /**
@@ -119,15 +121,15 @@ public record IncidentFilter(
 
     // Contained in the title or in the description, each on its own, so a match never runs from the
     // end of one into the other. Both sides go through the same folding, which the trigram indexes
-    // of V21 are built on.
+    // of V21 are built on. The escaping happens in SQL, after the folding: Java cannot tell which
+    // characters unaccent turns into % _ or \.
     private static Specification<Incident> containsText(String text) {
-        String pattern = "%" + escapeLike(text) + "%";
         return (incident, query, cb) -> {
             // A literal on purpose: Hibernate writes it into the SQL with its quotes doubled, so
             // PostgreSQL plans each search for its text. As a bound parameter the driver ends up on
             // a generic plan, and a text no incident has walks the whole date index: 400 ms
             // against 0.2 ms with 100,000 incidents (docs/datasets.md, "Text Search").
-            var folded = cb.function(SEARCH_TEXT, String.class, cb.literal(pattern));
+            var folded = cb.function(SEARCH_PATTERN, String.class, cb.literal(text));
             return cb.or(
                     cb.like(
                             cb.function(SEARCH_TEXT, String.class, incident.get("title")),
@@ -138,10 +140,5 @@ public record IncidentFilter(
                             folded,
                             LIKE_ESCAPE));
         };
-    }
-
-    // % and _ are plain characters of the text, not wildcards.
-    private static String escapeLike(String text) {
-        return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 }

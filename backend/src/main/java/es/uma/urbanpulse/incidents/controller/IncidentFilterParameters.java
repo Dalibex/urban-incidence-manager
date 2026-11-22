@@ -3,6 +3,7 @@ package es.uma.urbanpulse.incidents.controller;
 import es.uma.urbanpulse.incidents.entity.IncidentStatus;
 import es.uma.urbanpulse.incidents.entity.Priority;
 import es.uma.urbanpulse.incidents.service.IncidentFilter;
+import es.uma.urbanpulse.shared.text.Texts;
 import es.uma.urbanpulse.shared.web.MalformedRequestException;
 import es.uma.urbanpulse.shared.web.QueryParameters;
 import java.time.Instant;
@@ -62,14 +63,15 @@ final class IncidentFilterParameters {
                 searchText(q));
     }
 
-    // The contract counts characters, so an emoji (two UTF-16 units) counts as one.
+    // The text rule of every other text the backend takes (#322): its white space, also U+00A0, and
+    // its length in characters, so an emoji counts as one.
     private static String searchText(String q) {
         if (q == null) {
             return null;
         }
-        String text = q.strip();
-        int length = text.codePointCount(0, text.length());
-        if (length < TEXT_MIN_LENGTH || length > TEXT_MAX_LENGTH) {
+        String text = Texts.strip(q);
+        int length = Texts.length(text);
+        if (length < TEXT_MIN_LENGTH || length > TEXT_MAX_LENGTH || Texts.hasNullCharacter(text)) {
             throw new MalformedRequestException(
                     "The parameter q must have "
                             + TEXT_MIN_LENGTH

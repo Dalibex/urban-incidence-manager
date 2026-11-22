@@ -279,8 +279,9 @@ change, on 2026-11-05. The index takes 4.9 MB.
 `search_text(description)`, for the text search `q` of the list, the map and the dashboard. Both
 sides of `LIKE` go through `search_text`, `lower(unaccent(...))` declared `IMMUTABLE`, so the indexes
 serve it; `unaccent` alone is only `STABLE` and cannot be indexed. The query is the condition the
-backend adds, `search_text(title) LIKE search_text('%text%') OR search_text(description) LIKE ...`,
-run as the operator, who sees every incident.
+backend adds, `search_text(title) LIKE search_pattern('text') OR search_text(description) LIKE ...`,
+run as the operator, who sees every incident. `search_pattern` folds the text the same way and only
+then escapes `%`, `_` and `\`, because `unaccent` turns the full-width `％ ＿ ＼` into them.
 
 | Query | Index | Before | After |
 | --- | --- | --- | --- |

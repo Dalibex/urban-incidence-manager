@@ -11,6 +11,13 @@ CREATE FUNCTION search_text(value text) RETURNS text
     LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT
     RETURN lower(public.unaccent('public.unaccent'::regdictionary, value));
 
+-- The LIKE pattern of a searched text: folded first and escaped after, because unaccent turns
+-- characters such as the full-width ％ ＿ ＼ into % _ \, which must stay plain characters too.
+CREATE FUNCTION search_pattern(value text) RETURNS text
+    LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT
+    RETURN '%' || replace(replace(replace(search_text(value), '\', '\\'), '%', '\%'), '_', '\_')
+        || '%';
+
 -- Without them every search reads the whole table: about 115 ms with 100,000 incidents, twice for
 -- a page of the list (its rows and its count). With one trigram index per column the count takes
 -- about 30 ms, and a text no incident has under 0.1 ms (docs/datasets.md, "Text Search"). One index

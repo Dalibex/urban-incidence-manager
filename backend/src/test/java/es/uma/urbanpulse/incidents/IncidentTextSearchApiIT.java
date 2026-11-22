@@ -104,6 +104,14 @@ class IncidentTextSearchApiIT {
         }
 
         @Test
+        @DisplayName("never matches from the end of the title into the description")
+        void neverMatchesAcrossTheTitleAndTheDescription() throws Exception {
+            incident(citizen, "REPORTED", "Farola " + marker, "rota desde ayer.");
+
+            assertThat(listed(operator, "q", marker + " rota")).isEmpty();
+        }
+
+        @Test
         @DisplayName("finds it across the words of a title, inside a word")
         void findsAPieceInsideAWord() throws Exception {
             UUID lamp = incident(citizen, "REPORTED", "Farolas " + marker + "s", "Sin luz.");
@@ -122,6 +130,22 @@ class IncidentTextSearchApiIT {
             assertThat(listed(operator, "q", "50% " + marker)).containsExactly(percent.toString());
             assertThat(listed(operator, "q", "a_b " + marker))
                     .containsExactly(underscore.toString());
+        }
+
+        // unaccent folds the full-width ％ ＿ ＼ into % _ \, so they must be escaped after folding.
+        @Test
+        @DisplayName("reads the full-width ％ ＿ ＼ as plain characters too")
+        void readsFullWidthWildcardsAsPlainCharacters() throws Exception {
+            UUID percent = incident(citizen, "REPORTED", "50% " + marker, "Rebaja.");
+            incident(citizen, "REPORTED", "500 " + marker, "Rebaja.");
+            UUID underscore = incident(citizen, "REPORTED", "a_b " + marker, "Guion bajo.");
+            incident(citizen, "REPORTED", "axb " + marker, "Guion bajo.");
+            UUID slash = incident(citizen, "REPORTED", marker + " a\\b", "Barra.");
+
+            assertThat(listed(operator, "q", "50％ " + marker)).containsExactly(percent.toString());
+            assertThat(listed(operator, "q", "a＿b " + marker))
+                    .containsExactly(underscore.toString());
+            assertThat(listed(operator, "q", marker + " a＼")).containsExactly(slash.toString());
         }
 
         @Test
@@ -256,6 +280,11 @@ class IncidentTextSearchApiIT {
             expectMalformed(INCIDENTS, "q", "ab");
             expectMalformed(INCIDENTS, "q", "  ab  ");
             expectMalformed(INCIDENTS, "q", "   ");
+            // The no-break space is white space in the contract's rule, as in #322.
+            expectMalformed(INCIDENTS, "q", " ab ");
+            expectMalformed(INCIDENTS, "q", "   ");
+            // Two characters, though three UTF-16 units.
+            expectMalformed(INCIDENTS, "q", "a💡");
             expectMalformed(LOCATIONS, "q", "ab");
             expectMalformed(STATISTICS, "q", "ab");
         }
@@ -265,8 +294,8 @@ class IncidentTextSearchApiIT {
         void acceptsTheLimits() throws Exception {
             list(operator, "q", "abc").andExpect(status().isOk());
             list(operator, "q", "a".repeat(100)).andExpect(status().isOk());
-            // Characters, not UTF-16 units: an emoji counts as one.
-            list(operator, "q", "💡".repeat(3)).andExpect(status().isOk());
+            // Characters, not UTF-16 units: 100 emoji are 200 units.
+            list(operator, "q", "💡".repeat(100)).andExpect(status().isOk());
         }
 
         @Test
