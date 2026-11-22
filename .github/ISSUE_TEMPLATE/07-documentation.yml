@@ -22,6 +22,7 @@ body:
         - docs/architecture.md (architecture overview)
         - docs/architecture/ (C4 model)
         - docs/adr/
+        - docs/design/ (design documents)
         - docs/development.md
         - docs/deployment.md
         - docs/database.md and docs/database.drawio.svg
