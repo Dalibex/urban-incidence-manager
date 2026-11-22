@@ -22,11 +22,17 @@ class IncidentFilterTest {
     void theStatusIsNotAStaffFilter() {
         var filter =
                 new IncidentFilter(
-                        Set.of(IncidentStatus.REPORTED), Set.of(), Set.of(), null, null, Set.of());
+                        Set.of(IncidentStatus.REPORTED),
+                        Set.of(),
+                        Set.of(),
+                        null,
+                        null,
+                        Set.of(),
+                        null);
 
         assertThat(filter.usesStaffFilters()).isFalse();
         assertThat(
-                        new IncidentFilter(Set.of(), Set.of(), Set.of(), null, null, Set.of())
+                        new IncidentFilter(Set.of(), Set.of(), Set.of(), null, null, Set.of(), null)
                                 .usesStaffFilters())
                 .isFalse();
     }
@@ -36,7 +42,8 @@ class IncidentFilterTest {
         var id = UUID.randomUUID();
 
         assertThat(
-                        new IncidentFilter(Set.of(), Set.of(id), Set.of(), null, null, Set.of())
+                        new IncidentFilter(
+                                        Set.of(), Set.of(id), Set.of(), null, null, Set.of(), null)
                                 .usesStaffFilters())
                 .isTrue();
         assertThat(
@@ -46,27 +53,53 @@ class IncidentFilterTest {
                                         Set.of(Priority.HIGH),
                                         null,
                                         null,
-                                        Set.of())
+                                        Set.of(),
+                                        null)
                                 .usesStaffFilters())
                 .isTrue();
         assertThat(
-                        new IncidentFilter(Set.of(), Set.of(), Set.of(), NOVEMBER_1, null, Set.of())
+                        new IncidentFilter(
+                                        Set.of(),
+                                        Set.of(),
+                                        Set.of(),
+                                        NOVEMBER_1,
+                                        null,
+                                        Set.of(),
+                                        null)
                                 .usesStaffFilters())
                 .isTrue();
         assertThat(
-                        new IncidentFilter(Set.of(), Set.of(), Set.of(), null, NOVEMBER_8, Set.of())
+                        new IncidentFilter(
+                                        Set.of(),
+                                        Set.of(),
+                                        Set.of(),
+                                        null,
+                                        NOVEMBER_8,
+                                        Set.of(),
+                                        null)
                                 .usesStaffFilters())
                 .isTrue();
         assertThat(
-                        new IncidentFilter(Set.of(), Set.of(), Set.of(), null, null, Set.of(id))
+                        new IncidentFilter(
+                                        Set.of(), Set.of(), Set.of(), null, null, Set.of(id), null)
                                 .usesStaffFilters())
                 .isTrue();
+    }
+
+    // #266: a citizen searches their own reports, so the text is not a staff filter.
+    @Test
+    void theTextSearchIsNotAStaffFilter() {
+        var filter =
+                new IncidentFilter(Set.of(), Set.of(), Set.of(), null, null, Set.of(), "farola");
+
+        assertThat(filter.usesStaffFilters()).isFalse();
     }
 
     @Test
     void aRangeWhoseStartIsEarlierThanItsEndIsAccepted() {
         var filter =
-                new IncidentFilter(Set.of(), Set.of(), Set.of(), NOVEMBER_1, NOVEMBER_8, Set.of());
+                new IncidentFilter(
+                        Set.of(), Set.of(), Set.of(), NOVEMBER_1, NOVEMBER_8, Set.of(), null);
 
         assertThat(filter.reportedFrom()).isEqualTo(NOVEMBER_1);
         assertThat(filter.reportedTo()).isEqualTo(NOVEMBER_8);
@@ -80,7 +113,9 @@ class IncidentFilterTest {
 
     private static void assertBadRequest(Instant from, Instant to) {
         assertThatThrownBy(
-                        () -> new IncidentFilter(Set.of(), Set.of(), Set.of(), from, to, Set.of()))
+                        () ->
+                                new IncidentFilter(
+                                        Set.of(), Set.of(), Set.of(), from, to, Set.of(), null))
                 .isInstanceOfSatisfying(
                         ApiProblemException.class,
                         problem -> assertThat(problem.status()).isEqualTo(HttpStatus.BAD_REQUEST));

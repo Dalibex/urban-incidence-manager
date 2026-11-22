@@ -23,6 +23,8 @@ import org.springframework.data.jpa.domain.Specification;
  * @param reportedFrom only incidents reported at or after this instant; {@code null} for no limit
  * @param reportedTo only incidents reported before this instant; {@code null} for no limit
  * @param departmentIds only incidents whose active assignment is in one of these departments
+ * @param text only incidents whose title or description contains it, ignoring case and accents
+ *     (#266); {@code null} for no text search. It arrives trimmed and within its limits.
  */
 public record IncidentFilter(
         Set<IncidentStatus> statuses,
@@ -30,7 +32,12 @@ public record IncidentFilter(
         Set<Priority> priorities,
         Instant reportedFrom,
         Instant reportedTo,
-        Set<UUID> departmentIds) {
+        Set<UUID> departmentIds,
+        String text) {
+
+    // The SQL function of V21 that folds case and accents, the same on the column and the text.
+    private static final String SEARCH_TEXT = "search_text";
+    private static final char LIKE_ESCAPE = '\\';
 
     /**
      * @throws MalformedRequestException if {@code reportedFrom} is not earlier than {@code
@@ -47,8 +54,9 @@ public record IncidentFilter(
     }
 
     /**
-     * Whether it uses a filter only staff may use. {@code status} is open to every role that can
-     * list, because the citizen's own reports use it; the others are not (docs/security.md).
+     * Whether it uses a filter only staff may use. {@code status} and the text search are open to
+     * every role that can list, because the citizen's own reports use them; the others are not
+     * (docs/security.md).
      */
     public boolean usesStaffFilters() {
         return !categoryIds.isEmpty()
@@ -88,6 +96,9 @@ public record IncidentFilter(
         if (!departmentIds.isEmpty()) {
             conditions.add(activelyAssignedToOneOf(departmentIds));
         }
+        if (text != null) {
+            conditions.add(containsText(text));
+        }
         return Specification.allOf(conditions);
     }
 
@@ -104,5 +115,29 @@ public record IncidentFilter(
                             assignment.get("department").get("id").in(departmentIds));
             return cb.exists(subquery);
         };
+    }
+
+    // Contained in the title or in the description, each on its own, so a match never runs from the
+    // end of one into the other. Both sides go through the same folding, which the trigram indexes
+    // of V21 are built on.
+    private static Specification<Incident> containsText(String text) {
+        String pattern = "%" + escapeLike(text) + "%";
+        return (incident, query, cb) -> {
+            var folded = cb.function(SEARCH_TEXT, String.class, cb.literal(pattern));
+            return cb.or(
+                    cb.like(
+                            cb.function(SEARCH_TEXT, String.class, incident.get("title")),
+                            folded,
+                            LIKE_ESCAPE),
+                    cb.like(
+                            cb.function(SEARCH_TEXT, String.class, incident.get("description")),
+                            folded,
+                            LIKE_ESCAPE));
+        };
+    }
+
+    // % and _ are plain characters of the text, not wildcards.
+    private static String escapeLike(String text) {
+        return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 }

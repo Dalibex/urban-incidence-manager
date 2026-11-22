@@ -47,7 +47,7 @@ class IncidentQueryServiceIT extends PersistenceTestSupport {
     private static final PageRequest FIRST_PAGE =
             PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "reportedAt").and(Sort.by("id")));
     private static final IncidentFilter NO_FILTER =
-            new IncidentFilter(Set.of(), Set.of(), Set.of(), null, null, Set.of());
+            new IncidentFilter(Set.of(), Set.of(), Set.of(), null, null, Set.of(), null);
     private static final GeometryFactory WGS84 = new GeometryFactory(new PrecisionModel(), 4326);
 
     @Autowired private IncidentQueryService queries;
@@ -121,7 +121,8 @@ class IncidentQueryServiceIT extends PersistenceTestSupport {
                                 Set.of(),
                                 null,
                                 null,
-                                Set.of()),
+                                Set.of(),
+                                null),
                         FIRST_PAGE);
 
         assertThat(page.content())
