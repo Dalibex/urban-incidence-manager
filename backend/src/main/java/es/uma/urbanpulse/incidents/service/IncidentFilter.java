@@ -10,6 +10,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Set;
 import java.util.UUID;
+import org.hibernate.query.criteria.HibernateCriteriaBuilder;
 import org.springframework.data.jpa.domain.Specification;
 
 /**
@@ -125,11 +126,10 @@ public record IncidentFilter(
     // characters unaccent turns into % _ or \.
     private static Specification<Incident> containsText(String text) {
         return (incident, query, cb) -> {
-            // A literal on purpose: Hibernate writes it into the SQL with its quotes doubled, so
-            // PostgreSQL plans each search for its text. As a bound parameter the driver ends up on
-            // a generic plan, and a text no incident has walks the whole date index: 400 ms
-            // against 0.2 ms with 100,000 incidents (docs/datasets.md, "Text Search").
-            var folded = cb.function(SEARCH_PATTERN, String.class, cb.literal(text));
+            // Bound, never written into the SQL, whatever standard_conforming_strings says. A
+            // generic plan cannot see it, so IncidentQueryService plans each search for its text.
+            var bound = ((HibernateCriteriaBuilder) cb).value(text);
+            var folded = cb.function(SEARCH_PATTERN, String.class, bound);
             return cb.or(
                     cb.like(
                             cb.function(SEARCH_TEXT, String.class, incident.get("title")),

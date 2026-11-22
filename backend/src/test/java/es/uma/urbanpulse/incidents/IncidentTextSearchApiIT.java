@@ -157,7 +157,7 @@ class IncidentTextSearchApiIT {
             assertThat(listed(operator, "q", "a\\b " + marker)).containsExactly(slash.toString());
         }
 
-        // The text goes into the SQL as a literal (IncidentFilter), so a quote must stay a quote.
+        // The text is a bound parameter (IncidentFilter), so a quote stays a quote.
         @Test
         @DisplayName("reads a quote as a plain character, never as SQL")
         void readsAQuoteAsAPlainCharacter() throws Exception {
@@ -191,6 +191,11 @@ class IncidentTextSearchApiIT {
 
             assertThat(listed(operator, "q", marker, "status", "REPORTED"))
                     .containsExactly(reported.toString());
+            // A staff filter too: every incident of the test was reported at REPORTED_AT.
+            assertThat(listed(operator, "q", marker, "reportedFrom", "2031-02-02T00:00:00Z"))
+                    .isEmpty();
+            assertThat(listed(operator, "q", marker, "reportedFrom", "2031-01-31T00:00:00Z"))
+                    .hasSize(2);
         }
 
         @Test

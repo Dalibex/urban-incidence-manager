@@ -92,6 +92,28 @@ class IncidentQueryServiceIT extends PersistenceTestSupport {
         flushAndClear();
     }
 
+    // #266: the text is a bound parameter, and a generic plan cannot see it. A text no incident has
+    // then walks the whole date index (401 ms against 0.2 ms with 100,000 incidents), so a search
+    // plans each of its statements for its values; the setting ends with the transaction.
+    @Test
+    void aTextSearchPlansItsStatementsForTheirValues() {
+        var search = new IncidentFilter(Set.of(), Set.of(), Set.of(), null, null, Set.of(), "abc");
+
+        queries.list(operator.getId(), Role.MUNICIPAL_OPERATOR, search, FIRST_PAGE);
+        assertThat(planCacheMode()).isEqualTo("force_custom_plan");
+    }
+
+    @Test
+    void aListWithoutTextKeepsTheUsualPlans() {
+        queries.list(operator.getId(), Role.MUNICIPAL_OPERATOR, NO_FILTER, FIRST_PAGE);
+
+        assertThat(planCacheMode()).isEqualTo("auto");
+    }
+
+    private String planCacheMode() {
+        return queryNative("SELECT current_setting('plan_cache_mode')", String.class);
+    }
+
     @Test
     void eachRoleListsOnlyTheIncidentsItMaySee() {
         assertThat(listedIds(citizen.getId(), Role.CITIZEN))

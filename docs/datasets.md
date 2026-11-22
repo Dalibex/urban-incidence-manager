@@ -291,17 +291,21 @@ then escapes `%`, `_` and `\`, because `unaccent` turns the full-width `％ ＿ 
 | First page of 20 of `ledesma`, newest first | `ix_incident_reported_at` | 115 ms, the same seq scan and a sort | 4 ms, index scan that checks each incident |
 
 Conditions: the same data and method as *Main Queries* above, on PostgreSQL 18.6 with PostGIS 3.6 in
-Docker Desktop, on commit `a8af182` plus this change, on 2026-11-22.
+Docker Desktop (16 CPUs, 7.4 GB), on commit `a8af182` plus this change, on 2026-11-22.
 
 What the measurements decided:
 
 - Without the indexes every search reads the whole table, and one page of the list runs it twice
   (its rows and its count); the map and its dashboard run it twice more.
-- The text goes into the SQL as a literal, not as a bound parameter. With a parameter the JDBC driver
-  ends up on PostgreSQL's generic plan, which cannot see the text: a page of a text no incident has
-  then walks the whole `ix_incident_reported_at`, 401 ms, against 0.2 ms with the literal, which is
-  planned for its text and reads the trigram indexes. Hibernate doubles the quotes of the literal,
-  and a test searches a quote.
+- The text is a bound parameter, and a search plans its statements for their values
+  (`plan_cache_mode = force_custom_plan`, only in its own transaction). Once the JDBC driver
+  prepares a statement, PostgreSQL may switch to a generic plan, which cannot see the text: a page
+  of a text no incident has then walks the whole `ix_incident_reported_at`, 401 ms, against 0.2 ms
+  planned for the text, which reads the trigram indexes. Writing the text into the SQL as a
+  literal would give the same plans, but its safety would depend on `standard_conforming_strings`.
+- A text with no letter or digit, such as `---`, gives the trigram indexes nothing to look up: it
+  reads the whole table, about 360 ms. It is accepted: nobody searches an incident that way, and
+  the map runs it only while such a search is applied.
 - One index per column, not one on the title and the description joined: the same times, but a
   joined text would let a search match across the end of the title and the start of the description.
 - The two indexes take 22 MB with this volume (7.5 MB the title, 14 MB the description), against
