@@ -13,6 +13,7 @@ export function WorkQueuePage() {
   const queueReturn: ListReturn = { listSearch: useLocation().search };
   return (
     <IncidentListPage
+      list="workQueue"
       title="Work queue"
       lead="The incidents assigned to you, newest first. Open one to accept or resolve it."
       noIncidents={{

@@ -51,7 +51,7 @@ workspace "UrbanPulse" "C4 Model" {
             }
 
             ### 2. CONTAINER: MOBILE FRONTEND (ADR-0005, ADR-0007, ADR-0016)
-            frontend_mobile = container "Mobile Frontend" "App for citizens to report and follow incidents." "React Native + Expo (EAS)" {
+            frontend_mobile = container "Mobile Frontend" "App for citizens to report and follow incidents. Built locally as an Expo development build (expo run:android or expo run:ios)." "React Native + Expo" {
                 tags "FrontendMobile"
                 url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0005-mobile-application-technology.md
 
@@ -59,13 +59,13 @@ workspace "UrbanPulse" "C4 Model" {
                     url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0016-self-hosted-osm-base-map.md
                 }
                 mobile_native = component "Native Modules (Expo)" "Access to camera, GPS, file system, and secure token storage." "Expo Modules"
-                mobile_state = component "State and Offline Manager" "Server state cache and local persistence of offline drafts (AsyncStorage)." "React Query + AsyncStorage"
+                mobile_state = component "State Manager (Server State)" "Client-side cache, retries, and invalidation of the citizen's incidents." "React Query"
                 mobile_shared = component "Shared Packages (Monorepo)" "The same packages/domain, packages/api-client and packages/ui as the web app." "TypeScript (pnpm workspaces)" {
                     url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0007-client-application-architecture.md
                 }
 
                 mobile_ui -> mobile_native "Uses camera, GPS, file system and secure storage"
-                mobile_ui -> mobile_state "Requests data and saves drafts"
+                mobile_ui -> mobile_state "Requests data"
                 mobile_state -> mobile_shared "Delegates HTTP requests"
             }
 
@@ -93,7 +93,7 @@ workspace "UrbanPulse" "C4 Model" {
                     tags "Geospatial"
                     url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0003-geospatial-data-management.md
                 }
-                notifications = component "notifications" "Notifications created on incident status changes and their delivery status; email (Brevo) and SMS (Twilio) adapters behind one sender interface per channel." "Spring Service / Spring Data JPA" {
+                notifications = component "notifications" "Notifications created on incident status changes and their delivery status; email (Brevo) and push (Expo push service) adapters behind one sender interface per channel." "Spring Service / Spring Data JPA" {
                     tags "Notifications"
                     url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0019-notification-delivery-providers.md
                 }
@@ -127,12 +127,12 @@ workspace "UrbanPulse" "C4 Model" {
                 db_jsonb = component "JSONB Columns" "Semi-structured fields: audit_log.details, status_change.associated_data and urban_asset.metadata." "JSONB"
             }
 
-            ### 5. CONTAINER: CACHE (ADR-0012, ACCEPTED, NOT BUILT YET)
-            # The decided target. Its "Implementation status" section lists when Redis comes in; until
-            # then no deployment environment runs it.
-            redis = container "Redis Cache" "Cache-aside with TTL on every entry: external responses, resolved geodata per zone and dashboard aggregates. Safe to lose." "Redis" {
+            ### 5. CONTAINER: CACHE (ADR-0022, ACCEPTED, NOT BUILT YET)
+            # ADR-0022 supersedes ADR-0012: Redis comes in only when a measurement or a second
+            # backend replica asks for it; until then no deployment environment runs it.
+            redis = container "Redis Cache" "Only when a measurement or a second backend replica asks for it (ADR-0022). Cache-aside with TTL on every entry, derived values only and safe to lose: external responses, resolved geodata per zone and dashboard aggregates. With a second backend replica it also holds the sign-in and sign-up rate-limit counters, which are not derived: losing them resets the limits." "Redis" {
                 tags "Cache"
-                url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0012-cache-redis.md
+                url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0022-redis-from-measurements.md
             }
 
             ### 6. CONTAINER: REVERSE PROXY (ADR-0017, ACCEPTED)
@@ -185,9 +185,9 @@ workspace "UrbanPulse" "C4 Model" {
             url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0019-notification-delivery-providers.md
         }
 
-        twilio = softwareSystem "Twilio" "SMS API (Programmable Messaging)." {
+        expoPush = softwareSystem "Expo push service" "Push notifications to the citizen app; delivers on Android through Firebase Cloud Messaging." {
             tags "ExternalAPI,Proposed"
-            url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0019-notification-delivery-providers.md
+            url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0031-push-and-email-notifications.md
         }
 
         llm = softwareSystem "LLM Provider" "External model for classification, summarization, and RAG (to be decided; no module yet)." {
@@ -206,12 +206,12 @@ workspace "UrbanPulse" "C4 Model" {
         urbanpulse -> openmeteo "Current weather" "HTTPS"
         urbanpulse -> tomtom "Current traffic flow" "HTTPS"
         urbanpulse -> brevo "Sends notification emails" "HTTPS"
-        urbanpulse -> twilio "Sends notification SMS" "HTTPS"
+        urbanpulse -> expoPush "Sends push notifications" "HTTPS"
         urbanpulse -> llm "Intelligent assistance" "HTTPS" {
             tags "Future"
         }
         brevo -> citizen "Delivers notification emails" "Email"
-        twilio -> citizen "Delivers notification SMS" "SMS"
+        expoPush -> citizen "Delivers push notifications" "Push"
 
         ### Level 2: containers
         citizen -> urbanpulse.frontend_mobile "Reports incidents and attaches evidence"
@@ -233,7 +233,7 @@ workspace "UrbanPulse" "C4 Model" {
         urbanpulse.backend -> openmeteo "Current weather" "HTTPS"
         urbanpulse.backend -> tomtom "Current traffic flow" "HTTPS"
         urbanpulse.backend -> brevo "Sends notification emails" "HTTPS (REST API)"
-        urbanpulse.backend -> twilio "Sends notification SMS" "HTTPS (REST API)"
+        urbanpulse.backend -> expoPush "Sends push notifications" "HTTPS (REST API)"
         urbanpulse.backend -> llm "Intelligent assistance" "HTTPS" {
             tags "Future"
         }
@@ -253,15 +253,16 @@ workspace "UrbanPulse" "C4 Model" {
         urbanpulse.backend.notifications -> urbanpulse.postgres "notification" "JPA/JDBC"
         urbanpulse.backend.analytics -> urbanpulse.postgres "Aggregate queries" "Read-only"
         urbanpulse.backend.urbancontext -> urbanpulse.redis "Caches external responses (TTL), only when a measurement asks for it (ADR-0018, ADR-0022)"
-        urbanpulse.backend.geospatial -> urbanpulse.redis "Caches resolved geodata per zone (TTL)"
-        urbanpulse.backend.analytics -> urbanpulse.redis "Caches dashboard aggregates (TTL)"
+        urbanpulse.backend.geospatial -> urbanpulse.redis "Caches resolved geodata per zone (TTL), only when a measurement asks for it (ADR-0022)"
+        urbanpulse.backend.analytics -> urbanpulse.redis "Caches dashboard aggregates (TTL), only when a measurement asks for it (ADR-0022)"
+        urbanpulse.backend.identity -> urbanpulse.redis "Shares the sign-in and sign-up rate-limit counters, only with a second backend replica (ADR-0022)"
         urbanpulse.backend.incidents -> urbanpulse.evidence_storage "Stores and reads evidence binaries through StorageService"
         urbanpulse.backend.urbancontext -> opendata "Queries authoritative data" "HTTPS"
         urbanpulse.backend.urbancontext -> openstreet "Geocoding and asset fallback" "HTTPS"
         urbanpulse.backend.urbancontext -> openmeteo "Current weather at the incident" "HTTPS"
         urbanpulse.backend.urbancontext -> tomtom "Traffic flow near the incident" "HTTPS"
         urbanpulse.backend.notifications -> brevo "Sends transactional email" "HTTPS (REST API)"
-        urbanpulse.backend.notifications -> twilio "Sends SMS" "HTTPS (Twilio Java SDK)"
+        urbanpulse.backend.notifications -> expoPush "Sends push notifications" "HTTPS (REST API)"
 
         ### Level 3: database components
         urbanpulse.backend -> urbanpulse.postgres.db_relational "Each module reads and writes its own tables; analytics only reads" "JPA/JDBC"
@@ -279,7 +280,7 @@ workspace "UrbanPulse" "C4 Model" {
 
         citizen -> urbanpulse.frontend_mobile.mobile_ui "Reports incidents and attaches evidence"
         urbanpulse.frontend_mobile.mobile_shared -> urbanpulse.nginx "Calls /api" "HTTPS/JSON"
-        urbanpulse.frontend_mobile.mobile_ui -> urbanpulse.nginx "Loads base map tiles (pmtiles://)" "HTTPS (PMTiles)"
+        urbanpulse.frontend_mobile.mobile_ui -> urbanpulse.nginx "Loads base map tiles (pmtiles://), style, fonts and sprites (/tiles/)" "HTTPS (PMTiles)"
 
         ### Deployment: what runs where (ADR-0011)
         # Structurizr copies a container relationship to the instances of an environment when both
@@ -307,7 +308,7 @@ workspace "UrbanPulse" "C4 Model" {
                     grafana_service = infrastructureNode "grafana" "Profile observability, published on 127.0.0.1:3000. Two provisioned dashboards: k6 and the backend (ADR-0023)" "grafana/grafana"
                 }
                 k6 = infrastructureNode "k6" "The load tests of backend/load-tests, run from the developer's terminal (ADR-0023)" "k6"
-                vite = infrastructureNode "Vite development server" "pnpm dev:web on localhost:5173. Serves the SPA and frontend/apps/web/public/tiles, and proxies /api to the backend (API_PROXY_TARGET)." "Vite on Node.js"
+                vite = infrastructureNode "Vite development server" "pnpm dev:web on port 5173 (--host to reach it from a phone). Serves the SPA and frontend/apps/web/public/tiles, and proxies /api to the backend (API_PROXY_TARGET)." "Vite on Node.js"
                 developer_browser = deploymentNode "Browser" "Runs the staff web app" "Chrome, Firefox, Edge or Safari" {
                     web_instance = containerInstance urbanpulse.frontend_web
                 }
@@ -319,9 +320,10 @@ workspace "UrbanPulse" "C4 Model" {
             developer_machine.developer_browser.web_instance -> developer_machine.vite "Loads the SPA and calls /api" "HTTP"
             developer_machine.vite -> developer_machine.compose.backend_service.backend_instance "Proxies /api" "HTTP"
             device -> developer_machine.compose.backend_service "The mobile app calls /api directly: the emulator at 10.0.2.2:8080; a physical phone needs the backend run from the IDE" "HTTP"
+            device -> developer_machine.vite "Loads the base map style, tiles, fonts and sprites from /tiles/ (EXPO_PUBLIC_MAP_STYLE_URL)" "HTTP"
             developer_machine.compose.postgres_service.postgres_instance -> developer_machine.compose.postgres_volume "Stores the database files" "Volume mount"
             developer_machine.compose.tiles_service.tiles_instance -> developer_machine.compose.sources_volume "Reuses the downloads between runs" "Volume mount"
-            developer_machine.compose.tiles_service.tiles_instance -> developer_machine.vite "Writes malaga.pmtiles to frontend/apps/web/public/tiles" "Bind mount"
+            developer_machine.compose.tiles_service.tiles_instance -> developer_machine.vite "Writes malaga.pmtiles, the style, fonts and sprites to frontend/apps/web/public/tiles" "Bind mount"
             developer_machine.k6 -> developer_machine.compose.backend_service.backend_instance "Sends the load of each experiment to /api" "HTTP"
             developer_machine.k6 -> developer_machine.compose.prometheus_service "Sends its results by remote write" "HTTP"
             developer_machine.compose.prometheus_service -> developer_machine.compose.backend_service.backend_instance "Scrapes /actuator/prometheus every 5 seconds" "HTTP"
@@ -329,7 +331,7 @@ workspace "UrbanPulse" "C4 Model" {
         }
 
         # The deployed system decided by ADR-0011 and ADR-0017: docker-compose.yaml at the
-        # repository root. Redis is not in it until ADR-0012 says it comes in.
+        # repository root. Redis is not in it until ADR-0022 says it comes in.
         single_host = deploymentEnvironment "Single host" {
             server = deploymentNode "Server" "One machine runs the whole system (ADR-0011)" "Linux" {
                 compose = deploymentNode "Docker Compose" "docker-compose.yaml at the repository root" "Docker Engine" {
@@ -427,7 +429,8 @@ workspace "UrbanPulse" "C4 Model" {
         }
 
         # Dynamic views follow the decided architecture, so the clients go through nginx. In
-        # development the Vite server (web) or nobody (mobile) stands in its place.
+        # development the Vite server stands in its place for the web app and for the mobile base
+        # map; the mobile app calls /api directly.
         # A citizen, because staff accounts add the TOTP challenge of ADR-0021 before any token.
         dynamic urbanpulse.backend "Dynamic_SignIn" {
             title "Sign-in and refresh token rotation"

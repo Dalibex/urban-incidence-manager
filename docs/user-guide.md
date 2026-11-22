@@ -207,8 +207,9 @@ The menu at the top shows *Inbox* and *Map*.
 The incidents, newest first, a page at a time, with the date it was reported, title, category,
 status and priority. A category or priority that is not set shows *Not classified* or *Not set*.
 
-The menu and the sign-in open it on the reports waiting for a review: the status *Reported* is
-ticked. *Clear filters* lists every incident.
+The menu and the sign-in open it with the filters you last used on it in this browser, and on the
+reports waiting for a review the first time: the status *Reported* is ticked. *Clear filters* lists
+every incident, and the menu and the sign-in then open it that way.
 
 - **Filters:** status, category, priority, department and the days it was reported (*Reported
   from* and *to*, both included, in Málaga time, or in one click with *Reported in*: *Today*,
@@ -324,8 +325,9 @@ Dates are shown in Málaga time.
 ### Map
 
 The incidents on the base map of Málaga, with the same filters as the inbox, and beside it a
-summary of how many they are. The menu opens it on every status that can still change: everything
-except *Rejected* and *Closed*. The screen fills the window, so the whole map is seen without
+summary of how many they are. The menu opens it with the filters you last used on it in this
+browser, and the first time on every status that can still change: everything except *Rejected*
+and *Closed*. The screen fills the window, so the whole map is seen without
 scrolling on a window at least 800 pixels wide and about 560 tall, also with the browser zoomed
 (a 1,280-pixel laptop screen at 150 % is 853). With the filters open, the map shrinks to make room;
 below about 280 pixels of map the page scrolls instead.
@@ -351,9 +353,10 @@ below about 280 pixels of map the page scrolls instead.
   - **When something fails:** if it cannot be loaded, it says so with *Try again*. If a refresh
     fails, the counts you saw stay with a warning, never as zeros, and *Latest reported* keeps the
     incidents you saw and says from when. A chart that cannot be shown gives its figures as a table.
-- **Markers:** each incident is a dot. Its colour is its status, the same as in the lists, and its
-  size is its priority: the higher, the bigger, and a *High* one also has a dark border. *Map key*,
-  in the bottom-left corner of the map, explains both; it opens and folds, and stays as you left it.
+- **Markers:** each incident is a dot. Its colour is its status, the same as in the lists, and
+  each of the eight statuses has its own colour. Its size is its priority: the higher, the bigger,
+  and a *High* one also has a dark border. *Map key*, in the bottom-left corner of the map, explains
+  both; it opens and folds, and stays as you left it.
 - **Full screen:** the button under the zoom buttons shows the whole screen of the map, with its
   filters and summary, on the whole screen; *Escape* or the same button brings the page back.
 - **Groups:** when you zoom out, nearby incidents join into a dark circle with their number, and the
@@ -409,12 +412,14 @@ could not be loaded.* with its own *Try again*, and the other photos still show.
 ## 🔧 Technician (Web)
 
 The menu shows *Work queue*, where you land, and *Map*: the operator's [map](#map) with only the
-incidents assigned to you, opened on *Assigned* and *In progress* like the queue.
+incidents assigned to you, opened like the queue: with the filters you last used on it in this
+browser, and the first time on *Assigned* and *In progress*.
 
 ### Work queue
 
 The incidents assigned to you now, newest first, a page at a time, with the same columns as the
-operator's inbox. It opens on the work still to do: the statuses *Assigned* and *In progress* are
+operator's inbox. The menu and the sign-in open it with the filters you last used on it in this
+browser, and on the work still to do the first time: the statuses *Assigned* and *In progress* are
 ticked. Tick other statuses, or *Clear filters*, to see the incidents you resolved. The filters are
 those of the inbox, *Reported in* included.
 
