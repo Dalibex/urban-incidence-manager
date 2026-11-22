@@ -26,7 +26,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwsHeader;
@@ -40,9 +39,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * The whole filter chain with real tokens: who gets {@code 401}, who gets {@code 403}, and what a
- * controller receives as the current user. The endpoints of {@link ProbeController} exist only in
- * this test. MockMvc does not run the error dispatch of a real server: what depends on it is in
- * {@link PublicOperationsIT}.
+ * controller receives as the current user. The endpoint of {@link ProbeController} exists only in
+ * this test, outside {@code /api/v1}: every operation there needs its rule in {@code
+ * ApiAuthorizationRules}, so a probe there would be refused to every role. The role check uses a
+ * real operation for administrators only. MockMvc does not run the error dispatch of a real server:
+ * what depends on it is in {@link PublicOperationsIT}.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -53,8 +54,8 @@ import org.springframework.web.bind.annotation.RestController;
 })
 class JwtAuthenticationIT {
 
-    private static final String ME = "/api/v1/test-probe/me";
-    private static final String ADMIN_ONLY = "/api/v1/test-probe/admin";
+    private static final String ME = "/test-probe/me";
+    private static final String ADMIN_ONLY = "/api/v1/audit-entries";
 
     @Autowired private MockMvc mvc;
     @Autowired private TestTokens tokens;
@@ -218,12 +219,6 @@ class JwtAuthenticationIT {
         @GetMapping(ME)
         AuthenticatedUser me(@AuthenticationPrincipal AuthenticatedUser user) {
             return user;
-        }
-
-        @GetMapping(ADMIN_ONLY)
-        @PreAuthorize("hasRole('ADMINISTRATOR')")
-        String adminOnly() {
-            return "ok";
         }
     }
 }

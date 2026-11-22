@@ -28,6 +28,9 @@ final class IncidentFilterParameters {
                     "reportedTo",
                     "departmentId");
 
+    /** The filters the contract takes once; the others are arrays and may repeat. */
+    static final Set<String> SINGLE_NAMES = Set.of("reportedFrom", "reportedTo");
+
     private IncidentFilterParameters() {}
 
     /**

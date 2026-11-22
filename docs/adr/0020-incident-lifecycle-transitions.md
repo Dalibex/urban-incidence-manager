@@ -99,8 +99,8 @@ stateDiagram-v2
   in `associated_data` and is never returned to citizens. A citizen gets only what the "Citizen
   sees" column says.
 - **Errors.** Each action is checked in this order, following `docs/security.md`:
-  - a role that never makes the transition gets `403`, from the endpoint (`@PreAuthorize`,
-    `docs/security.md`);
+  - a role that never makes the transition gets `403`, from the security filters, before the
+    request is read (*Permission Matrix* in `docs/security.md`);
   - an incident the caller cannot see, such as a technician's incident assigned to someone else,
     gets `404`;
   - a stale `incident.version` gets `409` with the code `CONCURRENT_MODIFICATION`;
@@ -109,7 +109,8 @@ stateDiagram-v2
   - missing or invalid required data gets `422`.
 
   The required data is checked by the domain (`Incident.changeStatus`), not with Bean Validation
-  on the request body, so the order holds. A body that cannot be read is `400` before any check.
+  on the request body, so the order holds. A body that cannot be read is `400` after the role
+  check and before the others (#286).
 - **Classification is not a transition.** Setting or correcting the category and the priority is
   `PATCH /incidents/{incidentId}` (#47), allowed in every status except `REJECTED` and `CLOSED`.
   It leaves an entry in the audit trail, not a `status_change`. Validation does not take them in

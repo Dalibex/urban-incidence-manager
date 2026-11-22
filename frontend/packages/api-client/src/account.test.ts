@@ -76,6 +76,23 @@ describe('callApi results', () => {
     });
     expect(await store.load()).toEqual(TOKENS);
   });
+
+  it('stores nothing and fails when the sign-in asks for a second factor', async () => {
+    const store = memoryStore(null);
+    const challenge = {
+      challengeToken: 'c-1',
+      challengeExpiresAt: '2026-11-21T10:05:00Z',
+      enrollmentRequired: false,
+    };
+    const fetch = vi.fn(async () => json(202, challenge));
+    const client = createApiClient(BASE_URL, { tokenStore: store, fetch });
+
+    expect(await signIn(client, store, { email: 'a@b.es', password: 'secret-1' })).toEqual({
+      ok: false,
+      failure: { kind: 'problem', status: 202, code: undefined },
+    });
+    expect(await store.load()).toBeNull();
+  });
 });
 
 describe('session refresh', () => {

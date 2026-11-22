@@ -4,9 +4,9 @@ import java.util.UUID;
 
 /**
  * {@code CreateAssignmentRequest}: the body of {@code createIncidentAssignment}. Nothing is checked
- * with Bean Validation, which would run before the role check: the {@code version} is checked by
- * {@code IncidentLifecycleService}, and the department, the technician and the team by the domain,
- * in the order of ADR-0020.
+ * with Bean Validation, which would answer {@code 422} before the service finds the incident: the
+ * {@code version} is checked by {@code IncidentLifecycleService}, and the department, the
+ * technician and the team by the domain, in the order of ADR-0020.
  *
  * @param version the {@code version} of the incident the client read; {@code null} gets a {@code
  *     422} on this field
