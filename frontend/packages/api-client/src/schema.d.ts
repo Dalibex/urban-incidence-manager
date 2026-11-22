@@ -384,8 +384,9 @@ export interface paths {
         };
         /**
          * List the active technicians
-         * @description Enabled technicians, ordered by name and then by id, for the assignment form. It is a short
-         *     list of staff, so it is not paginated. It returns only what the form needs, without emails.
+         * @description Enabled technicians, ordered by name and then by id, for the assignment form. It is not
+         *     paginated yet, although the list has no upper bound. Planned: #360. It returns only what the
+         *     form needs, without emails.
          *
          *     Roles: `MUNICIPAL_OPERATOR`, `ADMINISTRATOR`.
          */
@@ -910,8 +911,8 @@ export interface paths {
         /**
          * List the positions of incidents for the map
          * @description A lightweight list for the map, with the same filters and the same scope as `listIncidents`
-         *     and an optional bounding box (#195). It is not paginated, because the map needs one answer
-         *     for the whole view: the server returns at most 1,000 items, puts the most relevant first
+         *     and an optional bounding box (#195). It is not paginated yet (Planned: #360): the server
+         *     returns at most 1,000 items for the whole view, puts the most relevant first
          *     (priority from `HIGH` to none, then newest) and sets `truncated` when it left some out. An
          *     empty result is `200`. An unknown parameter, or one without a value, returns `400`, like
          *     `listIncidents`.

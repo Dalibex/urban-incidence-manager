@@ -238,7 +238,7 @@ Every listing is paginated, so no query runs without a limit (AGENTS.md, section
 - **Sorting.** Each listing documents the properties it accepts and its default in its `description`. The backend always adds `id` as the last criterion, so the order is stable and no item appears on two pages.
 - **Filters** use the name of the property they filter (`status`, `categoryId`, `priority`), repeatable for several values (`?status=REPORTED&status=VALIDATED`). Date ranges are `reportedFrom` / `reportedTo`, UTC instants. Only the parameters the contract declares as arrays repeat: any other one sent twice (`?page=0&page=5`) returns `400`.
 
-Short reference lists managed by administrators, such as `listCategories`, and lists bounded by the domain, such as the photos of one incident, return a plain array without pagination. Their `description` says why. The status history of an incident and the technicians also return a plain array today, although they have no upper bound: Planned: #360.
+Short reference lists managed by administrators, such as `listCategories`, and lists bounded by the domain, such as the photos of one incident, return a plain array without pagination. Their `description` says why. The status history of an incident and the technicians also return a plain array today, although they have no upper bound, and the map locations (`listIncidentLocations`) stop at 1,000 with a `truncated` flag: Planned: #360.
 
 ### What Spring does not do by default
 
