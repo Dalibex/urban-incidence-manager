@@ -352,13 +352,13 @@ below about 280 pixels of map the page scrolls instead.
   - **When something fails:** if it cannot be loaded, it says so with *Try again*. If a refresh
     fails, the counts you saw stay with a warning, never as zeros, and *Latest reported* keeps the
     incidents you saw and says from when. A chart that cannot be shown gives its figures as a table.
-- **Markers:** each incident is a dot. Its colour is its status, the same as in the lists, its
-  size is its priority: the higher, the bigger, and a *High* one also has a dark border, and the
-  icon inside it is its category, such as a bulb for *Street lighting*. An incident without
-  category, of a category without an icon of its own such as *Other*, or of a retired category,
-  shows three dots. *Map
-  key*, in the bottom-left corner of the map, explains the three, with each category and its icon;
-  it opens and folds, and stays as you left it.
+- **Markers:** each incident is a dot. Its colour is its status, the same as in the lists, and
+  each of the eight statuses has its own colour. Its size is its priority: the higher, the bigger,
+  and a *High* one also has a dark border. The icon inside it is its category, such as a bulb for
+  *Street lighting*; an incident without category, of a category without an icon of its own such
+  as *Other*, or of a retired category, shows three dots. *Map key*, in the bottom-left corner of
+  the map, explains the three, with each category and its icon; it opens and folds, and stays as
+  you left it.
 - **Full screen:** the button under the zoom buttons shows the whole screen of the map, with its
   filters and summary, on the whole screen; *Escape* or the same button brings the page back.
 - **Groups:** when you zoom out, nearby incidents join into a dark circle with their number, and the
