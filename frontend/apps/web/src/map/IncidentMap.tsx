@@ -22,11 +22,11 @@ import Map, {
   type MapRef,
 } from 'react-map-gl/maplibre';
 
-import { GLYPH_COLORS, ICON_KEYS, iconDataUrl } from './category-icons';
+import { iconDataUrl } from './category-icons';
 import {
   CLUSTER_COLOR,
   HIGH_BORDER,
-  iconImageId,
+  markerIconImages,
   PRIORITY_MARKS,
   PRIORITY_RANK,
   toFeatureCollection,
@@ -193,19 +193,15 @@ const iconLayer: LayerProps = {
  * is loaded as one first.
  */
 async function addIconImages(map: MapLibreMap): Promise<void> {
-  const glyphs = Object.entries(GLYPH_COLORS) as [keyof typeof GLYPH_COLORS, string][];
   await Promise.all(
-    ICON_KEYS.flatMap((key) =>
-      glyphs.map(async ([glyph, color]) => {
-        const image = new Image();
-        image.src = iconDataUrl(key, color, ICON_IMAGE_SIZE * ICON_PIXEL_RATIO);
-        await image.decode();
-        const id = iconImageId(key, glyph);
-        if (!map.hasImage(id)) {
-          map.addImage(id, image, { pixelRatio: ICON_PIXEL_RATIO });
-        }
-      }),
-    ),
+    markerIconImages().map(async ({ id, key, color }) => {
+      const image = new Image();
+      image.src = iconDataUrl(key, color, ICON_IMAGE_SIZE * ICON_PIXEL_RATIO);
+      await image.decode();
+      if (!map.hasImage(id)) {
+        map.addImage(id, image, { pixelRatio: ICON_PIXEL_RATIO });
+      }
+    }),
   );
 }
 

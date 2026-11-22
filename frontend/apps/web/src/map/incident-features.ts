@@ -3,7 +3,7 @@ import type { IncidentStatus } from '@urbanpulse/domain';
 import { colors, statusColor } from '@urbanpulse/ui';
 
 import { PRIORITY_LABELS } from '../incidents/labels';
-import { GLYPH_COLORS, glyphColorOn, iconKeyOf, type IconKey } from './category-icons';
+import { GLYPH_COLORS, glyphColorOn, ICON_KEYS, iconKeyOf, type IconKey } from './category-icons';
 
 type IncidentPosition = components['schemas']['IncidentPosition'];
 type Category = components['schemas']['CategoryResponse'];
@@ -38,7 +38,15 @@ export function markerIconId(key: IconKey, fill: string): string {
   return iconImageId(key, glyphColorOn(fill));
 }
 
-export function iconImageId(key: IconKey, glyph: keyof typeof GLYPH_COLORS): string {
+/** Every image the map adds, one per icon and glyph colour, with what it draws. */
+export function markerIconImages(): { id: string; key: IconKey; color: string }[] {
+  const glyphs = Object.keys(GLYPH_COLORS) as (keyof typeof GLYPH_COLORS)[];
+  return ICON_KEYS.flatMap((key) =>
+    glyphs.map((glyph) => ({ id: iconImageId(key, glyph), key, color: GLYPH_COLORS[glyph] })),
+  );
+}
+
+function iconImageId(key: IconKey, glyph: keyof typeof GLYPH_COLORS): string {
   return `category-${key}-${glyph}`;
 }
 

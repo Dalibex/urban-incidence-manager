@@ -7,8 +7,8 @@ import {
   CLUSTER_COLOR,
   HIGH_BORDER,
   PRIORITY_MARKS,
-  iconImageId,
   markerIconId,
+  markerIconImages,
   priorityRank,
   toFeatureCollection,
 } from './incident-features';
@@ -79,15 +79,11 @@ describe('toFeatureCollection', () => {
   });
 });
 
-// The map adds one image per icon and glyph colour (IncidentMap); a marker naming any other image
+// The map adds the images of markerIconImages (IncidentMap); a marker naming any other image
 // would draw without icon, and the map tests replace the map, so this checks the wiring.
 describe('markerIconId', () => {
   it('names an image the map adds, for every icon on every status colour', () => {
-    const added = new Set(
-      ICON_KEYS.flatMap((key) =>
-        (['light', 'dark'] as const).map((glyph) => iconImageId(key, glyph)),
-      ),
-    );
+    const added = new Set(markerIconImages().map(({ id }) => id));
 
     for (const status of INCIDENT_STATUSES) {
       for (const key of ICON_KEYS) {
