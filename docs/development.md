@@ -421,8 +421,9 @@ the report only inserts its `PENDING` `urban_context`, and a scheduled worker of
 fills it every 30 seconds. The backend run from the IDE calls Open-Meteo too, so it needs
 internet; without it, set `WEATHER_ENRICHMENT_ENABLED=false` in `backend/.env` and the weather
 stays pending. The tests never call it. The providers proposed for traffic (TomTom,
-[ADR-0024](adr/0024-traffic-provider.md)) and for notification delivery (Brevo and Twilio,
-[ADR-0019](adr/0019-notification-delivery-providers.md)) are not decided yet: both ADRs are
+[ADR-0024](adr/0024-traffic-provider.md)) and for notification delivery (Brevo for email and the Expo push service,
+[ADR-0019](adr/0019-notification-delivery-providers.md) amended by
+[ADR-0031](adr/0031-push-and-email-notifications.md)) are not decided yet: the three ADRs are
 *Proposed*.
 
 ## 🧯 Troubleshooting

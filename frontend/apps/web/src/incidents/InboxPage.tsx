@@ -13,6 +13,7 @@ export function InboxPage() {
   const inboxReturn: ListReturn = { listSearch: useLocation().search };
   return (
     <IncidentListPage
+      list="inbox"
       title="Inbox"
       lead="Newest first. Filter the list, then open an incident to review and manage it."
       noIncidents={{

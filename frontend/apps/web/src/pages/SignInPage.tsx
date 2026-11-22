@@ -50,7 +50,7 @@ export function SignInPage() {
   }, [backFromMfa]);
 
   if (user) {
-    return <Navigate to={signInReturnPath(location.state)} replace />;
+    return <Navigate to={signInReturnPath(location.state, user.id)} replace />;
   }
 
   function leavePasswordChange(changed: boolean) {
