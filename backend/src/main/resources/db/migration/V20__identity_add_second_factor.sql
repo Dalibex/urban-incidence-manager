@@ -27,3 +27,9 @@ CREATE TABLE mfa_challenges (
 
 -- A confirmed enrolment and a reset spend every open challenge of one user.
 CREATE INDEX ix_mfa_challenges_user_id ON mfa_challenges (user_id);
+
+-- A session opened with a valid code of the second factor, and its rotations. A refresh refuses a
+-- session without it when the role of the user needs the second factor: one opened before #57, or
+-- before a change of role or of MFA_REQUIRED_ROLES.
+ALTER TABLE refresh_token
+    ADD COLUMN second_factor boolean NOT NULL DEFAULT false;

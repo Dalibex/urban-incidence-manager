@@ -77,7 +77,7 @@ public class SessionService {
         if (mfa.requiredFor(user.getRole())) {
             return createChallenge(user);
         }
-        return openSession(user);
+        return openSession(user, false);
     }
 
     /**
@@ -86,6 +86,10 @@ public class SessionService {
      * sign-out, before it expires: two parties hold it and the server cannot tell which one is the
      * user (#125). Both revocations are kept although the request fails, and the answer is the same
      * {@code 401} as for an unknown token.
+     *
+     * <p>A role in {@code MFA_REQUIRED_ROLES} also loses every session when the token was not
+     * opened with a code of the second factor (#57, ADR-0021), so no refresh issues it tokens
+     * without one.
      *
      * <p>Revoking every session also makes those tokens expire ({@link
      * RefreshTokenRepository#endAll}), so a token revoked by a password change or a disabled
@@ -122,8 +126,15 @@ public class SessionService {
             refreshTokens.endAll(user.getId(), now);
             throw new InvalidRefreshTokenException();
         }
+        var secondFactor = Boolean.TRUE.equals(token.getSecondFactor());
+        if (mfa.requiredFor(user.getRole()) && !secondFactor) {
+            // Opened before #57 or before a change of role or of MFA_REQUIRED_ROLES: a sign-in
+            // with a code is the only way back (ADR-0021).
+            refreshTokens.endAll(user.getId(), now);
+            throw new InvalidRefreshTokenException();
+        }
         token.setRevokedAt(now);
-        return openSession(user);
+        return openSession(user, secondFactor);
     }
 
     /** Revokes the session of the access token. Idempotent: a revoked session stays revoked. */
@@ -157,14 +168,19 @@ public class SessionService {
                 plainToken, saved.getExpiresAt().toInstant(), saved.getEnrollment());
     }
 
-    /** Issues a token pair; {@link MfaService} calls it inside the transaction of a valid code. */
-    SessionResponse openSession(User user) {
+    /**
+     * Issues a token pair; {@link MfaService} calls it inside the transaction of a valid code.
+     * {@code secondFactor} marks a session opened with a code, and a refresh passes on the mark of
+     * the token it replaces.
+     */
+    SessionResponse openSession(User user, boolean secondFactor) {
         var now = now();
         var plainToken = RefreshTokens.generate();
         var refreshToken = new RefreshToken();
         refreshToken.setUser(user);
         refreshToken.setTokenHash(RefreshTokens.hash(plainToken));
         refreshToken.setExpiresAt(now.plus(properties.refreshTokenTtl()));
+        refreshToken.setSecondFactor(secondFactor);
         var saved = refreshTokens.save(refreshToken);
 
         var accessToken = accessTokens.issue(user.getId(), user.getRole(), saved.getId());

@@ -212,6 +212,11 @@ app, which has no code step.
   SHA-256 hash only, like a refresh token, and the web app keeps the token in memory. The token pair
   is issued by `POST /mfa-verifications` once a valid code is sent, in the same transaction that
   spends the challenge.
+- **Refresh:** each refresh token records whether its session was opened with a code, and a
+  rotation keeps that mark. A refresh for an account whose role needs the second factor with a
+  token opened without it (a session from before #57, or from before a role change or a change of
+  `MFA_REQUIRED_ROLES`) ends every session of the account and answers `401`: the user signs in again
+  with a code.
 - **Codes:** 6 digits, SHA-1, 30-second steps; a code is valid for its step and one step on each
   side. The last step used is stored per account, so a code that was already used, or an older one,
   is refused, even with another challenge. Two verifications of one challenge at once lock the

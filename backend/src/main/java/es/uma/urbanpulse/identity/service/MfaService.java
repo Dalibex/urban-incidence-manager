@@ -87,8 +87,9 @@ public class MfaService {
 
     /**
      * Checks a code for the challenge and, if it is valid, spends it and opens a session. On an
-     * enrolment challenge a valid code also confirms the secret, records {@code ENROLL_MFA} and
-     * spends every other open challenge of the account.
+     * enrolment challenge of an account still without a second factor, a valid code also confirms
+     * the secret, records {@code ENROLL_MFA} and spends every other open challenge of the account.
+     * Once the account has one, every challenge checks it.
      *
      * <p>A wrong code counts against the challenge (the last allowed one spends it) and against the
      * account. Those changes, and the challenge spent for a disabled account or a role that no
@@ -124,7 +125,9 @@ public class MfaService {
             throw new InvalidMfaChallengeException();
         }
 
-        var enrollment = Boolean.TRUE.equals(challenge.getEnrollment());
+        // An enrolment challenge created while another one was being confirmed checks the confirmed
+        // secret, and never replaces it with its pending one.
+        var enrollment = user.getMfaSecret() == null;
         var storedSecret = enrollment ? challenge.getPendingSecret() : user.getMfaSecret();
         var step =
                 storedSecret == null
@@ -154,7 +157,7 @@ public class MfaService {
                     Map.of());
         }
         user.setMfaLastTimeStep(step.getAsLong());
-        return sessions.openSession(user);
+        return sessions.openSession(user, true);
     }
 
     private LockedChallenge lock(String challengeToken) {
