@@ -367,7 +367,9 @@ below about 280 pixels of map the page scrolls instead.
   not found*, and the next refresh removes its marker. Closing an incident does not make its
   summary say *Incident not found*.
 - **Live:** the map reads the incidents again every 15 seconds, so a new report appears without
-  reloading the page.
+  reloading the page. An open summary is read again at the same time, so it shows the same status
+  as its marker. If a refresh of the summary fails, it keeps what it showed, with a warning that the
+  incident could not be refreshed and *Try again*.
 - **List:** *List of the incidents on the map*, under the summary, has every incident on the map,
   the most relevant first. With the keyboard, *Tab* to it, *Enter* to open it and *Enter* on an
   incident to open its summary and centre the map on it.
