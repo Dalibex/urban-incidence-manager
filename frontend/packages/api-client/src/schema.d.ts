@@ -85,6 +85,11 @@ export interface paths {
          *     it expires fails and also revokes every session of its user, because someone else may hold
          *     a copy of it. The answer does not say whether the token was reused, expired or unknown.
          *
+         *     Second factor (ADR-0021): when the role of the account is in `MFA_REQUIRED_ROLES` and the
+         *     session was not opened with a code (`createMfaVerification`), as a session from before the
+         *     second factor was deployed or from before a role change, the refresh fails and also ends
+         *     every session of the user, who signs in again with a code.
+         *
          *     A client must not try to refresh again when this operation returns `401`: it signs the
          *     user out instead.
          *
@@ -2535,7 +2540,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
-            /** @description The refresh token is unknown, expired, revoked or already used, or the account is disabled. Code: `INVALID_REFRESH_TOKEN`. */
+            /** @description The refresh token is unknown, expired, revoked or already used, the account is disabled, or its role needs a second factor its session was not opened with. Code: `INVALID_REFRESH_TOKEN`. */
             401: {
                 headers: {
                     [name: string]: unknown;

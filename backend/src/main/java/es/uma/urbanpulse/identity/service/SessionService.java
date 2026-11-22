@@ -130,6 +130,11 @@ public class SessionService {
         if (mfa.requiredFor(user.getRole()) && !secondFactor) {
             // Opened before #57 or before a change of role or of MFA_REQUIRED_ROLES: a sign-in
             // with a code is the only way back (ADR-0021).
+            log.warn(
+                    "Refresh of session {} opened without the second factor: revoking every"
+                            + " session of user {}",
+                    token.getId(),
+                    user.getId());
             refreshTokens.endAll(user.getId(), now);
             throw new InvalidRefreshTokenException();
         }

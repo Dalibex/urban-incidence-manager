@@ -179,7 +179,7 @@ Do not define a new error body. If an error needs extra information, add an opti
 | `INVALID_CREDENTIALS` | 401 | `createSession` | Wrong email or password (the same for both, so emails are not revealed) |
 | `ACCOUNT_DISABLED` | 403 | `createSession`, `createMfaVerification` | Right credentials, disabled account |
 | `TOO_MANY_ATTEMPTS` | 429 | `createSession`, `createRegistration`, `createMfaVerification`; planned: `listPlaces` | Rate limited; see `Retry-After` |
-| `INVALID_REFRESH_TOKEN` | 401 | `refreshSession` | Unknown, expired, revoked or reused refresh token: sign in again |
+| `INVALID_REFRESH_TOKEN` | 401 | `refreshSession` | Unknown, expired, revoked or reused refresh token, or a staff session opened without the second factor: sign in again |
 | `INVALID_TRANSITION` | 409 | Lifecycle actions (Sprint 2) | The transition is not allowed (ADR-0020) |
 | `CONCURRENT_MODIFICATION` | 409 | Lifecycle actions and `updateIncident` (Sprint 2) | The incident changed since the client read its `version`: reload it and decide again (ADR-0020) |
 | `PASSWORD_CHANGE_REQUIRED` | 403 | `createSession` | Right credentials, but the password must change first |
