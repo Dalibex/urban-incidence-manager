@@ -39,7 +39,7 @@ into the following modules.
 | Incidents | `incidents` | The incident as the central entity: reporting, location, categories, priority, lifecycle with allowed transitions, audited status history, assignments, comments and evidence metadata (binaries through `StorageService`, ADR-0013). |
 | Urban context | `urbancontext` | External data: adapters for Open Data Málaga and OpenStreetMap (ADR-0009), Open-Meteo (ADR-0018) and TomTom (ADR-0024, proposed); loading of reference data, geocoding and asynchronous enrichment of incidents with timeouts and graceful degradation. |
 | Geospatial | `geospatial` | Location and territory: districts, neighbourhoods, urban assets and spatial queries over local data (PostGIS, ADR-0003). |
-| Notifications | `notifications` | Notifications created from incident changes (status, assignment, comments) through direct calls, and their delivery status; email through Brevo and SMS through Twilio, behind one sender per channel (ADR-0019). |
+| Notifications | `notifications` | Notifications created from incident changes (status, assignment, comments) through direct calls, and their delivery status; email through Brevo and push notifications through the Expo push service, behind one sender per channel (ADR-0019 and ADR-0031, proposed). |
 | Analytics | `analytics` | Read-only indicators, zone analysis and reports. |
 
 Besides the modules there is one **`shared`** package (`es.uma.urbanpulse.shared`) for
