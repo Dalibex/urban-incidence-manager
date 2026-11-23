@@ -75,7 +75,8 @@ export function IncidentListPage({
   const changeFilters = (next: IncidentFilters) => {
     const params = withFilters(searchParams, next);
     params.delete(PAGE_PARAM);
-    setSearchParams(params);
+    // At once, not as a transition, as on the map: two boxes ticked quickly keep both.
+    setSearchParams(params, { flushSync: true });
   };
 
   return (

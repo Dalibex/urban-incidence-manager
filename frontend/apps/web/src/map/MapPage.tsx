@@ -73,8 +73,10 @@ export function MapPage() {
   const positions = locations.data?.content ?? [];
   const activeFilters = filterSummary(filters, categories.data, departments.data);
 
+  // Drawn at once (`flushSync`), not as a transition: the filter bar builds each change on the
+  // filters it shows, so a second box ticked before the map redrew would drop the first one.
   const changeFilters = (next: IncidentFilters) =>
-    setSearchParams(withSearch(withFilters(searchParams, next), next.q));
+    setSearchParams(withSearch(withFilters(searchParams, next), next.q), { flushSync: true });
 
   const select = (incidentId: string) => {
     opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -261,6 +263,8 @@ export function MapPage() {
               filters={filters}
               isOpen={preferences.isOpen}
               onToggle={preferences.setPanel}
+              isShown={preferences.isShown}
+              onShow={preferences.setShown}
               onSelectIncident={selectAndShow}
             />
             {/* In the column, not under the map, so opening it never takes height from the map. */}
