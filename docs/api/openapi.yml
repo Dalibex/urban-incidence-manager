@@ -1958,7 +1958,7 @@ paths:
       operationId: listPlaces
       summary: Search an address or a place in Málaga
       description: |
-        Planned: #179. Address search of the report form of the mobile app: the places of the
+        Address search of the report form of the mobile app (#179): the places of the
         municipality of Málaga that match `q`, the most relevant first, so the citizen can move the
         pin there instead of panning from the city centre. The backend asks OpenStreetMap's
         Nominatim (ADR-0002) through its adapter; the phone never calls Nominatim.
@@ -1970,8 +1970,10 @@ paths:
         - **At most five places.** The list is bounded, so it is not paginated.
         - **Rate limits.** The backend sends Nominatim at most one request per second, for every
           user together, and each user to 10 searches a minute, so one user cannot use up what the
-          others share. It keeps repeated searches in a cache, as the policy asks. Over either
-          limit it answers `429` with `Retry-After` instead of waiting.
+          others share. It keeps repeated searches in a cache, as the policy asks. A search waits
+          at most one second for its turn to call Nominatim. Over the limit of the user, or when
+          the turn is further away, it answers `429` with `Retry-After`; a search refused because
+          Nominatim was busy does not count against the user.
         - **Provider down.** If Nominatim does not answer in time, or answers with an error, the
           answer is `503` `GEOCODING_UNAVAILABLE`. The report does not depend on it: the user can
           still place the pin by hand (RF26).
@@ -3879,7 +3881,7 @@ components:
       type: object
       description: >-
         A place of Málaga found by the address search, from OpenStreetMap data (ODbL; the map shows
-        the attribution). Planned: #179.
+        the attribution).
       required: [displayName, latitude, longitude]
       properties:
         displayName:
