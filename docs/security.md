@@ -492,7 +492,9 @@ uploaded themselves: a photo that staff add while working may show a number plat
 shop or a person, so it stays with the staff of the incident, and asking for it by its id answers
 `404` like any photo the caller may not see (#284). Two accepted limits remain: a citizen who
 uploads a file byte-identical to a staff photo of the same incident gets that photo's metadata back
-as a retry (they already hold its content), and the staff photos count towards
+as a retry, its `fileName` included, which is the name it had on the staff member's device (they
+already hold its content, which in practice only happens when staff uploaded a photo that came from
+that citizen), and the staff photos count towards
 `EVIDENCE_MAX_FILES_PER_INCIDENT`, so the `422` for too many photos may tell a citizen that there
 are photos they do not see, never what they show. The `Idempotency-Key` of `POST /incidents`
 belongs to the citizen who sent it: the same key sent by another citizen creates an incident of

@@ -845,8 +845,8 @@ export interface paths {
          *
          *     The same content uploaded again to the same incident, such as a retry, stores nothing new
          *     and returns `200` with the existing attachment, so a client can retry safely. For a
-         *     `CITIZEN`, the existing attachment may be one uploaded by staff, which they cannot list or
-         *     download (an accepted limit, see `docs/security.md`).
+         *     `CITIZEN`, the existing attachment may be one uploaded by staff, with the `fileName` staff
+         *     gave it, which they cannot list or download (an accepted limit, see `docs/security.md`).
          *
          *     If the storage fails, it returns `500`, no attachment is recorded and the incident stays as
          *     it was.
