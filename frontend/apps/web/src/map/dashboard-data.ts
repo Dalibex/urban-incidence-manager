@@ -2,8 +2,10 @@ import type { components } from '@urbanpulse/api-client';
 import { colors, STATUS_LABELS, statusColor } from '@urbanpulse/ui';
 
 import { PRIORITY_LABELS } from '../incidents/labels';
+import { iconKeyOf, type IconKey } from './category-icons';
 
 type Statistics = components['schemas']['IncidentStatisticsResponse'];
+type Category = components['schemas']['CategoryResponse'];
 type Priority = components['schemas']['Priority'];
 
 // What a group without a value is called. These are facts about the incidents (nobody set a
@@ -17,6 +19,8 @@ export interface ChartBar {
   label: string;
   count: number;
   color: string;
+  /** The icon of a category bar, beside its name (#267); the other charts have none. */
+  icon?: IconKey;
 }
 
 /** A chart of the dashboard: its title, which also names it for assistive technologies. */
@@ -50,9 +54,13 @@ export function priorityFigures(statistics: Statistics): PriorityFigure[] {
 
 /**
  * The three charts, in the order the dashboard shows them. The status bars wear the colour of the
- * markers, so the chart also reads as the colour key of the map.
+ * markers, so the chart also reads as the colour key of the map, and the category bars wear the
+ * icon of the markers. Without `categories`, each category bar has the generic icon.
  */
-export function dashboardCharts(statistics: Statistics): DashboardChart[] {
+export function dashboardCharts(
+  statistics: Statistics,
+  categories?: readonly Category[],
+): DashboardChart[] {
   return [
     {
       id: 'status',
@@ -66,7 +74,10 @@ export function dashboardCharts(statistics: Statistics): DashboardChart[] {
     {
       id: 'category',
       title: 'By category',
-      bars: statistics.byCategory.map(({ name, count }) => groupBar(name, NOT_CLASSIFIED, count)),
+      bars: statistics.byCategory.map(({ categoryId, name, count }) => ({
+        ...groupBar(name, NOT_CLASSIFIED, count),
+        icon: iconKeyOf(categoryId, categories),
+      })),
     },
     {
       id: 'department',

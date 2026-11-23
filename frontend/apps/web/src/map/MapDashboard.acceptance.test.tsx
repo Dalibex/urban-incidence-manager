@@ -39,6 +39,7 @@ vi.mock('./StatisticsChart', () => ({
 const POTHOLE: IncidentPosition = {
   id: '9b2e4f1a-3c5d-4e6f-8a7b-1c2d3e4f5a6b',
   status: 'REPORTED',
+  categoryId: null,
   priority: 'HIGH',
   latitude: 36.7213,
   longitude: -4.4214,
@@ -160,7 +161,8 @@ function dashboardApi(
       return latest();
     },
     [`GET /incidents/${POTHOLE.id}`]: () => json(200, POTHOLE_DETAIL),
-    'GET /categories': () => json(200, [{ id: 'c1', name: 'Pavement', description: null }]),
+    'GET /categories': () =>
+      json(200, [{ id: 'c1', name: 'Pavement', description: null, icon: 'PAVEMENT' }]),
     'GET /departments': () => json(200, [{ id: 'd1', name: 'Public works' }]),
   });
 }

@@ -7,6 +7,7 @@ import {
   setWorkerUrl,
   type ExpressionSpecification,
   type GeoJSONSource,
+  type Map as MapLibreMap,
 } from 'maplibre-gl';
 import mapWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import { Protocol } from 'pmtiles';
@@ -21,9 +22,11 @@ import Map, {
   type MapRef,
 } from 'react-map-gl/maplibre';
 
+import { iconDataUrl } from './category-icons';
 import {
   CLUSTER_COLOR,
   HIGH_BORDER,
+  markerIconImages,
   PRIORITY_MARKS,
   PRIORITY_RANK,
   toFeatureCollection,
@@ -34,6 +37,7 @@ import styles from './Map.module.css';
 import { CLUSTER_MAX_ZOOM, MALAGA_VIEW, MAP_SCREEN_ID, mapStyleUrl } from './map-config';
 
 type IncidentPosition = components['schemas']['IncidentPosition'];
+type Category = components['schemas']['CategoryResponse'];
 
 // MapLibre looks for its worker next to its own module, which Vite moves when it bundles it, so
 // the map would not draw. Vite serves the worker file as it is and gives its address here.
@@ -53,7 +57,8 @@ const CLUSTER_RADIUS = 50;
 const MAX_PRIORITY = 'maxPriorityRank';
 
 // One meaning per visual channel (#196): the color of a marker is its status, as in the badges of
-// the lists, and the priority is its size, a dark border for `HIGH` and, on a cluster, a label.
+// the lists, the priority is its size, a dark border for `HIGH` and, on a cluster, a label, and the
+// icon inside it is its category (#267). A cluster has no icon: its incidents mix categories.
 
 /**
  * A `step` expression over a priority rank: the value of the highest rank not above it, read from
@@ -159,6 +164,47 @@ const pointLayer: LayerProps = {
   },
 };
 
+/** Icons are drawn at twice their size on screen, so they stay sharp on high-density screens. */
+const ICON_PIXEL_RATIO = 2;
+/** The size on screen of an icon image, in pixels, at `icon-size` 1. */
+const ICON_IMAGE_SIZE = 24;
+/** How wide the icon is against the radius of its marker: it fits inside the circle. */
+const ICON_TO_RADIUS = 1.2;
+
+const iconLayer: LayerProps = {
+  id: 'incident-icons',
+  type: 'symbol',
+  source: SOURCE_ID,
+  filter: ['!', ['has', 'point_count']],
+  layout: {
+    'icon-image': ['get', 'icon'],
+    'icon-size': byPriority(
+      ['get', 'priorityRank'],
+      ({ radius }) => (radius * ICON_TO_RADIUS) / ICON_IMAGE_SIZE,
+    ),
+    // Every marker has its icon, like its circle, however close the markers are.
+    'icon-allow-overlap': true,
+    'icon-ignore-placement': true,
+  },
+};
+
+/**
+ * Adds an image of every icon in each glyph colour. MapLibre draws images, not markup, so each SVG
+ * is loaded as one first.
+ */
+async function addIconImages(map: MapLibreMap): Promise<void> {
+  await Promise.all(
+    markerIconImages().map(async ({ id, key, color }) => {
+      const image = new Image();
+      image.src = iconDataUrl(key, color, ICON_IMAGE_SIZE * ICON_PIXEL_RATIO);
+      await image.decode();
+      if (!map.hasImage(id)) {
+        map.addImage(id, image, { pixelRatio: ICON_PIXEL_RATIO });
+      }
+    }),
+  );
+}
+
 /** A ring around the selected incident, with a gap so it never reads as the border of `HIGH`. */
 function selectedLayer(incidentId: string | null): LayerProps {
   return {
@@ -168,7 +214,8 @@ function selectedLayer(incidentId: string | null): LayerProps {
     filter: ['all', ['!', ['has', 'point_count']], ['==', ['get', 'id'], incidentId ?? '']],
     paint: {
       'circle-color': 'rgba(0, 0, 0, 0)',
-      'circle-radius': 18,
+      // Outside the largest marker and its `HIGH` border, with a gap.
+      'circle-radius': 20,
       'circle-stroke-width': 2,
       'circle-stroke-color': colors.text,
     },
@@ -177,6 +224,8 @@ function selectedLayer(incidentId: string | null): LayerProps {
 
 export interface IncidentMapProps {
   positions: readonly IncidentPosition[];
+  /** The categories, for the icon of each marker; without them every marker has the generic one. */
+  categories?: readonly Category[];
   selectedId: string | null;
   onSelect: (incidentId: string) => void;
   ref?: Ref<MapRef>;
@@ -189,11 +238,20 @@ export interface IncidentMapProps {
  * click on a marker selects its incident. If the base map cannot load, a notice says so and the
  * rest of the screen keeps working.
  */
-export function IncidentMap({ positions, selectedId, onSelect, ref }: IncidentMapProps) {
-  const data = useMemo(() => toFeatureCollection(positions), [positions]);
+export function IncidentMap({
+  positions,
+  categories,
+  selectedId,
+  onSelect,
+  ref,
+}: IncidentMapProps) {
+  const data = useMemo(() => toFeatureCollection(positions, categories), [positions, categories]);
   const styleUrl = useMemo(() => mapStyleUrl(), []);
   const [cursor, setCursor] = useState<string>('');
   const [baseMapFailed, setBaseMapFailed] = useState(false);
+  // The icon layer waits for its images; if they cannot load, the markers keep their colour and
+  // size, and the category stays in the panel and the list.
+  const [iconsReady, setIconsReady] = useState(false);
 
   const handleClick = (event: MapLayerMouseEvent) => {
     const feature = event.features?.[0];
@@ -236,7 +294,16 @@ export function IncidentMap({ positions, selectedId, onSelect, ref }: IncidentMa
         onMouseLeave={() => setCursor('')}
         onClick={handleClick}
         onError={() => setBaseMapFailed(true)}
-        onLoad={() => setBaseMapFailed(false)}
+        onLoad={(event) => {
+          setBaseMapFailed(false);
+          addIconImages(event.target).then(
+            () => setIconsReady(true),
+            (error: unknown) => {
+              console.warn('The category icons of the map could not be loaded', error);
+              setIconsReady(false);
+            },
+          );
+        }}
       >
         <NavigationControl showCompass={false} />
         {/* The map screen, with its filters and side column, on the whole screen, on demand
@@ -255,6 +322,7 @@ export function IncidentMap({ positions, selectedId, onSelect, ref }: IncidentMa
           <Layer {...clusterCountLayer} />
           <Layer {...clusterPriorityLayer} />
           <Layer {...pointLayer} />
+          {iconsReady && <Layer {...iconLayer} />}
           <Layer {...selectedLayer(selectedId)} />
         </Source>
       </Map>

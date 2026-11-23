@@ -2,6 +2,7 @@ import type { components } from '@urbanpulse/api-client';
 import { colors, statusColor } from '@urbanpulse/ui';
 import { describe, expect, it } from 'vitest';
 
+import { GENERIC_ICON } from './category-icons';
 import {
   chartDescription,
   dashboardCharts,
@@ -49,8 +50,10 @@ describe('priorityFigures', () => {
   });
 });
 
+const CATEGORIES = [{ id: 'c1', name: 'Pavement', description: null, icon: 'PAVEMENT' as const }];
+
 describe('dashboardCharts', () => {
-  const [byStatus, byCategory, byDepartment] = dashboardCharts(STATISTICS);
+  const [byStatus, byCategory, byDepartment] = dashboardCharts(STATISTICS, CATEGORIES);
 
   it('keeps the statuses of the API, a real zero included, in the colours of the markers', () => {
     expect(byStatus).toEqual({
@@ -66,13 +69,23 @@ describe('dashboardCharts', () => {
 
   it('names the groups without a value, in gray so they never read as one more group', () => {
     expect(byCategory!.bars).toEqual([
-      { label: 'Pavement', count: 3, color: colors.primary },
-      { label: NOT_CLASSIFIED, count: 2, color: colors.textMuted },
+      { label: 'Pavement', count: 3, color: colors.primary, icon: 'PAVEMENT' },
+      { label: NOT_CLASSIFIED, count: 2, color: colors.textMuted, icon: GENERIC_ICON },
     ]);
     expect(byDepartment!.bars).toEqual([
       { label: 'Public works', count: 2, color: colors.primary },
       { label: NOT_ASSIGNED, count: 3, color: colors.textMuted },
     ]);
+  });
+
+  // #267: the chart also works as the category key of the map. Without the list of categories
+  // (it failed to load), every bar still has an icon: the generic one.
+  it('gives each category bar the icon of its category, and the generic one without the list', () => {
+    const [, withoutList] = dashboardCharts(STATISTICS, undefined);
+
+    expect(withoutList!.bars.map(({ icon }) => icon)).toEqual([GENERIC_ICON, GENERIC_ICON]);
+    expect(byStatus!.bars.every(({ icon }) => icon === undefined)).toBe(true);
+    expect(byDepartment!.bars.every(({ icon }) => icon === undefined)).toBe(true);
   });
 
   it('gives an empty chart when no incident has a category or a department', () => {

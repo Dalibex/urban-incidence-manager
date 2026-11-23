@@ -3,8 +3,10 @@ import type { IncidentStatus } from '@urbanpulse/domain';
 import { colors, statusColor } from '@urbanpulse/ui';
 
 import { PRIORITY_LABELS } from '../incidents/labels';
+import { GLYPH_COLORS, glyphColorOn, ICON_KEYS, iconKeyOf, type IconKey } from './category-icons';
 
 type IncidentPosition = components['schemas']['IncidentPosition'];
+type Category = components['schemas']['CategoryResponse'];
 type Priority = components['schemas']['Priority'];
 
 /**
@@ -24,6 +26,28 @@ export interface IncidentFeatureProperties {
   priorityRank: number;
   /** The shared color of the status, so the markers match the badges of the lists. */
   color: string;
+  /** The image of the icon of its category ({@link markerIconId}). */
+  icon: string;
+}
+
+/**
+ * The name of the map image of an icon on a fill colour: its drawing, in white or dark, whichever
+ * reads on that fill. The map adds one image per icon and glyph colour.
+ */
+export function markerIconId(key: IconKey, fill: string): string {
+  return iconImageId(key, glyphColorOn(fill));
+}
+
+/** Every image the map adds, one per icon and glyph colour, with what it draws. */
+export function markerIconImages(): { id: string; key: IconKey; color: string }[] {
+  const glyphs = Object.keys(GLYPH_COLORS) as (keyof typeof GLYPH_COLORS)[];
+  return ICON_KEYS.flatMap((key) =>
+    glyphs.map((glyph) => ({ id: iconImageId(key, glyph), key, color: GLYPH_COLORS[glyph] })),
+  );
+}
+
+function iconImageId(key: IconKey, glyph: keyof typeof GLYPH_COLORS): string {
+  return `category-${key}-${glyph}`;
 }
 
 /** A GeoJSON collection of points (RFC 7946), the data of the map's clustered source. */
@@ -44,19 +68,24 @@ export interface IncidentFeatureCollection {
  */
 export function toFeatureCollection(
   positions: readonly IncidentPosition[],
+  categories?: readonly Category[],
 ): IncidentFeatureCollection {
   return {
     type: 'FeatureCollection',
-    features: positions.map((position) => ({
-      type: 'Feature',
-      geometry: { type: 'Point', coordinates: [position.longitude, position.latitude] },
-      properties: {
-        id: position.id,
-        status: position.status,
-        priorityRank: priorityRank(position.priority),
-        color: statusColor(position.status),
-      },
-    })),
+    features: positions.map((position) => {
+      const color = statusColor(position.status);
+      return {
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [position.longitude, position.latitude] },
+        properties: {
+          id: position.id,
+          status: position.status,
+          priorityRank: priorityRank(position.priority),
+          color,
+          icon: markerIconId(iconKeyOf(position.categoryId, categories), color),
+        },
+      };
+    }),
   };
 }
 
@@ -65,7 +94,10 @@ export interface PriorityMark {
   rank: number;
   /** The level in words, as the lists say it; the label under a cluster with this highest level. */
   label: string;
-  /** Radius of an incident marker, in pixels: a higher priority draws a bigger marker. */
+  /**
+   * Radius of an incident marker, in pixels: a higher priority draws a bigger marker. The smallest
+   * still holds a readable category icon (#267).
+   */
   radius: number;
 }
 
@@ -74,10 +106,10 @@ export interface PriorityMark {
  * one table, so they never disagree. A `HIGH` marker also has a dark border ({@link HIGH_BORDER}).
  */
 export const PRIORITY_MARKS: readonly PriorityMark[] = [
-  { rank: 0, label: 'No priority', radius: 5 },
-  { rank: PRIORITY_RANK.LOW, label: PRIORITY_LABELS.LOW, radius: 7 },
-  { rank: PRIORITY_RANK.MEDIUM, label: PRIORITY_LABELS.MEDIUM, radius: 9 },
-  { rank: PRIORITY_RANK.HIGH, label: PRIORITY_LABELS.HIGH, radius: 11 },
+  { rank: 0, label: 'No priority', radius: 8 },
+  { rank: PRIORITY_RANK.LOW, label: PRIORITY_LABELS.LOW, radius: 10 },
+  { rank: PRIORITY_RANK.MEDIUM, label: PRIORITY_LABELS.MEDIUM, radius: 12 },
+  { rank: PRIORITY_RANK.HIGH, label: PRIORITY_LABELS.HIGH, radius: 14 },
 ];
 
 /** The border that sets a `HIGH` incident apart, besides its size. */

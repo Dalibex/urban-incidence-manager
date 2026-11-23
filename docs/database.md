@@ -110,6 +110,9 @@ insert them by hand or with a script run from a database client (Twelve-Factor X
   statements, for example `V<n>__incidents_add_graffiti_category.sql`. Do not edit V7.
 - Give each row a fixed `id` (a UUID written in the migration), so the datasets and the tests can
   refer to it in every environment.
+- Give a new category its `icon`, one of the `CategoryIcon` values of the API contract, or leave it
+  `NULL` for the generic icon (#267). A kind of icon the list lacks needs a new value in the
+  contract, in the check of the column and in the web app, which draws it.
 - To retire a category or a department, set `is_active = false` instead of deleting it: existing
   incidents and assignments still point to it.
 - Add the new rows to the expected lists of `DatabaseMigrationIT`.

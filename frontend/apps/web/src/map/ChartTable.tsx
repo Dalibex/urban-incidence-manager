@@ -1,4 +1,5 @@
 import incidentStyles from '../incidents/Incidents.module.css';
+import { CategoryIconGlyph } from './CategoryIconGlyph';
 import { formatCount, type DashboardChart } from './dashboard-data';
 import styles from './Map.module.css';
 
@@ -15,7 +16,10 @@ export function ChartTable({ chart }: { chart: DashboardChart }) {
         <tbody>
           {chart.bars.map((bar) => (
             <tr key={bar.label}>
-              <th scope="row">{bar.label}</th>
+              <th scope="row">
+                {bar.icon && <CategoryIconGlyph icon={bar.icon} className={styles.legendIcon} />}
+                {bar.label}
+              </th>
               <td>{formatCount(bar.count).full}</td>
             </tr>
           ))}

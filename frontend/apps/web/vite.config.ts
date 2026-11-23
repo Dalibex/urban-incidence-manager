@@ -3,6 +3,9 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   plugins: [react()],
+  // The licences of the bundled libraries (Lucide's icons among them, ISC and MIT) go with the app
+  // as `licenses.md`, served beside it, as those licences ask for their notices to be kept.
+  build: { license: { fileName: 'licenses.md' } },
   server: {
     // The page calls `/api/v1` on its own origin, so the browser needs no CORS. In production a
     // reverse proxy plays this role.
