@@ -41,6 +41,8 @@ class IncidentPositionRepositoryImpl implements IncidentPositionRepository {
         query.multiselect(
                         incident.get("id").alias("id"),
                         incident.get("status").alias("status"),
+                        // The foreign key itself: no join, and null for an incident without one.
+                        incident.get("category").get("id").alias("categoryId"),
                         incident.get("priority").alias("priority"),
                         coordinates.alias("coordinates"))
                 .where(spec.toPredicate(incident, query, cb))
@@ -60,6 +62,7 @@ class IncidentPositionRepositoryImpl implements IncidentPositionRepository {
         return new IncidentPositionResponse(
                 row.get("id", UUID.class),
                 row.get("status", IncidentStatus.class),
+                row.get("categoryId", UUID.class),
                 row.get("priority", Priority.class),
                 point.getY(),
                 point.getX());

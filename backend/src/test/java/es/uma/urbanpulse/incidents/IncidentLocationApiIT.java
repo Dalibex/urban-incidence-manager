@@ -136,9 +136,28 @@ class IncidentLocationApiIT {
                 .andExpect(jsonPath("$.content.length()").value(1))
                 .andExpect(jsonPath("$.content[0].id").value(id.toString()))
                 .andExpect(jsonPath("$.content[0].status").value("VALIDATED"))
+                .andExpect(jsonPath("$.content[0].categoryId").value(category.toString()))
                 .andExpect(jsonPath("$.content[0].priority").value("MEDIUM"))
                 .andExpect(jsonPath("$.content[0].latitude").value(TOWN_HALL_LATITUDE))
                 .andExpect(jsonPath("$.content[0].longitude").value(TOWN_HALL_LONGITUDE));
+    }
+
+    // #267: the marker of an incident without category draws the generic icon, so the position
+    // says so with a null category, never by leaving the incident out.
+    @Test
+    void anIncidentWithoutCategoryHasANullCategory() throws Exception {
+        UUID id = incident("REPORTED", null, TOWN_HALL_LATITUDE, TOWN_HALL_LONGITUDE);
+        jdbc.update("UPDATE incident SET category_id = NULL WHERE id = ?", id);
+
+        String body =
+                locations(operator, CITY_CENTRE)
+                        .andExpect(status().isOk())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString();
+        List<Object> categories =
+                JsonPath.read(body, "$.content[?(@.id == '" + id + "')].categoryId");
+        assertThat(categories).containsExactly((Object) null);
     }
 
     // T4: an operator and an administrator see every incident.

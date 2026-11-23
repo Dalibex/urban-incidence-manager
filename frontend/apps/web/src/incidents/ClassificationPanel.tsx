@@ -116,7 +116,7 @@ export function ClassificationPanel({ incident }: { incident: Incident }) {
   const current = loaded.category;
   const options = [...(categories.data ?? [])];
   if (current && !options.some((category) => category.id === current.id)) {
-    options.unshift({ ...current, description: null });
+    options.unshift({ ...current, description: null, icon: null });
   }
 
   return (

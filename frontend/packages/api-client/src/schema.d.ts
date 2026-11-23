@@ -443,8 +443,9 @@ export interface paths {
         };
         /**
          * List the active categories
-         * @description Active categories, ordered by name, for the category drop-down of the report form. It is a
-         *     short reference list managed by administrators, so it is not paginated.
+         * @description Active categories, ordered by name, for the category drop-down of the report form and the
+         *     icons of the map and the dashboard (#267). It is a short reference list managed by
+         *     administrators, so it is not paginated.
          *
          *     Roles: any authenticated user.
          */
@@ -1537,11 +1538,12 @@ export interface components {
              * @example Broken or flickering street lights.
              */
             description: string | null;
-            /** @description The icon of the category on the map and in the dashboard. `null` when the category has none: the clients draw their generic icon, the same as for an incident without category. Planned: #267. It is optional only until then, because the backend does not send it yet; that pull request makes it required. */
-            icon?: components["schemas"]["CategoryIcon"] | null;
+            /** @description The icon of the category on the map and in the dashboard. `null` when the category has none: the clients draw their generic icon, the same as for an incident without category. */
+            icon: components["schemas"]["CategoryIcon"] | null;
         };
         /**
-         * @description Which icon represents a category (#267). The clients map each value to a drawing of their own icon set, so the API names the meaning and never ships an image or the icon name of a library. A new value is added with the category that needs it. Planned: #267.
+         * @description Which icon represents a category (#267). The clients map each value to a drawing of their own icon set, so the API names the meaning and never ships an image or the icon name of a library. A new value is added with the category that needs it.
+         * @example STREET_LIGHTING
          * @enum {string}
          */
         CategoryIcon: "STREET_LIGHTING" | "PAVEMENT" | "WASTE" | "URBAN_FURNITURE" | "PARKS" | "SIGNAGE";
@@ -1956,9 +1958,10 @@ export interface components {
             status: components["schemas"]["IncidentStatus"];
             /**
              * Format: uuid
-             * @description The category of the incident, whose `icon` from `listCategories` the marker shows. `null` while the incident has no category. Planned: #267. It is optional only until then, because the backend does not send it yet; that pull request makes it required.
+             * @description The category of the incident, whose `icon` from `listCategories` the marker shows. `null` while the incident has no category.
+             * @example a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d
              */
-            categoryId?: string | null;
+            categoryId: string | null;
             /** @description `null` while the incident has no priority. */
             priority: components["schemas"]["Priority"] | null;
             /**

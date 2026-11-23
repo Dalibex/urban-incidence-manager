@@ -385,20 +385,25 @@ below about 280 pixels of map the page scrolls instead.
     your user.
   - **How it counts:** all the incidents, also when the map shows only the 1,000 most relevant. A
     count from 10,000 is written short (*12.3K*), with the exact number on hover. The status bars
-    have the colours of the markers. *Not classified*, *Not assigned* and *No priority* count the
+    have the colours of the markers, and each category bar has the icon of its markers beside its
+    name. *Not classified*, *Not assigned* and *No priority* count the
     incidents without a category, an active assignment or a priority.
   - **When something fails:** if it cannot be loaded, it says so with *Try again*. If a refresh
     fails, the counts you saw stay with a warning, never as zeros, and *Latest reported* keeps the
     incidents you saw and says from when. A chart that cannot be shown gives its figures as a table.
 - **Markers:** each incident is a dot. Its colour is its status, the same as in the lists, and
   each of the eight statuses has its own colour. Its size is its priority: the higher, the bigger,
-  and a *High* one also has a dark border. *Map key*, in the bottom-left corner of the map, explains
-  both; it opens and folds, and stays as you left it.
+  and a *High* one also has a dark border. The icon inside it is its category, such as a bulb for
+  *Street lighting*; an incident without category, of a category without an icon of its own such
+  as *Other*, or of a retired category, shows three dots. *Map key*, in the bottom-left corner of
+  the map, explains the three, with each category and its icon; it opens and folds, and stays as
+  you left it.
 - **Full screen:** the button under the zoom buttons shows the whole screen of the map, with its
   filters and summary, on the whole screen; *Escape* or the same button brings the page back.
 - **Groups:** when you zoom out, nearby incidents join into a dark circle with their number, and the
   highest priority among them is written under it (*High*, *Medium* or *Low*; nothing when none has
-  a priority). Click it to zoom in until it splits.
+  a priority). A group shows no category icon; zoom in to see them. Click it to zoom in until it
+  splits.
 - **An incident:** click a marker to open its summary at the side, in the place of the counts:
   title, status, priority, category, when it was reported and the description. *Manage* opens its
   detail, and *Close* or *Escape* brings the counts back. If the incident left your view since the

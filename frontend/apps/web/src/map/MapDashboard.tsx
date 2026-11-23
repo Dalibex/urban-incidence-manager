@@ -2,7 +2,11 @@ import { formatInstant } from '@urbanpulse/ui';
 import { useMemo, type ReactNode } from 'react';
 
 import { hasFilters, type IncidentFilters } from '../incidents/filters/incident-filters';
-import { useIncidentStatistics, useLatestIncidents } from '../incidents/incident-queries';
+import {
+  useCategories,
+  useIncidentStatistics,
+  useLatestIncidents,
+} from '../incidents/incident-queries';
 import incidentStyles from '../incidents/Incidents.module.css';
 import { LoadFailure } from '../incidents/LoadFailure';
 import { StatusBadge } from '../incidents/StatusBadge';
@@ -29,9 +33,11 @@ interface MapDashboardProps {
  */
 export function MapDashboard({ filters, isOpen, onToggle, onSelectIncident }: MapDashboardProps) {
   const statistics = useIncidentStatistics(filters);
+  // The same cached list as the filters and the map: only the icons of the category bars need it.
+  const categories = useCategories();
   const charts = useMemo(
-    () => (statistics.data ? dashboardCharts(statistics.data) : []),
-    [statistics.data],
+    () => (statistics.data ? dashboardCharts(statistics.data, categories.data) : []),
+    [statistics.data, categories.data],
   );
 
   const panel = (id: MapPanel, title: string, children: ReactNode) => (

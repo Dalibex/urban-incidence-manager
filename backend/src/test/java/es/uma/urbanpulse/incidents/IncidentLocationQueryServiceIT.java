@@ -99,7 +99,7 @@ class IncidentLocationQueryServiceIT extends PersistenceTestSupport {
     }
 
     @Test
-    void eachPositionKeepsItsLatitudeAndLongitudeAndItsStatus() {
+    void eachPositionKeepsItsLatitudeAndLongitudeItsStatusAndItsCategory() {
         var incident = persistedIncident(CATHEDRAL, MONDAY, null);
         flushAndClear();
 
@@ -108,6 +108,7 @@ class IncidentLocationQueryServiceIT extends PersistenceTestSupport {
                         new IncidentPositionResponse(
                                 incident.getId(),
                                 IncidentStatus.REPORTED,
+                                category.getId(),
                                 null,
                                 CATHEDRAL.getY(),
                                 CATHEDRAL.getX()));

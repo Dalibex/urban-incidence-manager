@@ -2,10 +2,13 @@ import { INCIDENT_STATUSES } from '@urbanpulse/domain';
 import { statusColor } from '@urbanpulse/ui';
 import { describe, expect, it } from 'vitest';
 
+import { ICON_KEYS } from './category-icons';
 import {
   CLUSTER_COLOR,
   HIGH_BORDER,
   PRIORITY_MARKS,
+  markerIconId,
+  markerIconImages,
   priorityRank,
   toFeatureCollection,
 } from './incident-features';
@@ -13,7 +16,14 @@ import {
 describe('toFeatureCollection', () => {
   it('orders each position as [longitude, latitude], as GeoJSON does (#76 T1)', () => {
     const collection = toFeatureCollection([
-      { id: 'a', status: 'REPORTED', priority: 'HIGH', latitude: 36.7213, longitude: -4.4214 },
+      {
+        id: 'a',
+        status: 'REPORTED',
+        categoryId: null,
+        priority: 'HIGH',
+        latitude: 36.7213,
+        longitude: -4.4214,
+      },
     ]);
 
     expect(collection.features[0]!.geometry.coordinates).toEqual([-4.4214, 36.7213]);
@@ -21,7 +31,14 @@ describe('toFeatureCollection', () => {
 
   it('keeps the id, the status color and the priority as a rank a cluster can compare', () => {
     const collection = toFeatureCollection([
-      { id: 'a', status: 'REOPENED', priority: null, latitude: 36.7, longitude: -4.4 },
+      {
+        id: 'a',
+        status: 'REOPENED',
+        categoryId: null,
+        priority: null,
+        latitude: 36.7,
+        longitude: -4.4,
+      },
     ]);
 
     expect(collection.features[0]!.properties).toEqual({
@@ -29,7 +46,59 @@ describe('toFeatureCollection', () => {
       status: 'REOPENED',
       priorityRank: 0,
       color: statusColor('REOPENED'),
+      icon: markerIconId('GENERIC', statusColor('REOPENED')),
     });
+  });
+
+  // #267: the icon is the category, drawn on the colour of the status. Which glyph colour reads on
+  // which fill is checked with fixed colours in `markerIconId` below, so a new palette (#288)
+  // changes no expectation here.
+  it('names the image of the icon of each category, on the colour of its status', () => {
+    const categories = [
+      {
+        id: 'lighting',
+        name: 'Street lighting',
+        description: null,
+        icon: 'STREET_LIGHTING' as const,
+      },
+    ];
+    const at = { priority: null, latitude: 36.7, longitude: -4.4 };
+
+    const collection = toFeatureCollection(
+      [
+        { id: 'a', status: 'VALIDATED', categoryId: 'lighting', ...at },
+        { id: 'b', status: 'REPORTED', categoryId: 'lighting', ...at },
+        { id: 'c', status: 'REPORTED', categoryId: 'inactive', ...at },
+      ],
+      categories,
+    );
+
+    expect(collection.features.map(({ properties }) => properties.icon)).toEqual([
+      markerIconId('STREET_LIGHTING', statusColor('VALIDATED')),
+      markerIconId('STREET_LIGHTING', statusColor('REPORTED')),
+      markerIconId('GENERIC', statusColor('REPORTED')),
+    ]);
+  });
+});
+
+// The map adds the images of markerIconImages (IncidentMap); a marker naming any other image
+// would draw without icon, and the map tests replace the map, so this checks the wiring.
+describe('markerIconId', () => {
+  it('names the icon and a white glyph on a dark fill, a dark one on a light fill', () => {
+    expect(markerIconId('WASTE', '#1d4ed8')).toBe('category-WASTE-light');
+    expect(markerIconId('WASTE', '#facc15')).toBe('category-WASTE-dark');
+    expect(markerIconId('GENERIC', '#000000')).toBe('category-GENERIC-light');
+  });
+
+  it('names an image the map adds, for every icon on every status colour', () => {
+    const added = new Set(markerIconImages().map(({ id }) => id));
+
+    for (const status of INCIDENT_STATUSES) {
+      for (const key of ICON_KEYS) {
+        expect(added).toContain(markerIconId(key, statusColor(status)));
+      }
+    }
+    expect(added.size).toBe(ICON_KEYS.length * 2);
   });
 });
 
