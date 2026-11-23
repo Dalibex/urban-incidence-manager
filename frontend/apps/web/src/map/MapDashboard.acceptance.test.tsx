@@ -1,7 +1,7 @@
 import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { components } from '@urbanpulse/api-client';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { MAP_REFRESH_INTERVAL_MS } from '../incidents/incident-queries';
 import { PATHS } from '../routing/access';
@@ -502,5 +502,241 @@ describe('staff dashboard on the map (#177, test #258)', () => {
     expect(within(total as HTMLElement).getByText('12,345')).toBeDefined();
     // The exact number on hover.
     expect(within(total as HTMLElement).getByTitle('12,345')).toBeDefined();
+  });
+});
+
+const PARTS = ['By priority', 'By status', 'By category', 'By department', 'Latest reported'];
+
+/** The key the map preferences of the default test user are kept under. */
+const PREFERENCES_KEY = 'urbanpulse.map-preferences.user-1';
+
+describe('customizing the parts of the summary (#265)', () => {
+  const heading = (name: string) => within(summary()).queryByRole('heading', { name });
+  const customizeButton = (name: string) =>
+    within(summary()).getByRole('button', { name: `Customize: ${name}` });
+
+  async function openSummary(statistics: Statistics = STATISTICS) {
+    renderApp(PATHS.map, {
+      role: 'MUNICIPAL_OPERATOR',
+      fetch: dashboardApi([counts(statistics)]),
+    });
+    await within(await screen.findByRole('region', { name: 'Summary' })).findByRole('heading', {
+      name: 'Latest reported',
+    });
+  }
+
+  async function toggle(part: string) {
+    const group = screen.getByRole('group', { name: 'Customize' });
+    await userEvent.click(within(group).getByRole('checkbox', { name: part }));
+  }
+
+  it('offers the five parts, all checked, behind a button that says all are shown', async () => {
+    await openSummary();
+
+    const button = customizeButton('All shown');
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    await userEvent.click(button);
+
+    const group = screen.getByRole('group', { name: 'Customize' });
+    const boxes = within(group).getAllByRole('checkbox') as HTMLInputElement[];
+    expect(boxes.map((box) => box.labels?.[0]?.textContent)).toEqual(PARTS);
+    expect(boxes.every((box) => box.checked)).toBe(true);
+  });
+
+  it('removes a part at once when it is unchecked, not folded, and keeps the total', async () => {
+    await openSummary();
+    await userEvent.click(customizeButton('All shown'));
+
+    await toggle('By category');
+
+    expect(heading('By category')).toBeNull();
+    expect(heading('By status')).not.toBeNull();
+    expect(within(summary()).getByText('Incidents').nextElementSibling?.textContent).toBe('3');
+    expect(customizeButton('4 of 5 shown')).toBeDefined();
+  });
+
+  it('brings the part back when it is checked again', async () => {
+    await openSummary();
+    await userEvent.click(customizeButton('All shown'));
+    await toggle('By department');
+    expect(heading('By department')).toBeNull();
+
+    await toggle('By department');
+
+    expect(heading('By department')).not.toBeNull();
+    expect(customizeButton('All shown')).toBeDefined();
+  });
+
+  it('says how many parts are shown when some are hidden', async () => {
+    await openSummary();
+    await userEvent.click(customizeButton('All shown'));
+
+    await toggle('By priority');
+    await toggle('Latest reported');
+
+    expect(customizeButton('3 of 5 shown')).toBeDefined();
+  });
+
+  it('says that every part is hidden, and keeps only the total, when all five are', async () => {
+    await openSummary();
+    await userEvent.click(customizeButton('All shown'));
+
+    for (const part of PARTS) {
+      await toggle(part);
+    }
+
+    expect(customizeButton('None shown')).toBeDefined();
+    expect(
+      within(summary()).getByText(
+        'Every part of the summary is hidden. Show them again from Customize.',
+      ),
+    ).toBeDefined();
+    expect(within(summary()).getByText('Incidents')).toBeDefined();
+    expect(within(summary()).queryAllByRole('heading', { level: 3 })).toEqual([]);
+  });
+
+  it('does not ask for the latest incidents while that part is hidden, and does when it is shown', async () => {
+    window.localStorage.setItem(
+      PREFERENCES_KEY,
+      JSON.stringify({ folded: [], opened: [], hidden: ['latest'] }),
+    );
+    const requests: Requests = { locations: [], statistics: [], latest: [] };
+    renderApp(PATHS.map, {
+      role: 'MUNICIPAL_OPERATOR',
+      fetch: dashboardApi([counts(STATISTICS)], requests),
+    });
+    await within(await screen.findByRole('region', { name: 'Summary' })).findAllByTestId('chart');
+    expect(requests.latest).toHaveLength(0);
+
+    await userEvent.click(customizeButton('4 of 5 shown'));
+    await toggle('Latest reported');
+
+    await waitFor(() => expect(requests.latest).toHaveLength(1));
+  });
+
+  it('keeps the choice for the same user when the dashboard is drawn again, and not for another', async () => {
+    await openSummary();
+    await userEvent.click(customizeButton('All shown'));
+    await toggle('By category');
+
+    cleanup();
+    await openSummary();
+    expect(heading('By category')).toBeNull();
+    expect(heading('By status')).not.toBeNull();
+
+    cleanup();
+    renderApp(PATHS.map, {
+      role: 'MUNICIPAL_OPERATOR',
+      fetch: dashboardApi([counts(STATISTICS)]),
+      userId: 'user-2',
+    });
+    await within(await screen.findByRole('region', { name: 'Summary' })).findByRole('heading', {
+      name: 'Latest reported',
+    });
+    expect(heading('By category')).not.toBeNull();
+    expect(customizeButton('All shown')).toBeDefined();
+  });
+
+  it('shows every part, and still hides on screen, when the browser refuses its storage', async () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('Blocked', 'SecurityError');
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Blocked', 'SecurityError');
+    });
+    try {
+      await openSummary();
+      expect(customizeButton('All shown')).toBeDefined();
+      await userEvent.click(customizeButton('All shown'));
+
+      await toggle('By status');
+
+      expect(heading('By status')).toBeNull();
+      expect(heading('By priority')).not.toBeNull();
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  it('offers the control when there is nothing to count, with only the latest part to hide', async () => {
+    await openSummary(NOTHING);
+
+    await userEvent.click(customizeButton('All shown'));
+    await toggle('Latest reported');
+
+    expect(heading('Latest reported')).toBeNull();
+    expect(customizeButton('4 of 5 shown')).toBeDefined();
+    expect(within(summary()).getByText('There are no incidents to count.')).toBeDefined();
+  });
+
+  describe('when every part is hidden', () => {
+    const EVERY_PART_HIDDEN =
+      'Every part of the summary is hidden. Show them again from Customize.';
+
+    beforeEach(() => {
+      window.localStorage.setItem(
+        PREFERENCES_KEY,
+        JSON.stringify({
+          folded: [],
+          opened: [],
+          hidden: ['priority', 'status', 'category', 'department', 'latest'],
+        }),
+      );
+    });
+
+    it('says so also when there is nothing to count', async () => {
+      renderApp(PATHS.map, { role: 'MUNICIPAL_OPERATOR', fetch: dashboardApi([counts(NOTHING)]) });
+
+      const dashboard = await screen.findByRole('region', { name: 'Summary' });
+
+      expect(await within(dashboard).findByText(EVERY_PART_HIDDEN)).toBeDefined();
+    });
+
+    it('says so also while the counts are loading', async () => {
+      const api = dashboardApi([counts(STATISTICS)]);
+      renderApp(PATHS.map, {
+        role: 'MUNICIPAL_OPERATOR',
+        fetch: (request: Request) =>
+          new URL(request.url).pathname.endsWith('/incident-statistics')
+            ? new Promise<Response>(() => {})
+            : api(request),
+      });
+
+      const dashboard = await screen.findByRole('region', { name: 'Summary' });
+
+      expect(within(dashboard).getByText('Loading the summary…')).toBeDefined();
+      expect(within(dashboard).getByText(EVERY_PART_HIDDEN)).toBeDefined();
+    });
+
+    it('says so also when the counts cannot be loaded', async () => {
+      renderApp(PATHS.map, { role: 'MUNICIPAL_OPERATOR', fetch: dashboardApi([failure]) });
+
+      const dashboard = await screen.findByRole('region', { name: 'Summary' });
+
+      expect(await within(dashboard).findByRole('alert')).toBeDefined();
+      expect(within(dashboard).getByText(EVERY_PART_HIDDEN)).toBeDefined();
+    });
+  });
+
+  it('writes the word Customize on the button, not only in its accessible name', async () => {
+    await openSummary();
+
+    expect(customizeButton('All shown').textContent).toContain('Customize');
+  });
+
+  it('offers the control while the counts are loading', async () => {
+    const api = dashboardApi([counts(STATISTICS)]);
+    renderApp(PATHS.map, {
+      role: 'MUNICIPAL_OPERATOR',
+      fetch: (request: Request) =>
+        new URL(request.url).pathname.endsWith('/incident-statistics')
+          ? new Promise<Response>(() => {})
+          : api(request),
+    });
+
+    const dashboard = await screen.findByRole('region', { name: 'Summary' });
+
+    expect(within(dashboard).getByText('Loading the summary…')).toBeDefined();
+    expect(within(dashboard).getByRole('button', { name: 'Customize: All shown' })).toBeDefined();
   });
 });

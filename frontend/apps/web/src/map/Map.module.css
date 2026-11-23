@@ -269,6 +269,14 @@
   margin: 0;
 }
 
+.dashboardHeader {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
 .dashboardTitle {
   margin: 0;
   font-size: 1.125rem;

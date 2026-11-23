@@ -3,6 +3,7 @@ import { colors, STATUS_LABELS, statusColor } from '@urbanpulse/ui';
 
 import { PRIORITY_LABELS } from '../incidents/labels';
 import { iconKeyOf, type IconKey } from './category-icons';
+import type { HideablePanel } from './map-preferences';
 
 type Statistics = components['schemas']['IncidentStatisticsResponse'];
 type Category = components['schemas']['CategoryResponse'];
@@ -13,6 +14,15 @@ type Priority = components['schemas']['Priority'];
 export const NO_PRIORITY = 'No priority';
 export const NOT_CLASSIFIED = 'Not classified';
 export const NOT_ASSIGNED = 'Not assigned';
+
+/** The title of each part of the summary, also its name in the Customize list, in its order. */
+export const PANEL_TITLES: Record<HideablePanel, string> = {
+  priority: 'By priority',
+  status: 'By status',
+  category: 'By category',
+  department: 'By department',
+  latest: 'Latest reported',
+};
 
 /** One bar of a dashboard chart. */
 export interface ChartBar {
@@ -64,7 +74,7 @@ export function dashboardCharts(
   return [
     {
       id: 'status',
-      title: 'By status',
+      title: PANEL_TITLES.status,
       bars: statistics.byStatus.map(({ status, count }) => ({
         label: STATUS_LABELS[status],
         count,
@@ -73,7 +83,7 @@ export function dashboardCharts(
     },
     {
       id: 'category',
-      title: 'By category',
+      title: PANEL_TITLES.category,
       bars: statistics.byCategory.map(({ categoryId, name, count }) => ({
         ...groupBar(name, NOT_CLASSIFIED, count),
         icon: iconKeyOf(categoryId, categories),
@@ -81,7 +91,7 @@ export function dashboardCharts(
     },
     {
       id: 'department',
-      title: 'By department',
+      title: PANEL_TITLES.department,
       bars: statistics.byDepartment.map(({ name, count }) => groupBar(name, NOT_ASSIGNED, count)),
     },
   ];
