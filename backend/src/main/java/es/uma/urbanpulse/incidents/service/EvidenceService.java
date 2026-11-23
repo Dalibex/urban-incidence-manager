@@ -32,7 +32,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * The photos of an incident (ADR-0013). Who may read or add them is who may see the incident
  * ({@link IncidentReadAccess}), so an incident the caller may not see, or a photo of one, is a
- * {@code 404}; a citizen may only add them while the incident is {@code REPORTED}.
+ * {@code 404}; a citizen may only add them while the incident is {@code REPORTED}, and only sees
+ * the photos they uploaded themselves (#284).
  */
 @Service
 public class EvidenceService {
@@ -76,9 +77,12 @@ public class EvidenceService {
     @Transactional(readOnly = true)
     public List<AttachmentResponse> list(UUID incidentId, UUID userId, Role role) {
         visibleIncident(incidentId, userId, role);
-        return attachments.findByIncidentIdOrderByUploadedAtAscIdAsc(incidentId).stream()
-                .map(AttachmentResponse::of)
-                .toList();
+        var photos =
+                role == Role.CITIZEN
+                        ? attachments.findByIncidentIdAndUploaderIdOrderByUploadedAtAscIdAsc(
+                                incidentId, userId)
+                        : attachments.findByIncidentIdOrderByUploadedAtAscIdAsc(incidentId);
+        return photos.stream().map(AttachmentResponse::of).toList();
     }
 
     /**
@@ -224,14 +228,15 @@ public class EvidenceService {
     }
 
     /**
-     * @throws AttachmentNotFoundException if it does not exist or the caller may not see its
-     *     incident
+     * @throws AttachmentNotFoundException if it does not exist, the caller may not see its
+     *     incident, or the caller is a citizen who did not upload it
      */
     @Transactional(readOnly = true)
     public Photo content(UUID attachmentId, UUID userId, Role role) {
         var attachment =
                 attachments
                         .findById(attachmentId)
+                        .filter(found -> role != Role.CITIZEN || isUploadedBy(found, userId))
                         .filter(found -> isVisible(found.getIncident().getId(), userId, role))
                         .orElseThrow(() -> new AttachmentNotFoundException(attachmentId));
         return new Photo(
@@ -245,6 +250,10 @@ public class EvidenceService {
                         IncidentReadAccess.visibleTo(userId, role)
                                 .and(IncidentReadAccess.withId(incidentId)))
                 .orElseThrow(() -> new IncidentNotFoundException(incidentId));
+    }
+
+    private static boolean isUploadedBy(Attachment attachment, UUID userId) {
+        return attachment.getUploader().getId().equals(userId);
     }
 
     private boolean isVisible(UUID incidentId, UUID userId, Role role) {

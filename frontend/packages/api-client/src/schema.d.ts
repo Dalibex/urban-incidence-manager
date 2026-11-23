@@ -828,7 +828,8 @@ export interface paths {
          *     paginated. It never holds a storage key or a public URL: the file is read with
          *     `getAttachmentContent`, after authorisation.
          *
-         *     Roles: `CITIZEN` (own incidents), `TECHNICIAN` (actively assigned), `MUNICIPAL_OPERATOR`,
+         *     Roles: `CITIZEN` (own incidents, and only the photos they uploaded themselves: a photo added
+         *     by staff is never listed to them), `TECHNICIAN` (actively assigned), `MUNICIPAL_OPERATOR`,
          *     `ADMINISTRATOR`. An incident the user may not see returns `404`. `ANALYST` gets `403`.
          */
         get: operations["listIncidentAttachments"];
@@ -843,7 +844,9 @@ export interface paths {
          *     A body that is not valid `multipart/form-data` returns `400`.
          *
          *     The same content uploaded again to the same incident, such as a retry, stores nothing new
-         *     and returns `200` with the existing attachment, so a client can retry safely.
+         *     and returns `200` with the existing attachment, so a client can retry safely. For a
+         *     `CITIZEN`, the existing attachment may be one uploaded by staff, which they cannot list or
+         *     download (an accepted limit, see `docs/security.md`).
          *
          *     If the storage fails, it returns `500`, no attachment is recorded and the incident stays as
          *     it was.
@@ -870,7 +873,8 @@ export interface paths {
          * Download a photo
          * @description The file, with the type detected when it was uploaded. An opaque identifier does not replace
          *     authorisation: the same rules as `listIncidentAttachments` apply to the incident of the
-         *     attachment, with the same `404` rule.
+         *     attachment, with the same `404` rule. A `CITIZEN` asking for a photo of their incident that
+         *     they did not upload gets `404` too, as if it did not exist.
          *
          *     Roles: the same as `listIncidentAttachments`.
          */
