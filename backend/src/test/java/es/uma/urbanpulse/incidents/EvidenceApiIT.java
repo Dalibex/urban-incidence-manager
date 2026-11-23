@@ -26,12 +26,17 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -53,7 +58,8 @@ import org.springframework.transaction.annotation.Transactional;
  * Acceptance tests of #67 for the evidence endpoints of #192: {@code listIncidentAttachments},
  * {@code createIncidentAttachment} and {@code getAttachmentContent} (ADR-0013). They cover T4 to
  * T7, T9 to T13 and T17; T8 is the contract, checked on every response by {@link ApiContract}. T1
- * (a restart) is manual; its storage side is in {@code LocalFsStorageTest}.
+ * (a restart) is manual; its storage side is in {@code LocalFsStorageTest}. {@link
+ * PhotosUploadedByStaff} covers #284: a citizen only lists and downloads the photos they uploaded.
  *
  * <p>They are written from the issues, the contract ({@code docs/api/openapi.yml}) and ADR-0013,
  * not from the implementation: users and incidents are inserted with SQL, every check of behaviour
@@ -482,6 +488,263 @@ class EvidenceApiIT {
         assertNothingStored(incident);
     }
 
+    // #284: a citizen only sees the photos they uploaded themselves; staff see every photo.
+    @Nested
+    @DisplayName("Photos of an incident uploaded by staff (#284)")
+    class PhotosUploadedByStaff {
+
+        @Nested
+        @DisplayName("when an operator adds a photo to a reported incident")
+        class WhenAnOperatorAddsAPhoto {
+
+            private UUID incident;
+            private UUID byReporter;
+            private UUID byOperator;
+
+            @BeforeEach
+            void reporterAndOperatorUploadOnePhotoEach() throws Exception {
+                incident = incident(citizen, "REPORTED");
+                byReporter =
+                        idOf(upload(citizen, incident, JPEG, "street-light.jpg", "image/jpeg"));
+                byOperator = idOf(upload(operator, incident, PNG, "inspection.png", "image/png"));
+            }
+
+            @Test
+            @DisplayName("the reporter's list holds only the photo they uploaded")
+            void reporterListsTheirPhotoButNotTheOperators() throws Exception {
+                // Act
+                ResultActions result = mvc.perform(as(citizen, get(attachmentsOf(incident))));
+
+                // Assert
+                assertThat(listedIds(result)).containsExactly(byReporter.toString());
+            }
+
+            @Test
+            @DisplayName(
+                    "the reporter gets for the operator's photo the same 404 as for an unknown id")
+            void reporterGetsTheSameNotFoundForTheOperatorsPhotoAsForAnUnknownOne()
+                    throws Exception {
+                // Arrange
+                UUID unknown = UUID.randomUUID();
+                Map<String, Object> unknownProblem =
+                        problemOf(
+                                mvc.perform(
+                                        as(
+                                                citizen,
+                                                get(API + "/attachments/" + unknown + "/content"))),
+                                unknown);
+
+                // Act
+                ResultActions result =
+                        mvc.perform(
+                                as(citizen, get(API + "/attachments/" + byOperator + "/content")));
+
+                // Assert
+                assertThat(problemOf(result, byOperator)).isEqualTo(unknownProblem);
+            }
+
+            @Test
+            @DisplayName("the reporter still downloads the photo they uploaded")
+            void reporterStillDownloadsTheirOwnPhoto() throws Exception {
+                // Act
+                ResultActions result =
+                        mvc.perform(
+                                as(citizen, get(API + "/attachments/" + byReporter + "/content")));
+
+                // Assert
+                assertThat(
+                                result.andExpect(status().isOk())
+                                        .andReturn()
+                                        .getResponse()
+                                        .getContentAsByteArray())
+                        .isEqualTo(JPEG);
+            }
+
+            // Accepted limit of #284 (docs/security.md): the retry check is per incident, not per
+            // uploader, so a citizen who already holds the same bytes gets the staff's attachment.
+            @Test
+            @DisplayName(
+                    "accepted limit: the reporter uploading the operator's exact bytes gets the"
+                            + " operator's photo back as a retry, as they already hold that"
+                            + " content")
+            void reporterUploadingTheOperatorsExactBytesGetsTheOperatorsPhotoAsARetry()
+                    throws Exception {
+                // Act
+                ResultActions result =
+                        upload(citizen, incident, PNG.clone(), "copy.png", "image/png");
+
+                // Assert
+                result.andExpect(status().isOk())
+                        .andExpect(jsonPath("$.id").value(byOperator.toString()));
+                assertThat(attachmentRowsOf(incident)).isEqualTo(2);
+            }
+
+            // Accepted limit of #284 (docs/security.md): the limit of photos per incident counts
+            // every photo, also the ones the reporter cannot see.
+            @Test
+            @DisplayName(
+                    "accepted limit: the operator's photo counts towards the limit of photos per"
+                            + " incident, although the reporter only lists their own")
+            void operatorsPhotoCountsTowardsTheReportersLimitOfPhotos() throws Exception {
+                // Act
+                ResultActions result =
+                        upload(
+                                citizen,
+                                incident,
+                                image(0xFF, 0xD8, 0xFF, 0xE1),
+                                "third.jpg",
+                                "image/jpeg");
+
+                // Assert
+                expectInvalidFile(result);
+                assertThat(attachmentRowsOf(incident)).isEqualTo(2);
+            }
+
+            @ParameterizedTest(name = "{0}")
+            @EnumSource(
+                    value = Role.class,
+                    names = {"MUNICIPAL_OPERATOR", "ADMINISTRATOR"})
+            @DisplayName("staff list both photos, the reporter's and the operator's")
+            void staffListEveryPhotoOfTheIncident(Role role) throws Exception {
+                // Arrange
+                UUID staff = role == Role.ADMINISTRATOR ? administrator : operator;
+
+                // Act
+                ResultActions result = mvc.perform(as(staff, get(attachmentsOf(incident))));
+
+                // Assert
+                assertThat(listedIds(result))
+                        .containsExactly(byReporter.toString(), byOperator.toString());
+            }
+
+            @Test
+            @DisplayName("an administrator downloads the photo another staff member uploaded")
+            void administratorDownloadsThePhotoOfAnotherStaffMember() throws Exception {
+                // Act
+                ResultActions result =
+                        mvc.perform(
+                                as(
+                                        administrator,
+                                        get(API + "/attachments/" + byOperator + "/content")));
+
+                // Assert
+                assertThat(
+                                result.andExpect(status().isOk())
+                                        .andReturn()
+                                        .getResponse()
+                                        .getContentAsByteArray())
+                        .isEqualTo(PNG);
+            }
+        }
+
+        @Nested
+        @DisplayName("when the assigned technician adds a photo while it is in progress")
+        class WhenTheAssignedTechnicianAddsAPhoto {
+
+            private UUID incident;
+            private UUID byReporter;
+            private UUID byTechnician;
+
+            @BeforeEach
+            void reporterUploadsThenTheAssignedTechnicianUploads() throws Exception {
+                incident = incident(citizen, "REPORTED");
+                byReporter =
+                        idOf(upload(citizen, incident, JPEG, "street-light.jpg", "image/jpeg"));
+                jdbc.update("UPDATE incident SET status = 'IN_PROGRESS' WHERE id = ?", incident);
+                assign(incident, technician, true);
+                byTechnician = idOf(upload(technician, incident, PNG, "repair.png", "image/png"));
+            }
+
+            @Test
+            @DisplayName("the reporter's list holds only the photo they uploaded")
+            void reporterListsTheirPhotoButNotTheTechnicians() throws Exception {
+                // Act
+                ResultActions result = mvc.perform(as(citizen, get(attachmentsOf(incident))));
+
+                // Assert
+                assertThat(listedIds(result)).containsExactly(byReporter.toString());
+            }
+
+            @Test
+            @DisplayName(
+                    "the reporter gets for the technician's photo the same 404 as for an unknown"
+                            + " id")
+            void reporterGetsTheSameNotFoundForTheTechniciansPhotoAsForAnUnknownOne()
+                    throws Exception {
+                // Arrange
+                UUID unknown = UUID.randomUUID();
+                Map<String, Object> unknownProblem =
+                        problemOf(
+                                mvc.perform(
+                                        as(
+                                                citizen,
+                                                get(API + "/attachments/" + unknown + "/content"))),
+                                unknown);
+
+                // Act
+                ResultActions result =
+                        mvc.perform(
+                                as(
+                                        citizen,
+                                        get(API + "/attachments/" + byTechnician + "/content")));
+
+                // Assert
+                assertThat(problemOf(result, byTechnician)).isEqualTo(unknownProblem);
+            }
+
+            @Test
+            @DisplayName("the assigned technician lists both photos")
+            void assignedTechnicianListsBothPhotos() throws Exception {
+                // Act
+                ResultActions result = mvc.perform(as(technician, get(attachmentsOf(incident))));
+
+                // Assert
+                assertThat(listedIds(result))
+                        .containsExactly(byReporter.toString(), byTechnician.toString());
+            }
+        }
+
+        @Test
+        @DisplayName("the reporter's own photos are listed oldest first, without the staff's")
+        void reporterListsTheirOwnPhotosOldestFirst() throws Exception {
+            // Arrange: inserted newest first, so only the query's order can put Monday first.
+            UUID incident = incident(citizen, "REPORTED");
+            UUID tuesday = storedAttachment(incident, citizen, "second.png", "image/png", TUESDAY);
+            storedAttachment(incident, operator, "staff.jpg", "image/jpeg", MONDAY);
+            UUID monday = storedAttachment(incident, citizen, "first.jpg", "image/jpeg", MONDAY);
+
+            // Act
+            ResultActions result = mvc.perform(as(citizen, get(attachmentsOf(incident))));
+
+            // Assert
+            assertThat(listedIds(result)).containsExactly(monday.toString(), tuesday.toString());
+        }
+    }
+
+    private static List<String> listedIds(ResultActions listed) throws Exception {
+        String body =
+                listed.andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        return JsonPath.read(body, "$[*].id");
+    }
+
+    /**
+     * The Problem body of a {@code 404} for this attachment, without what changes on every request
+     * or with the id asked for: the {@code traceId}, and the id inside {@code detail} and {@code
+     * instance}. Two answers that only differ there reveal nothing about which ids exist.
+     */
+    private static Map<String, Object> problemOf(ResultActions result, UUID attachment)
+            throws Exception {
+        expectNotFound(result);
+        String body =
+                result.andReturn()
+                        .getResponse()
+                        .getContentAsString()
+                        .replace(attachment.toString(), "{attachmentId}");
+        Map<String, Object> problem = new HashMap<>(JsonPath.<Map<String, Object>>read(body, "$"));
+        problem.remove("traceId");
+        return problem;
+    }
+
     private ResultActions upload(
             UUID caller, UUID incident, byte[] bytes, String fileName, String declaredType)
             throws Exception {
@@ -545,6 +808,11 @@ class EvidenceApiIT {
     /** A row whose file is in the storage, inserted with SQL to control {@code uploaded_at}. */
     private UUID storedAttachment(
             UUID incident, String fileName, String contentType, Instant uploadedAt) {
+        return storedAttachment(incident, citizen, fileName, contentType, uploadedAt);
+    }
+
+    private UUID storedAttachment(
+            UUID incident, UUID uploader, String fileName, String contentType, Instant uploadedAt) {
         String key = storage.put(JPEG);
         return jdbc.queryForObject(
                 "INSERT INTO attachment (incident_id, uploader_id, file_name, file_type, file_size,"
@@ -552,7 +820,7 @@ class EvidenceApiIT {
                         + " RETURNING id",
                 UUID.class,
                 incident,
-                citizen,
+                uploader,
                 fileName,
                 contentType,
                 JPEG.length,

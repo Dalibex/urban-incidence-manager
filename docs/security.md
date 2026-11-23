@@ -453,9 +453,9 @@ Spring MVC: `GET /incidents/` matches `/incidents/*` with an empty segment, so a
 | `POST /incidents/{id}/resolution` | | | | assigned | | |
 | `POST /incidents/{id}/closure` | | | ✓ | | ✓ | |
 | `POST /incidents/{id}/reopening` | | | ✓ | | ✓ | |
-| `GET /incidents/{id}/attachments` | | own | ✓ | assigned | ✓ | |
+| `GET /incidents/{id}/attachments` | | own, only their photos | ✓ | assigned | ✓ | |
 | `POST /incidents/{id}/attachments` | | own, only while `REPORTED` | ✓ | assigned | ✓ | |
-| `GET /attachments/{id}/content` | | own | ✓ | assigned | ✓ | |
+| `GET /attachments/{id}/content` | | own, only their photos | ✓ | assigned | ✓ | |
 | `GET /incidents/{id}/comments` | | | ✓ | assigned | ✓ | |
 | `POST /incidents/{id}/comments` | | | ✓ | assigned | ✓ | |
 | `GET /incidents/{id}/urban-context` | | | ✓ | assigned | ✓ | |
@@ -489,9 +489,18 @@ filter by `status` and search with `q` (#266), which only read their own reports
 answers `403`, because ignoring it would give a misleading list
 and accepting `priority` would reveal a staff-only value by trying values. A photo follows the rule
 of its incident: the id of an attachment is not a public URL, and a photo of an incident the caller
-may not see answers `404` too (ADR-0013). The `Idempotency-Key` of `POST /incidents` belongs to the
-citizen who sent it: the same key sent by another citizen creates an incident of their own, so
-knowing someone else's key never returns their incident (#289).
+may not see answers `404` too (ADR-0013). A `CITIZEN` only lists and downloads the photos they
+uploaded themselves: a photo that staff add while working may show a number plate, the inside of a
+shop or a person, so it stays with the staff of the incident, and asking for it by its id answers
+`404` like any photo the caller may not see (#284). Two accepted limits remain: a citizen who
+uploads a file byte-identical to a staff photo of the same incident gets that photo's metadata back
+as a retry, its `fileName` included, which is the name it had on the staff member's device (they
+already hold its content, which in practice only happens when staff uploaded a photo that came from
+that citizen), and the staff photos count towards
+`EVIDENCE_MAX_FILES_PER_INCIDENT`, so the `422` for too many photos may tell a citizen that there
+are photos they do not see, never what they show. The `Idempotency-Key` of `POST /incidents`
+belongs to the citizen who sent it: the same key sent by another citizen creates an incident of
+their own, so knowing someone else's key never returns their incident (#289).
 
 ## ➕ Protecting a New Endpoint
 
