@@ -372,8 +372,11 @@ build again with `pnpm --filter @urbanpulse/mobile android`.
 - The mobile app keeps the session in `expo-secure-store` (Keychain on iOS, Keystore on Android),
   so it survives a restart.
 - The report form places the incident with a pin fixed in the centre of the base map: it starts on
-  the GPS position or, without it, on Málaga, and the citizen moves the map under the pin. On an
-  emulator, set the position in its extended controls (*Location*) to try the GPS path.
+  the GPS position or, without it, on Málaga, and the citizen moves the map under the pin, or
+  searches an address above it (`GET /places`, which the backend answers from Nominatim). On an
+  emulator, set the position in its extended controls (*Location*) to try the GPS path. The search
+  reaches the real Nominatim, one call a second for the whole backend: a burst of searches answers
+  `429`.
 
 ### Before pushing
 
