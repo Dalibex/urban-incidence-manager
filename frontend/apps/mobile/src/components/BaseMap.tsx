@@ -4,6 +4,7 @@ import {
   type CameraRef,
   type ViewStateChangeEvent,
 } from '@maplibre/maplibre-react-native';
+import type { ApiResult, Place } from '@urbanpulse/api-client';
 import { colors, fontSizes, spacing } from '@urbanpulse/ui';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { StyleSheet, Text, View, type NativeSyntheticEvent } from 'react-native';
@@ -17,6 +18,7 @@ import {
   type MapPin,
   type PinSource,
 } from '../location/report-location';
+import { AddressSearch } from './AddressSearch';
 import { Button } from './Button';
 
 /**
@@ -43,6 +45,11 @@ export interface BaseMapProps {
   onPinChange: (pin: MapPin | null) => void;
   /** What the form can still do when the map is not on screen. */
   unavailableHint: string;
+  /**
+   * Searches an address (`listPlaces`, #179). With it, an address search above the map moves the
+   * map to the place the citizen chooses, once the map is on screen.
+   */
+  searchPlaces?: (query: string) => Promise<ApiResult<Place[]>>;
 }
 
 /**
@@ -51,12 +58,14 @@ export interface BaseMapProps {
  * through `pmtiles://`. A map that is missing or fails to load never blocks the form around it: it
  * shows a notice and, when it failed to load, offers to try again.
  */
-export function BaseMap({ gpsFix, onPinChange, unavailableHint }: BaseMapProps) {
+export function BaseMap({ gpsFix, onPinChange, unavailableHint, searchPlaces }: BaseMapProps) {
   // Expo inlines EXPO_PUBLIC_* variables at build time, only when written out in full like this.
   const styleUrl = process.env.EXPO_PUBLIC_MAP_STYLE_URL;
   const [failed, setFailed] = useState(false);
   // A new key mounts a new native map, which loads the style again.
   const [attempt, setAttempt] = useState(0);
+  // The address search waits for the map: before it loads, the camera can miss the move.
+  const [loaded, setLoaded] = useState(false);
   const cameraRef = useRef<CameraRef>(null);
   const loadedRef = useRef(false);
   const pinSourceRef = useRef<PinSource>('startPoint');
@@ -85,6 +94,7 @@ export function BaseMap({ gpsFix, onPinChange, unavailableHint }: BaseMapProps) 
 
   function handleLoaded() {
     loadedRef.current = true;
+    setLoaded(true);
     const fix = latestFixRef.current;
     if (fix === null) {
       pinSourceRef.current = 'startPoint';
@@ -109,8 +119,23 @@ export function BaseMap({ gpsFix, onPinChange, unavailableHint }: BaseMapProps) 
     onPinChange({ ...fromLngLat(nativeEvent.center), source: pinSourceRef.current });
   }
 
+  // The citizen chose the place, so the position is theirs, as when they move the map by hand.
+  function moveToPlace(place: Place) {
+    if (!loadedRef.current) {
+      return;
+    }
+    cameraRef.current?.easeTo({
+      center: toLngLat(place),
+      zoom: STREET_ZOOM,
+      duration: RECENTER_DURATION_MS,
+    });
+    pinSourceRef.current = 'citizen';
+    onPinChange({ latitude: place.latitude, longitude: place.longitude, source: 'citizen' });
+  }
+
   function handleFailed() {
     loadedRef.current = false;
+    setLoaded(false);
     setFailed(true);
     onPinChange(null);
   }
@@ -137,42 +162,47 @@ export function BaseMap({ gpsFix, onPinChange, unavailableHint }: BaseMapProps) 
   // Read only when the native map mounts; later fixes move it through the camera.
   const start = gpsFix;
   return (
-    <View style={styles.container}>
-      <Map
-        key={attempt}
-        style={styles.map}
-        mapStyle={styleUrl}
-        attribution={false}
-        logo={false}
-        onDidFinishLoadingMap={handleLoaded}
-        onDidFailLoadingMap={handleFailed}
-        onRegionDidChange={handleRegionChanged}
-        // The map sits inside the form's ScrollView, which on Android takes a vertical drag for
-        // itself. The native map holding the JS responder, with a grant that returns `true`, makes
-        // React Native ask its parents not to intercept the touch, so the drag reaches the map.
-        // It goes on the map, not on a wrapping View: a View that holds the responder takes the
-        // touches of its children, and the map would stop moving.
-        onStartShouldSetResponder={() => true}
-        onResponderGrant={() => true}
-        onResponderTerminationRequest={() => false}
-      >
-        <Camera
-          ref={cameraRef}
-          initialViewState={{
-            center: toLngLat(start ?? MALAGA_CENTER),
-            zoom: start !== null ? STREET_ZOOM : CITY_ZOOM,
-          }}
-          maxBounds={COVERED_AREA}
-        />
-      </Map>
-      <View style={styles.pin} pointerEvents="none" testID="map-pin">
-        <View style={styles.pinHead} />
-        <View style={styles.pinStem} />
+    <View style={styles.withSearch}>
+      {searchPlaces && loaded ? (
+        <AddressSearch search={searchPlaces} onSelect={moveToPlace} />
+      ) : null}
+      <View style={styles.container}>
+        <Map
+          key={attempt}
+          style={styles.map}
+          mapStyle={styleUrl}
+          attribution={false}
+          logo={false}
+          onDidFinishLoadingMap={handleLoaded}
+          onDidFailLoadingMap={handleFailed}
+          onRegionDidChange={handleRegionChanged}
+          // The map sits inside the form's ScrollView, which on Android takes a vertical drag for
+          // itself. The native map holding the JS responder, with a grant that returns `true`, makes
+          // React Native ask its parents not to intercept the touch, so the drag reaches the map.
+          // It goes on the map, not on a wrapping View: a View that holds the responder takes the
+          // touches of its children, and the map would stop moving.
+          onStartShouldSetResponder={() => true}
+          onResponderGrant={() => true}
+          onResponderTerminationRequest={() => false}
+        >
+          <Camera
+            ref={cameraRef}
+            initialViewState={{
+              center: toLngLat(start ?? MALAGA_CENTER),
+              zoom: start !== null ? STREET_ZOOM : CITY_ZOOM,
+            }}
+            maxBounds={COVERED_AREA}
+          />
+        </Map>
+        <View style={styles.pin} pointerEvents="none" testID="map-pin">
+          <View style={styles.pinHead} />
+          <View style={styles.pinStem} />
+        </View>
+        <Text style={styles.hint} pointerEvents="none">
+          {MOVE_THE_MAP}
+        </Text>
+        <Text style={styles.attribution}>{MAP_ATTRIBUTION}</Text>
       </View>
-      <Text style={styles.hint} pointerEvents="none">
-        {MOVE_THE_MAP}
-      </Text>
-      <Text style={styles.attribution}>{MAP_ATTRIBUTION}</Text>
     </View>
   );
 }
@@ -189,6 +219,9 @@ function Notice({ message, children }: { message: string; children?: ReactNode }
 }
 
 const styles = StyleSheet.create({
+  withSearch: {
+    gap: spacing.sm,
+  },
   container: {
     height: MAP_HEIGHT,
     borderRadius: 8,

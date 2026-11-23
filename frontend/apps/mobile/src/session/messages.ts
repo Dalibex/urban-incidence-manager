@@ -52,6 +52,27 @@ export function categoriesMessage(failure: ApiFailure): string {
   return 'The categories could not be loaded. You can report without one or try again.';
 }
 
+export const ADDRESS_SEARCH_FAILED =
+  'The address could not be searched. Move the map to put the pin on the incident.';
+
+/**
+ * Why the address search found nothing to show. The pin never depends on it (RF26), so every
+ * message but the network one says how to place it by hand.
+ */
+export function placeSearchMessage(failure: ApiFailure): string {
+  if (failure.kind === 'network') {
+    return NETWORK;
+  }
+  if (failure.status === 429) {
+    // The citizen's own limit, or Nominatim busy with other searches: both pass in moments.
+    return 'The address search is busy. Wait a moment and search again, or move the map to the incident.';
+  }
+  if (failure.code === 'GEOCODING_UNAVAILABLE') {
+    return 'The address search is not available now. Move the map to put the pin on the incident.';
+  }
+  return ADDRESS_SEARCH_FAILED;
+}
+
 /** Only for failures without per-field errors: a `422` is shown next to the invalid fields. */
 export function reportIncidentMessage(failure: ApiFailure): string {
   if (failure.kind === 'network') {
