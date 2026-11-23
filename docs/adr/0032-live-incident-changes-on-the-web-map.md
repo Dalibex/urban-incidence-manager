@@ -3,6 +3,7 @@
 - **Status:** Proposed
 - **Decision Makers:** Project Team
 - **Date:** 2026-11-22
+- **Design document:** None
 
 ## Context
 
@@ -24,7 +25,7 @@ status changed at the last refresh, needs none of this ADR. This ADR is about th
 
 **The target is a proposal.** No requirement fixes how fast the map must show a change: RF08 asks
 for a map and RF12 for the lifecycle. This ADR proposes **a change shown on every open map within
-3 seconds at p95** (the PO, 2026-11-22, written in #268). The team confirms or changes that target
+3 seconds at p95** (proposed by the team in #268). The team confirms or changes that target
 before this ADR can be *Accepted*; without a target, the 15-second refresh is enough.
 
 **What the current refresh costs.** The quality-attribute experiments of #176 (2026-11-13,
@@ -70,7 +71,7 @@ incident in the database.
 - **Modular monolith** ([ADR-0010](0010-modular-monolith.md)): the incidents live in the
   `incidents` module, with no application events between modules. The target architecture of #327
   keeps the incidents in the core backend, and adds services and the communication between them
-  (#330, ADR-0026).
+  (#330; ADR-0026, `Planned: #330`).
 - **Deployment** ([ADR-0011](0011-deployment-12factor.md), [ADR-0017](0017-reverse-proxy.md)):
   one backend replica behind nginx (`frontend/nginx.conf`), with `proxy_read_timeout 30s`,
   response buffering on, and no HTTPS yet. Docker rotates each container's log at 10 MB, three
@@ -93,8 +94,8 @@ with the same filters as the map, and keeps the full refresh every 15 seconds as
 truth. No new channel, connection type or index is added.
 
 - **Endpoint.** `GET /api/v1/incident-changes?since=<cursor>&<the filters of the map>`, an ordinary
-  JSON operation. It enters `docs/api/openapi.yml` first, marked `Planned: #268`, in the pull
-  request that builds it, with its final name.
+  JSON operation. It enters `docs/api/openapi.yml` first, in the pull request that builds it, with
+  its final name.
 - **What changed** is read from `incident.updated_at` with its existing index, so it covers new
   reports, transitions, classifications and priorities alike. The answer has two lists:
   - the changed incidents that match the filters, each as an `IncidentPosition` (id, status,
@@ -106,9 +107,10 @@ truth. No new channel, connection type or index is added.
   decides by itself whether an incident belongs on the map.
 - **The cursor** is the instant of the question, from the same injected `Clock` that writes
   `updated_at`, so tests with a fixed clock see one clock. The query reads a fixed overlap before
-  the cursor, longer than the timeout of the transactions that change an incident (both values set
-  in the pull request), so a transaction that commits after a later one is not skipped; an incident
-  that comes back twice is recognised by its `version`.
+  the cursor, longer than a timeout on the transactions that change an incident. There is no such
+  timeout today: the pull request that builds this adds it and sets both values, so a transaction
+  that commits after a later one is not skipped. An incident that comes back twice is recognised
+  by its `version`.
 - **Limits.** An answer holds at most 200 incidents, counted once each. A cursor older than two
   minutes (a tab that slept) is not scanned. In both cases the answer says `truncated: true` and
   gives a new cursor equal to the instant of that question, and the client waits for its next
