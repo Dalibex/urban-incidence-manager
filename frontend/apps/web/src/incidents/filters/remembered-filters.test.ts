@@ -13,7 +13,7 @@ describe('remembered filters (#263)', () => {
   it('gives back the filters a user left on a list', () => {
     const filters = {
       status: ['ASSIGNED', 'IN_PROGRESS'] as const,
-      categoryId: CATEGORY,
+      categoryId: [CATEGORY],
       priority: 'HIGH' as const,
       reportedFrom: '2026-11-01',
       reportedTo: '2026-11-05',
@@ -22,6 +22,19 @@ describe('remembered filters (#263)', () => {
     rememberFilters('inbox', 'user-1', filtersSearch(filters));
 
     expect(rememberedFilters('inbox', 'user-1')).toEqual(filters);
+  });
+
+  // #265: what a list stored before several categories held one value.
+  it('reads a stored single category as a filter of one', () => {
+    window.localStorage.setItem(
+      'urbanpulse.list-filters.inbox.user-1',
+      `?status=REPORTED&categoryId=${CATEGORY}`,
+    );
+
+    expect(rememberedFilters('inbox', 'user-1')).toEqual({
+      status: ['REPORTED'],
+      categoryId: [CATEGORY],
+    });
   });
 
   it('tells nothing stored from no filters, which is what Clear filters leaves', () => {
@@ -40,7 +53,7 @@ describe('remembered filters (#263)', () => {
 
     expect(rememberedFilters('inbox', 'user-1')).toEqual({
       status: ['REPORTED'],
-      departmentId: CATEGORY,
+      departmentId: [CATEGORY],
     });
   });
 

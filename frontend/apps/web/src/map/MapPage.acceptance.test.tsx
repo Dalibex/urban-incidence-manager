@@ -319,6 +319,47 @@ describe('incident map on the web (#196, test #76)', () => {
     ]);
   });
 
+  // #265
+  it('narrows the map and its summary to several categories, and keeps them in the address', async () => {
+    const parks = { id: 'c3d4e5f6-a7b8-4c9d-8e0f-1a2b3c4d5e6f', name: 'Parks', description: null };
+    const lighting = {
+      id: 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d',
+      name: 'Street lighting',
+      description: null,
+    };
+    const requests: URLSearchParams[] = [];
+    const statisticsRequests: URLSearchParams[] = [];
+    const router = renderApp(`${PATHS.map}?status=REPORTED`, {
+      role: 'MUNICIPAL_OPERATOR',
+      fetch: fakeApi({
+        'GET /incident-locations': (request) => {
+          requests.push(new URL(request.url).searchParams);
+          return positions([POTHOLE])();
+        },
+        'GET /categories': () => json(200, [parks, lighting]),
+        'GET /departments': () => json(200, []),
+        'GET /incident-statistics': (request) => {
+          statisticsRequests.push(new URL(request.url).searchParams);
+          return statistics();
+        },
+        'GET /incidents': latest,
+      }),
+    });
+    await screen.findByText('1 incident on the map');
+    await userEvent.click(screen.getByRole('button', { name: /^Filters/ }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Category: All categories' }));
+
+    const list = within(screen.getByRole('group', { name: 'Category' }));
+    await userEvent.click(list.getByRole('checkbox', { name: 'Parks' }));
+    await userEvent.click(list.getByRole('checkbox', { name: 'Street lighting' }));
+
+    // The ids come in the same order whatever the order they were chosen in.
+    const both = [lighting.id, parks.id];
+    await waitFor(() => expect(requests.at(-1)?.getAll('categoryId')).toEqual(both));
+    await waitFor(() => expect(statisticsRequests.at(-1)?.getAll('categoryId')).toEqual(both));
+    expect(new URLSearchParams(router.state.location.search).getAll('categoryId')).toEqual(both);
+  });
+
   describe('search (#266)', () => {
     it('searches the typed text on submit, on the map and on its summary', async () => {
       const requests: URLSearchParams[] = [];
