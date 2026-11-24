@@ -77,7 +77,6 @@ like the Sprint 2 ones:
 |---|---|---|
 | `identity` | `createMfaEnrollment`, `createMfaVerification`, `createUserMfaReset`, and the `202` of `createSession`; `ENROLL_MFA` and `RESET_MFA` join `AuditAction` with that pull request | #57 |
 | `incidents`, `geospatial` | `listDistricts`, and the `district` filter of `listIncidents`, `listIncidentLocations` and `getIncidentStatistics` | #59 |
-| `geospatial` | `listPlaces` (address search) | #179 |
 | `incidents` | The text search `q` of `listIncidents`, `listIncidentLocations` and `getIncidentStatistics` | #266 |
 | `incidents` | `icon` in `CategoryResponse`, and `categoryId` in `IncidentPosition` | #267 |
 
@@ -156,7 +155,7 @@ Every operation lists the shared responses that can really happen, with `$ref`:
 | 409 | `#/components/responses/Conflict` | The operation changes state that can conflict (status transitions, stale version, unique values) |
 | 413 | `#/components/responses/ContentTooLarge` | The operation receives a file with a size limit |
 | 422 | `#/components/responses/UnprocessableEntity` | The operation has a body whose data is validated (blank title, coordinates out of range, short password), or query values that are readable but not valid together (a report period over 366 days); `errors` lists every invalid field |
-| 429 | `#/components/responses/TooManyRequests` | The operation is rate limited (`createSession`, `createPasswordChange`, `createRegistration` and `createMfaVerification`; planned: `listPlaces`) |
+| 429 | `#/components/responses/TooManyRequests` | The operation is rate limited (`createSession`, `createPasswordChange`, `createRegistration`, `createMfaVerification` and `listPlaces`) |
 | 500 | `#/components/responses/InternalServerError` | Every operation |
 
 `400` means "I cannot read this request"; `422` means "I can read it, but the data is not valid". A form shows `422` errors next to each field; a `400` is a client bug.
@@ -178,7 +177,7 @@ Do not define a new error body. If an error needs extra information, add an opti
 | `EMAIL_ALREADY_EXISTS` | 409 | `createRegistration`, `createUser` | An account with this email exists |
 | `INVALID_CREDENTIALS` | 401 | `createSession`, `createPasswordChange` | Wrong email or password (the same for both, so emails are not revealed) |
 | `ACCOUNT_DISABLED` | 403 | `createSession`, `createPasswordChange`, `createMfaVerification` | Right credentials, disabled account |
-| `TOO_MANY_ATTEMPTS` | 429 | `createSession`, `createRegistration`, `createPasswordChange`, `createMfaVerification`; planned: `listPlaces` | Rate limited; see `Retry-After` |
+| `TOO_MANY_ATTEMPTS` | 429 | `createSession`, `createRegistration`, `createPasswordChange`, `createMfaVerification`, `listPlaces` | Rate limited; see `Retry-After` |
 | `INVALID_REFRESH_TOKEN` | 401 | `refreshSession` | Unknown, expired, revoked or reused refresh token, or a staff session opened without the second factor: sign in again |
 | `INVALID_TRANSITION` | 409 | Lifecycle actions (Sprint 2) | The transition is not allowed (ADR-0020) |
 | `CONCURRENT_MODIFICATION` | 409 | Lifecycle actions and `updateIncident` (Sprint 2) | The incident changed since the client read its `version`: reload it and decide again (ADR-0020) |
@@ -190,7 +189,7 @@ Do not define a new error body. If an error needs extra information, add an opti
 | `INVALID_MFA_CHALLENGE` | 401 | `createMfaEnrollment`, `createMfaVerification` | The sign-in challenge is unknown, expired or used: sign in again |
 | `INVALID_MFA_CODE` | 401 | `createMfaVerification` | The code is wrong, outside its time window or already used: type another one (five per challenge) |
 | `MFA_ALREADY_ENROLLED` | 409 | `createMfaEnrollment` | The account already has a second factor: send a code instead |
-| `GEOCODING_UNAVAILABLE` | 503 | `listPlaces` (planned, #179) | The address search provider is down or too slow: place the pin by hand |
+| `GEOCODING_UNAVAILABLE` | 503 | `listPlaces` | The address search provider is down or too slow: place the pin by hand |
 
 Add a row in the same PR that introduces a new code.
 

@@ -149,6 +149,13 @@ If the email already has an account, the app says so: sign in instead.
    *Use my position* reads your position again and puts the pin back on it. If your position is
    outside that area, the map stops at its border and says so: *Submit* stays disabled until you
    move the map to the incident.
+
+   Instead of panning, you can write the street in *Search an address in Málaga* above the map
+   (for example *Calle Larios 5*) and tap *Search*, or the search key of the keyboard: it searches
+   only then, never while you type. Choose one of the places it lists and the map and the pin jump
+   there, as if you had moved the map yourself; then adjust it if needed. It only finds places in
+   Málaga. If nothing matches, after too many searches in a minute, or when the search is not
+   available, it says so: move the map by hand, the report does not need the search.
 3. Write a **title** (a short summary) and a **description** (what happens and where). Both are
    required.
 4. Choose a **category** if one fits. It is optional: staff classify the report if you leave it

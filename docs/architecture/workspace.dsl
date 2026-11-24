@@ -55,7 +55,7 @@ workspace "UrbanPulse" "C4 Model" {
                 tags "FrontendMobile"
                 url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0005-mobile-application-technology.md
 
-                mobile_ui = component "Mobile Views and Map" "Report forms, navigation and map interaction over the self-hosted base map (requires an Expo development build)." "React Navigation / MapLibre React Native" {
+                mobile_ui = component "Mobile Views and Map" "Report forms, navigation and map interaction over the self-hosted base map, with an address search that moves the map to the place chosen (requires an Expo development build)." "React Navigation / MapLibre React Native" {
                     url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0016-self-hosted-osm-base-map.md
                 }
                 mobile_native = component "Native Modules (Expo)" "Access to camera, GPS, file system, and secure token storage." "Expo Modules"
@@ -89,7 +89,7 @@ workspace "UrbanPulse" "C4 Model" {
                     tags "UrbanContext"
                     url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0009-urban-data-source.md
                 }
-                geospatial = component "geospatial" "Location and territory: districts, neighbourhoods, urban assets and spatial queries over local data, and a scheduled worker that resolves the normalized address of each new incident with Nominatim after the report (ADR-0002)." "Spring Service / Spring Data JPA / PostGIS" {
+                geospatial = component "geospatial" "Location and territory: districts, neighbourhoods, urban assets and spatial queries over local data, and a scheduled worker that resolves the normalized address of each new incident with Nominatim after the report (ADR-0002); the address search of the report form, answered by Nominatim bounded to Málaga, with a cache and rate limits (#179)." "Spring Service / Spring Data JPA / PostGIS" {
                     tags "Geospatial"
                     url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0003-geospatial-data-management.md
                 }
@@ -242,7 +242,7 @@ workspace "UrbanPulse" "C4 Model" {
         urbanpulse.nginx -> urbanpulse.backend.identity "Proxies /api (auth, users, roles)" "HTTP/JSON"
         urbanpulse.nginx -> urbanpulse.backend.incidents "Proxies /api (incidents)" "HTTP/JSON"
         urbanpulse.nginx -> urbanpulse.backend.urbancontext "Proxies /api (context, data sources)" "HTTP/JSON"
-        urbanpulse.nginx -> urbanpulse.backend.geospatial "Proxies /api (districts, assets, spatial search)" "HTTP/JSON"
+        urbanpulse.nginx -> urbanpulse.backend.geospatial "Proxies /api (districts, assets, spatial search, address search)" "HTTP/JSON"
         urbanpulse.nginx -> urbanpulse.backend.notifications "Proxies /api (in-app notifications)" "HTTP/JSON"
         urbanpulse.nginx -> urbanpulse.backend.analytics "Proxies /api (reports)" "HTTP/JSON, CSV"
 
@@ -260,7 +260,7 @@ workspace "UrbanPulse" "C4 Model" {
         urbanpulse.backend.urbancontext -> opendata "Queries authoritative data" "HTTPS"
         urbanpulse.backend.urbancontext -> openstreet "Geocoding and asset fallback" "HTTPS"
         urbanpulse.backend.urbancontext -> openmeteo "Current weather at the incident" "HTTPS"
-        urbanpulse.backend.geospatial -> openstreet "Address of the incident by reverse geocoding (Nominatim), after the report" "HTTPS"
+        urbanpulse.backend.geospatial -> openstreet "Address of the incident by reverse geocoding (Nominatim), after the report; places of Málaga that match the address search a citizen submits (Nominatim)" "HTTPS"
         urbanpulse.backend.urbancontext -> tomtom "Traffic flow near the incident" "HTTPS"
         urbanpulse.backend.notifications -> brevo "Sends transactional email" "HTTPS (REST API)"
         urbanpulse.backend.notifications -> expoPush "Sends push notifications" "HTTPS (REST API)"

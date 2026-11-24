@@ -372,8 +372,11 @@ build again with `pnpm --filter @urbanpulse/mobile android`.
 - The mobile app keeps the session in `expo-secure-store` (Keychain on iOS, Keystore on Android),
   so it survives a restart.
 - The report form places the incident with a pin fixed in the centre of the base map: it starts on
-  the GPS position or, without it, on Málaga, and the citizen moves the map under the pin. On an
-  emulator, set the position in its extended controls (*Location*) to try the GPS path.
+  the GPS position or, without it, on Málaga, and the citizen moves the map under the pin, or
+  searches an address above it (`GET /places`, which the backend answers from Nominatim). On an
+  emulator, set the position in its extended controls (*Location*) to try the GPS path. The search
+  reaches the real Nominatim, one call a second for the whole backend: a burst of searches answers
+  `429`.
 
 ### Before pushing
 
@@ -423,8 +426,8 @@ internet; without it, set `WEATHER_ENRICHMENT_ENABLED=false` in `backend/.env` a
 stays pending. The tests never call it. The address of each new incident works the same way with
 Nominatim ([ADR-0002](adr/0002-open-street-map.md)): the report saves its location
 with the address `PENDING`, and a worker of `geospatial` resolves it every 30 seconds, one call per
-second at most. Without internet, set `ADDRESS_ENRICHMENT_ENABLED=false` and the address stays
-pending. The providers proposed for traffic (TomTom,
+second at most. Without internet, set `ADDRESS_ENRICHMENT_ENABLED=false`: the address stays
+pending, and the address search of the mobile app answers `503`. The providers proposed for traffic (TomTom,
 [ADR-0024](adr/0024-traffic-provider.md)) and for notification delivery (Brevo for email and the Expo push service,
 [ADR-0019](adr/0019-notification-delivery-providers.md) amended by
 [ADR-0031](adr/0031-push-and-email-notifications.md)) are not decided yet: the three ADRs are

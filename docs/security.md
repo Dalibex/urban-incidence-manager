@@ -142,6 +142,7 @@ any user and role.
 | `POST /sessions` and `POST /password-changes` | 5 failed attempts per 15 minutes, counted together | Email and client address |
 | `POST /registrations` | 10 attempts per hour | Client address |
 | `POST /mfa-verifications` | 10 wrong codes per 15 minutes, separate from the password limit; and 5 wrong codes spend a challenge | Account only (not the client address) |
+| `GET /places` | 10 searches a minute (`urbanpulse.places.searches-per-user`), even those answered from the cache; and one call a second to Nominatim for every user together, shared with the address worker: a search waits up to a second for its turn, and one refused because the turn is further away does not count against the user | User, and the whole backend |
 
 Past the limit the API answers `429 TOO_MANY_ATTEMPTS` with `Retry-After` (seconds, rounded up),
 even for the right password. Each attempt is reserved before the password is checked, in one atomic
@@ -398,7 +399,7 @@ request.
 | Service | What it receives | Why | How to turn it off |
 | --- | --- | --- | --- |
 | Open-Meteo (`api.open-meteo.com`, [ADR-0018](adr/0018-weather-and-traffic-providers.md), #307) | The latitude and longitude of the report | The weather at the position | `WEATHER_ENRICHMENT_ENABLED=false` |
-| Nominatim of OpenStreetMap (`nominatim.openstreetmap.org`, [ADR-0002](adr/0002-open-street-map.md), #375) | The latitude and longitude of the report, and a `User-Agent` that names the application, as its usage policy asks | The normalized address at the position | `ADDRESS_ENRICHMENT_ENABLED=false` |
+| Nominatim of OpenStreetMap (`nominatim.openstreetmap.org`, [ADR-0002](adr/0002-open-street-map.md), #375, #179) | The latitude and longitude of the report; the text of an address search of the report form, never who searched it; and a `User-Agent` that names the application, as its usage policy asks | The normalized address at the position; the places of Málaga that match the search | `ADDRESS_ENRICHMENT_ENABLED=false` stops both: the address of the reports, and the search, which then answers `503` without calling Nominatim. On, the search is called only by a citizen who submits it |
 
 Neither receives anything else: no title, description, photo, account, token or IP address of the
 citizen, and no identifier of the incident. A position alone can still point to a home, so the
@@ -462,6 +463,7 @@ Spring MVC: `GET /incidents/` matches `/incidents/*` with an empty segment, so a
 | `GET /incident-statistics` | | | ✓ | assigned | ✓ | |
 | `GET /audit-entries` | | | | | ✓ | |
 | `GET /incident-reports` | | | | | ✓ | ✓ |
+| `GET /places` | | ✓ | | | | |
 
 User management is for administrators only. They cannot change their own role or disable their
 own account, nor give a staff role to a citizen account or the reverse (`422`), but two administrators who demote or disable each other at the same time can
