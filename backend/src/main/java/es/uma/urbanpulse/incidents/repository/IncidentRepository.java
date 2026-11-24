@@ -77,6 +77,19 @@ public interface IncidentRepository
     @Query("select i.id as id, i.title as title from Incident i where i.id in :ids")
     List<Title> findTitlesByIdIn(@Param("ids") Collection<UUID> ids);
 
+    /**
+     * The id and title of the incidents in {@code IN_PROGRESS} whose active assignment is the
+     * technician's, by title. Only that technician can resolve them (ADR-0020), so the account may
+     * not be disabled nor lose its role while there is one (#274). It uses {@code
+     * ix_assignment_active_technician}.
+     */
+    @Query(
+            "select i.id as id, i.title as title from Incident i join i.assignments a"
+                    + " where a.technician.id = :technicianId and a.isActive = true"
+                    + " and i.status = es.uma.urbanpulse.incidents.entity.IncidentStatus.IN_PROGRESS"
+                    + " order by i.title, i.id")
+    List<Title> findTitlesInProgressFor(@Param("technicianId") UUID technicianId);
+
     /** The id and title of an incident. */
     interface Title {
         UUID getId();

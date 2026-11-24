@@ -9,6 +9,7 @@ import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.identity.entity.User;
 import es.uma.urbanpulse.identity.repository.MfaChallengeRepository;
 import es.uma.urbanpulse.identity.repository.UserRepository;
+import es.uma.urbanpulse.incidents.repository.IncidentRepository;
 import es.uma.urbanpulse.shared.error.FieldError;
 import es.uma.urbanpulse.shared.text.Texts;
 import es.uma.urbanpulse.shared.web.PageResponse;
@@ -18,6 +19,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -47,7 +49,11 @@ public class UserAdministrationService {
     private static final String CHANGED = "changed";
     private static final String REASON = "reason";
 
+    /** How many incident titles a refused change lists; the rest are only counted. */
+    private static final int LISTED_INCIDENTS = 5;
+
     private final UserRepository users;
+    private final IncidentRepository incidents;
     private final PasswordEncoder passwordEncoder;
     private final SessionService sessions;
     private final AuditService audit;
@@ -59,6 +65,7 @@ public class UserAdministrationService {
 
     UserAdministrationService(
             UserRepository users,
+            IncidentRepository incidents,
             PasswordEncoder passwordEncoder,
             SessionService sessions,
             AuditService audit,
@@ -68,6 +75,7 @@ public class UserAdministrationService {
             MfaService mfa,
             Clock clock) {
         this.users = users;
+        this.incidents = incidents;
         this.passwordEncoder = passwordEncoder;
         this.sessions = sessions;
         this.audit = audit;
@@ -150,12 +158,15 @@ public class UserAdministrationService {
      * revokes every refresh token of the user, so the account cannot refresh again.
      *
      * <p>The user row is locked first: of two changes at once, the second waits and its {@code
-     * before} is the result of the first (#63, T16).
+     * before} is the result of the first (#63, T16). The acceptance of an incident locks the
+     * technician's row too, so it either finishes before and its incident is seen here, or waits
+     * and is refused because the account is no longer an enabled technician (#274).
      *
      * @throws UserNotFoundException if no user has the id
      * @throws InvalidUserChangeException if a field is not valid, administrators change their own
-     *     role or disable themselves, or the role changes from or to {@code CITIZEN}; nothing
-     *     changes then
+     *     role or disable themselves, the role changes from or to {@code CITIZEN}, or a technician
+     *     with incidents in progress is disabled or loses the role: only they can resolve them
+     *     (ADR-0020, #274); nothing changes then
      */
     @Transactional
     public UserResponse update(UUID administratorId, UUID userId, UpdateUserRequest request) {
@@ -182,6 +193,23 @@ public class UserAdministrationService {
         }
         if (changesEnabled && self && wasEnabled) {
             errors.add(new FieldError(ENABLED, "you cannot disable your own account"));
+        }
+        var disablesTechnician = changesEnabled && wasEnabled && user.getRole() == Role.TECHNICIAN;
+        var demotesTechnician = changesRole && user.getRole() == Role.TECHNICIAN;
+        if (disablesTechnician || demotesTechnician) {
+            var inProgress = incidents.findTitlesInProgressFor(userId);
+            if (!inProgress.isEmpty()) {
+                if (demotesTechnician) {
+                    errors.add(
+                            new FieldError(ROLE, inProgressMessage("Change the role", inProgress)));
+                }
+                if (disablesTechnician) {
+                    errors.add(
+                            new FieldError(
+                                    ENABLED,
+                                    inProgressMessage("Deactivate the account", inProgress)));
+                }
+            }
         }
         if (!errors.isEmpty()) {
             throw new InvalidUserChangeException(errors);
@@ -266,6 +294,30 @@ public class UserAdministrationService {
                 AuditTarget.user(userId),
                 Map.of(),
                 Map.of(REASON, Texts.strip(request.reason())));
+    }
+
+    /**
+     * Why a technician with incidents in progress keeps the account as it is, with the first
+     * {@value #LISTED_INCIDENTS} titles so the administrator can find them. Titles only: the
+     * administrator sees every incident, and its id says nothing to a person.
+     */
+    private static String inProgressMessage(
+            String action, List<IncidentRepository.Title> inProgress) {
+        var titles =
+                inProgress.stream()
+                        .limit(LISTED_INCIDENTS)
+                        .map(incident -> "\u201C" + incident.getTitle() + "\u201D")
+                        .collect(Collectors.joining(", "));
+        var more = inProgress.size() - LISTED_INCIDENTS;
+        var one = inProgress.size() == 1;
+        return "This technician has "
+                + (one ? "1 incident" : inProgress.size() + " incidents")
+                + " in progress that only they can resolve: "
+                + titles
+                + (more > 0 ? " and " + more + " more" : "")
+                + ". "
+                + action
+                + (one ? " once it is resolved." : " once they are resolved.");
     }
 
     /**
