@@ -2,9 +2,9 @@ import { ROLES } from '@urbanpulse/domain';
 import { describe, expect, it } from 'vitest';
 
 import {
+  detailBack,
   incidentListOf,
   landingPath,
-  listReturnPath,
   mapDefaultPath,
   PATHS,
   routeAccess,
@@ -54,23 +54,53 @@ describe('mapDefaultPath', () => {
   });
 });
 
-describe('listReturnPath', () => {
+describe('detailBack', () => {
   it('goes back to the list as the user left it', () => {
-    expect(listReturnPath({ listSearch: '?priority=HIGH&page=2' }, 'inbox')).toBe(
-      `${PATHS.inbox}?priority=HIGH&page=2`,
-    );
-    expect(listReturnPath({ listSearch: '' }, 'inbox')).toBe(PATHS.inbox);
-    expect(listReturnPath({ listSearch: '?page=1' }, 'workQueue')).toBe(
-      `${PATHS.workQueue}?page=1`,
-    );
+    expect(
+      detailBack({ from: 'inbox', search: '?priority=HIGH&page=2' }, 'MUNICIPAL_OPERATOR'),
+    ).toEqual({
+      to: 'inbox',
+      path: `${PATHS.inbox}?priority=HIGH&page=2`,
+    });
+    expect(detailBack({ from: 'inbox', search: '' }, 'ADMINISTRATOR')).toEqual({
+      to: 'inbox',
+      path: PATHS.inbox,
+    });
+    expect(detailBack({ from: 'workQueue', search: '?page=1' }, 'TECHNICIAN')).toEqual({
+      to: 'workQueue',
+      path: `${PATHS.workQueue}?page=1`,
+    });
   });
 
-  it('goes to the default list after a direct link', () => {
-    expect(listReturnPath(null, 'inbox')).toBe(`${PATHS.inbox}?status=REPORTED`);
-    expect(listReturnPath({ listSearch: 42 }, 'inbox')).toBe(`${PATHS.inbox}?status=REPORTED`);
-    expect(listReturnPath(null, 'workQueue')).toBe(
-      `${PATHS.workQueue}?status=ASSIGNED&status=IN_PROGRESS`,
-    );
+  it('goes to the default list of the role after a direct link', () => {
+    const inbox = { to: 'inbox', path: `${PATHS.inbox}?status=REPORTED` };
+    const queue = {
+      to: 'workQueue',
+      path: `${PATHS.workQueue}?status=ASSIGNED&status=IN_PROGRESS`,
+    };
+    expect(detailBack(null, 'MUNICIPAL_OPERATOR')).toEqual(inbox);
+    expect(detailBack(undefined, 'ADMINISTRATOR')).toEqual(inbox);
+    expect(detailBack(null, 'TECHNICIAN')).toEqual(queue);
+  });
+
+  it('goes to the default list of the role when the origin is not a staff screen', () => {
+    const inbox = { to: 'inbox', path: `${PATHS.inbox}?status=REPORTED` };
+    expect(detailBack({ from: 'inbox', search: 42 }, 'MUNICIPAL_OPERATOR')).toEqual(inbox);
+    expect(detailBack({ from: 'users', search: '' }, 'MUNICIPAL_OPERATOR')).toEqual(inbox);
+    expect(detailBack({ from: 'toString', search: '' }, 'MUNICIPAL_OPERATOR')).toEqual(inbox);
+    expect(detailBack({ from: 'inbox', search: '/users' }, 'MUNICIPAL_OPERATOR')).toEqual(inbox);
+    expect(detailBack({ listSearch: '?page=2' }, 'MUNICIPAL_OPERATOR')).toEqual(inbox);
+  });
+
+  it('goes to the default list of the role when the role cannot open the origin', () => {
+    expect(detailBack({ from: 'inbox', search: '?page=2' }, 'TECHNICIAN')).toEqual({
+      to: 'workQueue',
+      path: `${PATHS.workQueue}?status=ASSIGNED&status=IN_PROGRESS`,
+    });
+    expect(detailBack({ from: 'workQueue', search: '' }, 'MUNICIPAL_OPERATOR')).toEqual({
+      to: 'inbox',
+      path: `${PATHS.inbox}?status=REPORTED`,
+    });
   });
 });
 
