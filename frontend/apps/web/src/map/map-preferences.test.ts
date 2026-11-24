@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { DEFAULT_PREFERENCES, isOpen, parsePreferences, withPanel } from './map-preferences';
+import {
+  DEFAULT_PREFERENCES,
+  isOpen,
+  isShown,
+  parsePreferences,
+  withPanel,
+  withShown,
+} from './map-preferences';
 
 describe('map preferences', () => {
   it('opens every part of the summary and folds the key of the map by default', () => {
@@ -31,6 +38,56 @@ describe('map preferences', () => {
     expect(parsePreferences('{"folded":["status","nonsense",3],"opened":"key"}')).toEqual({
       folded: ['status'],
       opened: [],
+      hidden: [],
+    });
+  });
+
+  describe('hidden parts (#265)', () => {
+    it('shows every part by default', () => {
+      expect(isShown(DEFAULT_PREFERENCES, 'priority')).toBe(true);
+      expect(isShown(DEFAULT_PREFERENCES, 'latest')).toBe(true);
+      expect(DEFAULT_PREFERENCES.hidden).toEqual([]);
+    });
+
+    it('remembers a hidden part and shows it again', () => {
+      const hidden = withShown(DEFAULT_PREFERENCES, 'department', false);
+      expect(isShown(hidden, 'department')).toBe(false);
+      expect(isShown(hidden, 'status')).toBe(true);
+      expect(isShown(withShown(hidden, 'department', true), 'department')).toBe(true);
+    });
+
+    it('lists a part once however many times it is hidden', () => {
+      const twice = withShown(withShown(DEFAULT_PREFERENCES, 'status', false), 'status', false);
+      expect(twice.hidden).toEqual(['status']);
+    });
+
+    it('keeps a folded part folded when it is hidden and shown again', () => {
+      const folded = withPanel(DEFAULT_PREFERENCES, 'category', false);
+      const back = withShown(withShown(folded, 'category', false), 'category', true);
+      expect(isOpen(back, 'category')).toBe(false);
+    });
+
+    it('reads back the hidden parts it stored', () => {
+      const stored = withShown(withShown(DEFAULT_PREFERENCES, 'latest', false), 'status', false);
+      expect(parsePreferences(JSON.stringify(stored))).toEqual(stored);
+    });
+
+    it('ignores what is not a part that can be hidden, the map key included', () => {
+      expect(
+        parsePreferences('{"folded":[],"opened":[],"hidden":["status","key","nonsense",3]}').hidden,
+      ).toEqual(['status']);
+    });
+
+    it('hides nothing for a value stored before parts could be hidden (#177)', () => {
+      expect(parsePreferences('{"folded":["category"],"opened":["key"]}')).toEqual({
+        folded: ['category'],
+        opened: ['key'],
+        hidden: [],
+      });
+    });
+
+    it('hides nothing when the stored hidden parts are not a list', () => {
+      expect(parsePreferences('{"folded":[],"opened":[],"hidden":"status"}').hidden).toEqual([]);
     });
   });
 });

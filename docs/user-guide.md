@@ -255,7 +255,11 @@ every incident, and the menu and the sign-in then open it that way.
   *Last 7 days* or *Last 30 days*). They combine with each other, and each change
   applies at once and goes back to the first page. The department is the one the incident is
   assigned to now. Several statuses can be ticked at once: the list shows the incidents in any of
-  them, and with none ticked it shows every status. The district filter is planned (#59).
+  them, and with none ticked it shows every status. Category and department work the same way:
+  their button opens a list to tick one or several, and says what is ticked (*All categories*,
+  a name, or *2 categories*); *Escape* or a click outside closes it. Ticking every category is
+  not the same as none: the incidents without a category are left out (and without an active
+  assignment, for the departments). The district filter is planned (#59).
 - *Previous* and *Next* change the page. The filters and the page are part of the address
   (`/inbox?status=REPORTED&page=2`), so you can bookmark them or send them to a colleague. If the
   link or a reload asks you to sign in first, the inbox opens with those filters afterwards. A value
@@ -397,6 +401,10 @@ below about 280 pixels of map the page scrolls instead.
     reported, each opening its
     summary like a marker. The parts you fold stay folded the next time, in this browser and for
     your user.
+  - **Customize:** ticks which of those parts the summary shows; the total always stays. A part
+    you untick is gone, not folded, and stays gone the next time, in this browser and for your
+    user. To see fewer categories or departments, use the filters instead: they narrow the map
+    and the summary together.
   - **How it counts:** all the incidents, also when the map shows only the 1,000 most relevant. A
     count from 10,000 is written short (*12.3K*), with the exact number on hover. The status bars
     have the colours of the markers, and each category bar has the icon of its markers beside its

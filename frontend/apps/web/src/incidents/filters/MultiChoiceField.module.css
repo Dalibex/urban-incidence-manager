@@ -1,0 +1,118 @@
+/* A button that opens a list of checkboxes. Same label and control as the bar's selects. */
+
+.field {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.label {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  min-height: 2.5rem;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid color-mix(in srgb, var(--color-text-muted) 50%, transparent);
+  border-radius: 6px;
+  background: var(--color-background);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* The chevron is drawn with borders, so it takes the text color and needs no icon file. */
+.button::after {
+  flex: none;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-right: 2px solid var(--color-text-muted);
+  border-bottom: 2px solid var(--color-text-muted);
+  content: '';
+  transform: translateY(-25%) rotate(45deg);
+}
+
+.button:disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+.summary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Floats over the content below; scrolls inside itself so a long list never grows the bar. */
+.list {
+  position: absolute;
+  z-index: 10;
+  top: 100%;
+  left: 0;
+  box-sizing: border-box;
+  min-width: 100%;
+  width: max-content;
+  max-width: min(24rem, 80vw);
+  max-height: 16rem;
+  margin-top: var(--space-xs);
+  padding: var(--space-xs);
+  overflow-y: auto;
+  border: 1px solid color-mix(in srgb, var(--color-text-muted) 50%, transparent);
+  border-radius: 6px;
+  background: var(--color-background);
+  box-shadow: 0 8px 24px color-mix(in srgb, black 16%, transparent);
+  animation: fade-in 120ms ease-out;
+}
+
+/* Anchored to the right edge of a field that sits at the end of its row. */
+.listEnd {
+  right: 0;
+  left: auto;
+}
+
+.choice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 2.25rem;
+  padding: 0 var(--space-sm);
+  border-radius: 4px;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.choice:hover {
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-background));
+}
+
+.choice input {
+  flex: none;
+  margin: 0;
+  accent-color: var(--color-primary);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .list {
+    animation: none;
+  }
+}

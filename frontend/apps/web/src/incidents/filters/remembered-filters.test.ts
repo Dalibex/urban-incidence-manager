@@ -13,7 +13,7 @@ describe('remembered filters (#263)', () => {
   it('gives back the filters a user left on a list', () => {
     const filters = {
       status: ['ASSIGNED', 'IN_PROGRESS'] as const,
-      categoryId: CATEGORY,
+      categoryId: [CATEGORY],
       priority: 'HIGH' as const,
       reportedFrom: '2026-11-01',
       reportedTo: '2026-11-05',
@@ -22,6 +22,33 @@ describe('remembered filters (#263)', () => {
     rememberFilters('inbox', 'user-1', filtersSearch(filters));
 
     expect(rememberedFilters('inbox', 'user-1')).toEqual(filters);
+  });
+
+  // #265: what a list stored before several categories held one value.
+  it('reads a stored single category as a filter of one', () => {
+    window.localStorage.setItem(
+      'urbanpulse.list-filters.inbox.user-1',
+      `?status=REPORTED&categoryId=${CATEGORY}`,
+    );
+
+    expect(rememberedFilters('inbox', 'user-1')).toEqual({
+      status: ['REPORTED'],
+      categoryId: [CATEGORY],
+    });
+  });
+
+  // #265, test sub-issue T4: several categories and departments come back as they were left.
+  it('gives back several categories and departments, each once and in order', () => {
+    const OTHER_CATEGORY = '1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d';
+    const DEPARTMENTS = [
+      '0a1b2c3d-4e5f-4a6b-8c7d-8e9f0a1b2c3d',
+      'd4e5f6a7-b8c9-4d0e-8f1a-2b3c4d5e6f7a',
+    ];
+    const filters = { categoryId: [OTHER_CATEGORY, CATEGORY], departmentId: DEPARTMENTS };
+
+    rememberFilters('workQueue', 'user-1', filtersSearch(filters));
+
+    expect(rememberedFilters('workQueue', 'user-1')).toEqual(filters);
   });
 
   it('tells nothing stored from no filters, which is what Clear filters leaves', () => {
@@ -40,7 +67,7 @@ describe('remembered filters (#263)', () => {
 
     expect(rememberedFilters('inbox', 'user-1')).toEqual({
       status: ['REPORTED'],
-      departmentId: CATEGORY,
+      departmentId: [CATEGORY],
     });
   });
 
