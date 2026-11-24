@@ -88,9 +88,14 @@ public class IncidentLifecycleService {
             UUID userId,
             Role role) {
         // The actor first, as createIncident does: without a user there is no access to check, and
-        // a technician who no longer exists would otherwise get 404 instead of 401.
+        // a technician who no longer exists would otherwise get 404 instead of 401. The assigned
+        // technician's row is locked, as UserAdministrationService.update locks it: an
+        // administrator who disables the account or changes its role at the same time either
+        // finishes first, and the transition is refused, or waits and sees the incident IN_PROGRESS
+        // (#274).
+        var lockActor = transition.performer() == IncidentTransition.Performer.ASSIGNED_TECHNICIAN;
         var actor =
-                users.findById(userId)
+                (lockActor ? users.findLockedById(userId) : users.findById(userId))
                         .orElseThrow(
                                 () ->
                                         new InsufficientAuthenticationException(
