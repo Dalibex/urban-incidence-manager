@@ -16,10 +16,14 @@ import org.springframework.stereotype.Service;
  *
  * <p>Two limits protect the one call a second that Nominatim allows the whole application: each
  * user may search {@code urbanpulse.places.searches-per-user} times in each window, and a search
- * waits at most one second for its turn to call Nominatim or is answered {@code 429}, which does
- * not count against the user. A repeated search is answered from {@link PlaceSearchCache} without
- * calling Nominatim. A failing source is {@code 503} {@code GEOCODING_UNAVAILABLE}: the report
- * never depends on it (RF26).
+ * waits at most {@code urbanpulse.address.request-spacing} for its turn to call Nominatim or is
+ * answered {@code 429}, which does not count against the user. A repeated search is answered from
+ * {@link PlaceSearchCache} without calling Nominatim. A failing source is {@code 503} {@code
+ * GEOCODING_UNAVAILABLE}: the report never depends on it (RF26).
+ *
+ * <p>The search follows the switch of the address enrichment ({@code ADDRESS_ENRICHMENT_ENABLED}):
+ * off, it is {@code 503} without calling Nominatim, so a deployment has one way to send nothing to
+ * OpenStreetMap.
  */
 @Service
 public class PlaceSearchService {
@@ -30,12 +34,17 @@ public class PlaceSearchService {
     private static final Logger log = LoggerFactory.getLogger(PlaceSearchService.class);
 
     private final PlaceProvider provider;
+    private final boolean enabled;
     private final AttemptLimiter searchesPerUser;
     private final PlaceSearchCache cache;
 
     public PlaceSearchService(
-            PlaceProvider provider, PlaceSearchProperties properties, Clock clock) {
+            PlaceProvider provider,
+            PlaceSearchProperties properties,
+            AddressEnrichmentProperties addressEnrichment,
+            Clock clock) {
         this.provider = provider;
+        this.enabled = addressEnrichment.enabled();
         this.searchesPerUser = new AttemptLimiter(properties.searchesPerUser(), clock);
         this.cache = new PlaceSearchCache(properties.cacheTtl(), properties.cacheSize(), clock);
     }
@@ -45,11 +54,14 @@ public class PlaceSearchService {
      * @param userId who searches, for the limit of searches per user
      * @return the places of Málaga that match, the most relevant first; empty when none does
      * @throws TooManyAttemptsException if the user reached the limit, or the turn to call Nominatim
-     *     is more than one second away
-     * @throws GeocodingUnavailableException if Nominatim does not answer in time or answers an
-     *     error
+     *     is further away than {@code urbanpulse.address.request-spacing}
+     * @throws GeocodingUnavailableException if the address enrichment is switched off, or Nominatim
+     *     does not answer in time or answers an error
      */
     public List<PlaceResponse> search(String query, UUID userId) {
+        if (!enabled) {
+            throw new GeocodingUnavailableException();
+        }
         var key = userId.toString();
         searchesPerUser.acquire(key);
         List<Place> places;

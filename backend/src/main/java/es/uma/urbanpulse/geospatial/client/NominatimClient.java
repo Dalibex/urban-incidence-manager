@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.function.Function;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
@@ -86,8 +87,21 @@ class NominatimClient implements AddressProvider, PlaceProvider {
     // A search waits at most one spacing for its turn, so it gets the turn right after a call of
     // the worker instead of being refused while the worker runs.
     private final Duration searchMaxWait;
+    private final Pause pause;
 
+    /** How the client waits for its turn: the tests record the wait instead of sleeping. */
+    @FunctionalInterface
+    interface Pause {
+        void sleep(Duration duration) throws InterruptedException;
+    }
+
+    @Autowired
     NominatimClient(AddressEnrichmentProperties properties, JsonMapper json, Clock clock) {
+        this(properties, json, clock, Thread::sleep);
+    }
+
+    NominatimClient(
+            AddressEnrichmentProperties properties, JsonMapper json, Clock clock, Pause pause) {
         // The JDK client never follows a redirect by default, so a 3xx is an answer it cannot read.
         var builder = HttpClient.newBuilder().connectTimeout(properties.nominatimTimeout());
         var proxy = properties.nominatimProxy();
@@ -110,6 +124,7 @@ class NominatimClient implements AddressProvider, PlaceProvider {
         this.json = json;
         this.gate = new NominatimRequestGate(properties.requestSpacing(), clock);
         this.searchMaxWait = properties.requestSpacing();
+        this.pause = pause;
     }
 
     @Override
@@ -155,12 +170,12 @@ class NominatimClient implements AddressProvider, PlaceProvider {
                 body -> readPlaces(body, limit));
     }
 
-    private static void waitFor(Duration wait) {
+    private void waitFor(Duration wait) {
         if (wait.isZero()) {
             return;
         }
         try {
-            Thread.sleep(wait);
+            pause.sleep(wait);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new AddressSourceUnavailableException("Interrupted waiting for Nominatim");

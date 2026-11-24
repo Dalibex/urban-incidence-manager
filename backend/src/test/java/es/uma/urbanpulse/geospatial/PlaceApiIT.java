@@ -1,6 +1,10 @@
 package es.uma.urbanpulse.geospatial;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.reset;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
@@ -9,6 +13,8 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import es.uma.urbanpulse.ApiContract;
 import es.uma.urbanpulse.TestcontainersConfiguration;
+import es.uma.urbanpulse.geospatial.service.AddressSourceBusyException;
+import es.uma.urbanpulse.geospatial.service.PlaceProvider;
 import es.uma.urbanpulse.identity.entity.Role;
 import es.uma.urbanpulse.shared.security.TestTokens;
 import java.io.IOException;
@@ -24,6 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -37,6 +44,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -55,6 +64,10 @@ import org.springframework.transaction.annotation.Transactional;
 @AutoConfigureMockMvc
 @Import({TestcontainersConfiguration.class, TestTokens.class, ApiContract.EveryResponse.class})
 @Transactional
+// The search follows the switch of the address enrichment, off in the test profile. The worker it
+// also turns on never runs here: its first run would be in a thousand hours.
+@TestPropertySource(
+        properties = {"urbanpulse.address.enabled=true", "urbanpulse.address.interval=PT1000H"})
 class PlaceApiIT {
 
     private static final String PLACES = "/api/v1/places";
@@ -229,6 +242,19 @@ class PlaceApiIT {
     }
 
     @Test
+    @DisplayName("searches a q with a line break or a tab inside as one space")
+    void searchesTheWhiteSpaceInsideQAsOneSpace() throws Exception {
+        NOMINATIM.body = "[]";
+        var street = "Calle " + unique();
+
+        var response = search(citizen, street + "\r\n5,\t29005 Málaga").andReturn().getResponse();
+
+        assertThat(response.getStatus()).isEqualTo(200);
+        assertThat(URLDecoder.decode(NOMINATIM.lastQuery, StandardCharsets.UTF_8))
+                .contains("q=" + street + " 5, 29005 Málaga&");
+    }
+
+    @Test
     @DisplayName("does not call Nominatim for a request it rejects")
     void doesNotCallNominatimForARejectedRequest() throws Exception {
         expectMalformed(get(PLACES).param("q", "ab"));
@@ -370,6 +396,57 @@ class PlaceApiIT {
         var other = search(user(Role.CITIZEN), text).andReturn().getResponse();
 
         assertThat(other.getStatus()).isEqualTo(200);
+    }
+
+    @Nested
+    @DisplayName("with the address enrichment switched off (ADDRESS_ENRICHMENT_ENABLED=false)")
+    @TestPropertySource(properties = "urbanpulse.address.enabled=false")
+    class WithTheAddressEnrichmentSwitchedOff {
+
+        @Test
+        @DisplayName("answers 503 GEOCODING_UNAVAILABLE without calling Nominatim")
+        void answers503WithoutCallingNominatim() throws Exception {
+            NOMINATIM.body = "[" + LARIOS + "]";
+
+            expectUnavailable(search(citizen, "Calle Larios " + unique()));
+            assertThat(NOMINATIM.calls.get()).isZero();
+        }
+    }
+
+    @Nested
+    @DisplayName("while Nominatim is busy with other calls")
+    class WhileNominatimIsBusy {
+
+        // The turn to call Nominatim is further away than a search waits.
+        private static final Duration UNTIL_A_FREE_TURN = Duration.ofMillis(1500);
+
+        @MockitoSpyBean private PlaceProvider provider;
+
+        @Test
+        @DisplayName(
+                "answers 429 with Retry-After, and the refusal does not count against the user")
+        void answers429ThatDoesNotCountAgainstTheUser() throws Exception {
+            doThrow(new AddressSourceBusyException(UNTIL_A_FREE_TURN))
+                    .when(provider)
+                    .search(anyString(), anyInt());
+            for (int i = 0; i < 11; i++) {
+                var response =
+                        search(citizen, "Calle Larios " + unique()).andReturn().getResponse();
+
+                assertThat(response.getStatus()).as("search %d", i + 1).isEqualTo(429);
+                assertThat((String) JsonPath.read(response.getContentAsString(), "$.code"))
+                        .isEqualTo("TOO_MANY_ATTEMPTS");
+                // Rounded up to whole seconds.
+                assertThat(response.getHeader(HttpHeaders.RETRY_AFTER)).isEqualTo("2");
+            }
+            assertThat(NOMINATIM.calls.get()).isZero();
+
+            reset(provider);
+            NOMINATIM.body = "[" + LARIOS + "]";
+            var free = search(citizen, "Calle Larios " + unique()).andReturn().getResponse();
+
+            assertThat(free.getStatus()).isEqualTo(200);
+        }
     }
 
     private void expectMalformed(MockHttpServletRequestBuilder request) throws Exception {

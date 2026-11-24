@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import es.uma.urbanpulse.geospatial.dto.PlaceResponse;
 import es.uma.urbanpulse.identity.service.AccountSecurityProperties.AttemptLimit;
 import es.uma.urbanpulse.identity.service.TooManyAttemptsException;
+import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -27,10 +28,34 @@ class PlaceSearchServiceTest {
 
     private final MutableClock clock = new MutableClock(Instant.parse("2026-11-02T10:00:00Z"));
     private final StubProvider provider = new StubProvider();
-    private final PlaceSearchService service =
-            new PlaceSearchService(
-                    provider, new PlaceSearchProperties(SEARCHES, CACHE_TTL, CACHE_SIZE), clock);
+    private final PlaceSearchService service = serviceWithTheAddressEnrichment(true);
     private final UUID user = UUID.randomUUID();
+
+    private PlaceSearchService serviceWithTheAddressEnrichment(boolean enabled) {
+        return new PlaceSearchService(
+                provider,
+                new PlaceSearchProperties(SEARCHES, CACHE_TTL, CACHE_SIZE),
+                new AddressEnrichmentProperties(
+                        enabled,
+                        URI.create("http://127.0.0.1:9"),
+                        null,
+                        "UrbanPulse tests",
+                        Duration.ofSeconds(30),
+                        10,
+                        Duration.ofSeconds(1),
+                        Duration.ofSeconds(3),
+                        Duration.ofHours(24)),
+                clock);
+    }
+
+    @Test
+    void withTheAddressEnrichmentSwitchedOffTheSearchIsUnavailableWithoutCallingTheSource() {
+        var switchedOff = serviceWithTheAddressEnrichment(false);
+
+        assertThatThrownBy(() -> switchedOff.search("larios", user))
+                .isInstanceOf(GeocodingUnavailableException.class);
+        assertThat(provider.calls).isZero();
+    }
 
     @Test
     void theSourcePlacesAreAnsweredWithTheirNameAndPosition() {

@@ -44,12 +44,14 @@ class PlaceController {
     }
 
     // The text rule of every other text the backend takes (#322): its white space, also U+00A0,
-    // and its length in characters, so an emoji counts as one.
+    // and its length in characters, so an emoji counts as one. White space inside the text, such
+    // as the line break of an address pasted in two lines, becomes one space before the checks;
+    // only the other control characters are refused.
     private static String query(String q) {
         if (q == null) {
             throw new MalformedRequestException("The parameter q is required.");
         }
-        var text = Texts.strip(q);
+        var text = Texts.collapseWhiteSpace(Texts.strip(q));
         var length = Texts.length(text);
         if (length < QUERY_MIN_LENGTH || length > QUERY_MAX_LENGTH) {
             throw new MalformedRequestException(

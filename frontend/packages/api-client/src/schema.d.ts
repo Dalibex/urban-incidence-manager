@@ -1031,12 +1031,16 @@ export interface paths {
          *     - **Rate limits.** The backend sends Nominatim at most one request per second, for every
          *       user together, and each user to 10 searches a minute, so one user cannot use up what the
          *       others share. It keeps repeated searches in a cache, as the policy asks. A search waits
-         *       at most one second for its turn to call Nominatim. Over the limit of the user, or when
-         *       the turn is further away, it answers `429` with `Retry-After`; a search refused because
-         *       Nominatim was busy does not count against the user.
-         *     - **Provider down.** If Nominatim does not answer in time, or answers with an error, the
-         *       answer is `503` `GEOCODING_UNAVAILABLE`. The report does not depend on it: the user can
-         *       still place the pin by hand (RF26).
+         *       for its turn to call Nominatim at most the time between two calls (one second by
+         *       default). Over the limit of the user, or when the turn is further away, it answers `429`
+         *       with `Retry-After`; a search refused because Nominatim was busy does not count against
+         *       the user.
+         *     - **Provider down or switched off.** If Nominatim does not answer in time, or answers with
+         *       an error, the answer is `503` `GEOCODING_UNAVAILABLE`. It is also `503`, without calling
+         *       Nominatim, when the deployment switches the address enrichment off
+         *       (`ADDRESS_ENRICHMENT_ENABLED=false`, docs/deployment.md), so that nothing is sent to
+         *       OpenStreetMap. The report does not depend on it: the user can still place the pin by hand
+         *       (RF26).
          *
          *     Roles: `CITIZEN`. Other roles get `403`.
          */
@@ -2187,16 +2191,21 @@ export interface components {
         };
         /** @description A place of Málaga found by the address search, from OpenStreetMap data (ODbL; the map shows the attribution). */
         PlaceResponse: {
-            /** @description The address or place as the provider writes it, for the list of results. */
+            /**
+             * @description The address or place as the provider writes it, for the list of results.
+             * @example 5, Calle Marqués de Larios, Centro Histórico, Málaga, Andalucía, 29015, España
+             */
             displayName: string;
             /**
              * Format: double
              * @description WGS 84 latitude in decimal degrees.
+             * @example 36.7196
              */
             latitude: number;
             /**
              * Format: double
              * @description WGS 84 longitude in decimal degrees.
+             * @example -4.4214
              */
             longitude: number;
         };
@@ -3869,7 +3878,7 @@ export interface operations {
     listPlaces: {
         parameters: {
             query: {
-                /** @description The address or place to search, as the user typed it (`Calle Larios 5`). Leading and trailing spaces are ignored; then it must have 3 to 200 characters, or the request returns `400`. */
+                /** @description The address or place to search, as the user typed it (`Calle Larios 5`). Leading and trailing white space is ignored, and each run of white space inside it, a line break or a tab included, counts as one space. Then it must have 3 to 200 characters and no other control character (U+0000 to U+001F, U+007F to U+009F), or the request returns `400`. */
                 q: string;
             };
             header?: never;
@@ -3892,7 +3901,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];
-            /** @description The address search provider is down or too slow. Code: `GEOCODING_UNAVAILABLE`. The user places the pin by hand, or searches again later. */
+            /** @description The address search provider is down or too slow, or the deployment switched the address enrichment off. Code: `GEOCODING_UNAVAILABLE`. The user places the pin by hand, or searches again later. */
             503: {
                 headers: {
                     "X-Request-ID": components["headers"]["XRequestId"];

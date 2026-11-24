@@ -54,6 +54,9 @@ export function AddressSearch({ search, onSelect }: AddressSearchProps) {
   const [state, setState] = useState<SearchState>({ kind: 'idle' });
   // Guards a second submit before the `searching` state renders, which would send it twice.
   const searchingRef = useRef(false);
+  // What the field says now, read when an answer arrives: the citizen may have changed it while
+  // the search ran.
+  const queryRef = useRef('');
 
   // A live region only works on Android, so the outcome is also announced, for VoiceOver.
   function show(next: Exclude<SearchState, { kind: 'idle' | 'searching' }>) {
@@ -65,6 +68,7 @@ export function AddressSearch({ search, onSelect }: AddressSearchProps) {
 
   function edit(text: string) {
     setQuery(text);
+    queryRef.current = text;
     // The places or the message of the last search no longer match what the field says.
     setState((current) => (current.kind === 'searching' ? current : { kind: 'idle' }));
   }
@@ -82,7 +86,11 @@ export function AddressSearch({ search, onSelect }: AddressSearchProps) {
     setState({ kind: 'searching' });
     try {
       const result = await search(text);
-      if (!result.ok) {
+      if (queryRef.current.trim() !== text) {
+        // The answer is for a text the field no longer holds: its places would move the pin to
+        // the wrong street.
+        setState({ kind: 'idle' });
+      } else if (!result.ok) {
         show({ kind: 'message', text: placeSearchMessage(result.failure) });
       } else if (result.data.length === 0) {
         show({ kind: 'message', text: NO_PLACES });

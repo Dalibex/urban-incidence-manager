@@ -1975,12 +1975,16 @@ paths:
         - **Rate limits.** The backend sends Nominatim at most one request per second, for every
           user together, and each user to 10 searches a minute, so one user cannot use up what the
           others share. It keeps repeated searches in a cache, as the policy asks. A search waits
-          at most one second for its turn to call Nominatim. Over the limit of the user, or when
-          the turn is further away, it answers `429` with `Retry-After`; a search refused because
-          Nominatim was busy does not count against the user.
-        - **Provider down.** If Nominatim does not answer in time, or answers with an error, the
-          answer is `503` `GEOCODING_UNAVAILABLE`. The report does not depend on it: the user can
-          still place the pin by hand (RF26).
+          for its turn to call Nominatim at most the time between two calls (one second by
+          default). Over the limit of the user, or when the turn is further away, it answers `429`
+          with `Retry-After`; a search refused because Nominatim was busy does not count against
+          the user.
+        - **Provider down or switched off.** If Nominatim does not answer in time, or answers with
+          an error, the answer is `503` `GEOCODING_UNAVAILABLE`. It is also `503`, without calling
+          Nominatim, when the deployment switches the address enrichment off
+          (`ADDRESS_ENRICHMENT_ENABLED=false`, docs/deployment.md), so that nothing is sent to
+          OpenStreetMap. The report does not depend on it: the user can still place the pin by hand
+          (RF26).
 
         Roles: `CITIZEN`. Other roles get `403`.
       parameters:
@@ -1989,8 +1993,9 @@ paths:
           required: true
           description: >-
             The address or place to search, as the user typed it (`Calle Larios 5`). Leading and
-            trailing spaces are ignored; then it must have 3 to 200 characters, or the request
-            returns `400`.
+            trailing white space is ignored, and each run of white space inside it, a line break or
+            a tab included, counts as one space. Then it must have 3 to 200 characters and no other
+            control character (U+0000 to U+001F, U+007F to U+009F), or the request returns `400`.
           schema:
             type: string
             minLength: 3
@@ -2018,8 +2023,9 @@ paths:
           $ref: "#/components/responses/InternalServerError"
         "503":
           description: >-
-            The address search provider is down or too slow. Code: `GEOCODING_UNAVAILABLE`. The user
-            places the pin by hand, or searches again later.
+            The address search provider is down or too slow, or the deployment switched the address
+            enrichment off. Code: `GEOCODING_UNAVAILABLE`. The user places the pin by hand, or
+            searches again later.
           headers:
             X-Request-ID:
               $ref: "#/components/headers/XRequestId"
@@ -3891,18 +3897,21 @@ components:
         displayName:
           type: string
           description: The address or place as the provider writes it, for the list of results.
+          examples: ["5, Calle Marqués de Larios, Centro Histórico, Málaga, Andalucía, 29015, España"]
         latitude:
           type: number
           format: double
           minimum: -90
           maximum: 90
           description: WGS 84 latitude in decimal degrees.
+          examples: [36.7196]
         longitude:
           type: number
           format: double
           minimum: -180
           maximum: 180
           description: WGS 84 longitude in decimal degrees.
+          examples: [-4.4214]
 
   responses:
     ContentTooLarge:

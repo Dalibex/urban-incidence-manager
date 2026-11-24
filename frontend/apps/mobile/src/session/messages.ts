@@ -64,8 +64,8 @@ export function placeSearchMessage(failure: ApiFailure): string {
     return NETWORK;
   }
   if (failure.status === 429) {
-    // The citizen's own limit, or Nominatim busy with other searches: both pass in moments.
-    return 'The address search is busy. Wait a moment and search again, or move the map to the incident.';
+    // The citizen's own limit, which lasts up to a minute, or Nominatim busy with other searches.
+    return 'The address search is busy. Wait a minute and search again, or move the map to the incident.';
   }
   if (failure.code === 'GEOCODING_UNAVAILABLE') {
     return 'The address search is not available now. Move the map to put the pin on the incident.';

@@ -399,7 +399,7 @@ request.
 | Service | What it receives | Why | How to turn it off |
 | --- | --- | --- | --- |
 | Open-Meteo (`api.open-meteo.com`, [ADR-0018](adr/0018-weather-and-traffic-providers.md), #307) | The latitude and longitude of the report | The weather at the position | `WEATHER_ENRICHMENT_ENABLED=false` |
-| Nominatim of OpenStreetMap (`nominatim.openstreetmap.org`, [ADR-0002](adr/0002-open-street-map.md), #375, #179) | The latitude and longitude of the report; the text of an address search of the report form, never who searched it; and a `User-Agent` that names the application, as its usage policy asks | The normalized address at the position; the places of Málaga that match the search | `ADDRESS_ENRICHMENT_ENABLED=false` stops the address of the reports; the search is called only by a citizen who submits it |
+| Nominatim of OpenStreetMap (`nominatim.openstreetmap.org`, [ADR-0002](adr/0002-open-street-map.md), #375, #179) | The latitude and longitude of the report; the text of an address search of the report form, never who searched it; and a `User-Agent` that names the application, as its usage policy asks | The normalized address at the position; the places of Málaga that match the search | `ADDRESS_ENRICHMENT_ENABLED=false` stops both: the address of the reports, and the search, which then answers `503` without calling Nominatim. On, the search is called only by a citizen who submits it |
 
 Neither receives anything else: no title, description, photo, account, token or IP address of the
 citizen, and no identifier of the incident. A position alone can still point to a home, so the

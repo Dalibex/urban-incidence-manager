@@ -124,7 +124,42 @@ describe('AddressSearch', () => {
 
     await typeAndSubmit('Calle Larios');
 
-    expect(screen.getByText(/The address search is busy/)).toBeOnTheScreen();
+    expect(
+      screen.getByText(
+        'The address search is busy. Wait a minute and search again, or move the map to the incident.',
+      ),
+    ).toBeOnTheScreen();
+  });
+
+  it('says to check the connection when the phone cannot reach UrbanPulse', async () => {
+    search.mockResolvedValue(failed({ kind: 'network' }));
+    await renderSearch();
+
+    await typeAndSubmit('Calle Larios');
+
+    expect(screen.getByText(/Check your connection and try again/)).toBeOnTheScreen();
+  });
+
+  it('drops the places of a search whose text the citizen changed while it ran', async () => {
+    let answer: (result: ApiResult<Place[]>) => void = () => {};
+    search.mockReturnValueOnce(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    await renderSearch();
+    await typeAndSubmit('Calle Larios');
+
+    await act(() => fireEvent.changeText(screen.getByLabelText(ADDRESS_LABEL), 'Calle Granada'));
+    await act(async () => answer(ok([LARIOS])));
+
+    expect(screen.queryByRole('button', { name: LARIOS.displayName })).toBeNull();
+    expect(screen.queryByLabelText('Searching the address')).toBeNull();
+
+    search.mockResolvedValueOnce(ok([ALAMEDA]));
+    await act(() => fireEvent.press(screen.getByRole('button', { name: SEARCH })));
+    expect(search).toHaveBeenLastCalledWith('Calle Granada');
+    expect(screen.getByRole('button', { name: ALAMEDA.displayName })).toBeOnTheScreen();
   });
 
   it('clears the places of the last search once the citizen edits the text', async () => {

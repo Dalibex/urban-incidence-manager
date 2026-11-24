@@ -20,6 +20,10 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
@@ -35,6 +39,7 @@ class NominatimClientTest {
 
     private static final Duration TIMEOUT = Duration.ofMillis(300);
     private static final String USER_AGENT = "UrbanPulse tests";
+    private static final Duration SPACING = Duration.ofSeconds(1);
 
     // Calle Larios, Málaga: latitude and longitude are far apart, so a swap shows.
     private static final double LATITUDE = 36.7213;
@@ -48,6 +53,7 @@ class NominatimClientTest {
     private final AtomicReference<String> path = new AtomicReference<>();
     private final AtomicReference<String> userAgent = new AtomicReference<>();
     private final AtomicInteger requests = new AtomicInteger();
+    private final List<Duration> pauses = new CopyOnWriteArrayList<>();
     private NominatimClient client;
 
     @BeforeEach
@@ -89,22 +95,30 @@ class NominatimClientTest {
     }
 
     private static NominatimClient clientFor(int port) {
-        return clientFor(port, Duration.ZERO);
+        return new NominatimClient(
+                properties(port, Duration.ZERO), JsonMapper.builder().build(), Clock.systemUTC());
     }
 
-    private static NominatimClient clientFor(int port, Duration spacing) {
-        var properties =
-                new AddressEnrichmentProperties(
-                        true,
-                        URI.create("http://127.0.0.1:" + port),
-                        null,
-                        USER_AGENT,
-                        Duration.ofSeconds(30),
-                        10,
-                        spacing,
-                        TIMEOUT,
-                        Duration.ofHours(24));
-        return new NominatimClient(properties, JsonMapper.builder().build(), Clock.systemUTC());
+    private static AddressEnrichmentProperties properties(int port, Duration spacing) {
+        return new AddressEnrichmentProperties(
+                true,
+                URI.create("http://127.0.0.1:" + port),
+                null,
+                USER_AGENT,
+                Duration.ofSeconds(30),
+                10,
+                spacing,
+                TIMEOUT,
+                Duration.ofHours(24));
+    }
+
+    // With a fixed clock the turns never pass on their own: each wait is recorded, not slept.
+    private NominatimClient spacedClient() {
+        return new NominatimClient(
+                properties(server.getAddress().getPort(), SPACING),
+                JsonMapper.builder().build(),
+                Clock.fixed(Instant.parse("2026-11-02T10:00:00Z"), ZoneOffset.UTC),
+                pauses::add);
     }
 
     private void answerWith(String address) {
@@ -501,48 +515,30 @@ class NominatimClientTest {
     }
 
     @Test
-    void aSearchBehindAQueueLongerThanOneSpacingIsBusyAndDoesNotCallNominatim() throws Exception {
-        var spaced = clientFor(server.getAddress().getPort(), Duration.ofMinutes(1));
+    void aSearchBehindAQueueLongerThanOneSpacingIsBusyAndDoesNotCallNominatim() {
+        var spaced = spacedClient();
         body = "[]";
         spaced.search("Larios", 5);
-        // A look-up of the worker takes the next turn and waits a minute for it.
-        var worker =
-                new Thread(
-                        () -> {
-                            try {
-                                spaced.lookUp(LATITUDE, LONGITUDE);
-                            } catch (RuntimeException e) {
-                                // Interrupted at the end of the test.
-                            }
-                        });
-        worker.start();
-        var deadline = System.nanoTime() + Duration.ofSeconds(5).toNanos();
-        while (worker.getState() != Thread.State.TIMED_WAITING && System.nanoTime() < deadline) {
-            Thread.onSpinWait();
-        }
+        answerWith(LARIOS);
+        // The look-up of the worker takes the next turn, one spacing away.
+        spaced.lookUp(LATITUDE, LONGITUDE);
 
-        try {
-            assertThatThrownBy(() -> spaced.search("Alameda", 5))
-                    .isInstanceOfSatisfying(
-                            AddressSourceBusyException.class,
-                            e ->
-                                    assertThat(e.retryAfter())
-                                            .isPositive()
-                                            .isLessThanOrEqualTo(Duration.ofMinutes(1)));
-            assertThat(requests.get()).isEqualTo(1);
-        } finally {
-            worker.interrupt();
-            worker.join();
-        }
+        // The next free turn is two spacings away: one more than a search waits.
+        assertThatThrownBy(() -> spaced.search("Alameda", 5))
+                .isInstanceOfSatisfying(
+                        AddressSourceBusyException.class,
+                        e -> assertThat(e.retryAfter()).isEqualTo(SPACING));
+        assertThat(requests.get()).isEqualTo(2);
     }
 
     @Test
     void aSearchRightAfterAnotherWaitsForItsTurnInsteadOfBeingRefused() {
-        var spaced = clientFor(server.getAddress().getPort(), Duration.ofMillis(200));
+        var spaced = spacedClient();
         body = places(malaga("Larios"));
         spaced.search("Larios", 5);
 
         assertThat(spaced.search("Alameda", 5)).hasSize(1);
+        assertThat(pauses).containsExactly(SPACING);
         assertThat(requests.get()).isEqualTo(2);
     }
 
@@ -557,14 +553,15 @@ class NominatimClientTest {
     }
 
     @Test
-    void aSearchTakesTheTurnSoTheNextLookUpWaitsInsteadOfFailing() {
-        var spaced = clientFor(server.getAddress().getPort(), Duration.ofMillis(100));
+    void aSearchTakesTheTurnSoTheNextLookUpWaitsForItInsteadOfFailing() {
+        var spaced = spacedClient();
         body = "[]";
         spaced.search("Larios", 5);
         answerWith(LARIOS);
 
         assertThat(spaced.lookUp(LATITUDE, LONGITUDE))
                 .isEqualTo(new AddressLookup.Found("Calle Larios, 5, 29005 Málaga"));
+        assertThat(pauses).containsExactly(SPACING);
         assertThat(requests.get()).isEqualTo(2);
     }
 }

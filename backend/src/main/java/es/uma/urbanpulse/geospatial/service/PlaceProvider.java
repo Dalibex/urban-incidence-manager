@@ -12,8 +12,9 @@ public interface PlaceProvider {
      * @param query the text to search, already validated
      * @param limit the most places to return
      * @return the places of Málaga that match, the most relevant first; empty when none does
-     * @throws AddressSourceBusyException if the turn to call the source is more than one second
-     *     away: the source allows the application one call a second, and a search waits no longer
+     * @throws AddressSourceBusyException if the turn to call the source is further away than {@code
+     *     urbanpulse.address.request-spacing}, the time between two calls, which is as long as a
+     *     search waits
      * @throws AddressSourceUnavailableException if the source does not answer in time, or answers
      *     that it cannot now ({@code 429}, {@code 5xx})
      * @throws AddressAnswerRejectedException if the source refuses the request or its answer cannot
