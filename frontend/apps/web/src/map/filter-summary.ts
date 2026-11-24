@@ -1,6 +1,6 @@
 import { STATUS_LABELS } from '@urbanpulse/ui';
 
-import type { IncidentFilters } from '../incidents/filters/incident-filters';
+import { unknownNames, type IncidentFilters } from '../incidents/filters/incident-filters';
 import { PRIORITY_LABELS } from '../incidents/labels';
 
 interface Named {
@@ -48,7 +48,7 @@ export function filterSummary(
 
 /**
  * The names of the chosen ids in the order of the options; an id not among them comes last, named
- * unknown as the bar does. Without `items` (not loaded yet) the names are not known: one id is
+ * unknown as the bar does (`unknownNames`). Without `items` (not loaded yet) the names are not known: one id is
  * `selected` and several are counted.
  */
 function namesOf(
@@ -62,8 +62,6 @@ function namesOf(
       : `${ids.length} ${noun === 'category' ? 'categories' : 'departments'}`;
   }
   const known = items.filter((item) => ids.includes(item.id)).map((item) => item.name);
-  const unknown = ids
-    .filter((id) => !items.some((item) => item.id === id))
-    .map(() => `Unknown ${noun}`);
-  return [...known, ...unknown].join(', ');
+  const unknown = ids.filter((id) => !items.some((item) => item.id === id)).length;
+  return [...known, ...unknownNames(unknown, noun)].join(', ');
 }

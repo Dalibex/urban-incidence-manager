@@ -233,6 +233,20 @@ describe('IncidentFilterBar', () => {
       expect(list.queryByRole('checkbox', { name: 'Unknown category' })).toBeNull();
     });
 
+    it('numbers two unknown ids, so each can be told apart and unticked', async () => {
+      const OTHER_UNKNOWN = 'f0e1d2c3-b4a5-4968-8776-655443322110';
+      const changes = renderBar({ categoryId: [UNKNOWN, OTHER_UNKNOWN] });
+      await optionsLoaded();
+
+      const list = await openOptions('Category');
+      expect(list.queryByRole('checkbox', { name: 'Unknown category' })).toBeNull();
+      expect(list.getByRole('checkbox', { name: 'Unknown category 1' })).toBeDefined();
+      // Numbered in the order of the ids, as the address keeps them: OTHER_UNKNOWN is second.
+      await userEvent.click(list.getByRole('checkbox', { name: 'Unknown category 2' }));
+
+      expect(changes).toHaveBeenLastCalledWith({ categoryId: [UNKNOWN] });
+    });
+
     it('names an unknown department with its own noun', async () => {
       renderBar({ departmentId: [UNKNOWN] });
       await optionsLoaded();

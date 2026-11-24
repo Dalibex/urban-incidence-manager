@@ -67,6 +67,14 @@ describe('filterSummary', () => {
     ).toEqual(['Category: Pavement, Unknown category', 'Department: Unknown department']);
   });
 
+  it('numbers several unknown ids, as the bar does', () => {
+    const ids = ['e5f6a7b8-c9d0-4e1f-8a2b-3c4d5e6f7a8b', 'f0e1d2c3-b4a5-4968-8776-655443322110'];
+
+    expect(filterSummary({ categoryId: [CATEGORY.id, ...ids] }, [CATEGORY], [])).toEqual([
+      'Category: Pavement, Unknown category 1, Unknown category 2',
+    ]);
+  });
+
   // `undefined` is "not loaded yet" (what the query gives); an empty list is "loaded, none".
   it('counts several ids while the options are not loaded, instead of repeating selected', () => {
     const ids = ['a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d', CATEGORY.id, DEPARTMENT.id];

@@ -18,6 +18,7 @@ import {
   RANGE_SHORTCUTS,
   shortcutRange,
   statusesFrom,
+  unknownNames,
   withoutEmpty,
   type IncidentFilters,
 } from './incident-filters';
@@ -259,13 +260,14 @@ function OptionsField({ label, plural, query, ids, onChange }: OptionsFieldProps
   const options = query.data ?? [];
   const noun = label.toLowerCase();
   const unknown = ids.filter((id) => !options.some((option) => option.id === id));
+  const unknownLabels = unknownNames(unknown.length, noun);
   const choices = [
     ...options.map((option) => ({
       id: option.id,
       label: option.name,
       checked: ids.includes(option.id),
     })),
-    ...unknown.map((id) => ({ id, label: `Unknown ${noun}`, checked: true })),
+    ...unknown.map((id, index) => ({ id, label: unknownLabels[index]!, checked: true })),
   ];
 
   let summary = `All ${plural}`;

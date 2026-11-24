@@ -161,6 +161,18 @@ export function idsFrom(ids: readonly string[]): readonly string[] | undefined {
   return chosen.length > 0 ? chosen : undefined;
 }
 
+/**
+ * What the screens call `count` chosen ids that are not among the options (an inactive category, an
+ * old link): one is *Unknown category*; several are numbered in the order of their ids, so a screen
+ * reader can tell apart the one it unticks.
+ */
+export function unknownNames(count: number, noun: string): string[] {
+  if (count === 1) {
+    return [`Unknown ${noun}`];
+  }
+  return Array.from({ length: count }, (_, index) => `Unknown ${noun} ${index + 1}`);
+}
+
 /** The address query (`?status=REPORTED`) of some filters, for a link. */
 export function filtersSearch(filters: IncidentFilters): string {
   const query = withFilters(new URLSearchParams(), filters).toString();
