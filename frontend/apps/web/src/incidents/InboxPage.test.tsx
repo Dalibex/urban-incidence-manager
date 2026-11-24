@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 
@@ -104,6 +104,69 @@ describe('inbox filters', () => {
 
     await screen.findByText('No incidents match these filters.');
     expect(requests.at(-1)!.getAll('priority')).toEqual(['HIGH']);
+  });
+});
+
+// #265: several categories and departments at once, test sub-issue T1 and T4.
+describe('inbox with several categories and departments', () => {
+  const PARKS = { id: 'c3d4e5f6-a7b8-4c9d-8e0f-1a2b3c4d5e6f', name: 'Parks', description: null };
+  const LIGHTING = {
+    id: 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d',
+    name: 'Street lighting',
+    description: null,
+  };
+  const MAINTENANCE = { id: 'd4e5f6a7-b8c9-4d0e-8f1a-2b3c4d5e6f7a', name: 'Maintenance' };
+  const LIGHTS_TEAM = { id: '0a1b2c3d-4e5f-4a6b-8c7d-8e9f0a1b2c3d', name: 'Lights team' };
+
+  function inboxWithOptions(requests: URLSearchParams[]) {
+    return fakeApi({
+      'GET /incidents': (request) => {
+        requests.push(new URL(request.url).searchParams);
+        return json(200, EMPTY_PAGE);
+      },
+      'GET /categories': () => json(200, [PARKS, LIGHTING]),
+      'GET /departments': () => json(200, [MAINTENANCE, LIGHTS_TEAM]),
+    });
+  }
+
+  it('opens a shared link with two categories and two departments, and asks the API for all four', async () => {
+    const requests: URLSearchParams[] = [];
+    renderApp(
+      `${PATHS.inbox}?categoryId=${PARKS.id}&categoryId=${LIGHTING.id}` +
+        `&departmentId=${MAINTENANCE.id}&departmentId=${LIGHTS_TEAM.id}`,
+      { role: 'MUNICIPAL_OPERATOR', fetch: inboxWithOptions(requests) },
+    );
+
+    await screen.findByText('No incidents match these filters.');
+    expect(await screen.findByRole('button', { name: 'Category: 2 categories' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Department: 2 departments' })).toBeDefined();
+    const query = requests.at(-1)!;
+    // Each id once and in the same order, whatever the order of the link.
+    expect(query.getAll('categoryId')).toEqual([LIGHTING.id, PARKS.id]);
+    expect(query.getAll('departmentId')).toEqual([LIGHTS_TEAM.id, MAINTENANCE.id]);
+  });
+
+  it('reopens from the menu with the two categories chosen last time', async () => {
+    const requests: URLSearchParams[] = [];
+    const router = renderApp(PATHS.inbox, {
+      role: 'MUNICIPAL_OPERATOR',
+      fetch: inboxWithOptions(requests),
+    });
+    await userEvent.click(await screen.findByRole('button', { name: 'Category: All categories' }));
+    const list = within(screen.getByRole('group', { name: 'Category' }));
+    await userEvent.click(list.getByRole('checkbox', { name: 'Parks' }));
+    await userEvent.click(list.getByRole('checkbox', { name: 'Street lighting' }));
+
+    await act(() => router.navigate('/elsewhere'));
+    const menu = screen.getByRole('navigation', { name: 'Main' });
+    await userEvent.click(within(menu).getByRole('link', { name: 'Inbox' }));
+
+    expect(await screen.findByRole('button', { name: 'Category: 2 categories' })).toBeDefined();
+    expect(new URLSearchParams(router.state.location.search).getAll('categoryId')).toEqual([
+      LIGHTING.id,
+      PARKS.id,
+    ]);
+    expect(requests.at(-1)!.getAll('categoryId')).toEqual([LIGHTING.id, PARKS.id]);
   });
 });
 

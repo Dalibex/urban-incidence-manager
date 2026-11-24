@@ -131,4 +131,36 @@ describe('technician work queue (#187)', () => {
     expect(requests.at(-1)!.getAll('status')).toEqual(['ASSIGNED', 'IN_PROGRESS']);
     expect(requests.at(-1)!.get('page')).toBe('0');
   });
+
+  // #265, test sub-issue T2: the API keeps the technician's scope; the queue only adds the filter.
+  it('asks the API for the two departments the technician ticks', async () => {
+    const maintenance = { id: 'd4e5f6a7-b8c9-4d0e-8f1a-2b3c4d5e6f7a', name: 'Maintenance' };
+    const lightsTeam = { id: '0a1b2c3d-4e5f-4a6b-8c7d-8e9f0a1b2c3d', name: 'Lights team' };
+    const requests: URLSearchParams[] = [];
+    const router = renderApp(`${PATHS.workQueue}?status=ASSIGNED&status=IN_PROGRESS`, {
+      role: 'TECHNICIAN',
+      fetch: fakeApi({
+        'GET /incidents': (request) => {
+          requests.push(new URL(request.url).searchParams);
+          return json(200, pageOf([]));
+        },
+        'GET /categories': () => json(200, []),
+        'GET /departments': () => json(200, [maintenance, lightsTeam]),
+      }),
+    });
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Department: All departments' }),
+    );
+
+    const list = within(screen.getByRole('group', { name: 'Department' }));
+    await userEvent.click(list.getByRole('checkbox', { name: 'Maintenance' }));
+    await userEvent.click(list.getByRole('checkbox', { name: 'Lights team' }));
+
+    const both = [lightsTeam.id, maintenance.id];
+    expect(new URLSearchParams(router.state.location.search).getAll('departmentId')).toEqual(both);
+    expect(requests.at(-1)!.getAll('departmentId')).toEqual(both);
+    // The statuses of the queue stay as they were.
+    expect(requests.at(-1)!.getAll('status')).toEqual(['ASSIGNED', 'IN_PROGRESS']);
+    expect(screen.getByRole('button', { name: 'Department: 2 departments' })).toBeDefined();
+  });
 });
