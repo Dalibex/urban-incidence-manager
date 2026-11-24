@@ -68,7 +68,7 @@ in which milestone, is in GitHub, not here.
 
 | ID | Requirement | In the MVP | Issues | After the MVP |
 | --- | --- | --- | --- | --- |
-| RF05 | **Evidence.** Photos or other files, with type and size validation. | Yes | #44 (ADR-0013; #192 API, #193 mobile, #194 web) | The photos in an external image service ([final delivery](#-final-delivery)). Planned: #341. Replaces the local volume of ADR-0013. |
+| RF05 | **Evidence.** Photos or other files, with type and size validation. | Yes | #44 (ADR-0013; #192 API, #193 mobile, #194 web), #279 (the citizen sees their photos) | The photos in an external image service ([final delivery](#-final-delivery)). Planned: #341. Replaces the local volume of ADR-0013. |
 | RF07 | **Search.** Staff filter by status, category, date, priority, district and department. | Yes. The district filter needs RF21. A text search on the title and the description came after the MVP, on the web map. | #58 (#182 API, #183 web); #266 (text search) | The district filter comes with RF21. Planned: #59. |
 | RF08 | **Map** of incidents and relevant urban layers. | Partly. Incidents on the web map, with the icon of their category, clustered by zoom and refreshed on their own; the mobile report form places the incident with a pin on the base map; urban layers need urban data, which the MVP does not load. | #53 (#195 API, #196 web, #267 icons); #60 (mobile: #197, #198) | Urban layers on the staff map. Planned: #374. |
 | RF10 | **Priority**, manual or assisted, keeping its justification. | Partly. Manual priority with a required justification; assisted priority comes with RF20. | #47 | Assisted priority stays out with RF20. |
@@ -211,11 +211,11 @@ A new role of the [final delivery](#-final-delivery), not built yet.
   starts on the phone's position, or on Málaga without it, and the citizen moves to correct it. The
   accuracy is sent only while the pin is on the phone's position. After sending, optional photos
   from the camera or the gallery (#193).
-- **My reports** (#45): the citizen's incidents filtered by open or closed; title, date and status.
-  A photo thumbnail when there is one: Planned: #279.
-- **Detail** (#45): the report, its position and the history the citizen may see (ADR-0020,
-  *Citizen sees*): an information request shows as a message from the city council, and a rejection
-  shows its reason. The photos: Planned: #279.
+- **My reports** (#45): the citizen's incidents filtered by open or closed; title, date and status,
+  and a thumbnail of the first photo the citizen uploaded when there is one (#279).
+- **Detail** (#45): the report, its position, the photos the citizen uploaded (#279, never those
+  added by staff: #284) and the history the citizen may see (ADR-0020, *Citizen sees*): an
+  information request shows as a message from the city council, and a rejection shows its reason.
 - **Profile:** name, email and *Sign out*.
 - **Not in the MVP:** replying to an information request from the app (ADR-0020) and the
   notification channel settings (RF14).
