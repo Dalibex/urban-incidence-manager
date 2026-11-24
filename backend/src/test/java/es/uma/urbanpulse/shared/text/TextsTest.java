@@ -47,4 +47,15 @@ class TextsTest {
         assertThat(Texts.strip("\u00A0\u00A0")).isEmpty();
         assertThat(Texts.strip("\uD83D\uDE00")).isEqualTo("\uD83D\uDE00");
     }
+
+    @Test
+    void collapseWhiteSpaceTurnsEachRunIntoOneSpace() {
+        assertThat(Texts.collapseWhiteSpace("Calle Larios\r\n5,\t29005 \u00A0M\u00E1laga"))
+                .isEqualTo("Calle Larios 5, 29005 M\u00E1laga");
+        assertThat(Texts.collapseWhiteSpace(" a ")).isEqualTo(" a ");
+        // Not white space for the contract: kept, so the caller can refuse it.
+        assertThat(Texts.collapseWhiteSpace("a\u0007b")).isEqualTo("a\u0007b");
+        assertThat(Texts.collapseWhiteSpace("\uD83D\uDE00  \uD83D\uDE00"))
+                .isEqualTo("\uD83D\uDE00 \uD83D\uDE00");
+    }
 }

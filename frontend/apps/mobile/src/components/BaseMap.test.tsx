@@ -1,6 +1,8 @@
+import type { ApiResult, Place } from '@urbanpulse/api-client';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 import type { GpsFix } from '../location/report-location';
+import { ADDRESS_LABEL, SEARCH } from './AddressSearch';
 import {
   BaseMap,
   MAP_ATTRIBUTION,
@@ -234,5 +236,70 @@ describe('BaseMap', () => {
     expect(screen.queryByTestId('maplibre-map')).not.toBeOnTheScreen();
     expect(screen.getByText(`${MAP_NOT_CONFIGURED} ${HINT}`)).toBeOnTheScreen();
     expect(onPinChange).not.toHaveBeenCalled();
+  });
+  describe('with the address search (#179)', () => {
+    const ALAMEDA: Place = {
+      displayName: 'Alameda Principal, Centro, Málaga, 29001, España',
+      latitude: 36.7179,
+      longitude: -4.4237,
+    };
+    const searchPlaces = jest.fn<Promise<ApiResult<Place[]>>, [string]>();
+
+    function renderWithSearch(gpsFix: GpsFix | null = null) {
+      return render(
+        <BaseMap
+          gpsFix={gpsFix}
+          onPinChange={onPinChange}
+          unavailableHint={HINT}
+          searchPlaces={searchPlaces}
+        />,
+      );
+    }
+
+    beforeEach(() => {
+      searchPlaces.mockReset();
+      searchPlaces.mockResolvedValue({ ok: true, data: [ALAMEDA] });
+    });
+
+    it('shows the search only once the map is on screen', async () => {
+      await renderWithSearch();
+      expect(screen.queryByLabelText(ADDRESS_LABEL)).not.toBeOnTheScreen();
+
+      await act(() => map().props.onDidFinishLoadingMap());
+
+      expect(screen.getByLabelText(ADDRESS_LABEL)).toBeOnTheScreen();
+    });
+
+    it('moves the map and the pin to the place the citizen chooses, as their position', async () => {
+      await renderWithSearch(FIX);
+      await act(() => map().props.onDidFinishLoadingMap());
+      cameraMethods.easeTo.mockReset();
+
+      await act(() => fireEvent.changeText(screen.getByLabelText(ADDRESS_LABEL), 'Alameda'));
+      await act(() => fireEvent.press(screen.getByRole('button', { name: SEARCH })));
+      await act(() => fireEvent.press(screen.getByRole('button', { name: ALAMEDA.displayName })));
+
+      expect(cameraMethods.easeTo).toHaveBeenCalledWith(
+        expect.objectContaining({ center: [-4.4237, 36.7179], zoom: 16 }),
+      );
+      expect(onPinChange).toHaveBeenLastCalledWith({
+        latitude: 36.7179,
+        longitude: -4.4237,
+        source: 'citizen',
+      });
+
+      // The camera then stops on its own; the position stays the citizen's.
+      await regionChanged([-4.4237, 36.7179], false);
+      expect(onPinChange).toHaveBeenLastCalledWith(expect.objectContaining({ source: 'citizen' }));
+    });
+
+    it('hides the search with the map when the tiles cannot be reached', async () => {
+      await renderWithSearch();
+      await act(() => map().props.onDidFinishLoadingMap());
+
+      await act(() => map().props.onDidFailLoadingMap());
+
+      expect(screen.queryByLabelText(ADDRESS_LABEL)).not.toBeOnTheScreen();
+    });
   });
 });

@@ -330,7 +330,13 @@ class RoleMatrixIT {
                 row(
                         "GET /incident-reports, groupBy unknown",
                         () -> get(API + "/incident-reports").param("groupBy", "nothing"),
-                        roles(Role.ADMINISTRATOR, Role.ANALYST)));
+                        roles(Role.ADMINISTRATOR, Role.ANALYST)),
+                // Address search of the report form (#179). Too short, so it never calls
+                // Nominatim.
+                row(
+                        "GET /places, q too short",
+                        () -> get(API + "/places").param("q", "ab"),
+                        roles(Role.CITIZEN)));
     }
 
     private static Stream<Arguments> casesForEveryRole(Row row) {

@@ -91,6 +91,9 @@ final class ApiAuthorizationRules {
         auth.requestMatchers(GET, API + "/incident-statistics").hasAnyRole(STAFF);
         auth.requestMatchers(GET, API + "/incident-reports").hasAnyRole(REPORT_READERS);
 
+        // Address search of the report form (#179).
+        auth.requestMatchers(GET, API + "/places").hasRole(CITIZEN);
+
         auth.requestMatchers(API + "/**").denyAll();
     }
 
