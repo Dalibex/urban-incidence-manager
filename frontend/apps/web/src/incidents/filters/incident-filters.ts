@@ -11,15 +11,18 @@ type Priority = components['schemas']['Priority'];
 
 /**
  * The staff filters of an incident list (#58), as the screens keep them in the address. Several
- * statuses (#217), one value for each other filter; a missing one does not filter. The dates are
- * calendar days in Málaga, both included, which is how people read "from 1 to 5 November".
+ * statuses (#217), categories and departments (#265), one value for each other filter; a missing
+ * one does not filter. The dates are calendar days in Málaga, both included, which is how people
+ * read "from 1 to 5 November".
  */
 export interface IncidentFilters {
   /** Any of these statuses, in the order of the lifecycle and never empty. */
   status?: readonly IncidentStatus[];
-  categoryId?: string;
+  /** Any of these categories, in string order and never empty. */
+  categoryId?: readonly string[];
   priority?: Priority;
-  departmentId?: string;
+  /** Any of these departments, in string order and never empty. */
+  departmentId?: readonly string[];
   /** First day, `YYYY-MM-DD`, included. */
   reportedFrom?: string;
   /** Last day, `YYYY-MM-DD`, included. */
@@ -79,15 +82,15 @@ const SEARCH_MAX_LENGTH = 100;
 /**
  * The filters of an address. A value the API would reject (an unknown status, an id that is not a
  * UUID, a day that does not exist, a first day after the last one) is dropped, never sent: the list
- * then shows more incidents, never an error. A repeated status counts once; any other repeated
- * parameter keeps its first valid value.
+ * then shows more incidents, never an error. A repeated status, category or department counts
+ * once; any other repeated parameter keeps its first valid value.
  */
 export function filtersFrom(params: URLSearchParams): IncidentFilters {
   const filters: IncidentFilters = {
     status: statusesFrom(params.getAll('status').filter(isIncidentStatus)),
-    categoryId: first(params, 'categoryId', isUuid),
+    categoryId: idsFrom(params.getAll('categoryId').filter(isUuid)),
     priority: first(params, 'priority', isPriority),
-    departmentId: first(params, 'departmentId', isUuid),
+    departmentId: idsFrom(params.getAll('departmentId').filter(isUuid)),
     reportedFrom: first(params, 'reportedFrom', isDay),
     reportedTo: first(params, 'reportedTo', isDay),
   };
@@ -105,7 +108,8 @@ export function withFilters(params: URLSearchParams, filters: IncidentFilters): 
   for (const name of FILTER_NAMES) {
     next.delete(name);
     const value = filters[name];
-    // The statuses repeat the parameter, as the API reads them (`?status=A&status=B`).
+    // The statuses, categories and departments repeat the parameter, as the API reads them
+    // (`?status=A&status=B`).
     const values = typeof value === 'string' ? [value] : (value ?? []);
     for (const each of values) {
       if (each) {
@@ -148,6 +152,27 @@ export function statusesFrom(
   return chosen.length > 0 ? chosen : undefined;
 }
 
+/**
+ * The ids to filter by, each once, in lower case and in string order, so the same choice always
+ * gives the same address; none means no filter.
+ */
+export function idsFrom(ids: readonly string[]): readonly string[] | undefined {
+  const chosen = [...new Set(ids.map((id) => id.toLowerCase()))].sort();
+  return chosen.length > 0 ? chosen : undefined;
+}
+
+/**
+ * What the screens call `count` chosen ids that are not among the options (an inactive category, an
+ * old link): one is *Unknown category*; several are numbered in the order of their ids, so a screen
+ * reader can tell apart the one it unticks.
+ */
+export function unknownNames(count: number, noun: string): string[] {
+  if (count === 1) {
+    return [`Unknown ${noun}`];
+  }
+  return Array.from({ length: count }, (_, index) => `Unknown ${noun} ${index + 1}`);
+}
+
 /** The address query (`?status=REPORTED`) of some filters, for a link. */
 export function filtersSearch(filters: IncidentFilters): string {
   const query = withFilters(new URLSearchParams(), filters).toString();
@@ -159,9 +184,9 @@ export function toListQuery(filters: IncidentFilters): IncidentListQuery {
   const { status, categoryId, priority, departmentId, reportedFrom, reportedTo, q } = filters;
   return {
     ...(status && { status: [...status] }),
-    ...(categoryId && { categoryId: [categoryId] }),
+    ...(categoryId && { categoryId: [...categoryId] }),
     ...(priority && { priority: [priority] }),
-    ...(departmentId && { departmentId: [departmentId] }),
+    ...(departmentId && { departmentId: [...departmentId] }),
     ...(reportedFrom && { reportedFrom: startOfDay(reportedFrom) }),
     // The API excludes `reportedTo`, so the last day ends where the next one starts.
     ...(reportedTo && { reportedTo: startOfDay(nextDay(reportedTo)) }),

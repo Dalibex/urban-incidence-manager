@@ -2,6 +2,7 @@ import { formatInstant } from '@urbanpulse/ui';
 import { useMemo, type ReactNode } from 'react';
 
 import { hasFilters, type IncidentFilters } from '../incidents/filters/incident-filters';
+import { MultiChoiceField } from '../incidents/filters/MultiChoiceField';
 import {
   useCategories,
   useIncidentStatistics,
@@ -10,16 +11,27 @@ import {
 import incidentStyles from '../incidents/Incidents.module.css';
 import { LoadFailure } from '../incidents/LoadFailure';
 import { StatusBadge } from '../incidents/StatusBadge';
-import { dashboardCharts, formatCount, priorityFigures, reportedAgo } from './dashboard-data';
+import {
+  dashboardCharts,
+  formatCount,
+  PANEL_TITLES,
+  priorityFigures,
+  reportedAgo,
+} from './dashboard-data';
 import { LazyStatisticsChart } from './LazyStatisticsChart';
 import styles from './Map.module.css';
-import type { MapPanel } from './map-preferences';
+import type { HideablePanel, MapPanel } from './map-preferences';
+
+const HIDEABLE_PANELS = Object.keys(PANEL_TITLES) as HideablePanel[];
 
 interface MapDashboardProps {
   filters: IncidentFilters;
   /** Whether a panel of the dashboard is open, as the user left it. */
   isOpen: (panel: MapPanel) => boolean;
   onToggle: (panel: MapPanel, open: boolean) => void;
+  /** Whether a part of the dashboard is shown at all, as the user chose in Customize (#265). */
+  isShown: (panel: HideablePanel) => boolean;
+  onShow: (panel: HideablePanel, shown: boolean) => void;
   /** Opens the summary of an incident of the latest list, as a marker does. */
   onSelectIncident: (incidentId: string) => void;
 }
@@ -29,9 +41,16 @@ interface MapDashboardProps {
  * priority, status, category and department, and the latest ones reported. The API counts them with
  * the same filters and scope as the map, with no cap, and they are read again with the markers. A
  * failed refresh keeps the last counts with a warning; they are never shown as zeros. Each panel
- * folds, and stays as the user left it.
+ * folds, can be hidden from Customize, and stays as the user left it. The total is always there.
  */
-export function MapDashboard({ filters, isOpen, onToggle, onSelectIncident }: MapDashboardProps) {
+export function MapDashboard({
+  filters,
+  isOpen,
+  onToggle,
+  isShown,
+  onShow,
+  onSelectIncident,
+}: MapDashboardProps) {
   const statistics = useIncidentStatistics(filters);
   // The same cached list as the filters and the map: only the icons of the category bars need it.
   const categories = useCategories();
@@ -40,22 +59,45 @@ export function MapDashboard({ filters, isOpen, onToggle, onSelectIncident }: Ma
     [statistics.data, categories.data],
   );
 
-  const panel = (id: MapPanel, title: string, children: ReactNode) => (
-    <DashboardPanel
-      key={id}
-      title={title}
-      open={isOpen(id)}
-      onToggle={(open) => onToggle(id, open)}
-    >
-      {children}
-    </DashboardPanel>
-  );
+  const shownCount = HIDEABLE_PANELS.filter(isShown).length;
+  const customizeSummary =
+    shownCount === HIDEABLE_PANELS.length
+      ? 'All shown'
+      : shownCount === 0
+        ? 'None shown'
+        : `${shownCount} of ${HIDEABLE_PANELS.length} shown`;
+
+  // A hidden part is not rendered at all, so it asks for nothing.
+  const panel = (id: HideablePanel, children: ReactNode) =>
+    isShown(id) && (
+      <DashboardPanel
+        key={id}
+        title={PANEL_TITLES[id]}
+        open={isOpen(id)}
+        onToggle={(open) => onToggle(id, open)}
+      >
+        {children}
+      </DashboardPanel>
+    );
 
   return (
     <section className={styles.dashboard} aria-labelledby="dashboard-title">
-      <h2 id="dashboard-title" className={styles.dashboardTitle}>
-        Summary
-      </h2>
+      <div className={styles.dashboardHeader}>
+        <h2 id="dashboard-title" className={styles.dashboardTitle}>
+          Summary
+        </h2>
+        <MultiChoiceField
+          compact
+          label="Customize"
+          summary={customizeSummary}
+          choices={HIDEABLE_PANELS.map((id) => ({
+            id,
+            label: PANEL_TITLES[id],
+            checked: isShown(id),
+          }))}
+          onToggle={(id, checked) => onShow(id as HideablePanel, checked)}
+        />
+      </div>
 
       {statistics.isPending ? (
         <p role="status">Loading the summary…</p>
@@ -95,7 +137,6 @@ export function MapDashboard({ filters, isOpen, onToggle, onSelectIncident }: Ma
             <>
               {panel(
                 'priority',
-                'By priority',
                 <dl className={styles.figures}>
                   {priorityFigures(statistics.data).map((figure) => (
                     <div key={figure.label}>
@@ -107,19 +148,19 @@ export function MapDashboard({ filters, isOpen, onToggle, onSelectIncident }: Ma
                   ))}
                 </dl>,
               )}
-              {charts.map((chart) =>
-                panel(chart.id, chart.title, <LazyStatisticsChart chart={chart} />),
-              )}
+              {charts.map((chart) => panel(chart.id, <LazyStatisticsChart chart={chart} />))}
             </>
           )}
         </>
       )}
 
-      {panel(
-        'latest',
-        'Latest reported',
-        <LatestIncidents filters={filters} onSelect={onSelectIncident} />,
+      {shownCount === 0 && (
+        <p className={incidentStyles.muted}>
+          Every part of the summary is hidden. Show them again from Customize.
+        </p>
       )}
+
+      {panel('latest', <LatestIncidents filters={filters} onSelect={onSelectIncident} />)}
     </section>
   );
 }

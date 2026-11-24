@@ -81,7 +81,7 @@ in which milestone, is in GitHub, not here.
 
 | ID | Requirement | In the MVP | Issues | After the MVP |
 | --- | --- | --- | --- | --- |
-| RF15 | **Statistics** by category, territory, status and resolution time. | Partly. The report of #42 gives totals and resolution times per group; the dashboard beside the web map counts the incidents of the map by status, priority, category and department. Territory needs RF21. | #42, #177 | The staff dashboard is a requirement of the [final delivery](#-final-delivery), already built; territory comes with RF21 (Planned: #59), and a customizable dashboard is planned (Planned: #265). |
+| RF15 | **Statistics** by category, territory, status and resolution time. | Partly. The report of #42 gives totals and resolution times per group; the dashboard beside the web map counts the incidents of the map by status, priority, category and department, and each user chooses which of those parts it shows. Territory needs RF21. | #42, #177, #265 | The staff dashboard is a requirement of the [final delivery](#-final-delivery), already built; territory comes with RF21 (Planned: #59). |
 | RF16 | **Duplicates.** Suggest similar incidents by proximity, time and meaning. | No | — | The reports of several citizens unified into one normalized incident ([final delivery](#-final-delivery)). Planned: #333. |
 | RF17 | **Zonal analysis.** Incidents and aggregated context for an area and period. | No | — | Not planned before the refactor: it serves the analyst's indicators and spatial patterns. |
 | RF20 | **Intelligent assistance.** Classify, prioritize, summarize and recommend with a stated confidence. | No | — | No. Out of the final delivery by decision of the product owner (2026-11-20). |
@@ -109,7 +109,7 @@ issue is the parent that covers the requirement; its sub-issues are listed in it
 
 | Requirement | Status | Issue | Replaces |
 | --- | --- | --- | --- |
-| **Staff dashboard.** Operators and technicians see the incidents on a map, general indicators and filters. | Built. The web map shows the incidents with markers coloured by status, sized by priority and with the icon of their category, clustered by zoom; beside it, a dashboard counts the same incidents in total, by priority, status, category and department, and lists the latest reported. Both use the inbox filters (status, category, date, priority, department) and a text search on the title and the description (#266). A technician sees only the incidents assigned to them. | #53, #58, #177; customizable: #265 | — |
+| **Staff dashboard.** Operators and technicians see the incidents on a map, general indicators and filters. | Built. The web map shows the incidents with markers coloured by status, sized by priority and with the icon of their category, clustered by zoom; beside it, a dashboard counts the same incidents in total, by priority, status, category and department, and lists the latest reported; each user chooses which of those parts it shows (#265). Both use the inbox filters (status, category, date, priority, department, several categories or departments at once) and a text search on the title and the description (#266). A technician sees only the incidents assigned to them. | #53, #58, #177, #265 | — |
 | **Photos in an external service**, such as Cloudinary. | No. The photos are files in a local volume behind `StorageService`. | #341 | The local volume of ADR-0013 |
 | **Normalized incidents.** The reports of several citizens about the same problem become one incident, and each report stays traceable to it: a report of a problem that already has an incident is attached to it instead of creating a duplicate, and the incident lists every citizen who reported it. Built in the core, before the services. | No. Each report is its own incident. | #333 | — |
 | **Context service** that extracts, normalizes and manages external data (the chosen Málaga open data, and the weather from AEMET or another source) in its **own database**, kept up to date by periodic extraction or by asking the source when needed. | Partly. The `urbancontext` module of the core stores the weather of each new incident from Open-Meteo, in the shared schema; the open data is not loaded. | #346; the weather source: #372 | The single schema of ADR-0010 for the context; the weather provider of ADR-0018 if #372 chooses another |
@@ -147,8 +147,9 @@ authenticator app (#57, ADR-0021); the first time, the screen shows a QR code to
   from the keyboard. The menu opens it on
   every status that can still change. Beside it, a dashboard (#177) counts the same incidents: the
   total, by priority, charts by status, category and department, and the latest reported; each
-  part folds and is remembered. The filters fold behind a button, with quick ranges of days. A
-  customizable dashboard is planned in #265.
+  part folds and is remembered, and *Customize* chooses which parts it shows (#265). The filters
+  fold behind a button, with quick ranges of days, and take several categories or departments at
+  once.
 - **Incident detail** (#46): report data, the address with its source (#375), photos (#44), the
   weather when it was reported in the
   *Context* section (#308), and the history and internal comments (#50) in one timeline. The

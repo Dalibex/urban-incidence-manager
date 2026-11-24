@@ -8,14 +8,17 @@ import incidentStyles from '../Incidents.module.css';
 import { PRIORITY_LABELS } from '../labels';
 import styles from './IncidentFilterBar.module.css';
 import { cityDay } from '../../reports/report-period';
+import { MultiChoiceField } from './MultiChoiceField';
 import {
   hasFilters,
+  idsFrom,
   isDay,
   isPriority,
   PRIORITIES,
   RANGE_SHORTCUTS,
   shortcutRange,
   statusesFrom,
+  unknownNames,
   withoutEmpty,
   type IncidentFilters,
 } from './incident-filters';
@@ -92,7 +95,7 @@ export function IncidentFilterBar({ filters, onChange, firstFilterRef }: Inciden
         label="Category"
         plural="categories"
         query={categories}
-        value={filters.categoryId}
+        ids={filters.categoryId ?? []}
         onChange={(categoryId) => set({ categoryId })}
       />
 
@@ -117,7 +120,7 @@ export function IncidentFilterBar({ filters, onChange, firstFilterRef }: Inciden
         label="Department"
         plural="departments"
         query={departments}
-        value={filters.departmentId}
+        ids={filters.departmentId ?? []}
         onChange={(departmentId) => set({ departmentId })}
       />
 
@@ -242,43 +245,53 @@ interface OptionsFieldProps {
   /** Lower-case plural of the label, for "All categories". */
   plural: string;
   query: UseQueryResult<Option[]>;
-  value: string | undefined;
-  onChange: (id: string | undefined) => void;
+  ids: readonly string[];
+  onChange: (ids: readonly string[] | undefined) => void;
 }
 
 /**
- * A filter whose options come from the API. Until they arrive, or when they cannot be loaded, the
- * choice is disabled and the rest of the bar keeps working. A chosen id that is not among the
- * options (an inactive category, an old link) stays chosen and visible, so the list never filters
- * by something the user cannot see.
+ * A filter whose options come from the API, several of which can be chosen. Until they arrive, or
+ * when they cannot be loaded, the choice is disabled and the rest of the bar keeps working. A
+ * chosen id that is not among the options (an inactive category, an old link) stays chosen and
+ * visible, so the list never filters by something the user cannot see. Choosing every option is
+ * still a filter: the API then leaves out the incidents that have none.
  */
-function OptionsField({ label, plural, query, value, onChange }: OptionsFieldProps) {
+function OptionsField({ label, plural, query, ids, onChange }: OptionsFieldProps) {
   const options = query.data ?? [];
-  const missing = value !== undefined && !options.some((option) => option.id === value);
   const noun = label.toLowerCase();
-  const placeholder = query.isPending
-    ? `Loading ${plural}…`
-    : query.isError
-      ? `The ${plural} could not be loaded`
-      : `All ${plural}`;
+  const unknown = ids.filter((id) => !options.some((option) => option.id === id));
+  const unknownLabels = unknownNames(unknown.length, noun);
+  const choices = [
+    ...options.map((option) => ({
+      id: option.id,
+      label: option.name,
+      checked: ids.includes(option.id),
+    })),
+    ...unknown.map((id, index) => ({ id, label: unknownLabels[index]!, checked: true })),
+  ];
+
+  let summary = `All ${plural}`;
+  if (ids.length > 1) {
+    summary = `${ids.length} ${plural}`;
+  } else if (ids.length === 1) {
+    summary = query.isSuccess
+      ? (choices.find((choice) => choice.checked)?.label ?? '')
+      : `Chosen ${noun}`;
+  } else if (query.isPending) {
+    summary = `Loading ${plural}…`;
+  } else if (query.isError) {
+    summary = `The ${plural} could not be loaded`;
+  }
 
   return (
-    <Field label={label}>
-      <select
-        value={value ?? ''}
-        disabled={!query.isSuccess}
-        onChange={(event) => onChange(event.target.value || undefined)}
-      >
-        <option value="">{placeholder}</option>
-        {missing && (
-          <option value={value}>{query.isSuccess ? `Unknown ${noun}` : `Chosen ${noun}`}</option>
-        )}
-        {options.map((option) => (
-          <option key={option.id} value={option.id}>
-            {option.name}
-          </option>
-        ))}
-      </select>
-    </Field>
+    <MultiChoiceField
+      label={label}
+      summary={summary}
+      choices={choices}
+      disabled={!query.isSuccess}
+      onToggle={(id, checked) =>
+        onChange(idsFrom(checked ? [...ids, id] : ids.filter((chosen) => chosen !== id)))
+      }
+    />
   );
 }

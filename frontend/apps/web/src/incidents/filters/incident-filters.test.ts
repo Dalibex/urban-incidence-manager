@@ -4,6 +4,7 @@ import {
   filtersFrom,
   filtersSearch,
   hasFilters,
+  idsFrom,
   searchFrom,
   searchTextProblem,
   toListQuery,
@@ -14,6 +15,8 @@ import {
 
 const CATEGORY = 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d';
 const DEPARTMENT = 'b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e';
+// Sorts before CATEGORY and DEPARTMENT, to tell the order of the address from the order it came in.
+const FIRST = '0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d';
 
 function from(query: string): IncidentFilters {
   return filtersFrom(new URLSearchParams(query));
@@ -28,9 +31,9 @@ describe('filtersFrom', () => {
       ),
     ).toEqual({
       status: ['REPORTED'],
-      categoryId: CATEGORY,
+      categoryId: [CATEGORY],
       priority: 'HIGH',
-      departmentId: DEPARTMENT,
+      departmentId: [DEPARTMENT],
       reportedFrom: '2026-11-01',
       reportedTo: '2026-11-05',
     });
@@ -56,6 +59,28 @@ describe('filtersFrom', () => {
 
   it('keeps the valid filters next to a dropped one', () => {
     expect(from('status=FOO&priority=LOW')).toEqual({ priority: 'LOW' });
+  });
+
+  // #265
+  it('keeps every valid category and department, each once, lower case and sorted', () => {
+    expect(
+      from(
+        `categoryId=${CATEGORY.toUpperCase()}&categoryId=42&categoryId=${FIRST}&categoryId=${CATEGORY}` +
+          `&departmentId=${DEPARTMENT}&departmentId=${FIRST}`,
+      ),
+    ).toEqual({
+      categoryId: [FIRST, CATEGORY],
+      departmentId: [FIRST, DEPARTMENT],
+    });
+  });
+
+  // #265: an address from before several values still opens.
+  it('reads an address with a single category as a list of one', () => {
+    expect(from(`categoryId=${CATEGORY}`)).toEqual({ categoryId: [CATEGORY] });
+  });
+
+  it('has no category filter when none of the repeated values is a UUID', () => {
+    expect(from('categoryId=1&categoryId=two&departmentId=')).toEqual({});
   });
 
   it('keeps the first valid value of a repeated parameter', () => {
@@ -93,11 +118,44 @@ describe('withFilters', () => {
   it('round-trips through the address', () => {
     const filters: IncidentFilters = {
       status: ['ASSIGNED', 'IN_PROGRESS'],
-      departmentId: DEPARTMENT,
+      departmentId: [DEPARTMENT],
       reportedFrom: '2026-11-01',
     };
 
     expect(filtersFrom(withFilters(new URLSearchParams(), filters))).toEqual(filters);
+  });
+
+  // #265
+  it('writes each category and department as a repeated parameter, in the order given', () => {
+    const next = withFilters(new URLSearchParams(), {
+      categoryId: [FIRST, CATEGORY],
+      departmentId: [FIRST, DEPARTMENT],
+    });
+
+    expect(next.getAll('categoryId')).toEqual([FIRST, CATEGORY]);
+    expect(next.getAll('departmentId')).toEqual([FIRST, DEPARTMENT]);
+  });
+
+  it('replaces the categories of the address instead of adding to them', () => {
+    const params = new URLSearchParams(`categoryId=${CATEGORY}&categoryId=${FIRST}`);
+
+    const next = withFilters(params, { categoryId: [DEPARTMENT] });
+
+    expect(next.getAll('categoryId')).toEqual([DEPARTMENT]);
+  });
+});
+
+// #265
+describe('idsFrom', () => {
+  it('gives each id once, in lower case and in string order, whatever order they came in', () => {
+    expect(idsFrom([CATEGORY, FIRST.toUpperCase(), CATEGORY.toUpperCase()])).toEqual([
+      FIRST,
+      CATEGORY,
+    ]);
+  });
+
+  it('is no filter when no id is given', () => {
+    expect(idsFrom([])).toBeUndefined();
   });
 });
 
@@ -109,6 +167,13 @@ describe('filtersSearch', () => {
     );
     expect(filtersSearch({})).toBe('');
   });
+
+  // #265
+  it('repeats the parameter of a category chosen more than once', () => {
+    expect(filtersSearch({ categoryId: [FIRST, CATEGORY] })).toBe(
+      `?categoryId=${FIRST}&categoryId=${CATEGORY}`,
+    );
+  });
 });
 
 describe('toListQuery', () => {
@@ -116,9 +181,9 @@ describe('toListQuery', () => {
     expect(
       toListQuery({
         status: ['REPORTED', 'REOPENED'],
-        categoryId: CATEGORY,
+        categoryId: [CATEGORY],
         priority: 'HIGH',
-        departmentId: DEPARTMENT,
+        departmentId: [DEPARTMENT],
       }),
     ).toEqual({
       status: ['REPORTED', 'REOPENED'],
@@ -126,6 +191,13 @@ describe('toListQuery', () => {
       priority: ['HIGH'],
       departmentId: [DEPARTMENT],
     });
+  });
+
+  // #265
+  it('sends every category and department chosen', () => {
+    expect(
+      toListQuery({ categoryId: [FIRST, CATEGORY], departmentId: [DEPARTMENT, CATEGORY] }),
+    ).toEqual({ categoryId: [FIRST, CATEGORY], departmentId: [DEPARTMENT, CATEGORY] });
   });
 
   it('sends the days as the instants they start at in Málaga, the last one included', () => {
