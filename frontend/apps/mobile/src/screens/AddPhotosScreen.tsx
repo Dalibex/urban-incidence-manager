@@ -1,5 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ApiFailure, LocalFile } from '@urbanpulse/api-client';
+import { useQueryClient } from '@tanstack/react-query';
 import { colors, fontSizes, spacing } from '@urbanpulse/ui';
 import { useRef, useState } from 'react';
 import { Image, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -8,6 +9,7 @@ import { pickPhoto, type PhotoSource } from '../attachments/photo-picker';
 import { isTransient, RETRY_DELAYS_MS, withRetries } from '../attachments/upload-retry';
 import { Button } from '../components/Button';
 import { FormMessage } from '../components/FormMessage';
+import { incidentKeys } from '../incidents/incident-queries';
 import type { MyReportsStackParamList } from '../navigation/MyReportsStack';
 import { UNEXPECTED_ERROR, uploadPhotoMessage } from '../session/messages';
 import { useSession } from '../session/SessionContext';
@@ -31,6 +33,7 @@ const PREPARE_FAILED = 'The photo could not be prepared. Try again or choose ano
 export function AddPhotosScreen({ route }: Props) {
   const { incidentId } = route.params;
   const { uploadAttachment, markSession } = useSession();
+  const queryClient = useQueryClient();
   const [selected, setSelected] = useState<LocalFile | null>(null);
   const [uploaded, setUploaded] = useState<readonly UploadedPhoto[]>([]);
   const [progress, setProgress] = useState<number | null>(null);
@@ -89,6 +92,8 @@ export function AddPhotosScreen({ route }: Props) {
             : [...photos, { attachmentId: result.data.id, uri: photo.uri }],
         );
         setSelected(null);
+        // The photos of the detail and the thumbnail of the list, which this photo may now be.
+        void queryClient.invalidateQueries({ queryKey: incidentKeys.all });
         return;
       }
       // Kept in the device log, for support, together with the incident it belongs to.
