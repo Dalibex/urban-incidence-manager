@@ -25,6 +25,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- The web incident detail opened with *Manage* on the map leads *Back to the map*, with the same filters and search, instead of to the inbox or the work queue; opened from the inbox or the work queue it leads back there as before, and opened from a link to the list of the role (#264).
 - Staff accounts can no longer sign in from the mobile app, which has no code step for the second factor, and a staff session opened without a code, such as one from before this version, ends at its next refresh: sign in again on the web with the code. The backend no longer starts without `MFA_ENCRYPTION_KEY` (#57).
 - Each incident status has its own colour on the web map, its key and dashboard, the lists and the mobile app: validated, assigned and in progress no longer share blue, nor rejected and closed grey. Every colour keeps at least 4.5:1 contrast on white, the eight stay apart for the common red-green colour blindness, and the status is still written beside them (#288).
 - The web inbox, work queue and map reopen from the menu with the filters last used on each one in that browser, for each user, and so does the sign-in of an operator or a technician, instead of always starting from the default filters; the default filters apply only the first time, and *Clear filters* is remembered too (#263).
