@@ -53,6 +53,32 @@ public final class Texts {
         return text.substring(start, end);
     }
 
+    /**
+     * The text with each run of the white space of the contract, a line break or a tab included,
+     * turned into one space: for a search text, where a pasted line break means a space.
+     */
+    public static String collapseWhiteSpace(String text) {
+        var collapsed = new StringBuilder(text.length());
+        var inWhiteSpace = false;
+        for (int i = 0; i < text.length(); ) {
+            int c = text.codePointAt(i);
+            i += Character.charCount(c);
+            if (isWhiteSpace(c)) {
+                inWhiteSpace = true;
+                continue;
+            }
+            if (inWhiteSpace) {
+                collapsed.append(' ');
+                inWhiteSpace = false;
+            }
+            collapsed.appendCodePoint(c);
+        }
+        if (inWhiteSpace) {
+            collapsed.append(' ');
+        }
+        return collapsed.toString();
+    }
+
     private static boolean isWhiteSpace(int c) {
         return Character.getType(c) == Character.SPACE_SEPARATOR
                 || (c >= '\t' && c <= '\r')

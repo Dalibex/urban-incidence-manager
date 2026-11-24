@@ -8,14 +8,14 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Counts attempts per key (an email and a client address, for example) in fixed windows: once a key
- * reaches the limit, it waits until its window ends.
+ * Counts attempts per key (an email and a client address, or a user of the address search of #179)
+ * in fixed windows: once a key reaches the limit, it waits until its window ends.
  *
  * <p>The counters live in this process. That is only correct with one backend replica, which is the
  * deployment of ADR-0011; with several replicas each one would allow the limit, and the counters
  * would have to move to a shared store such as Redis (ADR-0022). A restart resets them.
  */
-class AttemptLimiter {
+public class AttemptLimiter {
 
     // Keys of expired windows are dropped once the map grows past this size, so the memory used by
     // addresses that never come back stays bounded across windows.
@@ -25,7 +25,7 @@ class AttemptLimiter {
     private final Clock clock;
     private final Map<String, Window> windows = new ConcurrentHashMap<>();
 
-    AttemptLimiter(AttemptLimit limit, Clock clock) {
+    public AttemptLimiter(AttemptLimit limit, Clock clock) {
         this.limit = limit;
         this.clock = clock;
     }
@@ -35,7 +35,7 @@ class AttemptLimiter {
      * left. Checking and counting are one atomic step: with a check first and a count after the
      * slow work (bcrypt), concurrent requests would all pass the check before any of them counted.
      */
-    void acquire(String key) {
+    public void acquire(String key) {
         var now = clock.instant();
         windows.compute(
                 key,
@@ -51,6 +51,17 @@ class AttemptLimiter {
         if (windows.size() > PURGE_THRESHOLD) {
             windows.values().removeIf(window -> window.hasEnded(now));
         }
+    }
+
+    /**
+     * Gives the key back the attempt it just took, when the attempt did not happen for a reason
+     * that is not the caller's, such as an address search refused because its source was busy.
+     */
+    public void giveBack(String key) {
+        windows.computeIfPresent(
+                key,
+                (ignored, window) ->
+                        window.count() <= 1 ? null : new Window(window.end(), window.count() - 1));
     }
 
     /** Gives the key all its attempts back, after a successful sign-in for example. */

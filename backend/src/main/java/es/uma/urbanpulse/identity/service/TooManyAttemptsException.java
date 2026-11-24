@@ -5,7 +5,10 @@ import java.time.Duration;
 import java.util.Optional;
 import org.springframework.http.HttpStatus;
 
-/** Rate limit reached on sign-in or sign-up ({@code 429} with {@code Retry-After}). */
+/**
+ * Rate limit reached on sign-in, sign-up, a second factor code or the address search ({@code 429}
+ * with {@code Retry-After}).
+ */
 public class TooManyAttemptsException extends ApiProblemException {
 
     private final Duration retryAfter;

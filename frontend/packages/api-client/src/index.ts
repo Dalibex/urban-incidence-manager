@@ -62,6 +62,7 @@ export {
   type LocalFile,
   type UploadOptions,
 } from './attachments';
+export { listPlaces, type Place } from './places';
 export {
   downloadIncidentReport,
   getIncidentReport,

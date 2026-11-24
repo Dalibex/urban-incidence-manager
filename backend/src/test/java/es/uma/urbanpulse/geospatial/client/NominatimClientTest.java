@@ -8,20 +8,30 @@ import com.sun.net.httpserver.HttpServer;
 import es.uma.urbanpulse.geospatial.service.AddressAnswerRejectedException;
 import es.uma.urbanpulse.geospatial.service.AddressEnrichmentProperties;
 import es.uma.urbanpulse.geospatial.service.AddressLookup;
+import es.uma.urbanpulse.geospatial.service.AddressSourceBusyException;
 import es.uma.urbanpulse.geospatial.service.AddressSourceUnavailableException;
+import es.uma.urbanpulse.geospatial.service.Place;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.URI;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.web.util.UriComponentsBuilder;
 import tools.jackson.databind.json.JsonMapper;
 
 /** The Nominatim client against a fake server of the JDK: no real network. */
@@ -29,6 +39,7 @@ class NominatimClientTest {
 
     private static final Duration TIMEOUT = Duration.ofMillis(300);
     private static final String USER_AGENT = "UrbanPulse tests";
+    private static final Duration SPACING = Duration.ofSeconds(1);
 
     // Calle Larios, Málaga: latitude and longitude are far apart, so a swap shows.
     private static final double LATITUDE = 36.7213;
@@ -41,6 +52,8 @@ class NominatimClientTest {
     private final AtomicReference<String> query = new AtomicReference<>();
     private final AtomicReference<String> path = new AtomicReference<>();
     private final AtomicReference<String> userAgent = new AtomicReference<>();
+    private final AtomicInteger requests = new AtomicInteger();
+    private final List<Duration> pauses = new CopyOnWriteArrayList<>();
     private NominatimClient client;
 
     @BeforeEach
@@ -60,6 +73,7 @@ class NominatimClientTest {
     }
 
     private void answer(HttpExchange exchange) throws IOException {
+        requests.incrementAndGet();
         path.set(exchange.getRequestURI().getPath());
         query.set(exchange.getRequestURI().getRawQuery());
         userAgent.set(exchange.getRequestHeaders().getFirst("User-Agent"));
@@ -81,18 +95,30 @@ class NominatimClientTest {
     }
 
     private static NominatimClient clientFor(int port) {
-        var properties =
-                new AddressEnrichmentProperties(
-                        true,
-                        URI.create("http://127.0.0.1:" + port),
-                        null,
-                        USER_AGENT,
-                        Duration.ofSeconds(30),
-                        10,
-                        Duration.ZERO,
-                        TIMEOUT,
-                        Duration.ofHours(24));
-        return new NominatimClient(properties, JsonMapper.builder().build());
+        return new NominatimClient(
+                properties(port, Duration.ZERO), JsonMapper.builder().build(), Clock.systemUTC());
+    }
+
+    private static AddressEnrichmentProperties properties(int port, Duration spacing) {
+        return new AddressEnrichmentProperties(
+                true,
+                URI.create("http://127.0.0.1:" + port),
+                null,
+                USER_AGENT,
+                Duration.ofSeconds(30),
+                10,
+                spacing,
+                TIMEOUT,
+                Duration.ofHours(24));
+    }
+
+    // With a fixed clock the turns never pass on their own: each wait is recorded, not slept.
+    private NominatimClient spacedClient() {
+        return new NominatimClient(
+                properties(server.getAddress().getPort(), SPACING),
+                JsonMapper.builder().build(),
+                Clock.fixed(Instant.parse("2026-11-02T10:00:00Z"), ZoneOffset.UTC),
+                pauses::add);
     }
 
     private void answerWith(String address) {
@@ -263,5 +289,279 @@ class NominatimClientTest {
         assertThatThrownBy(() -> client.lookUp(LATITUDE, LONGITUDE))
                 .isInstanceOf(AddressAnswerRejectedException.class)
                 .hasMessageContaining("limit");
+    }
+
+    // The address search of #179.
+
+    private static String place(
+            String displayName,
+            String lat,
+            String lon,
+            String municipalityKey,
+            String municipality,
+            String country) {
+        return "{\"display_name\": \""
+                + displayName
+                + "\", \"lat\": \""
+                + lat
+                + "\", \"lon\": \""
+                + lon
+                + "\", \"address\": {\""
+                + municipalityKey
+                + "\": \""
+                + municipality
+                + "\", \"country_code\": \""
+                + country
+                + "\"}}";
+    }
+
+    private static String places(String... places) {
+        return "[" + String.join(",", places) + "]";
+    }
+
+    private static String malaga(String name) {
+        return place(name, "36.72", "-4.42", "city", "Málaga", "es");
+    }
+
+    private static final String LARIOS_NAME = "Calle Larios, Centro, Málaga, Andalucía, España";
+
+    @Test
+    void aSearchIsAskedBoundedToMalagaAndIdentifiesTheApplication() {
+        body = "[]";
+
+        client.search("Calle Larios 5", 5);
+
+        assertThat(path.get()).isEqualTo("/search");
+        assertThat(query.get())
+                .contains("format=jsonv2")
+                .contains("countrycodes=es")
+                .contains("viewbox=" + NominatimClient.MALAGA_VIEWBOX)
+                .contains("bounded=1")
+                .contains("addressdetails=1")
+                .contains("accept-language=es")
+                // Twice the limit, because places outside the municipality are dropped.
+                .contains("limit=10");
+        assertThat(userAgent.get()).isEqualTo(USER_AGENT);
+    }
+
+    @Test
+    void theTextArrivesIntactWithReservedCharactersSpacesAndAccents() {
+        body = "[]";
+        var text = "Calle Álamos & Plaza #5 100%+ñ";
+
+        client.search(text, 5);
+
+        // Decoding the raw query shows what Nominatim reads: q is one parameter with the whole
+        // text.
+        var parameters =
+                UriComponentsBuilder.fromUriString("http://x/search?" + query.get())
+                        .build()
+                        .getQueryParams();
+        assertThat(parameters.get("q")).hasSize(1);
+        assertThat(URLDecoder.decode(parameters.getFirst("q"), StandardCharsets.UTF_8))
+                .isEqualTo(text);
+        assertThat(parameters.get("limit")).containsExactly("10");
+        assertThat(parameters.keySet())
+                .containsExactlyInAnyOrder(
+                        "format",
+                        "q",
+                        "countrycodes",
+                        "viewbox",
+                        "bounded",
+                        "addressdetails",
+                        "limit",
+                        "accept-language");
+    }
+
+    @Test
+    void aPlaceOfMalagaIsReturnedWithItsPosition() {
+        body = places(place(LARIOS_NAME, "36.7213", "-4.4214", "city", "Málaga", "es"));
+
+        assertThat(client.search("Larios", 5))
+                .containsExactly(new Place(LARIOS_NAME, LATITUDE, LONGITUDE));
+    }
+
+    @Test
+    void thePlacesKeepTheOrderOfNominatim() {
+        body = places(malaga("Uno"), malaga("Dos"), malaga("Tres"));
+
+        assertThat(client.search("calle", 5))
+                .extracting(Place::displayName)
+                .containsExactly("Uno", "Dos", "Tres");
+    }
+
+    @Test
+    void atMostTheLimitIsReturned() {
+        body = places(malaga("A"), malaga("B"), malaga("C"), malaga("D"));
+
+        assertThat(client.search("calle", 2))
+                .extracting(Place::displayName)
+                .containsExactly("A", "B");
+    }
+
+    @Test
+    void aPlaceOfAnotherMunicipalityIsDroppedAndTheNextOnesFillTheList() {
+        body =
+                places(
+                        place("Torremolinos 1", "36.62", "-4.50", "town", "Torremolinos", "es"),
+                        malaga("Malaga 1"),
+                        place("Rincon 1", "36.71", "-4.27", "town", "Rincón de la Victoria", "es"),
+                        malaga("Malaga 2"));
+
+        assertThat(client.search("calle", 5))
+                .extracting(Place::displayName)
+                .containsExactly("Malaga 1", "Malaga 2");
+    }
+
+    @Test
+    void aPlaceOfAnotherCountryIsDropped() {
+        body = places(place("Málaga, Colombia", "6.9", "-73.4", "town", "Málaga", "co"));
+
+        assertThat(client.search("malaga", 5)).isEmpty();
+    }
+
+    @Test
+    void aPlaceWithoutAnAddressIsDropped() {
+        body = "[{\"display_name\": \"Somewhere\", \"lat\": \"36.7\", \"lon\": \"-4.4\"}]";
+
+        assertThat(client.search("somewhere", 5)).isEmpty();
+    }
+
+    @Test
+    void theMunicipalityOfAPlaceIsComparedWithoutAccentsOrCase() {
+        body = places(place("Calle Larios", "36.7", "-4.4", "municipality", "MALAGA", "es"));
+
+        assertThat(client.search("larios", 5)).hasSize(1);
+    }
+
+    @Test
+    void anEmptyListIsNoPlaces() {
+        body = "[]";
+
+        assertThat(client.search("nowhere", 5)).isEmpty();
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {429, 500, 502, 503})
+    void aBusyOrFailingSourceMakesTheSearchUnavailable(int code) {
+        status = code;
+        body = "{}";
+
+        assertThatThrownBy(() -> client.search("Larios", 5))
+                .isInstanceOf(AddressSourceUnavailableException.class)
+                .hasMessageContaining(String.valueOf(code));
+    }
+
+    @Test
+    void aSlowAnswerMakesTheSearchUnavailableWithoutTheTextInTheMessage() {
+        delayMillis = TIMEOUT.toMillis() * 3;
+        body = places(malaga("Larios"));
+
+        assertThatThrownBy(() -> client.search("Mi calle secreta", 5))
+                .isInstanceOf(AddressSourceUnavailableException.class)
+                .message()
+                .doesNotContain("secreta");
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "",
+                "not json",
+                "{\"error\": \"x\"}",
+                "[1]",
+                "[\"text\"]",
+                "[{\"display_name\": \"A\", \"lon\": \"-4.4\", \"address\": {\"city\": \"Málaga\","
+                        + " \"country_code\": \"es\"}}]",
+                "[{\"display_name\": \"A\", \"lat\": \"abc\", \"lon\": \"-4.4\", \"address\":"
+                        + " {\"city\": \"Málaga\", \"country_code\": \"es\"}}]",
+                "[{\"display_name\": \"A\", \"lat\": \"123\", \"lon\": \"-4.4\", \"address\":"
+                        + " {\"city\": \"Málaga\", \"country_code\": \"es\"}}]",
+                "[{\"display_name\": \"A\", \"lat\": \"36.7\", \"lon\": \"-181\", \"address\":"
+                        + " {\"city\": \"Málaga\", \"country_code\": \"es\"}}]",
+                "[{\"lat\": \"36.7\", \"lon\": \"-4.4\", \"address\": {\"city\": \"Málaga\","
+                        + " \"country_code\": \"es\"}}]"
+            })
+    void anAnswerItCannotUseIsRejected(String answer) {
+        body = answer;
+
+        assertThatThrownBy(() -> client.search("Larios", 5))
+                .isInstanceOf(AddressAnswerRejectedException.class);
+    }
+
+    @Test
+    void aDisplayNameTooLongIsRejected() {
+        body = places(malaga("x".repeat(501)));
+
+        assertThatThrownBy(() -> client.search("Larios", 5))
+                .isInstanceOf(AddressAnswerRejectedException.class);
+    }
+
+    @Test
+    void aDisplayNameWithAControlCharacterIsRejected() {
+        body = places(malaga("Calle\\u0007Larios"));
+
+        assertThatThrownBy(() -> client.search("Larios", 5))
+                .isInstanceOf(AddressAnswerRejectedException.class);
+    }
+
+    @Test
+    void aRefusedSearchIsRejected() {
+        status = 403;
+        body = "{}";
+
+        assertThatThrownBy(() -> client.search("Larios", 5))
+                .isInstanceOf(AddressAnswerRejectedException.class);
+    }
+
+    @Test
+    void aSearchBehindAQueueLongerThanOneSpacingIsBusyAndDoesNotCallNominatim() {
+        var spaced = spacedClient();
+        body = "[]";
+        spaced.search("Larios", 5);
+        answerWith(LARIOS);
+        // The look-up of the worker takes the next turn, one spacing away.
+        spaced.lookUp(LATITUDE, LONGITUDE);
+
+        // The next free turn is two spacings away: one more than a search waits.
+        assertThatThrownBy(() -> spaced.search("Alameda", 5))
+                .isInstanceOfSatisfying(
+                        AddressSourceBusyException.class,
+                        e -> assertThat(e.retryAfter()).isEqualTo(SPACING));
+        assertThat(requests.get()).isEqualTo(2);
+    }
+
+    @Test
+    void aSearchRightAfterAnotherWaitsForItsTurnInsteadOfBeingRefused() {
+        var spaced = spacedClient();
+        body = places(malaga("Larios"));
+        spaced.search("Larios", 5);
+
+        assertThat(spaced.search("Alameda", 5)).hasSize(1);
+        assertThat(pauses).containsExactly(SPACING);
+        assertThat(requests.get()).isEqualTo(2);
+    }
+
+    @Test
+    void aResultThatCannotBeReadIsDroppedAndTheOthersAreKept() {
+        body =
+                "[{\"display_name\": \"A\", \"lat\": \"abc\", \"lon\": \"-4.4\", \"address\":"
+                        + " {\"city\": \"Málaga\", \"country_code\": \"es\"}}, 7, "
+                        + places(malaga("Larios")).substring(1);
+
+        assertThat(client.search("Larios", 5)).hasSize(1);
+    }
+
+    @Test
+    void aSearchTakesTheTurnSoTheNextLookUpWaitsForItInsteadOfFailing() {
+        var spaced = spacedClient();
+        body = "[]";
+        spaced.search("Larios", 5);
+        answerWith(LARIOS);
+
+        assertThat(spaced.lookUp(LATITUDE, LONGITUDE))
+                .isEqualTo(new AddressLookup.Found("Calle Larios, 5, 29005 Málaga"));
+        assertThat(pauses).containsExactly(SPACING);
+        assertThat(requests.get()).isEqualTo(2);
     }
 }

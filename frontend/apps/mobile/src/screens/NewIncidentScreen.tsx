@@ -1,5 +1,10 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import { createIncident, type ApiFailure, type FieldError } from '@urbanpulse/api-client';
+import {
+  createIncident,
+  listPlaces,
+  type ApiFailure,
+  type FieldError,
+} from '@urbanpulse/api-client';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import {
@@ -48,7 +53,8 @@ export const OUTSIDE_COVERED_AREA =
 /**
  * Main screen for reporting an incident (RF03, RF04). The position is the pin in the centre of the
  * map, which starts on the GPS fix or, without one, on Málaga: a citizen who rejects the location
- * can still report once they move the map to the incident. The reporter is the session's user: the
+ * can still report once they move the map to the incident, or search its address to jump there
+ * (#179). The reporter is the session's user: the
  * API takes it from the access token, never from the body.
  */
 export function NewIncidentScreen({ navigation }: Props) {
@@ -177,6 +183,7 @@ export function NewIncidentScreen({ navigation }: Props) {
           gpsFix={location.gpsFix}
           onPinChange={setPin}
           unavailableHint={mapHint(location.gpsFix !== null, location.permissionDenied)}
+          searchPlaces={(query) => listPlaces(api, query)}
         />
 
         <LocationIndicator

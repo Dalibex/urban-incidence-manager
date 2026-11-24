@@ -67,6 +67,21 @@ class AttemptLimiterTest {
     }
 
     @Test
+    void giveBackReturnsOnlyTheLastAttempt() {
+        acquireThree();
+        limiter.giveBack(KEY);
+
+        assertThatCode(() -> limiter.acquire(KEY)).doesNotThrowAnyException();
+        assertThatThrownBy(() -> limiter.acquire(KEY)).isInstanceOf(TooManyAttemptsException.class);
+    }
+
+    @Test
+    void giveBackOfAnUnknownKeyDoesNothing() {
+        assertThatCode(() -> limiter.giveBack(KEY)).doesNotThrowAnyException();
+        assertThatCode(this::acquireThree).doesNotThrowAnyException();
+    }
+
+    @Test
     void keysAreIndependent() {
         acquireThree();
 
