@@ -1,6 +1,6 @@
 import { formatInstant } from '@urbanpulse/ui';
 import { useEffect, useRef } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 
 import { MAP_REFRESH_INTERVAL_MS, useIncident } from '../incidents/incident-queries';
 import incidentStyles from '../incidents/Incidents.module.css';
@@ -8,7 +8,7 @@ import { PRIORITY_LABELS } from '../incidents/labels';
 import { LoadFailure, RefreshFailure } from '../incidents/LoadFailure';
 import { isNotFound } from '../incidents/not-found';
 import { StatusBadge } from '../incidents/StatusBadge';
-import { incidentPath } from '../routing/access';
+import { incidentPath, type DetailReturn } from '../routing/access';
 import styles from './Map.module.css';
 
 interface IncidentPanelProps {
@@ -27,6 +27,8 @@ export function IncidentPanel({ incidentId, onClose }: IncidentPanelProps) {
   // assigned to someone else, before the next refresh of the map removes it.
   const notFound = incident.isError && isNotFound(incident.error);
   const heading = useRef<HTMLHeadingElement>(null);
+  // The detail leads back to the map as the user left it: same filters and search (#264).
+  const mapReturn: DetailReturn = { from: 'map', search: useLocation().search };
 
   useEffect(() => {
     heading.current?.focus();
@@ -104,6 +106,7 @@ export function IncidentPanel({ incidentId, onClose }: IncidentPanelProps) {
           <Link
             className={incidentStyles.manage}
             to={incidentPath(incidentId)}
+            state={mapReturn}
             aria-label={`Manage ${incident.data.title}`}
           >
             Manage

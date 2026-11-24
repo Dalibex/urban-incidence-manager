@@ -23,6 +23,7 @@ type IncidentLocation = components['schemas']['IncidentLocation'];
 const BACK_LABELS: Record<DetailOrigin, string> = {
   inbox: 'Back to the inbox',
   workQueue: 'Back to the work queue',
+  map: 'Back to the map',
 };
 
 /** The titles of the panels that come with the incident, shared by the skeleton. */
@@ -36,8 +37,8 @@ const SKELETON_FACTS = { report: 4, location: 5 } as const;
 
 /**
  * Everything about one incident, and the place where the lifecycle actions are added (#46). An
- * operator opens it from the inbox and a technician from the work queue (#187), and it leads back
- * to that list.
+ * operator opens it from the inbox, a technician from the work queue (#187), and both from the map,
+ * and it leads back to that screen with its filters (#264).
  */
 export function IncidentDetailPage() {
   const { incidentId = '' } = useParams();

@@ -72,6 +72,16 @@ describe('detailBack', () => {
     });
   });
 
+  it('goes back to the map as the user left it, for every role that opens the detail (#264)', () => {
+    const search = '?status=REPORTED&q=farola';
+    for (const role of ['MUNICIPAL_OPERATOR', 'ADMINISTRATOR', 'TECHNICIAN'] as const) {
+      expect(detailBack({ from: 'map', search }, role)).toEqual({
+        to: 'map',
+        path: `${PATHS.map}${search}`,
+      });
+    }
+  });
+
   it('goes to the default list of the role after a direct link', () => {
     const inbox = { to: 'inbox', path: `${PATHS.inbox}?status=REPORTED` };
     const queue = {

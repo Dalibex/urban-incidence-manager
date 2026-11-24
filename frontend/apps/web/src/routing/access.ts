@@ -52,11 +52,12 @@ export function mapDefaultPath(role: Role): string {
 export type IncidentList = 'inbox' | 'workQueue';
 
 /** A screen that opens the detail of an incident, and that the detail leads back to. */
-export type DetailOrigin = IncidentList;
+export type DetailOrigin = IncidentList | 'map';
 
 const DETAIL_ORIGINS: Record<DetailOrigin, { path: string; roles: readonly Role[] }> = {
   inbox: { path: PATHS.inbox, roles: OPERATOR_ROLES },
   workQueue: { path: PATHS.workQueue, roles: ['TECHNICIAN'] },
+  map: { path: PATHS.map, roles: INCIDENT_DETAIL_ROLES },
 };
 
 const LIST_DEFAULT_PATHS: Record<IncidentList, string> = {
