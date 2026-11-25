@@ -54,8 +54,12 @@ channel need from the backend and the app?
 The `notifications` module ([ADR-0010](0010-modular-monolith.md)) delivers **push
 notifications through the Expo push service** and **email through Brevo**, and **sends no SMS**.
 
+- **Channels:** `PUSH` and `EMAIL`, nothing else. There is no `APP` row: the citizen already sees
+  every change in the incident's history (`GET /incidents/{incidentId}/status-changes`), and rows
+  that no screen or endpoint reads would be dead data. An in-app inbox would bring back an `APP`
+  channel together with the endpoint that reads it.
 - **How it is sent:** the status change writes one `notification` row per channel the citizen has
-  turned on (`APP`, the row the apps read, always) as `PENDING`, in its own transaction. A unique
+  turned on as `PENDING`, in its own transaction. A unique
   key on (status change, recipient, channel) stops a change processed twice from creating a second
   row. A scheduled job of `notifications` sends the rows after the commit, every 30 seconds,
   through one sender per channel behind a common interface, so a provider is an adapter that can
@@ -99,8 +103,13 @@ notifications through the Expo push service** and **email through Brevo**, and *
   in any country, but **the push text leaves the EU**: Expo's push service runs in the United
   States, and on Android the message also goes through Google's FCM. Expo keeps a notification
   only in memory and in queues; even so, the push text stays this short.
-- **Consent:** a citizen gets push or email only for their own incidents, and only for the channels
-  they turned on (#373).
+- **Consent:** a citizen gets notifications only for their own incidents, and only through the
+  channels that are on (#373):
+  - **Email is on by default,** from sign-up and for the citizens who already exist, and can be
+    turned off in *Profile*. These are service messages about the citizen's own report, not
+    marketing, so their basis is the service the citizen asked for, with an easy way out.
+  - **Push starts off,** because it needs the phone's permission and a registered device; the
+    citizen turns it on in the app.
 - **Configuration** ([ADR-0011](0011-deployment-12factor.md)), never committed:
   - `EXPO_ACCESS_TOKEN` and `NOTIFICATIONS_PUSH_ENABLED`;
   - `BREVO_API_KEY`, `MAIL_FROM` and `NOTIFICATIONS_EMAIL_ENABLED`;
@@ -204,7 +213,8 @@ sends one citizen's notifications to someone else's phone. Expo explains it in
     affected.
   - **No iOS push** until the team has a paid Apple developer account.
   - **New migrations in #373:** the push token table (with the time each token was last
-    registered), a table with each phone's delivery of a push, the new channel, and on
+    registered), a table with each phone's delivery of a push, the channel check reduced to `PUSH` and `EMAIL`
+    (without `SMS` and `APP`), and on
     `notification` the status change, the unique key, the attempt count and the next attempt
     time. The `egress-proxy` list also changes.
   - **A phone whose session ended without reaching the API** (signed out without network, or
