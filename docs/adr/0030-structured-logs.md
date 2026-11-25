@@ -111,6 +111,10 @@ request followed across services?
 - **Review:** after #367, or before if an asynchronous flow cannot carry the request id, or if the
   measurements need the time per service: then distributed tracing is reconsidered in DD-004.
 
+No quality attribute scenario of the [architecture overview](../architecture.md#-quality-attribute-scenarios)
+evaluates it yet: QA-1 to QA-4 measure response time, availability, sign-in and restarts, not
+diagnosis.
+
 ## Links Related
 
 - [ADR-0023](0023-load-test-observability.md): Prometheus and Grafana for the load tests, which this
@@ -120,3 +124,5 @@ request followed across services?
 - [Twelve-Factor evidence](../twelve-factor.md), *XI. Logs*
 - [Security guide](../security.md): the secrets it already keeps out of the logs (second factor,
   `JWT_SECRET`, the egress proxy)
+- C4 model: no change yet. Loki and Alloy join the `observability` profile of
+  `docs/architecture/workspace.dsl` with #365, when they are built.
