@@ -427,11 +427,11 @@ stays pending. The tests never call it. The address of each new incident works t
 Nominatim ([ADR-0002](adr/0002-open-street-map.md)): the report saves its location
 with the address `PENDING`, and a worker of `geospatial` resolves it every 30 seconds, one call per
 second at most. Without internet, set `ADDRESS_ENRICHMENT_ENABLED=false`: the address stays
-pending, and the address search of the mobile app answers `503`. The providers proposed for traffic (TomTom,
-[ADR-0024](adr/0024-traffic-provider.md)) and for notification delivery (Brevo for email and the Expo push service,
-[ADR-0019](adr/0019-notification-delivery-providers.md) amended by
-[ADR-0031](adr/0031-push-and-email-notifications.md)) are not decided yet: the three ADRs are
-*Proposed*.
+pending, and the address search of the mobile app answers `503`. The provider proposed for traffic (TomTom,
+[ADR-0024](adr/0024-traffic-provider.md)) is not decided yet: the ADR is *Proposed*. Notification
+delivery is decided (Brevo for email and the Expo push service, no SMS:
+[ADR-0031](adr/0031-push-and-email-notifications.md), which supersedes
+[ADR-0019](adr/0019-notification-delivery-providers.md)) but not built yet: #373.
 
 ## 🧯 Troubleshooting
 

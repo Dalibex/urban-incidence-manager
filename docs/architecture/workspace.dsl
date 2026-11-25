@@ -95,7 +95,7 @@ workspace "UrbanPulse" "C4 Model" {
                 }
                 notifications = component "notifications" "Notifications created on incident status changes and their delivery status; email (Brevo) and push (Expo push service) adapters behind one sender interface per channel." "Spring Service / Spring Data JPA" {
                     tags "Notifications"
-                    url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0019-notification-delivery-providers.md
+                    url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0031-push-and-email-notifications.md
                 }
                 analytics = component "analytics" "Read-only indicators, zone analysis and reports; owns no tables." "Spring Service" {
                     tags "Analytics"
@@ -181,12 +181,12 @@ workspace "UrbanPulse" "C4 Model" {
         }
 
         brevo = softwareSystem "Brevo" "Transactional email API (EU-based provider)." {
-            tags "ExternalAPI,Proposed"
-            url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0019-notification-delivery-providers.md
+            tags "ExternalAPI"
+            url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0031-push-and-email-notifications.md
         }
 
         expoPush = softwareSystem "Expo push service" "Push notifications to the citizen app; delivers on Android through Firebase Cloud Messaging." {
-            tags "ExternalAPI,Proposed"
+            tags "ExternalAPI"
             url https://github.com/Dalibex/urban-incidence-manager/blob/main/docs/adr/0031-push-and-email-notifications.md
         }
 
