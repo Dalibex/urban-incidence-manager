@@ -5,7 +5,9 @@
 - **Date:** 2026-11-25
 - **Supersedes:** [ADR-0019](0019-notification-delivery-providers.md): it keeps its email provider
   (Brevo) and its delivery mechanism, adds the push channel, drops SMS and sets the retry and
-  idempotency rules. Everything that still applies is stated here, so ADR-0019 is only history.
+  idempotency rules. Its authenticated sending domain waits until the team has a domain of its
+  own (see *Email through Brevo*). Everything that still applies is stated here, so ADR-0019 is
+  only history.
 
 ## Context
 
@@ -37,7 +39,8 @@ What the citizen app already is, and what a push channel has to fit:
   number of times. At worst a provider failure costs a late or missing message, never an incident.
   The providers' keys stay out of the code ([ADR-0011](0011-deployment-12factor.md)).
 - **In the deployment, the backend has no route to the internet** except through the
-  `egress-proxy`, which allows only the hosts on its list (today `api.open-meteo.com`).
+  `egress-proxy`, which allows only the hosts on its list (today `api.open-meteo.com` and
+  `nominatim.openstreetmap.org`, in `egress-proxy/squid.conf`).
 - **The project has no budget.**
 - **The `notification` table** (migration `V5`) has the channels `EMAIL`, `SMS` and `APP` and the
   delivery statuses `PENDING`, `DELIVERED` and `FAILED`, but no link to the status change, no
@@ -80,10 +83,14 @@ notifications through the Expo push service** and **email through Brevo**, and *
     (`google-services.json`); #373 checks it against Expo's FCM guide.
   - **iOS:** iOS push needs a paid Apple developer account, so it stays out until the team has one.
     The sender needs no change for it.
-- **Email through Brevo:** its transactional REST API over HTTPS. The sender address is
-  configured and the sending domain is authenticated in Brevo (SPF and DKIM), so the mail is not
-  taken for spam. Templates live in the code base, versioned with the application. An email is
-  `DELIVERED` when Brevo accepts it.
+- **Email through Brevo:** its transactional REST API over HTTPS, with the templates in the code
+  base, versioned with the application. An email is `DELIVERED` when Brevo accepts it.
+  - **Sender:** the team has no domain of its own, so the sender is one address verified in Brevo
+    (`MAIL_FROM`). Brevo always replaces a free-mail sender, such as a Gmail address, with an
+    address of its own sending domain, because Gmail, Yahoo and Microsoft require the sender's
+    domain to be authenticated (DKIM and DMARC).
+  - **With a domain later:** authenticating it in Brevo (SPF, DKIM and DMARC) changes only
+    `MAIL_FROM`, not the code.
 - **No SMS:** Twilio and the per-message cost go away; the `users` table needs no phone number.
 - **What a notification says:** only what the citizen may see of their incident (ADR-0020,
   *Citizen sees*): its title, the new status and the message or reason addressed to the citizen.
@@ -192,6 +199,9 @@ sends one citizen's notifications to someone else's phone. Expo explains it in
     Brevo refuses the email: it is retried, and if the limit lasts past its attempts it ends
     `FAILED`. Above that volume the team moves to a paid plan or to Amazon SES, which costs cents
     per thousand emails.
+  - **Until the team has a domain, the email goes out under Brevo's replacement address** and may
+    be filtered as spam. A citizen who does not find it can look in the spam folder; push is not
+    affected.
   - **No iOS push** until the team has a paid Apple developer account.
   - **New migrations in #373:** the push token table (with the time each token was last
     registered), a table with each phone's delivery of a push, the new channel, and on
