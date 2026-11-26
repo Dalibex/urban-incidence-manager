@@ -176,6 +176,24 @@ class RoleMatrixIT {
                         () -> delete(API + "/sessions/current"),
                         EVERY_ROLE),
                 rowOfTheCurrentUser("GET /users/me", () -> get(API + "/users/me"), EVERY_ROLE),
+                // Notification channels of the citizen (#373).
+                rowOfTheCurrentUser(
+                        "GET /users/me/notification-settings",
+                        () -> get(API + "/users/me/notification-settings"),
+                        roles(Role.CITIZEN)),
+                row(
+                        "PATCH /users/me/notification-settings, body not JSON",
+                        () -> notJson(patch(API + "/users/me/notification-settings")),
+                        roles(Role.CITIZEN)),
+                // The push token of the citizen's phone (#373).
+                row(
+                        "POST /push-tokens, body not JSON",
+                        () -> notJson(post(API + "/push-tokens")),
+                        roles(Role.CITIZEN)),
+                row(
+                        "POST /push-token-deletions, body not JSON",
+                        () -> notJson(post(API + "/push-token-deletions")),
+                        roles(Role.CITIZEN)),
                 row(
                         "GET /users, size=101",
                         () -> get(API + "/users").param("size", "101"),

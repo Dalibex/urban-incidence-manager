@@ -11,15 +11,15 @@ import java.time.ZoneOffset;
  * WEATHER_MAX_DELAY} without waiting an hour (#309, T8 and T12). Access tokens are issued before
  * the clock moves, so they stay valid.
  */
-final class MutableClock extends Clock {
+public final class MutableClock extends Clock {
 
     private volatile Duration offset = Duration.ZERO;
 
-    void advance(Duration duration) {
+    public void advance(Duration duration) {
         offset = offset.plus(duration);
     }
 
-    void reset() {
+    public void reset() {
         offset = Duration.ZERO;
     }
 
