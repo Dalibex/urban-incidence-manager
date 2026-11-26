@@ -734,7 +734,7 @@ paths:
         Administrators cannot change their own role or disable themselves: it returns `422`. Citizen
         and staff accounts are created in different ways (citizens sign up, staff accounts must change
         the initial password), so a role change from or to `CITIZEN` returns `422` too. A technician
-        with incidents `IN_PROGRESS` cannot be disabled nor change role, because only they can resolve
+        with incidents `IN_PROGRESS` cannot be disabled or change role, because only they can resolve
         them (ADR-0020): it returns `422` on `enabled` or `role`, with a message that lists the first
         five titles, and nothing changes. Incidents only `ASSIGNED` do not stop it, since the operator
         can reassign them. A body that changes nothing answers `200` and records no entry. Of two

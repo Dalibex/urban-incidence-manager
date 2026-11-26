@@ -471,7 +471,7 @@ disable a technician, or change the technician's role, while an incident `IN_PRO
 to them, because only that technician can resolve it ([ADR-0020](adr/0020-incident-lifecycle-transitions.md)):
 the `422` lists the first five titles, which an administrator can read anyway. The acceptance of an
 incident and the change of the account lock the technician's row, so they never pass each other,
-and a disabled technician whose access token has not expired yet can no longer accept nor resolve
+and a disabled technician whose access token has not expired yet can no longer accept or resolve
 (`409`, #274). Two administrators who demote or disable each other at the same time can
 still leave none enabled: the `bootstrap-admin` profile then creates one again, because it only
 runs when no enabled administrator exists. A role change or a disabled account reaches the access

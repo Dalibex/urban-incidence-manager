@@ -80,7 +80,7 @@ public interface IncidentRepository
     /**
      * The id and title of the incidents in {@code IN_PROGRESS} whose active assignment is the
      * technician's, by title. Only that technician can resolve them (ADR-0020), so the account may
-     * not be disabled nor lose its role while there is one (#274). It uses {@code
+     * not be disabled or lose its role while there is one (#274). It uses {@code
      * ix_assignment_active_technician}.
      */
     @Query(
