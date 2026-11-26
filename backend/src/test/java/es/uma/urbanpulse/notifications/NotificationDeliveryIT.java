@@ -604,6 +604,110 @@ class NotificationDeliveryIT {
         }
     }
 
+    // T17 of #376: a citizen gets notifications only through the channels that are on (ADR-0031,
+    // Consent), so turning one off also stops a row of that channel still waiting for a retry.
+    @Nested
+    @DisplayName("A channel the citizen turns off while its row waits for a retry")
+    class AChannelTurnedOffWhileItsRowWaits {
+
+        @ParameterizedTest(name = "{0}")
+        @ValueSource(strings = {"PUSH", "EMAIL"})
+        @DisplayName("the next run, with the provider back, sends nothing on that channel")
+        void theNextRunSendsNothingOnThatChannel(String channel) {
+            // Arrange
+            channels(citizen, true, true);
+            pendingNotificationWithItsChannel(channel);
+            failEveryCall(channel, httpStatus(503));
+            worker.deliverPending();
+            channels(citizen, !channel.equals("PUSH"), !channel.equals("EMAIL"));
+            EXPO.reset();
+            BREVO.reset();
+            clock.advance(FIRST_RETRY);
+
+            // Act
+            worker.deliverPending();
+
+            // Assert
+            assertThat(EXPO.sends()).isEmpty();
+            assertThat(BREVO.calls()).isEmpty();
+        }
+    }
+
+    // T18 of #376: the message to the citizen carries the reason or message addressed to them, up
+    // to 2,000 characters in the contract, more than the body of a push.
+    @Nested
+    @DisplayName("A text longer than the body of a push")
+    class ATextLongerThanAPush {
+
+        private static final int PUSH_BODY_LIMIT = 1_000;
+        private static final String ELLIPSIS = "…";
+        private static final String LONGEST_TEXT = "x".repeat(2_100);
+
+        @Test
+        @DisplayName("every device gets its first 999 characters and an ellipsis")
+        void everyDeviceGetsItCutWithAnEllipsis() {
+            // Arrange
+            device(citizen);
+            device(citizen);
+            pendingNotification(incident, citizen, "PUSH", LONGEST_TEXT);
+
+            // Act
+            worker.deliverPending();
+
+            // Assert
+            assertThat(EXPO.sends()).hasSize(1);
+            assertThat(FakeExpo.bodiesOf(EXPO.sends().getFirst()))
+                    .hasSize(2)
+                    .containsOnly(LONGEST_TEXT.substring(0, PUSH_BODY_LIMIT - 1) + ELLIPSIS);
+        }
+
+        @Test
+        @DisplayName("a text of exactly 1,000 characters goes whole")
+        void aTextAtTheLimitGoesWhole() {
+            // Arrange
+            String text = "x".repeat(PUSH_BODY_LIMIT);
+            device(citizen);
+            pendingNotification(incident, citizen, "PUSH", text);
+
+            // Act
+            worker.deliverPending();
+
+            // Assert
+            assertThat(FakeExpo.bodiesOf(EXPO.sends().getFirst())).containsExactly(text);
+        }
+
+        @Test
+        @DisplayName("an emoji at the cut is left out whole, never split in half")
+        void anEmojiAtTheCutIsNotSplit() {
+            // Arrange: the emoji takes the 999th and 1000th characters, where the cut falls.
+            String text = "x".repeat(PUSH_BODY_LIMIT - 2) + "😀" + "x".repeat(100);
+            device(citizen);
+            pendingNotification(incident, citizen, "PUSH", text);
+
+            // Act
+            worker.deliverPending();
+
+            // Assert
+            assertThat(FakeExpo.bodiesOf(EXPO.sends().getFirst()))
+                    .containsExactly("x".repeat(PUSH_BODY_LIMIT - 2) + ELLIPSIS);
+        }
+
+        @Test
+        @DisplayName("the email of the same text carries it whole")
+        void theEmailCarriesItWhole() {
+            // Arrange
+            pendingNotification(incident, citizen, "EMAIL", LONGEST_TEXT);
+
+            // Act
+            worker.deliverPending();
+
+            // Assert
+            assertThat(BREVO.calls()).hasSize(1);
+            assertThat((String) JsonPath.read(BREVO.calls().getFirst().body(), "$.textContent"))
+                    .isEqualTo(LONGEST_TEXT);
+        }
+    }
+
     /** First attempt, +1 min, second attempt, +5 min: the row is due for its third attempt. */
     private void twoRunsThenDueForTheThird() {
         worker.deliverPending();
@@ -633,6 +737,11 @@ class NotificationDeliveryIT {
      * entry of the incident's history.
      */
     private UUID pendingNotification(UUID ofIncident, UUID recipient, String channel) {
+        return pendingNotification(ofIncident, recipient, channel, MESSAGE);
+    }
+
+    private UUID pendingNotification(
+            UUID ofIncident, UUID recipient, String channel, String message) {
         Instant due = clock.instant().minusSeconds(1);
         UUID change =
                 jdbc.queryForObject(
@@ -651,7 +760,7 @@ class NotificationDeliveryIT {
                 ofIncident,
                 recipient,
                 change,
-                MESSAGE,
+                message,
                 channel,
                 Timestamp.from(due),
                 Timestamp.from(due));

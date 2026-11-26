@@ -125,6 +125,13 @@ final class FakeExpo implements AutoCloseable {
                 .toList();
     }
 
+    /** The {@code body} of every message of a send, in order. */
+    static List<String> bodiesOf(Call send) {
+        return messagesOf(send.body()).stream()
+                .map(message -> (String) message.get("body"))
+                .toList();
+    }
+
     /** The ticket ids a receipts call asked for. */
     static List<String> ticketIdsOf(Call receiptCall) {
         return JsonPath.read(receiptCall.body(), "$.ids");
