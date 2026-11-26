@@ -703,7 +703,9 @@ export interface paths {
         /**
          * Accept an assigned incident
          * @description `ASSIGNED` to `IN_PROGRESS`. The citizen sees the status. A technician who is not the one of
-         *     the active assignment gets `404`, also after a reassignment.
+         *     the active assignment gets `404`, also after a reassignment. The technician of the active
+         *     assignment whose account is disabled, while their access token has not expired yet, gets
+         *     `409` with the code `INVALID_TRANSITION` (#274).
          *
          *     Roles: `TECHNICIAN` (actively assigned).
          */
@@ -727,7 +729,8 @@ export interface paths {
          * Resolve an incident in progress
          * @description `IN_PROGRESS` to `RESOLVED`. `reason` holds the resolution notes and is required. The citizen
          *     sees the status, not the notes. A technician who is not the one of the active assignment
-         *     gets `404`.
+         *     gets `404`. The technician of the active assignment whose account is disabled, while their
+         *     access token has not expired yet, gets `409` with the code `INVALID_TRANSITION` (#274).
          *
          *     Roles: `TECHNICIAN` (actively assigned).
          */
