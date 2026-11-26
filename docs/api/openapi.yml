@@ -3125,7 +3125,8 @@ components:
       type: object
       description: >-
         One incident in a listing. `priority`, `address` and `addressStatus` are staff-only: they
-        are absent in the responses to a citizen.
+        are absent in the responses to a citizen. `thumbnailAttachmentId` is citizen-only: it is
+        absent in the responses to staff.
       required: [id, title, status, category, reportedAt, updatedAt]
       properties:
         id:
@@ -3165,6 +3166,14 @@ components:
           format: date-time
           description: Last change of the incident, including status changes.
           examples: ["2026-11-02T09:58:31Z"]
+        thumbnailAttachmentId:
+          type: [string, "null"]
+          format: uuid
+          description: >-
+            Citizen only. The first photo the citizen uploaded to the incident, oldest first, to
+            download with `getAttachmentContent`; `null` when they uploaded none. It is never a
+            photo added by staff.
+          examples: [7c0e5d3a-2b9f-4e61-8a14-3d5f6e7a8b9c]
 
     IncidentPageResponse:
       type: object

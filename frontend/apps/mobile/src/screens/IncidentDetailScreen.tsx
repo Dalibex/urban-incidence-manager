@@ -15,6 +15,7 @@ import {
 import { useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Image,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -27,7 +28,14 @@ import { FormMessage } from '../components/FormMessage';
 import { LoadFailure } from '../components/LoadFailure';
 import { LoadingSkeleton, SkeletonBlock } from '../components/Skeleton';
 import { StatusBadge } from '../components/StatusBadge';
-import { incidentKeys, useIncident, useIncidentHistory } from '../incidents/incident-queries';
+import {
+  incidentKeys,
+  refetchFailedPhotos,
+  useAttachmentContent,
+  useIncident,
+  useIncidentAttachments,
+  useIncidentHistory,
+} from '../incidents/incident-queries';
 import type { MyReportsStackParamList } from '../navigation/MyReportsStack';
 import { isNotFound } from '../query-client';
 import { screenStyles } from './styles';
@@ -51,6 +59,7 @@ export function IncidentDetailScreen({ navigation, route }: Props) {
   const { incidentId } = route.params;
   const incident = useIncident(incidentId);
   const history = useIncidentHistory(incidentId);
+  const photos = useIncidentAttachments(incidentId);
   const queryClient = useQueryClient();
   const [pulling, setPulling] = useState(false);
 
@@ -58,7 +67,10 @@ export function IncidentDetailScreen({ navigation, route }: Props) {
     setPulling(true);
     try {
       // The list too, so going back does not show an older status than this detail.
-      await queryClient.invalidateQueries({ queryKey: incidentKeys.all });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: incidentKeys.all }),
+        refetchFailedPhotos(queryClient),
+      ]);
     } finally {
       setPulling(false);
     }
@@ -97,11 +109,12 @@ export function IncidentDetailScreen({ navigation, route }: Props) {
 
   return (
     <ScrollView
+      testID="report-detail"
       style={screenStyles.flex}
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={pulling} onRefresh={refresh} />}
     >
-      {(incident.isRefetchError || history.isRefetchError) && (
+      {(incident.isRefetchError || history.isRefetchError || photos.isRefetchError) && (
         <FormMessage message="The report could not be refreshed. This is the last version loaded." />
       )}
       <IncidentData incident={incident.data} />
@@ -113,6 +126,7 @@ export function IncidentDetailScreen({ navigation, route }: Props) {
           onPress={() => navigation.navigate('AddPhotos', { incidentId })}
         />
       )}
+      <Photos photos={photos} />
       <Section title="History">
         {history.isPending ? (
           <ActivityIndicator accessibilityLabel="Loading the history" />
@@ -128,6 +142,100 @@ export function IncidentDetailScreen({ navigation, route }: Props) {
         )}
       </Section>
     </ScrollView>
+  );
+}
+
+type Attachment = components['schemas']['AttachmentResponse'];
+
+/**
+ * The photos the citizen uploaded (#279). With none there is no section, and a list that fails
+ * leaves the rest of the report on screen. Each photo loads on its own, so one that fails leaves
+ * the others.
+ */
+function Photos({ photos }: { photos: ReturnType<typeof useIncidentAttachments> }) {
+  // Nothing while the list loads: a header that vanishes for a report without photos moves the
+  // rest of the screen.
+  if (photos.isPending) {
+    return null;
+  }
+  if (photos.isLoadingError) {
+    return (
+      <Section title="Photos">
+        <LoadFailure
+          what="The photos"
+          error={photos.error}
+          retrying={photos.isFetching}
+          onRetry={() => void photos.refetch()}
+        />
+      </Section>
+    );
+  }
+  if (photos.data.length === 0) {
+    return null;
+  }
+  return (
+    <Section title="Photos">
+      <View style={styles.photos}>
+        {photos.data.map((photo, index) => (
+          <Photo
+            key={photo.id}
+            attachment={photo}
+            position={index + 1}
+            total={photos.data.length}
+          />
+        ))}
+      </View>
+    </Section>
+  );
+}
+
+function Photo({
+  attachment,
+  position,
+  total,
+}: {
+  attachment: Attachment;
+  position: number;
+  total: number;
+}) {
+  const content = useAttachmentContent(attachment.id);
+  if (content.isPending) {
+    return (
+      <View style={styles.photoFrame}>
+        <ActivityIndicator accessibilityLabel={`Loading photo ${position} of ${total}`} />
+      </View>
+    );
+  }
+  if (content.isError && isNotFound(content.error)) {
+    // Trying again gets the same answer: the photo is gone.
+    return (
+      <View style={[styles.photoFrame, styles.photoFailure]}>
+        <FormMessage message="This photo is no longer available." />
+      </View>
+    );
+  }
+  if (content.isError) {
+    return (
+      <View style={[styles.photoFrame, styles.photoFailure]}>
+        <FormMessage message="This photo could not be loaded." />
+        <Button
+          label={content.isFetching ? 'Trying again…' : 'Try again'}
+          variant="secondary"
+          disabled={content.isFetching}
+          onPress={() => void content.refetch()}
+        />
+      </View>
+    );
+  }
+  return (
+    <Image
+      source={{ uri: content.data }}
+      style={styles.photoFrame}
+      resizeMode="cover"
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={`Photo ${position} of ${total}`}
+    />
   );
 }
 
@@ -276,6 +384,7 @@ function Field({ label, value, source }: { label: string; value: string; source?
 }
 
 const MARK_SIZE = 10;
+const PHOTO_ASPECT_RATIO = 4 / 3;
 
 const styles = StyleSheet.create({
   content: {
@@ -302,6 +411,21 @@ const styles = StyleSheet.create({
   },
   field: {
     gap: 2,
+  },
+  photos: {
+    gap: spacing.md,
+  },
+  photoFrame: {
+    width: '100%',
+    aspectRatio: PHOTO_ASPECT_RATIO,
+    borderRadius: 8,
+    backgroundColor: colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoFailure: {
+    padding: spacing.md,
+    gap: spacing.sm,
   },
   timeline: {
     gap: spacing.md,

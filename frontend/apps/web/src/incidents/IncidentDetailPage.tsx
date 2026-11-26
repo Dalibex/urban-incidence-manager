@@ -3,7 +3,7 @@ import { addressText, formatInstant, NOT_AVAILABLE } from '@urbanpulse/ui';
 import { Fragment, type ReactNode } from 'react';
 import { Link, useLocation, useParams } from 'react-router';
 
-import { incidentListOf, listReturnPath, type IncidentList } from '../routing/access';
+import { detailBack, type DetailOrigin } from '../routing/access';
 import { useSession } from '../session/SessionContext';
 import { useIncident } from './incident-queries';
 import { ACTIONS_TITLE, IncidentActions } from './IncidentActions';
@@ -20,9 +20,10 @@ import { UrbanContextPanel } from './UrbanContextPanel';
 type Incident = components['schemas']['IncidentResponse'];
 type IncidentLocation = components['schemas']['IncidentLocation'];
 
-const BACK_LABELS: Record<IncidentList, string> = {
+const BACK_LABELS: Record<DetailOrigin, string> = {
   inbox: 'Back to the inbox',
   workQueue: 'Back to the work queue',
+  map: 'Back to the map',
 };
 
 /** The titles of the panels that come with the incident, shared by the skeleton. */
@@ -36,19 +37,19 @@ const SKELETON_FACTS = { report: 4, location: 5 } as const;
 
 /**
  * Everything about one incident, and the place where the lifecycle actions are added (#46). An
- * operator opens it from the inbox and a technician from the work queue (#187), and it leads back
- * to that list.
+ * operator opens it from the inbox, a technician from the work queue (#187), and both from the map,
+ * and it leads back to that screen with its filters (#264).
  */
 export function IncidentDetailPage() {
   const { incidentId = '' } = useParams();
   const incident = useIncident(incidentId);
   const { state } = useLocation();
-  const list = incidentListOf(useSession().user?.role);
+  const back = detailBack(state, useSession().user?.role);
 
   return (
     <article className={styles.page} aria-labelledby="page-title">
-      <Link className={styles.backLink} to={listReturnPath(state, list)}>
-        {BACK_LABELS[list]}
+      <Link className={styles.backLink} to={back.path}>
+        {BACK_LABELS[back.to]}
       </Link>
       {incident.isPending ? (
         <>

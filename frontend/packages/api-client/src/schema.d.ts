@@ -1653,7 +1653,7 @@ export interface components {
              */
             district: string | null;
         };
-        /** @description One incident in a listing. `priority`, `address` and `addressStatus` are staff-only: they are absent in the responses to a citizen. */
+        /** @description One incident in a listing. `priority`, `address` and `addressStatus` are staff-only: they are absent in the responses to a citizen. `thumbnailAttachmentId` is citizen-only: it is absent in the responses to staff. */
         IncidentSummaryResponse: {
             /**
              * Format: uuid
@@ -1685,6 +1685,12 @@ export interface components {
              * @example 2026-11-02T09:58:31Z
              */
             updatedAt: string;
+            /**
+             * Format: uuid
+             * @description Citizen only. The first photo the citizen uploaded to the incident, oldest first, to download with `getAttachmentContent`; `null` when they uploaded none. It is never a photo added by staff.
+             * @example 7c0e5d3a-2b9f-4e61-8a14-3d5f6e7a8b9c
+             */
+            thumbnailAttachmentId?: string | null;
         };
         /** @description One page of incidents. */
         IncidentPageResponse: {

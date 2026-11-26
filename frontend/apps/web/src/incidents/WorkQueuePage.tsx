@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router';
 
-import { incidentPath, type ListReturn } from '../routing/access';
+import { incidentPath, type DetailReturn } from '../routing/access';
 import { IncidentListPage } from './IncidentListPage';
 import styles from './Incidents.module.css';
 
@@ -10,7 +10,7 @@ import styles from './Incidents.module.css';
  */
 export function WorkQueuePage() {
   // The detail links back to the queue as the technician left it: same filters, same page.
-  const queueReturn: ListReturn = { listSearch: useLocation().search };
+  const queueReturn: DetailReturn = { from: 'workQueue', search: useLocation().search };
   return (
     <IncidentListPage
       list="workQueue"
