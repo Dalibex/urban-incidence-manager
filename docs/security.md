@@ -431,6 +431,9 @@ Spring MVC: `GET /incidents/` matches `/incidents/*` with an empty segment, so a
 | `POST /mfa-verifications` | ✓, the challenge and the code are the credentials | | | | | |
 | `DELETE /sessions/current` | | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `GET /users/me` | | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `GET /users/me/notification-settings`, `PATCH /users/me/notification-settings` | | ✓, their own | | | | |
+| `POST /push-tokens` | | ✓, only while the session of the access token is active | | | | |
+| `POST /push-token-deletions` | | ✓, any token by its value | | | | |
 | `GET /users` | | | | | ✓ | |
 | `POST /users` | | | | | ✓, staff roles only | |
 | `GET /users/{id}` | | | | | ✓ | |

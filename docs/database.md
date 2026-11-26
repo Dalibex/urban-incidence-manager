@@ -24,6 +24,20 @@ The schema diagram above opens at full size with a click. It is a `.drawio.svg`:
 an image, and draw.io opens it as an editable diagram. The migrations are the source of truth: if
 the diagram and the migrations disagree, the migrations are right.
 
+The diagram does not show yet what V23 (#373, [ADR-0031](adr/0031-push-and-email-notifications.md))
+added for the citizen's notifications:
+
+- `users`: `notify_by_push` (default `false`) and `notify_by_email` (default `true`), the channels
+  the citizen chose.
+- `notification`: one row per status change, recipient and channel (`status_change_id`, unique with
+  `recipient_id` and `channel`), with `attempts`, `next_attempt_at` and `created_at` for the
+  retries. The channel is `EMAIL` or `PUSH`. V23 deletes the rows that existed, which came only
+  from the datasets.
+- `push_token`: the Expo push tokens of the citizens' phones, unique by value, renewed at every
+  registration and deleted after 60 days without one.
+- `push_delivery`: one message to one device, with the Expo ticket and its status (`ACCEPTED`,
+  `DELIVERED` or `FAILED`).
+
 ## 🧱 Migrations
 
 The schema is created and changed only by Flyway
@@ -92,6 +106,9 @@ constraints, the schema has these indexes:
 | `ix_incident_status_priority_reported_at` | V16 (#176) | The count of the staff lists filtered by status and priority |
 | `ix_location_address_pending` | V19 (#375) | The address worker: the next pending addresses and their expiry. Partial, only the `PENDING` locations |
 | `ix_incident_title_search`, `ix_incident_description_search` | V21 (#266) | The text search `q`: trigram (`pg_trgm`) GIN indexes on `search_text(title)` and `search_text(description)`, the function of V21 that folds case and accents with `unaccent`; `search_pattern` folds the searched text the same way and escapes it for `LIKE` |
+| `ix_notification_pending_due` | V23 (#373) | The delivery job: the pending notifications that are due. Partial, only the `PENDING` ones |
+| `ix_push_token_user_id`, `ix_push_token_last_registered_at` | V23 | The tokens of a recipient, and the clean-up of the tokens not renewed for 60 days |
+| `ix_push_delivery_accepted` | V23 | The receipts job: the tickets that still wait for their receipt. Partial, only the `ACCEPTED` ones |
 
 `mfa_challenges` (V20, #57) has no index on `user_id`: it holds at most a day of sign-in challenges
 of staff, because the daily clean-up deletes the expired ones, so reading it by user is a scan of a

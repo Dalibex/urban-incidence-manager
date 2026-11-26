@@ -98,16 +98,17 @@ Three Compose networks keep each service to what it needs ([ADR-0011](adr/0011-d
 | `egress` | `egress-proxy` | The backend's only route to the internet. No published port, no other service, and containers in it cannot reach each other |
 
 Neither the backend nor the database can reach the internet. The backend calls Open-Meteo
-([ADR-0018](adr/0018-weather-and-traffic-providers.md)) and Nominatim
-([ADR-0002](adr/0002-open-street-map.md)) through `egress-proxy`, a Squid forward
+([ADR-0018](adr/0018-weather-and-traffic-providers.md)), Nominatim
+([ADR-0002](adr/0002-open-street-map.md)), Expo push and Brevo email
+([ADR-0031](adr/0031-push-and-email-notifications.md)) through `egress-proxy`, a Squid forward
 proxy built from `egress-proxy/`: it lets the backend's address open an HTTPS tunnel to the hosts
-of `egress-proxy/squid.conf` (today `api.open-meteo.com` and `nominatim.openstreetmap.org`) and
+of `egress-proxy/squid.conf` (today `api.open-meteo.com`, `nominatim.openstreetmap.org`, `exp.host` and `api.brevo.com`) and
 refuses everything else with `403`.
 TLS goes end to end, so the proxy only sees the host name. Its log, in `docker compose logs
 egress-proxy`, has one line per tunnel: `TCP_DENIED/403` for a refused one, at once, and
 `TCP_TUNNEL/200` for an allowed one when it closes, which can be minutes later because the backend
-keeps the connection open to reuse it. A refused tunnel is what to look for if the weather or the
-address of new incidents stops arriving. Adding an external source is one more `dstdomain -n` line in
+keeps the connection open to reuse it. A refused tunnel is what to look for if the weather, the
+address of new incidents or a notification stops arriving. Adding an external source is one more `dstdomain -n` line in
 `squid.conf`, in its own pull request. The `lint` job of the CI fails if a service changes networks
 or if the addresses below disagree, and the `build` job if the proxy lets anything else out.
 
@@ -167,8 +168,8 @@ out of them: Compose reads `$` as the start of a variable.
 
 The deployment `.env.example` is the example without secrets: every secret is empty, there is no
 sample data and nothing but nginx publishes a port. Its secrets are `POSTGRES_PASSWORD`,
-`JWT_SECRET`, `MFA_ENCRYPTION_KEY`, `DEMO_PASSWORD` (only with the `demo` profile) and `BOOTSTRAP_ADMIN_PASSWORD` (only
-while you create the first administrator).
+`JWT_SECRET`, `MFA_ENCRYPTION_KEY`, `DEMO_PASSWORD` (only with the `demo` profile), `BOOTSTRAP_ADMIN_PASSWORD` (only
+while you create the first administrator), and `EXPO_ACCESS_TOKEN` and `BREVO_API_KEY` (only with their channel on).
 
 | Variable | Development (`backend/.env.example`) | Deployment (`.env.example`) | Secret | Used by | What it is |
 | --- | --- | --- | --- | --- | --- |
@@ -204,6 +205,13 @@ while you create the first administrator).
 | `WEATHER_MAX_DELAY` | `PT1H` | `PT1H` | | `backend` | From this age of the report on, the current weather no longer stands for the weather at the report, and the incident's weather is `UNAVAILABLE` |
 | `ADDRESS_ENRICHMENT_ENABLED` | `true` | `true` | | `backend` | Turns the address worker (#375) and the address search of the mobile app (#179) on or off, so that off nothing is sent to OpenStreetMap. Off, reports are still created and their address stays `PENDING`, and `GET /places` answers `503` `GEOCODING_UNAVAILABLE`: the citizen places the pin by hand. When it is turned on again, the pending addresses older than a day become `UNAVAILABLE` |
 | `NOMINATIM_PROXY` | empty: the backend calls Nominatim directly | `http://egress-proxy:3128`, fixed in `docker-compose.yaml`, not in `.env` | | `backend` | The forward proxy for the calls to Nominatim (*Networks*). In the deployment, without it the addresses stay pending |
+| `NOTIFICATIONS_ENABLED` | `true` | `true` | | `backend` | Turns on or off the two scheduled jobs of the citizen's notifications (#373, [ADR-0031](adr/0031-push-and-email-notifications.md)): the delivery of the pending rows and the check of the push receipts. Off, a status change still creates its rows, which wait undelivered until it is turned on again |
+| `NOTIFICATIONS_PUSH_ENABLED` | `false` | `false` | | `backend` | Sends the push notifications through Expo. Off, the push rows are only logged. On, `EXPO_ACCESS_TOKEN` is required, or the backend does not start |
+| `EXPO_ACCESS_TOKEN` | empty | empty | ✓ | `backend` | The access token of the Expo account, sent as a bearer token to `exp.host`. Never committed: set it only in `.env` |
+| `NOTIFICATIONS_EMAIL_ENABLED` | `false` | `false` | | `backend` | Sends the emails through Brevo. Off, the email rows are only logged. On, `BREVO_API_KEY` and `MAIL_FROM` are required, or the backend does not start |
+| `BREVO_API_KEY` | empty | empty | ✓ | `backend` | The Brevo API key, sent to `api.brevo.com`. Never committed: set it only in `.env`. Brevo blocks the API calls from an IP address it does not know, and drops an authorized address after 30 days without a call from a new one: check *Authorized IPs* in Brevo before deploying |
+| `MAIL_FROM` | empty | empty | | `backend` | The sender address of the emails. It must be a sender verified in Brevo |
+| `NOTIFICATIONS_PROXY` | empty: the backend calls Expo and Brevo directly | `http://egress-proxy:3128`, fixed in `docker-compose.yaml`, not in `.env` | | `backend` | The forward proxy for the calls to Expo and Brevo (*Networks*). In the deployment, without it nothing is delivered and the rows keep retrying |
 | `SERVER_FORWARD_HEADERS_STRATEGY` | not set | `native`, fixed in `docker-compose.yaml`, not in `.env` | | `backend` | The backend takes the client address and the public address from the `X-Forwarded-*` headers that nginx writes, only from nginx's fixed address (`SERVER_TOMCAT_REMOTEIP_INTERNALPROXIES`; [security guide](security.md#rate-limits)). Never set it in development, where clients reach the backend directly and could forge them |
 | `SERVER_TOMCAT_REMOTEIP_INTERNALPROXIES` | not set | `10\.203\.217\.10`, fixed in `docker-compose.yaml`, not in `.env` | | `backend` | The only peer whose `X-Forwarded-*` headers the backend takes: the address of `web` on `internal`, as a regular expression with its dots escaped (*Networks*). Any other peer keeps its own address. The `lint` job fails if it is not the `ipv4_address` of `web`. Not needed in development, where the backend reads no forwarded header |
 | `GRAFANA_ADMIN_PASSWORD` | empty | — | ✓ | `grafana` | Password of the `admin` user of Grafana, only with `--profile observability`. Empty, Grafana starts with `admin`/`admin` and asks to change it at the first sign-in |

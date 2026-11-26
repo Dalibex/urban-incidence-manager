@@ -75,7 +75,7 @@ same REST API and a set of TypeScript packages ([ADR-0007](adr/0007-client-appli
 | --- | --- | --- | --- |
 | Web app (staff) | React + Vite | [ADR-0006](adr/0006-frontend-web-technology.md) | Yes |
 | Mobile app (citizens) | React Native + Expo | [ADR-0005](adr/0005-mobile-application-technology.md) | Yes; the address search of the report form, through the backend to Nominatim, since #179 |
-| Backend API | Spring Boot, REST, contract first | [ADR-0008](adr/0008-backend.md), [ADR-0010](adr/0010-modular-monolith.md) | Yes; the second factor of staff ([ADR-0021](adr/0021-multi-factor-authentication.md)) since #57 |
+| Backend API | Spring Boot, REST, contract first | [ADR-0008](adr/0008-backend.md), [ADR-0010](adr/0010-modular-monolith.md) | Yes; the second factor of staff ([ADR-0021](adr/0021-multi-factor-authentication.md)) since #57, and the citizen's notifications through Expo push and Brevo email ([ADR-0031](adr/0031-push-and-email-notifications.md)) since #373 |
 | Database | PostgreSQL with PostGIS, Flyway migrations | [ADR-0001](adr/0001-database.md), [ADR-0003](adr/0003-geospatial-data-management.md), [ADR-0014](adr/0014-database-migrations-flyway.md) | Yes |
 | Tiles builder | One-off process that builds the base map | [ADR-0016](adr/0016-self-hosted-osm-base-map.md) | Yes |
 | Evidence storage | Docker volume behind a storage interface | [ADR-0013](adr/0013-evidence-storage.md) | Yes, in the API (#192), the mobile upload (#193) and the web gallery (#194) |

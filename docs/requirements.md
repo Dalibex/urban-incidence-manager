@@ -73,7 +73,7 @@ in which milestone, is in GitHub, not here.
 | RF08 | **Map** of incidents and relevant urban layers. | Partly. Incidents on the web map, with the icon of their category, clustered by zoom and refreshed on their own; the mobile report form places the incident with a pin on the base map; urban layers need urban data, which the MVP does not load. | #53 (#195 API, #196 web, #267 icons); #60 (mobile: #197, #198) | Urban layers on the staff map. Planned: #374. |
 | RF10 | **Priority**, manual or assisted, keeping its justification. | Partly. Manual priority with a required justification; assisted priority comes with RF20. | #47 | Assisted priority stays out with RF20. |
 | RF13 | **Collaboration.** Operators and technicians add comments, evidence and resolution data. | Yes. Every comment is internal in the MVP. | #50, #51, #44 | — |
-| RF14 | **Notifications** of relevant changes through configurable channels. | No. The delivery providers are only proposed (ADR-0019). | — | Notifications to the citizen. Planned: #373; the providers in ADR-0031, Planned: #397. |
+| RF14 | **Notifications** of relevant changes through configurable channels. | Yes, to the citizen, by push and email (no SMS). | #373 (ADR-0031) | — |
 | RF19 | **Reports.** Exportable operational and territorial reports. | Yes. The district grouping needs RF21: without it, new reports have no district. | #42 | The district grouping comes with RF21. Planned: #59. |
 | RF21 | **District and neighbourhood** from the location. | Stretch | #59 | Planned before the refactor: #59. |
 
@@ -217,9 +217,8 @@ A new role of the [final delivery](#-final-delivery), not built yet.
 - **Detail** (#45): the report, its position and the history the citizen may see (ADR-0020,
   *Citizen sees*): an information request shows as a message from the city council, and a rejection
   shows its reason. The photos: Planned: #279.
-- **Profile:** name, email and *Sign out*.
-- **Not in the MVP:** replying to an information request from the app (ADR-0020) and the
-  notification channel settings (RF14).
+- **Profile:** name, email, the *Notifications* switches (push and email, #373) and *Sign out*.
+- **Not in the MVP:** replying to an information request from the app (ADR-0020).
 
 ## 🔀 Changes From the Original Prioritization
 
@@ -238,7 +237,7 @@ changed.
 | Resolve | Requires a text confirmation and/or a final photo. | Resolution notes are required; a final photo is not in the MVP. | ADR-0020, #51 |
 | Reopen | Requires a comment or new evidence; the citizen can answer a reopened incident. | Only an operator reopens, with a required reason; new evidence does not replace it. The citizen does not interact with a reopened incident. | ADR-0020, #52 |
 | Operator inbox | Prioritizes `REPORTED`, with filters by date, category, status, priority, district and department. | Opens filtered by `REPORTED`, and clearing the filters shows every incident; the district filter needs #59, planned before the refactor. | #46, #58, #183 |
-| Notification channels | Push, email and SMS switches in the citizen's profile (RF14, Medium). | Not in the MVP: the delivery providers are only proposed. RF14 stays Medium. | ADR-0019 (proposed) |
+| Notification channels | Push, email and SMS switches in the citizen's profile (RF14, Medium). | Push and email settings, built by #373; no SMS. RF14 stays Medium. | ADR-0031 |
 | Operator detail | Urban context (traffic, weather), urban assets and duplicate warnings. | Only the weather enters the MVP, in the *Context* section of the detail (#308). Traffic, urban assets and duplicate warnings do not (RF16, RF22–RF24, Low). | ADR-0018, ADR-0024 (proposed), #304 |
 | Menus | Administrator: *Users*, *Logs*, *Sources*. Operator: *Incident list*, *Incident map*. Technician: *My work queue*. Citizen: *New*, *My reports*, *Profile*. The analyst had none. | Administrator: *Users*, *Audit log*, plus the operator's screens. Operator: *Inbox*, *Map*. Technician: *Work queue*, *Map*. Analyst: *Reports*. Citizen: unchanged. | `frontend/apps/web/src/routing/sections.tsx`, #41, #42, #53, #127, #196 |
 | Priority of RF18 (audit) | Low | High. `AGENTS.md` makes auditing status changes and administrative actions a domain rule, and Sprint 1 built the audit trail for it. | #36 |
