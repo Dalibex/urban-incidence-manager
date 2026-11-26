@@ -285,10 +285,14 @@ or `priority: low` to order the work. The issue joins the project board in **Bac
 the issues opened by people outside the team in the same way, or close them with a reason.
 
 Record dependencies in the issue's **Relationships**, with **Blocked by**: its pull request is not
-merged until the blocking one is, because it would not work without it. A `[Test]` issue has no
-**Blocked by**: it is worked on inside the draft pull request of its feature, while the feature is
-built. The checkpoint issue of a version uses **Blocked by** for its scope instead (see
+merged until the blocking one is, because it would not work without it. A `[Test]` issue is not
+blocked by its feature: it is worked on inside the draft pull request of its feature, while the
+feature is built. The checkpoint issue of a version uses **Blocked by** for its scope instead (see
 [Versioning](#versioning)).
+
+An issue blocked by the checkpoint of an earlier version waits until that version is released: it
+does not start, and no pull request is opened for it. Only its documents can start before: an ADR,
+a design document, or the table of cases of its `[Test]`.
 
 A blocked issue can still start when it only needs what the blocker looks like from outside, and
 that is already in `main`: the OpenAPI contract and its generated types, or an accepted decision.
@@ -408,8 +412,8 @@ end:
 - **Verification:** before being reported, each finding is checked against the current `main` and
   the open issues and pull requests.
 - **Stop:** one review pass and one verification pass. A second review only re-checks the list and
-  does not look for new findings. After the fixes, a short pass on the release candidate checks them;
-  a bug found later, before the release, follows the same threshold.
+  does not look for new findings. After the fixes, a short pass on the release candidate checks
+  them; a bug found later, before the release, follows the same threshold.
 - **Decision:** the product owner can move a medium finding to the next release only when the
   release has a deadline it would miss; it is then listed as a known issue.
 
@@ -449,14 +453,26 @@ version in the changelog and updates every file in the table. Never change the v
 
 #### What a version contains
 
-The `0.x` versions are checkpoints on the way to `1.0.0`, which is the final delivery. Each version
-is defined by its scope, not by a date:
+Every version, before and after `1.0.0`, follows these rules. The `0.x` versions are checkpoints on
+the way to `1.0.0`, the final delivery and the first stable version. The number says what a version
+holds:
+
+| Number | Goes up for | Example |
+| --- | --- | --- |
+| Patch | Only fixes of bugs of a released version | `0.3.1`, `1.0.1` |
+| Minor | New features that break nothing; the usual checkpoint | `0.4.0`, `1.1.0` |
+| Major | A change that breaks a client: an incompatible contract or a removed feature | `2.0.0` |
+
+Each version is defined by its scope, not by a date:
 
 - **A checkpoint issue per version**, `[Task]: Checkpoint vX.Y.Z`, whose **Blocked by** lists the
   issues that must be closed for it: features, tasks, their `[Test]`, the decisions its work starts
   from (ADRs, design documents), the previous checkpoint and the bugs of its review. An issue that
   blocks no checkpoint does not hold any release. The milestone of an issue says when it is worked
   on; the checkpoint it blocks says in which version it ships.
+- **One version at a time.** Each issue in the scope of a version, and each of its open
+  sub-issues, is also **blocked by the checkpoint of the previous version**, so its work starts when
+  that version is released (see [Issues](#issues) for what can start before).
 - **The scope grows while the version is prepared.** Any issue the version needs, opened before it
   is released, is added to the **Blocked by** of its checkpoint: a bug, a small change, or a feature
   nobody planned but the version cannot ship without. Its issue says so, and the product owner
@@ -468,15 +484,18 @@ is defined by its scope, not by a date:
   issue. The release being prepared is the open checkpoint with the lowest version. A release is cut
   from `main`, so any other pull request waits until the release is published, unless it has no
   changelog entry (documentation, tests, CI).
-- **A bug review before every release**, as [Release review](#release-review) says. A high or medium
-  bug found before the release, in that review or by anyone meanwhile, gets its issue and is added to
-  the **Blocked by** of the checkpoint. A low one goes to the low-findings issue of this version,
+- **A bug review before every release**, as [Release review](#release-review) says. A high or
+  medium bug found before the release, in that review or by anyone meanwhile, gets its issue and is
+  added to the **Blocked by** of the checkpoint. A low one goes to the low-findings issue of this version,
   which never blocks it: the team decides which ones are fixed before the release, and the rest
   move to the next version and to the known issues of the release notes.
 - **An idea is not in any version until it has an issue.** The product owner then places it: in the
   version being prepared, as a blocker, if that version needs it, or in a later one.
-- **A fix that cannot wait for the next version** is released as a patch (`0.3.1`), with only
-  *Fixed* entries in the changelog, when `main` has nothing else since the last release; otherwise
-  it goes out with the next version.
+- **A fix that cannot wait for the next version** is released as a patch (`0.3.1`), with its own
+  checkpoint issue blocked by the fixes and a review limited to them, and only *Fixed* entries in
+  the changelog, when `main` has nothing else since the last release; otherwise it goes out with the
+  next version.
 
-A `0.x` release is published as a GitHub pre-release with its known issues.
+A `0.x` release is published as a GitHub pre-release with its known issues. From `1.0.0`, a version
+may have release candidates first (`1.1.0-rc.1`); how a version reaches production is decided when
+there is one.
