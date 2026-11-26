@@ -4,6 +4,8 @@
 - **Decision Makers:** Project Team
 - **Date:** 2026-11-25
 - **Design document:** None. DD-004 (#363) builds on it for the services and may amend it.
+- **Amends:** [ADR-0023](0023-load-test-observability.md): its `observability` profile also collects
+  the logs, with Loki and Alloy; the metrics stay as decided there.
 
 ## Context
 
