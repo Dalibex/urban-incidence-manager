@@ -39,8 +39,15 @@ const PIN_HEAD_SIZE = 22;
 const PIN_STEM_HEIGHT = 14;
 
 export interface BaseMapProps {
-  /** The last GPS fix. Every new fix centres the map on it. */
+  /**
+   * The last GPS fix. A new fix centres the map and the pin on it, unless the citizen placed the pin,
+   * by moving the map or choosing a place, after the last time they asked for their position (#434).
+   */
   gpsFix: GpsFix | null;
+  /** The tap of *Use my position* that `gpsFix` answers; `null` for a fix read on its own. */
+  gpsFixRequest: number | null;
+  /** How many times the citizen tapped *Use my position*, counted from the tap. */
+  locationRequest: number;
   /** Where the pin points; `null` while the map is not on screen. */
   onPinChange: (pin: MapPin | null) => void;
   /** What the form can still do when the map is not on screen. */
@@ -58,7 +65,14 @@ export interface BaseMapProps {
  * through `pmtiles://`. A map that is missing or fails to load never blocks the form around it: it
  * shows a notice and, when it failed to load, offers to try again.
  */
-export function BaseMap({ gpsFix, onPinChange, unavailableHint, searchPlaces }: BaseMapProps) {
+export function BaseMap({
+  gpsFix,
+  gpsFixRequest,
+  locationRequest,
+  onPinChange,
+  unavailableHint,
+  searchPlaces,
+}: BaseMapProps) {
   // Expo inlines EXPO_PUBLIC_* variables at build time, only when written out in full like this.
   const styleUrl = process.env.EXPO_PUBLIC_MAP_STYLE_URL;
   const [failed, setFailed] = useState(false);
@@ -70,6 +84,9 @@ export function BaseMap({ gpsFix, onPinChange, unavailableHint, searchPlaces }: 
   const loadedRef = useRef(false);
   const pinSourceRef = useRef<PinSource>('startPoint');
   const latestFixRef = useRef(gpsFix);
+  // The `locationRequest` the citizen had made when they last placed the pin: a fix answering that
+  // tap or an earlier one was asked for before their choice, which wins.
+  const placedAtRequestRef = useRef(0);
 
   useEffect(() => {
     // A failed read leaves no fix: a map loaded again must not jump back to the old one.
@@ -81,6 +98,12 @@ export function BaseMap({ gpsFix, onPinChange, unavailableHint, searchPlaces }: 
       return;
     }
     latestFixRef.current = gpsFix;
+    // A fix can arrive seconds after the citizen chose where the incident is, even one they asked
+    // for before choosing: their latest choice wins until they ask for their position again.
+    const askedAfterPlacing = gpsFixRequest !== null && gpsFixRequest > placedAtRequestRef.current;
+    if (pinSourceRef.current === 'citizen' && !askedAfterPlacing) {
+      return;
+    }
     cameraRef.current?.easeTo({
       center: toLngLat(gpsFix),
       zoom: STREET_ZOOM,
@@ -90,7 +113,12 @@ export function BaseMap({ gpsFix, onPinChange, unavailableHint, searchPlaces }: 
       pinSourceRef.current = 'gpsFix';
       onPinChange({ latitude: gpsFix.latitude, longitude: gpsFix.longitude, source: 'gpsFix' });
     }
-  }, [gpsFix, onPinChange]);
+  }, [gpsFix, gpsFixRequest, onPinChange]);
+
+  function placedByCitizen() {
+    pinSourceRef.current = 'citizen';
+    placedAtRequestRef.current = locationRequest;
+  }
 
   function handleLoaded() {
     loadedRef.current = true;
@@ -114,7 +142,7 @@ export function BaseMap({ gpsFix, onPinChange, unavailableHint, searchPlaces }: 
     // The map also moves on its own, when it is centred on a new fix or kept inside its bounds;
     // that keeps the source. Only a move by the citizen makes the position theirs.
     if (nativeEvent.userInteraction) {
-      pinSourceRef.current = 'citizen';
+      placedByCitizen();
     }
     onPinChange({ ...fromLngLat(nativeEvent.center), source: pinSourceRef.current });
   }
@@ -129,7 +157,7 @@ export function BaseMap({ gpsFix, onPinChange, unavailableHint, searchPlaces }: 
       zoom: STREET_ZOOM,
       duration: RECENTER_DURATION_MS,
     });
-    pinSourceRef.current = 'citizen';
+    placedByCitizen();
     onPinChange({ latitude: place.latitude, longitude: place.longitude, source: 'citizen' });
   }
 

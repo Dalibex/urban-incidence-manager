@@ -45,6 +45,8 @@ const WASTE = {
 
 const LOCATED: UseIncidentLocationResult = {
   gpsFix: { latitude: 36.7213, longitude: -4.4214, accuracy: 12.5 },
+  locationRequest: 0,
+  gpsFixRequest: null,
   isLoading: false,
   error: null,
   permissionDenied: false,

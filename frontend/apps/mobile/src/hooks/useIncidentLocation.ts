@@ -10,6 +10,17 @@ export interface UseIncidentLocationResult {
    * once a read fails or the permission is denied.
    */
   gpsFix: GpsFix | null;
+  /**
+   * How many times the citizen tapped *Use my position*; it grows on the tap, before the fix
+   * arrives.
+   */
+  locationRequest: number;
+  /**
+   * The tap of *Use my position* that `gpsFix` answers, or `null` for a fix read on its own, when
+   * the screen opens or when the citizen comes back from the settings. Only a fix the citizen asked
+   * for after placing the pin may move it (#434).
+   */
+  gpsFixRequest: number | null;
   isLoading: boolean;
   error: string | null;
   permissionDenied: boolean;
@@ -84,13 +95,16 @@ async function readLocation(): Promise<LocationOutcome> {
  */
 export function useIncidentLocation(): UseIncidentLocationResult {
   const [gpsFix, setGpsFix] = useState<GpsFix | null>(null);
+  const [gpsFixRequest, setGpsFixRequest] = useState<number | null>(null);
+  const [locationRequest, setLocationRequest] = useState(0);
+  const locationRequestRef = useRef(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [permissionDenied, setPermissionDenied] = useState<boolean>(false);
   const permissionDeniedRef = useRef(false);
 
   /** Applies an outcome to the state; it must be used inside a callback, not in an effect body. */
-  const applyOutcome = useCallback((outcome: LocationOutcome) => {
+  const applyOutcome = useCallback((outcome: LocationOutcome, request: number | null) => {
     permissionDeniedRef.current = outcome.kind === 'denied';
     if (outcome.kind !== 'position') {
       // A read that failed says the last fix may no longer be where the phone is: keeping it would
@@ -108,6 +122,7 @@ export function useIncidentLocation(): UseIncidentLocationResult {
       return;
     }
     setGpsFix(outcome.fix);
+    setGpsFixRequest(request);
     setError(null);
   }, []);
 
@@ -115,17 +130,26 @@ export function useIncidentLocation(): UseIncidentLocationResult {
     // The mount read: state changes live in the promise callbacks, not in the effect body, and
     // `isLoading` already starts as `true`.
     void readLocation()
-      .then(applyOutcome)
+      .then((outcome) => applyOutcome(outcome, null))
       .finally(() => setIsLoading(false));
   }, [applyOutcome]);
 
-  const refreshLocation = useCallback(async () => {
-    // Immediate feedback while the permission and the GPS fix are requested.
-    setIsLoading(true);
-    setError(null);
-    applyOutcome(await readLocation());
-    setIsLoading(false);
-  }, [applyOutcome]);
+  const readAgain = useCallback(
+    async (request: number | null) => {
+      // Immediate feedback while the permission and the GPS fix are requested.
+      setIsLoading(true);
+      setError(null);
+      applyOutcome(await readLocation(), request);
+      setIsLoading(false);
+    },
+    [applyOutcome],
+  );
+
+  const refreshLocation = useCallback(() => {
+    locationRequestRef.current += 1;
+    setLocationRequest(locationRequestRef.current);
+    return readAgain(locationRequestRef.current);
+  }, [readAgain]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
@@ -136,14 +160,14 @@ export function useIncidentLocation(): UseIncidentLocationResult {
       Location.getForegroundPermissionsAsync()
         .then(({ status }) => {
           if (status === Location.PermissionStatus.GRANTED) {
-            void refreshLocation();
+            void readAgain(null);
           }
         })
         // The pin still works; the citizen can also tap "Use my position".
         .catch((cause: unknown) => console.warn('Could not check the location permission', cause));
     });
     return () => subscription.remove();
-  }, [refreshLocation]);
+  }, [readAgain]);
 
   const openSettings = useCallback(async () => {
     await Linking.openSettings();
@@ -151,6 +175,8 @@ export function useIncidentLocation(): UseIncidentLocationResult {
 
   return {
     gpsFix,
+    locationRequest,
+    gpsFixRequest,
     isLoading,
     error,
     permissionDenied,
