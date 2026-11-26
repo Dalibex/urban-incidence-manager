@@ -560,6 +560,44 @@ class EvidenceApiIT {
                         .isEqualTo(JPEG);
             }
 
+            // #279
+            @Test
+            @DisplayName(
+                    "the thumbnail in the reporter's listing is their photo, and they download it")
+            void reporterDownloadsTheThumbnailOfTheirListing() throws Exception {
+                // Arrange
+                String listing =
+                        mvc.perform(as(citizen, get(API + "/incidents")))
+                                .andExpect(status().isOk())
+                                .andReturn()
+                                .getResponse()
+                                .getContentAsString();
+                List<String> thumbnails =
+                        JsonPath.read(
+                                listing,
+                                "$.content[?(@.id == '" + incident + "')].thumbnailAttachmentId");
+                assertThat(thumbnails).containsExactly(byReporter.toString());
+
+                // Act
+                ResultActions result =
+                        mvc.perform(
+                                as(
+                                        citizen,
+                                        get(
+                                                API
+                                                        + "/attachments/"
+                                                        + thumbnails.get(0)
+                                                        + "/content")));
+
+                // Assert
+                assertThat(
+                                result.andExpect(status().isOk())
+                                        .andReturn()
+                                        .getResponse()
+                                        .getContentAsByteArray())
+                        .isEqualTo(JPEG);
+            }
+
             // Accepted limit of #284 (docs/security.md): the retry check is per incident, not per
             // uploader, so a citizen who already holds the same bytes gets the staff's attachment.
             @Test

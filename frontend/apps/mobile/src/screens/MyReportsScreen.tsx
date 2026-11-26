@@ -9,6 +9,7 @@ import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   Platform,
   Pressable,
   RefreshControl,
@@ -23,7 +24,13 @@ import { LoadFailure } from '../components/LoadFailure';
 import { LoadingSkeleton, SkeletonBlock } from '../components/Skeleton';
 import { StatusBadge } from '../components/StatusBadge';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
-import { incidentKeys, useMyReports, type ReportGroup } from '../incidents/incident-queries';
+import {
+  incidentKeys,
+  refetchFailedPhotos,
+  useAttachmentContent,
+  useMyReports,
+  type ReportGroup,
+} from '../incidents/incident-queries';
 import type { MainTabsParamList } from '../navigation/MainTabs';
 import type { MyReportsStackParamList } from '../navigation/MyReportsStack';
 import { screenStyles } from './styles';
@@ -58,7 +65,10 @@ export function MyReportsScreen({ navigation }: Props) {
     setPulling(true);
     try {
       // Every incident query, so a detail opened next does not show an older status than the list.
-      await queryClient.invalidateQueries({ queryKey: incidentKeys.all });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: incidentKeys.all }),
+        refetchFailedPhotos(queryClient),
+      ]);
     } finally {
       setPulling(false);
     }
@@ -169,6 +179,9 @@ function ReportRow({ incident, onPress }: { incident: IncidentSummary; onPress: 
       onPress={onPress}
       style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
     >
+      {typeof incident.thumbnailAttachmentId === 'string' && (
+        <Thumbnail attachmentId={incident.thumbnailAttachmentId} />
+      )}
       <View style={styles.rowContent}>
         <Text style={styles.rowTitle} numberOfLines={2}>
           {incident.title}
@@ -183,6 +196,28 @@ function ReportRow({ incident, onPress }: { incident: IncidentSummary; onPress: 
         <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
       )}
     </Pressable>
+  );
+}
+
+/**
+ * The first photo the citizen uploaded, decorative: the row says the same without it. While it
+ * loads or if it fails the row keeps a neutral square, with no message and no retry, so the list
+ * never breaks for a photo; the detail offers to try again.
+ */
+function Thumbnail({ attachmentId }: { attachmentId: string }) {
+  const content = useAttachmentContent(attachmentId);
+  if (!content.isSuccess) {
+    return <View style={styles.thumbnail} importantForAccessibility="no" />;
+  }
+  return (
+    <Image
+      source={{ uri: content.data }}
+      style={styles.thumbnail}
+      resizeMode="cover"
+      testID="report-thumbnail"
+      accessible={false}
+      importantForAccessibility="no"
+    />
   );
 }
 
@@ -259,6 +294,8 @@ function uniqueById(pages: readonly { content: IncidentSummary[] }[] | undefined
     });
 }
 
+const THUMBNAIL_SIZE = 56;
+
 const styles = StyleSheet.create({
   groups: {
     flexDirection: 'row',
@@ -300,6 +337,12 @@ const styles = StyleSheet.create({
     minHeight: MIN_TOUCH_SIZE,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+  },
+  thumbnail: {
+    width: THUMBNAIL_SIZE,
+    height: THUMBNAIL_SIZE,
+    borderRadius: 8,
+    backgroundColor: colors.surface,
   },
   rowContent: {
     flex: 1,

@@ -208,7 +208,8 @@ position is outside Málaga*, and an address that cannot be found says *Not avai
 - **Open:** still being handled.
 - **Closed:** finished, either closed or rejected.
 
-Scroll down to load more. Tap a report to see:
+A report with photos shows a small thumbnail of the first photo you uploaded. Scroll down to load
+more. Tap a report to see:
 
 - **Details:** its category (*Not set yet* when nobody has classified it), when it was reported,
   when it was last updated and, once closed, when it was closed.
@@ -219,7 +220,13 @@ Scroll down to load more. Tap a report to see:
   report shows as yours (*You*) and every other change as the *City council*'s. A rejection shows
   its **reason**. When the city needs more details, the entry shows a *Message from the city
   council*.
-- **Photos:** the photos of your report are not shown in the app yet (Planned: #279).
+- **Photos:** the photos you uploaded, oldest first, after the location; a report without photos
+  has no *Photos* section. A photo you add later appears when you go back to the report. If the
+  photos cannot be loaded, the section says so with *Try again*, and the rest of the report still
+  shows; a single photo that cannot be loaded says *This photo could not be loaded.* with its own
+  *Try again*, and one that was removed says *This photo is no longer available.* Pulling down to
+  refresh tries the photos that failed again. Photos added by the city council's staff are not
+  shown to you.
 
 You only see what the city shares with you: internal notes of the staff, priorities and who made
 each change are not shown to citizens.

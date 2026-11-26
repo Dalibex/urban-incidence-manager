@@ -12,12 +12,19 @@ import java.util.UUID;
  * {@code IncidentSummaryResponse}: one incident in a listing. {@code priority}, {@code address} and
  * {@code addressStatus} are staff-only, so a citizen gets a type without them rather than a {@code
  * null} (docs/api.md, "Absent and null"). The address lets a technician find the incident without
- * reading the map (#375).
+ * reading the map (#375). {@code thumbnailAttachmentId} is the other way round: only a citizen has
+ * it, and it is {@code null} when they uploaded no photo (#279).
  */
 public sealed interface IncidentSummaryResponse {
 
-    static IncidentSummaryResponse of(Incident incident, Role role) {
-        return role == Role.CITIZEN ? Citizen.of(incident) : Staff.of(incident);
+    /**
+     * @param thumbnailAttachmentId the first photo the citizen uploaded to the incident, or {@code
+     *     null}; only a citizen's summary has it, so it is ignored for staff
+     */
+    static IncidentSummaryResponse of(Incident incident, Role role, UUID thumbnailAttachmentId) {
+        return role == Role.CITIZEN
+                ? Citizen.of(incident, thumbnailAttachmentId)
+                : Staff.of(incident);
     }
 
     record Staff(
@@ -53,17 +60,19 @@ public sealed interface IncidentSummaryResponse {
             IncidentStatus status,
             CategorySummary category,
             Instant reportedAt,
-            Instant updatedAt)
+            Instant updatedAt,
+            UUID thumbnailAttachmentId)
             implements IncidentSummaryResponse {
 
-        static Citizen of(Incident incident) {
+        static Citizen of(Incident incident, UUID thumbnailAttachmentId) {
             return new Citizen(
                     incident.getId(),
                     incident.getTitle(),
                     incident.getStatus(),
                     CategorySummary.of(incident.getCategory()),
                     incident.getReportedAt().toInstant(),
-                    incident.getUpdatedAt().toInstant());
+                    incident.getUpdatedAt().toInstant(),
+                    thumbnailAttachmentId);
         }
     }
 }

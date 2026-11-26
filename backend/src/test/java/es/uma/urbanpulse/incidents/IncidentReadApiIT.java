@@ -22,6 +22,8 @@ import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -438,6 +440,110 @@ class IncidentReadApiIT {
         assertThat(statistics.getPrepareStatementCount()).isEqualTo(1);
     }
 
+    // #279: the thumbnail of a citizen's summary is their own first photo, never the staff's.
+    @Test
+    void citizenSummaryHasTheOldestPhotoTheyUploaded() throws Exception {
+        UUID incident = incident(citizenA, "REPORTED", MONDAY);
+        // Inserted newest first, so only the query's order can put Monday first.
+        photo(incident, citizenA, WEDNESDAY);
+        UUID oldest = photo(incident, citizenA, MONDAY);
+        photo(incident, citizenA, TUESDAY);
+
+        list(citizenA, "")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].thumbnailAttachmentId").value(oldest.toString()));
+    }
+
+    @Test
+    void citizenSummaryWithoutPhotosHasANullThumbnail() throws Exception {
+        incident(citizenA, "REPORTED", MONDAY);
+
+        String body = list(citizenA, "").andReturn().getResponse().getContentAsString();
+
+        assertThat(JsonPath.<Map<String, Object>>read(body, "$.content[0]"))
+                .containsKey("thumbnailAttachmentId")
+                .containsEntry("thumbnailAttachmentId", null);
+    }
+
+    @ParameterizedTest
+    @EnumSource(
+            value = Role.class,
+            names = {"MUNICIPAL_OPERATOR", "TECHNICIAN"})
+    void citizenSummaryIgnoresThePhotosOfStaff(Role staffRole) throws Exception {
+        UUID staff = staffRole == Role.TECHNICIAN ? technician : operator;
+        UUID onlyStaff = incident(citizenA, "REPORTED", MONDAY);
+        photo(onlyStaff, staff, MONDAY);
+        UUID staffFirst = incident(citizenA, "REPORTED", TUESDAY);
+        photo(staffFirst, staff, MONDAY);
+        UUID own = photo(staffFirst, citizenA, TUESDAY);
+
+        String body = list(citizenA, "").andReturn().getResponse().getContentAsString();
+
+        assertThat(thumbnailOf(body, onlyStaff)).isNull();
+        assertThat(thumbnailOf(body, staffFirst)).isEqualTo(own.toString());
+    }
+
+    @ParameterizedTest
+    @EnumSource(
+            value = Role.class,
+            names = {"MUNICIPAL_OPERATOR", "TECHNICIAN", "ADMINISTRATOR"})
+    void staffSummaryHasNoThumbnail(Role staffRole) throws Exception {
+        UUID incident = incident(citizenA, "ASSIGNED", MONDAY);
+        photo(incident, citizenA, MONDAY);
+        // A technician only lists what is assigned to them.
+        assign(incident, technician, true);
+        UUID staff =
+                switch (staffRole) {
+                    case TECHNICIAN -> technician;
+                    case ADMINISTRATOR -> administrator;
+                    default -> operator;
+                };
+
+        String body = list(staff, "").andReturn().getResponse().getContentAsString();
+
+        assertThat(JsonPath.<List<Object>>read(body, "$.content[*].thumbnailAttachmentId"))
+                .isEmpty();
+        assertThat(JsonPath.<List<Object>>read(body, "$.content[?(@.id == '" + incident + "')]"))
+                .hasSize(1);
+    }
+
+    @Test
+    void citizenSummaryBreaksATieOnTheUploadInstantWithTheSmallerId() throws Exception {
+        UUID incident = incident(citizenA, "REPORTED", MONDAY);
+        // PostgreSQL compares uuid byte by byte, so 0000... is the smaller one; inserted last.
+        UUID larger = UUID.fromString("ffffffff-ffff-4fff-bfff-ffffffffffff");
+        UUID smaller = UUID.fromString("00000000-0000-4000-8000-000000000001");
+        photo(larger, incident, citizenA, MONDAY);
+        photo(smaller, incident, citizenA, MONDAY);
+
+        list(citizenA, "")
+                .andExpect(status().isOk())
+                .andExpect(
+                        jsonPath("$.content[0].thumbnailAttachmentId").value(smaller.toString()));
+    }
+
+    @Test
+    void listingAPageOfCitizenIncidentsWithPhotosRunsTheSameNumberOfQueriesWhateverItsSize()
+            throws Exception {
+        for (int i = 0; i < 21; i++) {
+            photo(
+                    incident(citizenA, "VALIDATED", MONDAY.plusSeconds(i), newCategory()),
+                    citizenA,
+                    MONDAY);
+        }
+        for (int i = 0; i < 3; i++) {
+            photo(
+                    incident(citizenB, "VALIDATED", MONDAY.plusSeconds(i), newCategory()),
+                    citizenB,
+                    MONDAY);
+        }
+
+        long small = statementsFor(citizenB, 2);
+        long large = statementsFor(citizenA, 20);
+
+        assertThat(large).as("statements for a page of 20 vs a page of 2").isEqualTo(small);
+    }
+
     // T14: every response of this class is checked against the contract by ApiContract (#111);
     // this test only makes sure the three endpoints are called by a citizen and by staff, whose
     // responses use different properties.
@@ -518,6 +624,32 @@ class IncidentReadApiIT {
                 REOPENING_REASON,
                 true);
         return incident;
+    }
+
+    /** A row of {@code attachment}; the file itself is not needed to list incidents. */
+    private UUID photo(UUID incident, UUID uploader, Instant uploadedAt) {
+        return photo(UUID.randomUUID(), incident, uploader, uploadedAt);
+    }
+
+    private UUID photo(UUID id, UUID incident, UUID uploader, Instant uploadedAt) {
+        return jdbc.queryForObject(
+                "INSERT INTO attachment (id, incident_id, uploader_id, file_name, file_type,"
+                        + " file_size, storage_key, content_hash, uploaded_at)"
+                        + " VALUES (?, ?, ?, 'photo.jpg', 'image/jpeg', 4, ?, ?, ?) RETURNING id",
+                UUID.class,
+                id,
+                incident,
+                uploader,
+                UUID.randomUUID().toString(),
+                (UUID.randomUUID().toString() + UUID.randomUUID()).replace("-", ""),
+                Timestamp.from(uploadedAt));
+    }
+
+    private static String thumbnailOf(String pageBody, UUID incident) {
+        List<String> found =
+                JsonPath.read(
+                        pageBody, "$.content[?(@.id == '" + incident + "')].thumbnailAttachmentId");
+        return found.get(0);
     }
 
     private UUID user(Role role) {
