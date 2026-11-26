@@ -1,4 +1,9 @@
-import { listIncidents, type components, type IncidentListQuery } from '@urbanpulse/api-client';
+import {
+  getAttachmentContent,
+  listIncidents,
+  type components,
+  type IncidentListQuery,
+} from '@urbanpulse/api-client';
 import { FINAL_STATUSES, OPEN_STATUSES } from '@urbanpulse/domain';
 import { SKELETON_DELAY_MS } from '@urbanpulse/ui';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
@@ -7,7 +12,14 @@ import type { ComponentProps } from 'react';
 import { failed, ok, renderWithQueries } from '../test-utils';
 import { MyReportsScreen } from './MyReportsScreen';
 
-jest.mock('@urbanpulse/api-client', () => ({ listIncidents: jest.fn() }));
+jest.mock('@urbanpulse/api-client', () => ({
+  getAttachmentContent: jest.fn(),
+  listIncidents: jest.fn(),
+}));
+// A Blob cannot be read here; what the conversion does is tested in its own file.
+jest.mock('../attachments/blob-uri', () => ({
+  blobToDataUri: jest.fn(async () => 'data:image/jpeg;base64,AAAA'),
+}));
 jest.mock('../session/SessionContext', () => ({ useSession: () => ({ api: {} }) }));
 // Rendered without a navigator: coming back into focus is not part of these tests.
 jest.mock('@react-navigation/native', () => ({ useFocusEffect: jest.fn() }));
@@ -18,9 +30,16 @@ type IncidentSummary = components['schemas']['IncidentSummaryResponse'];
 type Navigation = ComponentProps<typeof MyReportsScreen>['navigation'];
 
 const mockedListIncidents = jest.mocked(listIncidents);
+const mockedGetContent = jest.mocked(getAttachmentContent);
 
-function summary(id: string, title: string, status: IncidentSummary['status']): IncidentSummary {
+function summary(
+  id: string,
+  title: string,
+  status: IncidentSummary['status'],
+  thumbnailAttachmentId: string | null = null,
+): IncidentSummary {
   return {
+    thumbnailAttachmentId,
     id,
     title,
     status,
@@ -65,6 +84,7 @@ function pending<T>(): Promise<T> {
 
 beforeEach(() => {
   mockedListIncidents.mockReset();
+  mockedGetContent.mockReset().mockResolvedValue(ok(new Blob(['x'])));
 });
 
 describe('MyReportsScreen', () => {
@@ -239,5 +259,58 @@ describe('MyReportsScreen', () => {
 
     expect(await screen.findByText(/could not be refreshed/)).toBeOnTheScreen();
     expect(screen.getByText('Street light off')).toBeOnTheScreen();
+  });
+
+  // #279, T4: the app uses the id the API gives and never lists the attachments of a row.
+  it('shows the thumbnail of a report that has one, and loads only that photo (#279 T4)', async () => {
+    serve([
+      [summary('a', 'Street light off', 'REPORTED', 'p1'), summary('b', 'Pothole', 'REPORTED')],
+    ]);
+    await renderScreen();
+
+    expect(await screen.findByTestId('report-thumbnail')).toBeOnTheScreen();
+    expect(screen.getAllByTestId('report-thumbnail')).toHaveLength(1);
+    expect(mockedGetContent).toHaveBeenCalledTimes(1);
+    expect(mockedGetContent).toHaveBeenCalledWith(expect.anything(), 'p1');
+  });
+
+  // #279, T3
+  it('shows no thumbnail and requests no photo for reports without one (#279 T3)', async () => {
+    serve([[summary('a', 'Street light off', 'REPORTED')]]);
+    await renderScreen();
+
+    expect(await screen.findByText('Street light off')).toBeOnTheScreen();
+    expect(screen.queryByTestId('report-thumbnail')).not.toBeOnTheScreen();
+    expect(mockedGetContent).not.toHaveBeenCalled();
+  });
+
+  // #279, T13
+  it('keeps the row intact, without a message, when its thumbnail fails (#279 T13)', async () => {
+    serve([[summary('a', 'Street light off', 'REPORTED', 'p1')]]);
+    mockedGetContent.mockResolvedValue(failed({ kind: 'problem', status: 404, code: undefined }));
+    await renderScreen();
+
+    const row = await screen.findByRole('button', { name: /^Street light off, Reported/ });
+    await waitFor(() => expect(mockedGetContent).toHaveBeenCalled());
+    expect(row).toBeOnTheScreen();
+    expect(screen.queryByTestId('report-thumbnail')).not.toBeOnTheScreen();
+    expect(screen.queryByText(/could not be loaded/)).not.toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeOnTheScreen();
+  });
+
+  it('loads a thumbnail that failed when the citizen pulls to refresh', async () => {
+    serve([[summary('a', 'Street light off', 'REPORTED', 'p1')]]);
+    mockedGetContent.mockResolvedValue(failed({ kind: 'problem', status: 500, code: undefined }));
+    await renderScreen();
+    await screen.findByRole('button', { name: /^Street light off, Reported/ });
+    await waitFor(() => expect(mockedGetContent).toHaveBeenCalled());
+    expect(screen.queryByTestId('report-thumbnail')).not.toBeOnTheScreen();
+
+    mockedGetContent.mockResolvedValue(ok(new Blob(['x'])));
+    await act(async () => {
+      await screen.getByTestId('my-reports-list').props.refreshControl.props.onRefresh();
+    });
+
+    expect(await screen.findByTestId('report-thumbnail')).toBeOnTheScreen();
   });
 });

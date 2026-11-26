@@ -1,5 +1,7 @@
 import {
+  getAttachmentContent,
   getIncident,
+  listIncidentAttachments,
   listIncidentClassificationChanges,
   listIncidentStatusChanges,
   type components,
@@ -12,18 +14,27 @@ import { failed, ok, renderWithQueries } from '../test-utils';
 import { IncidentDetailScreen } from './IncidentDetailScreen';
 
 jest.mock('@urbanpulse/api-client', () => ({
+  getAttachmentContent: jest.fn(),
   getIncident: jest.fn(),
+  listIncidentAttachments: jest.fn(),
   listIncidentClassificationChanges: jest.fn(),
   listIncidentStatusChanges: jest.fn(),
+}));
+// A Blob cannot be read here; what the conversion does is tested in its own file.
+jest.mock('../attachments/blob-uri', () => ({
+  blobToDataUri: jest.fn(async () => 'data:image/jpeg;base64,AAAA'),
 }));
 jest.mock('../session/SessionContext', () => ({ useSession: () => ({ api: {} }) }));
 
 type Incident = components['schemas']['IncidentResponse'];
+type Attachment = components['schemas']['AttachmentResponse'];
 type StatusChange = components['schemas']['StatusChangeResponse'];
 type Props = ComponentProps<typeof IncidentDetailScreen>;
 
 const mockedGetIncident = jest.mocked(getIncident);
 const mockedListStatusChanges = jest.mocked(listIncidentStatusChanges);
+const mockedListAttachments = jest.mocked(listIncidentAttachments);
+const mockedGetContent = jest.mocked(getAttachmentContent);
 
 // What the API returns to a citizen: no priority, version, actor or visibleToCitizen.
 const INCIDENT: Incident = {
@@ -51,6 +62,16 @@ const INCIDENT: Incident = {
   closedAt: null,
 };
 
+function photo(id: string): Attachment {
+  return {
+    id,
+    fileName: `${id}.jpg`,
+    contentType: 'image/jpeg',
+    size: 1000,
+    uploadedAt: '2026-11-02T10:00:12Z',
+  };
+}
+
 function change(
   id: string,
   previousStatus: StatusChange['previousStatus'],
@@ -72,6 +93,8 @@ async function renderScreen(navigation = { navigate: jest.fn() }) {
 beforeEach(() => {
   mockedGetIncident.mockReset().mockResolvedValue(ok(INCIDENT));
   mockedListStatusChanges.mockReset().mockResolvedValue(ok([]));
+  mockedListAttachments.mockReset().mockResolvedValue(ok([]));
+  mockedGetContent.mockReset().mockResolvedValue(ok(new Blob(['x'])));
 });
 
 describe('IncidentDetailScreen', () => {
@@ -268,6 +291,119 @@ describe('IncidentDetailScreen', () => {
     await fireEvent.press(await screen.findByRole('button', { name: 'Add photos' }));
 
     expect(navigation.navigate).toHaveBeenCalledWith('AddPhotos', { incidentId: 'a' });
+  });
+
+  // #279, T1: the photos the API returns, nothing else.
+  it('shows the photos of the report and asks only for those of this report (#279 T1)', async () => {
+    mockedListAttachments.mockResolvedValue(ok([photo('p1'), photo('p2')]));
+    await renderScreen();
+
+    expect(await screen.findByLabelText('Photo 1 of 2')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Photo 2 of 2')).toBeOnTheScreen();
+    expect(screen.getByText('Photos')).toBeOnTheScreen();
+    expect(mockedListAttachments).toHaveBeenCalledWith(expect.anything(), 'a');
+    expect(mockedGetContent.mock.calls.map(([, id]) => id).sort()).toEqual(['p1', 'p2']);
+  });
+
+  // #279, T3
+  it('shows no gallery and no error when the report has no photos (#279 T3)', async () => {
+    await renderScreen();
+
+    await screen.findByText('Street light off');
+    await screen.findByText('History');
+    expect(mockedListAttachments).toHaveBeenCalled();
+    expect(screen.queryByText('Photos')).not.toBeOnTheScreen();
+    expect(screen.queryByText(/photos could not be loaded/)).not.toBeOnTheScreen();
+    expect(mockedGetContent).not.toHaveBeenCalled();
+  });
+
+  // #279, T8
+  it('keeps the report when the photos fail, and loads them again on retry (#279 T8)', async () => {
+    mockedListAttachments.mockResolvedValue(
+      failed({ kind: 'problem', status: 500, code: undefined }),
+    );
+    await renderScreen();
+
+    expect(await screen.findByText(/The photos could not be loaded/)).toBeOnTheScreen();
+    expect(screen.getByText('Street light off')).toBeOnTheScreen();
+    expect(screen.getByText('Calle Larios 12')).toBeOnTheScreen();
+
+    mockedListAttachments.mockResolvedValue(ok([photo('p1')]));
+    await fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
+
+    expect(await screen.findByLabelText('Photo 1 of 1')).toBeOnTheScreen();
+    expect(screen.queryByText(/The photos could not be loaded/)).not.toBeOnTheScreen();
+  });
+
+  // #279, T7
+  it('shows the photos that load when one fails, and tries only that one again (#279 T7)', async () => {
+    mockedListAttachments.mockResolvedValue(ok([photo('p1'), photo('p2')]));
+    mockedGetContent.mockImplementation(async (_api, id) =>
+      id === 'p2' ? failed({ kind: 'problem', status: 500, code: undefined }) : ok(new Blob(['x'])),
+    );
+    await renderScreen();
+
+    expect(await screen.findByLabelText('Photo 1 of 2')).toBeOnTheScreen();
+    expect(await screen.findByText('This photo could not be loaded.')).toBeOnTheScreen();
+    expect(screen.queryByLabelText('Photo 2 of 2')).not.toBeOnTheScreen();
+    expect(screen.getByText('Street light off')).toBeOnTheScreen();
+
+    mockedGetContent.mockClear().mockResolvedValue(ok(new Blob(['x'])));
+    await fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
+
+    expect(await screen.findByLabelText('Photo 2 of 2')).toBeOnTheScreen();
+    expect(mockedGetContent).toHaveBeenCalledTimes(1);
+    expect(mockedGetContent).toHaveBeenCalledWith(expect.anything(), 'p2');
+  });
+
+  // #279, T12: the photo is gone, so trying again would get the same answer.
+  it('says a photo is no longer available, without offering to try again (#279 T12)', async () => {
+    mockedListAttachments.mockResolvedValue(ok([photo('p1'), photo('p2')]));
+    mockedGetContent.mockImplementation(async (_api, id) =>
+      id === 'p2' ? failed({ kind: 'problem', status: 404, code: undefined }) : ok(new Blob(['x'])),
+    );
+    await renderScreen();
+
+    expect(await screen.findByText('This photo is no longer available.')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Photo 1 of 2')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeOnTheScreen();
+  });
+
+  // #279, T3: no header while the list loads, so the layout does not jump.
+  it('shows no Photos header while the list loads (#279 T3)', async () => {
+    mockedListAttachments.mockReturnValue(new Promise(() => undefined));
+    await renderScreen();
+
+    await screen.findByText('History');
+    expect(screen.queryByText('Photos')).not.toBeOnTheScreen();
+    expect(screen.queryByLabelText('Loading the photos')).not.toBeOnTheScreen();
+  });
+
+  it('keeps the photos on screen when a refresh of the list fails, and says so', async () => {
+    mockedListAttachments.mockResolvedValue(ok([photo('p1')]));
+    const queryClient = await renderScreen();
+    expect(await screen.findByLabelText('Photo 1 of 1')).toBeOnTheScreen();
+    mockedListAttachments.mockResolvedValue(failed({ kind: 'network' }));
+
+    await queryClient.invalidateQueries();
+
+    expect(await screen.findByText(/could not be refreshed/)).toBeOnTheScreen();
+    expect(screen.getByLabelText('Photo 1 of 1')).toBeOnTheScreen();
+    expect(screen.queryByText(/The photos could not be loaded/)).not.toBeOnTheScreen();
+  });
+
+  it('loads again a photo that failed when the citizen pulls to refresh', async () => {
+    mockedListAttachments.mockResolvedValue(ok([photo('p1')]));
+    mockedGetContent.mockResolvedValue(failed({ kind: 'problem', status: 500, code: undefined }));
+    await renderScreen();
+    expect(await screen.findByText('This photo could not be loaded.')).toBeOnTheScreen();
+
+    mockedGetContent.mockResolvedValue(ok(new Blob(['x'])));
+    await act(async () => {
+      await screen.getByTestId('report-detail').props.refreshControl.props.onRefresh();
+    });
+
+    expect(await screen.findByLabelText('Photo 1 of 1')).toBeOnTheScreen();
   });
 
   it('does not offer photos once the report left REPORTED, as the API refuses them', async () => {

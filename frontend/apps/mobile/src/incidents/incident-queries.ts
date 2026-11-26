@@ -1,12 +1,15 @@
 import {
+  getAttachmentContent,
   getIncident,
   listCategories,
+  listIncidentAttachments,
   listIncidents,
   listIncidentStatusChanges,
 } from '@urbanpulse/api-client';
 import { FINAL_STATUSES, OPEN_STATUSES, type IncidentStatus } from '@urbanpulse/domain';
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, type QueryClient } from '@tanstack/react-query';
 
+import { blobToDataUri } from '../attachments/blob-uri';
 import { dataOf } from '../query-client';
 import { useSession } from '../session/SessionContext';
 
@@ -30,6 +33,13 @@ export const incidentKeys = {
   myReports: (group: ReportGroup) => ['incidents', 'mine', group] as const,
   detail: (incidentId: string) => ['incidents', incidentId] as const,
   history: (incidentId: string) => ['incidents', incidentId, 'status-changes'] as const,
+  // Under `all`, so refreshing the incidents refreshes the photos too.
+  attachments: (incidentId: string) => ['incidents', incidentId, 'attachments'] as const,
+};
+
+export const attachmentKeys = {
+  all: ['attachments'] as const,
+  content: (attachmentId: string) => ['attachments', attachmentId, 'content'] as const,
 };
 
 /**
@@ -69,6 +79,40 @@ export function useIncidentHistory(incidentId: string) {
   return useQuery({
     queryKey: incidentKeys.history(incidentId),
     queryFn: () => dataOf(listIncidentStatusChanges(api, incidentId)),
+  });
+}
+
+/** The photos the citizen uploaded to the report: the API leaves out any other. */
+export function useIncidentAttachments(incidentId: string) {
+  const { api } = useSession();
+  return useQuery({
+    queryKey: incidentKeys.attachments(incidentId),
+    queryFn: () => dataOf(listIncidentAttachments(api, incidentId)),
+  });
+}
+
+/**
+ * The file of one photo as a URI for `Image`, downloaded with the session's token, never through a
+ * public URL.
+ */
+export function useAttachmentContent(attachmentId: string) {
+  const { api } = useSession();
+  return useQuery({
+    queryKey: attachmentKeys.content(attachmentId),
+    queryFn: async () => blobToDataUri(await dataOf(getAttachmentContent(api, attachmentId))),
+    // A stored photo never changes, so it is not downloaded again.
+    staleTime: Infinity,
+  });
+}
+
+/**
+ * Downloads again the photos that failed. They live outside {@link incidentKeys}, so a pull to
+ * refresh does not reach them; a photo already loaded never changes and is left alone.
+ */
+export function refetchFailedPhotos(queryClient: QueryClient): Promise<void> {
+  return queryClient.refetchQueries({
+    queryKey: attachmentKeys.all,
+    predicate: (query) => query.state.status === 'error',
   });
 }
 

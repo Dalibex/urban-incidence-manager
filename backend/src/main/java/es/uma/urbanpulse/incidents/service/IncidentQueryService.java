@@ -7,12 +7,16 @@ import es.uma.urbanpulse.incidents.dto.IncidentStatisticsResponse;
 import es.uma.urbanpulse.incidents.dto.IncidentSummaryResponse;
 import es.uma.urbanpulse.incidents.dto.StatusChangeResponse;
 import es.uma.urbanpulse.incidents.entity.Incident;
+import es.uma.urbanpulse.incidents.repository.AttachmentRepository;
 import es.uma.urbanpulse.incidents.repository.IncidentRepository;
 import es.uma.urbanpulse.incidents.repository.StatusChangeRepository;
 import es.uma.urbanpulse.shared.web.PageResponse;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -35,11 +39,15 @@ public class IncidentQueryService {
 
     private final IncidentRepository incidents;
     private final StatusChangeRepository statusChanges;
+    private final AttachmentRepository attachments;
 
     public IncidentQueryService(
-            IncidentRepository incidents, StatusChangeRepository statusChanges) {
+            IncidentRepository incidents,
+            StatusChangeRepository statusChanges,
+            AttachmentRepository attachments) {
         this.incidents = incidents;
         this.statusChanges = statusChanges;
+        this.attachments = attachments;
     }
 
     /**
@@ -55,9 +63,28 @@ public class IncidentQueryService {
         }
         planForTheText(filter);
         var visible = IncidentReadAccess.visibleTo(userId, role).and(filter.specification());
+        var found = incidents.findAll(visible, page);
+        var thumbnails =
+                role == Role.CITIZEN ? firstOwnPhotos(userId, found) : Map.<UUID, UUID>of();
         return PageResponse.of(
-                incidents.findAll(visible, page),
-                incident -> IncidentSummaryResponse.of(incident, role));
+                found,
+                incident ->
+                        IncidentSummaryResponse.of(
+                                incident, role, thumbnails.get(incident.getId())));
+    }
+
+    /** One query for the whole page, not one per incident: incident id to its first own photo. */
+    private Map<UUID, UUID> firstOwnPhotos(UUID citizenId, Page<Incident> found) {
+        if (found.isEmpty()) {
+            return Map.of();
+        }
+        var ids = found.map(Incident::getId).toList();
+        var firstPerIncident = new HashMap<UUID, UUID>();
+        // They come oldest first: keep the first of each incident.
+        for (var photo : attachments.findPhotosOfIncidentsUploadedBy(ids, citizenId)) {
+            firstPerIncident.putIfAbsent(photo.incidentId(), photo.attachmentId());
+        }
+        return firstPerIncident;
     }
 
     /**
