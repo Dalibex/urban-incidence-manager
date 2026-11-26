@@ -137,22 +137,35 @@ export function useLatestIncidents(filters: IncidentFilters) {
 }
 
 /**
- * @param refetchInterval how often to read it again while it is shown, in ms; the map's summary
- *   reads it with the markers, so it never shows an older status than its marker (#287)
+ * One incident. While its address is `PENDING`, it is read again every 15 s, up to two minutes, so
+ * the address the worker resolves after the report replaces *Looking up the address…* (#436).
+ *
+ * @param refetchInterval how often to read it again while it is shown, in ms, whatever its address;
+ *   the map's summary reads it with the markers, so it never shows an older status than its marker
+ *   (#287)
  */
 export function useIncident(incidentId: string, refetchInterval?: number) {
   const { api } = useSession();
   return useQuery({
     queryKey: incidentKeys.detail(incidentId),
     queryFn: () => dataOf(getIncident(api, incidentId)),
-    refetchInterval,
+    refetchInterval:
+      refetchInterval ??
+      ((query) =>
+        waitingFor(query.state, (incident) => incident.location.addressStatus === 'PENDING') ===
+        'polling'
+          ? PENDING_CONTEXT_INTERVAL_MS
+          : false),
   });
 }
 
-/** How often a pending weather is read again: the backend's worker runs every 30 s (ADR-0018). */
+/**
+ * How often a pending weather or address is read again: the backend's workers run every 30 s
+ * (ADR-0018, #375).
+ */
 export const PENDING_CONTEXT_INTERVAL_MS = 15_000;
 
-/** Reads of a pending weather before the section stops on its own: two minutes in all. */
+/** Reads of a pending weather or address before the screen stops on its own: two minutes in all. */
 export const PENDING_CONTEXT_CHECKS = 8;
 
 /**
@@ -167,25 +180,34 @@ export function useIncidentUrbanContext(incidentId: string) {
     queryKey,
     queryFn: () => dataOf(getIncidentUrbanContext(api, incidentId)),
     refetchInterval: (query) =>
-      waitingForWeather(query.state) === 'polling' ? PENDING_CONTEXT_INTERVAL_MS : false,
+      waitingFor(query.state, weatherPending) === 'polling' ? PENDING_CONTEXT_INTERVAL_MS : false,
   });
   // Read again on every answer (dataUpdatedAt changes with each one), so the count is current.
   const state =
     context.dataUpdatedAt > 0
       ? queryClient.getQueryState<components['schemas']['UrbanContextResponse']>(queryKey)
       : undefined;
-  return { context, stoppedWaiting: state ? waitingForWeather(state) === 'stopped' : false };
+  return {
+    context,
+    stoppedWaiting: state ? waitingFor(state, weatherPending) === 'stopped' : false,
+  };
+}
+
+function weatherPending(context: components['schemas']['UrbanContextResponse']): boolean {
+  return context.status === 'PENDING';
 }
 
 /**
- * Whether a pending weather is still read on its own. Only successful reads count, and a failed
- * read stops it too: the section then shows the failure with *Try again*, never a poll that keeps
- * failing. The count belongs to the cached query, so it survives a navigation while it is kept.
+ * Whether data a worker has still to fill in is read again on its own. Only successful reads
+ * count, and a failed read stops it too: the screen then shows the failure with *Try again*, never
+ * a poll that keeps failing. The count belongs to the cached query, so it survives a navigation
+ * while it is kept.
  */
-function waitingForWeather(
-  state: QueryState<components['schemas']['UrbanContextResponse']>,
+function waitingFor<T>(
+  state: QueryState<T>,
+  pending: (data: T) => boolean,
 ): 'polling' | 'stopped' | 'no' {
-  if (state.status !== 'success' || state.data?.status !== 'PENDING') {
+  if (state.status !== 'success' || state.data === undefined || !pending(state.data)) {
     return 'no';
   }
   return state.dataUpdateCount <= PENDING_CONTEXT_CHECKS ? 'polling' : 'stopped';

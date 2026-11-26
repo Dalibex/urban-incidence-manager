@@ -10,6 +10,7 @@ import { act, fireEvent, screen, within } from '@testing-library/react-native';
 import { SKELETON_DELAY_MS } from '@urbanpulse/ui';
 import type { ComponentProps } from 'react';
 
+import { PENDING_ADDRESS_CHECKS, PENDING_ADDRESS_INTERVAL_MS } from '../incidents/incident-queries';
 import { failed, ok, renderWithQueries } from '../test-utils';
 import { IncidentDetailScreen } from './IncidentDetailScreen';
 
@@ -224,6 +225,77 @@ describe('IncidentDetailScreen', () => {
     expect(screen.getByText(text)).toBeOnTheScreen();
     expect(screen.queryByText('© OpenStreetMap contributors')).not.toBeOnTheScreen();
     expect(screen.queryByText('Calle Larios 12')).not.toBeOnTheScreen();
+  });
+
+  // #436: the worker resolves the address some seconds after the report.
+  describe('while the address is being looked up', () => {
+    const PENDING_ADDRESS: Incident = {
+      ...INCIDENT,
+      location: {
+        ...INCIDENT.location,
+        address: null,
+        addressStatus: 'PENDING',
+        addressSource: null,
+      },
+    };
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    async function advance(ms: number) {
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(ms);
+      });
+    }
+
+    it('shows the address once the worker resolved it, and stops reading', async () => {
+      mockedGetIncident.mockResolvedValue(ok(PENDING_ADDRESS));
+      await renderScreen();
+      expect(await screen.findByText('Looking up the address…')).toBeOnTheScreen();
+
+      mockedGetIncident.mockResolvedValue(ok(INCIDENT));
+      await advance(PENDING_ADDRESS_INTERVAL_MS);
+
+      expect(screen.getByText('Calle Larios 12')).toBeOnTheScreen();
+      expect(screen.queryByText('Looking up the address…')).not.toBeOnTheScreen();
+      const reads = mockedGetIncident.mock.calls.length;
+      await advance(PENDING_ADDRESS_INTERVAL_MS * 4);
+      expect(mockedGetIncident).toHaveBeenCalledTimes(reads);
+    });
+
+    it('stops on its own after two minutes', async () => {
+      mockedGetIncident.mockResolvedValue(ok(PENDING_ADDRESS));
+      await renderScreen();
+      await screen.findByText('Looking up the address…');
+
+      await advance(PENDING_ADDRESS_INTERVAL_MS * PENDING_ADDRESS_CHECKS);
+      expect(mockedGetIncident).toHaveBeenCalledTimes(PENDING_ADDRESS_CHECKS + 1);
+
+      await advance(PENDING_ADDRESS_INTERVAL_MS * 4);
+      expect(mockedGetIncident).toHaveBeenCalledTimes(PENDING_ADDRESS_CHECKS + 1);
+    });
+
+    it('keeps the report when a read fails, and stops reading', async () => {
+      mockedGetIncident.mockResolvedValue(ok(PENDING_ADDRESS));
+      await renderScreen();
+      await screen.findByText('Looking up the address…');
+
+      mockedGetIncident.mockResolvedValue(failed({ kind: 'network' }));
+      await advance(PENDING_ADDRESS_INTERVAL_MS);
+
+      expect(
+        screen.getByText('The report could not be refreshed. This is the last version loaded.'),
+      ).toBeOnTheScreen();
+      expect(screen.getByText('Looking up the address…')).toBeOnTheScreen();
+      const reads = mockedGetIncident.mock.calls.length;
+      await advance(PENDING_ADDRESS_INTERVAL_MS * 4);
+      expect(mockedGetIncident).toHaveBeenCalledTimes(reads);
+    });
   });
 
   it('shows only a not found message for an incident the API does not return (#68 T6)', async () => {

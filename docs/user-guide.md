@@ -215,7 +215,9 @@ more. Tap a report to see:
   when it was last updated and, once closed, when it was closed.
 - **Location:** address, neighbourhood, district, coordinates and accuracy; *Not available* when
   a value is not known. The address shows *© OpenStreetMap contributors* under it, the source it
-  comes from, or why there is none: *Looking up the address…* or *outside Málaga*.
+  comes from, or why there is none: *Looking up the address…* or *outside Málaga*. While it is
+  being looked up, the report checks again on its own for two minutes; after that, pull down to
+  refresh.
 - **History:** a timeline of each change of status, oldest first, with its date and time. Your
   report shows as yours (*You*) and every other change as the *City council*'s. A rejection shows
   its **reason**. When the city needs more details, the entry shows a *Message from the city
@@ -243,8 +245,8 @@ The menu at the top shows *Inbox* and *Map*.
 
 The incidents, newest first, a page at a time, with the date it was reported, title, street
 address, category, status and priority. A category or priority that is not set shows *Not
-classified* or *Not set*; an address that is not there yet says *Looking up the address…*, and one
-outside Málaga or not found says so.
+classified* or *Not set*; an address that is not there yet says *Looking up the address…* until the
+list loads again, and one outside Málaga or not found says so.
 
 The menu and the sign-in open it with the filters you last used on it in this browser, and on the
 reports waiting for a review the first time: the status *Reported* is ticked. *Clear filters* lists
@@ -282,8 +284,9 @@ every incident, and the menu and the sign-in then open it that way.
   (for example *within 12.5 m*). A value that is not known says *Not available*: it is never left
   empty or guessed. The address, such as *Calle Larios, 5, 29005 Málaga*, is looked up from the
   position after the report and comes with *© OpenStreetMap contributors*, which opens the source;
-  until then it says *Looking up the address…*, and a position outside Málaga says so. Reload the
-  page to see an address that has just arrived.
+  until then it says *Looking up the address…* and checks again on its own for two minutes, so the
+  address shows up without a reload; after that, reload the page to look again. A position outside
+  Málaga says so.
 - **Context:** the weather at the incident's position when it was reported, such as *Rainy*, with
   the time it was recorded and *Weather data by Open-Meteo.com*, which opens the source. The weather
   arrives some seconds after the report: until then it says *Getting the weather…* and checks again
