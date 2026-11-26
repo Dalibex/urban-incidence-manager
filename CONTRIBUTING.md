@@ -6,7 +6,7 @@ UrbanPulse is built by a university team. This guide says how to take part in it
 | --- | --- | --- |
 | [🌍 For everyone](#-for-everyone) | Anyone | [Report a bug or request a feature](#report-a-bug-or-request-a-feature) · [Report a vulnerability](#report-a-vulnerability) · [Propose a change](#propose-a-change) |
 | [📏 Conventions for every change](#-conventions-for-every-change) | Every change, whoever makes it | [Failure and limit cases](#failure-and-limit-cases) · [Branches](#branches) · [Commits](#commits) · [Pull requests](#pull-requests) · [Changelog](#changelog) · [Architecture decisions](#architecture-decisions) |
-| [👥 Team workflow](#-team-workflow) | The team members, who have write access | [Team and roles](#team-and-roles) · [Workflow at a glance](#workflow-at-a-glance) · [Issues](#issues) · [Testing lifecycle](#testing-lifecycle) · [Dependabot pull requests](#dependabot-pull-requests) · [Review and merge](#review-and-merge) · [Sprint review](#sprint-review) · [Protection of `main`](#protection-of-main) · [Versioning](#versioning) |
+| [👥 Team workflow](#-team-workflow) | The team members, who have write access | [Team and roles](#team-and-roles) · [Workflow at a glance](#workflow-at-a-glance) · [Issues](#issues) · [Testing lifecycle](#testing-lifecycle) · [Dependabot pull requests](#dependabot-pull-requests) · [Review and merge](#review-and-merge) · [Release review](#release-review) · [Protection of `main`](#protection-of-main) · [Versioning](#versioning) |
 
 Everyone who takes part in the project agrees to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
@@ -388,10 +388,11 @@ workflow, with three differences:
 A review is judged against the acceptance criteria, this guide and `AGENTS.md`. A finding needs a
 `file:line` and a concrete failure; a style preference is not a finding.
 
-### Sprint review
+### Release review
 
-Each pull request is reviewed against its issue, so once per sprint someone reviews the whole. The
-review has an end:
+Each pull request is reviewed against its issue, so before every release someone reviews the whole
+for bugs. A version is never released without it (see [Versioning](#versioning)). The review has an
+end:
 
 - **Scope:** only the diff since the previous release (`git diff <release>..origin/main`), plus a
   short checklist: the seven cases of section 9 of `AGENTS.md`, consistency between the documents and
@@ -399,13 +400,16 @@ review has an end:
 - **Judged against:** the acceptance criteria, this guide and `AGENTS.md`, not style preferences.
 - **Excluded:** what is already planned in a milestone and what is in *Accepted Risks* of the
   [architecture overview](docs/architecture.md).
-- **Threshold:** only high and medium findings, each with a `file:line` and a concrete failure
-  scenario, become issues. Low ones go to one single improvements issue or to the backlog.
+- **Threshold:** each high and medium finding, with a `file:line` and a concrete failure scenario,
+  gets its own issue and **blocks the release being prepared**. The low ones go to one issue that
+  blocks the next release, and the release notes list them as known issues.
 - **Verification:** before being reported, each finding is checked against the current `main` and
   the open issues and pull requests.
 - **Stop:** one review pass and one verification pass. A second review only re-checks the list and
-  does not look for new findings; whatever appears later goes to the next sprint.
-- **Decision:** the product owner chooses which findings enter the sprint.
+  does not look for new findings. After the fixes, a short pass on the release candidate checks them;
+  a bug found later, before the release, follows the same threshold.
+- **Decision:** the product owner can move a medium finding to the next release only when the
+  release has a deadline it would miss; it is then listed as a known issue.
 
 | Severity | Meaning |
 | --- | --- |
@@ -440,3 +444,26 @@ backend, both clients, the shared client packages and the API contract. The rele
 
 When the maintainer cuts a release, the same pull request moves the `[Unreleased]` entries under the new
 version in the changelog and updates every file in the table. Never change the version of a single part.
+
+#### What a version contains
+
+The `0.x` versions are checkpoints on the way to `1.0.0`, which is the final delivery. Each version
+is defined by its scope, not by a date:
+
+- **A checkpoint issue per version**, `[Task]: Checkpoint vX.Y.Z`, whose **Blocked by** lists the
+  issues that must be closed for it: features, tasks, their `[Test]`, the decisions its work starts
+  from (ADRs, design documents), the previous checkpoint and the bugs of its review. An issue that
+  blocks no checkpoint does not hold any release.
+- **Released when every blocker is closed.** A date is a deadline, not the trigger: if it comes
+  first, the product owner moves blockers to the next version, and the release notes say what moved.
+- **Only the blockers merge while a release is being prepared.** A release is cut from `main`, so a
+  pull request outside its scope waits until the release is published.
+- **A bug review before every release**, as [Release review](#release-review) says. A high or medium
+  bug found before the release, in that review or by anyone meanwhile, gets its issue and is added to
+  the **Blocked by** of the checkpoint; a low one goes to the low-findings issue of the next
+  checkpoint and to the known issues of the release notes.
+- **A fix that cannot wait for the next version** is released as a patch (`0.3.1`), with only
+  *Fixed* entries in the changelog, when `main` has nothing else since the last release; otherwise
+  it goes out with the next version.
+
+A `0.x` release is published as a GitHub pre-release with its known issues.

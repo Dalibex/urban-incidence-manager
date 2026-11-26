@@ -28,6 +28,7 @@ Read the source before relying on any summary, including this file. Do not descr
 | --- | --- |
 | What is built today | *Current Scope* in `README.md` and the status of each requirement in `docs/requirements.md`; then the code |
 | What is planned, and when | The GitHub milestones and their issues; each issue's *Out of scope* and `Planned: #N` |
+| What each version contains and what still holds it | The checkpoint issue of the version (`[Task]: Checkpoint vX.Y.Z`) and its **Blocked by**; the rules in *Versioning* of `CONTRIBUTING.md` |
 | Requirements, priorities and screens per role | `docs/requirements.md` |
 | How each role uses the apps | `docs/user-guide.md` |
 | Design proposals, their validation by the client and their status | `docs/design/`: the index and how a design is validated in `docs/design/README.md`, the template in `docs/design/TEMPLATE.md` |
@@ -41,7 +42,7 @@ Read the source before relying on any summary, including this file. Do not descr
 | Deployment, every environment variable and the volumes | `docs/deployment.md` |
 | Twelve-Factor evidence | `docs/twelve-factor.md` |
 | Tests and CI | `docs/testing.md`, `docs/ci.md` |
-| Team workflow: issues, sub-issues, testing, manual evidence, review, done, Dependabot | `CONTRIBUTING.md` |
+| Team workflow: issues, sub-issues, testing, manual evidence, review, done, Dependabot, versions and releases | `CONTRIBUTING.md` |
 | Changes per version | `CHANGELOG.md` |
 
 ### Actors
@@ -278,6 +279,8 @@ Especially important cases for UrbanPulse:
 - Keep implementation, tests, and contract synchronized. Do not disable validations or controls to make CI pass.
 - When GitHub raises a security alert (CodeQL, Dependabot), fix it or dismiss it with its reason, and add its row to *Security findings* in `docs/security.md` in the same PR. A pull request opened by Dependabot follows *Dependabot pull requests* in `CONTRIBUTING.md`.
 - Creating commits, publishing branches, merging PRs, or deploying must be within the authorized scope of the assignment.
+- A version is the set of issues that block its checkpoint issue (*Versioning* in `CONTRIBUTING.md`). Before proposing to merge a pull request, find the open checkpoint with the lowest version: while it is being prepared, only its blockers merge. Never release a version without the bug review of *Release review* in `CONTRIBUTING.md`.
+- A bug you find before a release is filed by its severity: a high or medium one gets its issue and is added to the **Blocked by** of that checkpoint; a low one goes to the low-findings issue of the next checkpoint. Say which you did.
 
 ### Proposals and findings
 
@@ -286,7 +289,7 @@ Especially important cases for UrbanPulse:
 - Do not propose new components, dependencies, abstractions, documents or refactors without an observable problem. Say what happens if it is not done.
 - Do not present a preference as a finding. A finding needs `file:line` and a concrete failure.
 - Before reporting, check the current `main` and the open issues and pull requests. Do not report what is already planned in a milestone or listed in *Accepted Risks* of `docs/architecture.md`.
-- At most 10 high and medium findings per review, and a one-line list for the low ones. Severity and the rest of the review rules are in *Sprint review* of `CONTRIBUTING.md`.
+- At most 10 high and medium findings per review, and a one-line list for the low ones. Severity and the rest of the review rules are in *Release review* of `CONTRIBUTING.md`.
 
 ### Before delivery
 

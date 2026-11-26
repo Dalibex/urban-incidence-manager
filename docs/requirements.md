@@ -246,7 +246,7 @@ changed.
 
 ## 🔄 Keeping This Document Up to Date
 
-- **At each sprint review**, the product owner checks the *In the MVP* and *After the MVP*
+- **At each release review**, the product owner checks the *In the MVP* and *After the MVP*
   columns against the milestones and updates them in a pull request.
 - **When an issue changes the scope of a requirement** (part of it is moved out, or a stretch goal
   comes in), the same pull request updates the requirement's row.
