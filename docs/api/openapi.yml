@@ -579,6 +579,146 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  # --- notifications: citizen channels and push tokens (#373, ADR-0031) ---------------------------
+  /users/me/notification-settings:
+    get:
+      tags: [notifications]
+      operationId: getNotificationSettings
+      summary: Get the citizen's notification channels
+      description: |
+        The channels through which the signed-in citizen hears about the status changes of their
+        own incidents. Email is on from sign-up; push starts off, because it needs the phone's
+        permission and a registered device. Every status change of the citizen's incident creates
+        one notification per channel that is on (push only while the citizen has a registered
+        device), sent after the change is saved, so a provider that is down never delays the
+        change (ADR-0031). A reassignment creates none, and a disabled account gets none.
+
+        Roles: citizen.
+      responses:
+        "200":
+          description: The citizen's channels.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationSettings"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    patch:
+      tags: [notifications]
+      operationId: updateNotificationSettings
+      summary: Turn the citizen's notification channels on or off
+      description: |
+        Only the properties present in the body change. Turning push off stops push for every
+        device of the citizen; the app also deletes its own token with
+        `createPushTokenDeletion`. A change applies to the notifications created after it.
+
+        Roles: citizen.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateNotificationSettingsRequest"
+      responses:
+        "200":
+          description: The channels after the change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationSettings"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /push-tokens:
+    post:
+      tags: [notifications]
+      operationId: createPushToken
+      summary: Register the phone's Expo push token
+      description: |
+        Registers the Expo push token of the phone for the signed-in citizen. The app sends it at
+        every sign-in and at every start while signed in, when the citizen has push on.
+
+        It is idempotent: registering a token the citizen already holds only updates the time it
+        was last registered. A token held by another user moves to this citizen, so a shared
+        phone never shows the previous citizen's notifications. A token is tied to the device and
+        the user, not to the session: refreshing or letting a session expire does not touch it. A
+        token not registered for 60 days is deleted.
+
+        Unlike other operations, this one checks in the database that the session of the access
+        token is still active (not signed out, revoked or expired), so an access token issued
+        before every session of the user ended cannot bring back a deleted token (ADR-0031). If
+        it is not, it returns `401`. A `401` means the access token expired or the session
+        ended: the client refreshes once and retries, except while signing out, when the refresh
+        token may already be revoked and presenting it again would end every session of the
+        user.
+
+        Roles: citizen.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushTokenRequest"
+      responses:
+        "204":
+          description: The token is registered for the citizen.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /push-token-deletions:
+    post:
+      tags: [notifications]
+      operationId: createPushTokenDeletion
+      summary: Delete the phone's Expo push token
+      description: |
+        Deletes the token by its value, whoever holds it. The app calls it when the citizen signs
+        out on the phone or turns push off, and when a citizen signs in with push off, since the
+        phone's token may still belong to the previous citizen. The token travels in the body,
+        never in the path, so it stays out of access logs.
+
+        It is idempotent: an unknown token also returns `204`.
+
+        Roles: citizen.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushTokenRequest"
+      responses:
+        "204":
+          description: The token is no longer registered.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   # --- identity: user management (#40) ----------------------------------------------------------
 
   /users:
@@ -2791,6 +2931,43 @@ components:
         name:
           type: string
           examples: [Pedro Gómez]
+
+    NotificationSettings:
+      type: object
+      description: The channels of the citizen's notifications. There is no SMS channel (ADR-0031).
+      required: [push, email]
+      properties:
+        push:
+          type: boolean
+          description: Push notifications to the citizen's registered phones.
+          examples: [true]
+        email:
+          type: boolean
+          description: Email to the citizen's account address.
+          examples: [true]
+
+    UpdateNotificationSettingsRequest:
+      type: object
+      description: The channels to change. An absent property keeps its value.
+      minProperties: 1
+      properties:
+        push:
+          type: boolean
+          examples: [true]
+        email:
+          type: boolean
+          examples: [false]
+
+    PushTokenRequest:
+      type: object
+      description: An Expo push token, as `expo-notifications` returns it.
+      required: [token]
+      properties:
+        token:
+          type: string
+          maxLength: 255
+          pattern: '^Expo(nent)?PushToken\[[A-Za-z0-9_-]+\]$'
+          examples: ["ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]"]
 
     CreatePasswordChangeRequest:
       type: object
