@@ -258,7 +258,8 @@ in the review.
    themselves.
 5. Fix what the CI or the reviewer reports, pushing to the same branch.
 6. A reviewer approves, and you merge with **Squash and merge**. The issues close and move to
-   **Done** by themselves.
+   **Done** by themselves. While a release is being prepared, only its blockers merge (see
+   [Versioning](#versioning)).
 
 The only card you move by hand is **Backlog → Ready**, when the issue is planned for the sprint.
 
@@ -294,13 +295,13 @@ An issue blocked by the checkpoint of an earlier version waits until that versio
 does not start, and no pull request is opened for it. Only its documents can start before: an ADR,
 a design document, or the table of cases of its `[Test]`.
 
-A blocked issue can still start when it only needs what the blocker looks like from outside, and
-that is already in `main`: the OpenAPI contract and its generated types, or an accepted decision.
-Its tests simulate the missing part, and the manual test and the merge wait for the blocker. It
-waits to start when it needs the blocker's code: a migration or entity it uses, a backend class it
-calls, a shared component still being written, or a contract not decided yet. The *Dependencies*
-field of the issue says both, with `Start:` and `Merge after:`. Each issue still gets its own
-branch from `main`, never from the blocker's branch.
+An issue blocked by another issue (not by a checkpoint) can still start when it only needs what the
+blocker looks like from outside, and that is already in `main`: the OpenAPI contract and its
+generated types, or an accepted decision. Its tests simulate the missing part, and the manual test
+and the merge wait for the blocker. It waits to start when it needs the blocker's code: a migration
+or entity it uses, a backend class it calls, a shared component still being written, or a contract
+not decided yet. The *Dependencies* field of the issue says both, with `Start:` and `Merge after:`.
+Each issue still gets its own branch from `main`, never from the blocker's branch.
 
 Every feature, bug and task names, in its *Failure and limit cases* field, the cases of
 [Failure and limit cases](#failure-and-limit-cases) that apply to it, and in *Out of scope* what it
@@ -384,7 +385,9 @@ workflow, with three differences:
    itself, so this is your responsibility. Updating the branch with `main` or fixing formatting does
    not need a new review.
 4. **The author merges** with **Squash and merge**, keeping the pull request title as the commit
-   message. Merge commits and rebase merges are not used.
+   message. Merge commits and rebase merges are not used. While a release is being prepared, only
+   its blockers and the changes with no changelog entry merge; the rest wait until it is published
+   (see [Versioning](#versioning)).
 5. The branch is deleted after the merge. GitHub does it automatically; if it does not, the author
    deletes it.
 6. The issue closes and moves to **Done** by itself. If the pull request did not target `main`, the
@@ -412,8 +415,8 @@ end:
 - **Verification:** before being reported, each finding is checked against the current `main` and
   the open issues and pull requests.
 - **Stop:** one review pass and one verification pass. A second review only re-checks the list and
-  does not look for new findings. After the fixes, a short pass on the release candidate checks
-  them; a bug found later, before the release, follows the same threshold.
+  does not look for new findings. After the fixes, a short pass on `main`, before the release
+  pull request, checks them; a bug found later, before the release, follows the same threshold.
 - **Decision:** the product owner can move a medium finding to the next release only when the
   release has a deadline it would miss; it is then listed as a known issue.
 
@@ -461,7 +464,10 @@ holds:
 | --- | --- | --- |
 | Patch | Only fixes of bugs of a released version | `0.3.1`, `1.0.1` |
 | Minor | New features that break nothing; the usual checkpoint | `0.4.0`, `1.1.0` |
-| Major | A change that breaks a client: an incompatible contract or a removed feature | `2.0.0` |
+| Major | From `1.0.0`, a change that breaks a client: an incompatible contract or a removed feature | `2.0.0` |
+
+Before `1.0.0`, as Semantic Versioning allows, a change that breaks a client goes in a minor
+version, and its changelog entry says what breaks.
 
 Each version is defined by its scope, not by a date:
 
@@ -486,15 +492,15 @@ Each version is defined by its scope, not by a date:
   changelog entry (documentation, tests, CI).
 - **A bug review before every release**, as [Release review](#release-review) says. A high or
   medium bug found before the release, in that review or by anyone meanwhile, gets its issue and is
-  added to the **Blocked by** of the checkpoint. A low one goes to the low-findings issue of this version,
-  which never blocks it: the team decides which ones are fixed before the release, and the rest
-  move to the next version and to the known issues of the release notes.
+  added to the **Blocked by** of the checkpoint. A low one goes to the low-findings issue of this
+  version, which never blocks it: the team decides which ones are fixed before the release, and the
+  rest move to the next version and to the known issues of the release notes.
 - **An idea is not in any version until it has an issue.** The product owner then places it: in the
   version being prepared, as a blocker, if that version needs it, or in a later one.
 - **A fix that cannot wait for the next version** is released as a patch (`0.3.1`), with its own
   checkpoint issue blocked by the fixes and a review limited to them, and only *Fixed* entries in
-  the changelog, when `main` has nothing else since the last release; otherwise it goes out with the
-  next version.
+  the changelog, when `[Unreleased]` holds nothing but the fix; otherwise it goes out with the next
+  version.
 
 A `0.x` release is published as a GitHub pre-release with its known issues. From `1.0.0`, a version
 may have release candidates first (`1.1.0-rc.1`); how a version reaches production is decided when
