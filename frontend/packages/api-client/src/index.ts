@@ -21,6 +21,12 @@ export {
   type ApiResult,
   type MfaChallenge,
 } from './account';
+export {
+  deletePushToken,
+  getNotificationSettings,
+  registerPushToken,
+  updateNotificationSettings,
+} from './notifications';
 export { listAuditEntries, type AuditEntryListQuery } from './audit';
 export { createUser, listUsers, resetUserMfa, updateUser, type UserListQuery } from './users';
 export {
