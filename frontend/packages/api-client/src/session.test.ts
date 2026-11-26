@@ -16,7 +16,14 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createApiClient, signIn, signOut, type SessionTokens, type TokenStore } from './index';
+import {
+  createApiClient,
+  registerPushToken,
+  signIn,
+  signOut,
+  type SessionTokens,
+  type TokenStore,
+} from './index';
 
 const BASE_URL = 'https://api.test/api/v1';
 
@@ -338,6 +345,49 @@ describe('T6: sign-out', () => {
     expect(tokens.current()).toBeNull();
   });
 
+  // The app deletes its push token after signing out; it needs the access token the session was
+  // revoked with, which a refresh during the sign-out may have replaced (#373).
+  it('hands the tokens left after the DELETE, refreshed if needed, to the callback before discarding them', async () => {
+    // Arrange
+    const api = fakeApi({
+      'DELETE /sessions/current': (request) =>
+        request.authorization === `Bearer ${NEW_TOKENS.accessToken}`
+          ? new Response(null, { status: 204 })
+          : problem(401),
+      'POST /sessions/refresh': rotatingRefresh(),
+    });
+    const tokens = memoryTokenStore(OLD_TOKENS);
+    const client = createApiClient(BASE_URL, { tokenStore: tokens.store, fetch: api.fetch });
+    const seen: { given: SessionTokens | null; stored: SessionTokens | null }[] = [];
+    const afterDelete = (given: SessionTokens | null) => {
+      seen.push({ given, stored: tokens.current() });
+    };
+
+    // Act
+    await signOut(client, tokens.store, afterDelete);
+
+    // Assert
+    expect(seen).toEqual([{ given: NEW_TOKENS, stored: NEW_TOKENS }]);
+  });
+
+  it('discards the tokens even when the callback throws', async () => {
+    // Arrange
+    const api = fakeApi({ 'DELETE /sessions/current': () => new Response(null, { status: 204 }) });
+    const tokens = memoryTokenStore(NEW_TOKENS);
+    const client = createApiClient(BASE_URL, { tokenStore: tokens.store, fetch: api.fetch });
+    const afterDelete = vi.fn(() => {
+      throw new Error('Unexpected');
+    });
+
+    // Act
+    // The callback's error is swallowed: the sign-out never throws it.
+    await expect(signOut(client, tokens.store, afterDelete)).resolves.toBeUndefined();
+
+    // Assert
+    expect(afterDelete).toHaveBeenCalledTimes(1);
+    expect(tokens.current()).toBeNull();
+  });
+
   it('discards the tokens even when the server cannot be reached', async () => {
     const api = fakeApi({
       'DELETE /sessions/current': () => {
@@ -385,6 +435,38 @@ describe('T6: sign-out', () => {
  * a `400` or a `422`) keeps the session, and the next `401` refreshes again with the same token
  * (#161). T2 and T7 without a previous failure are the tests of T4 above.
  */
+describe('#373: a request rejected while the sign-out is in flight', () => {
+  it('does not refresh, because the server already revoked the refresh token', async () => {
+    // Arrange
+    let releaseDelete!: () => void;
+    const deleteHeld = new Promise<void>((resolve) => {
+      releaseDelete = resolve;
+    });
+    const api = fakeApi({
+      'DELETE /sessions/current': async () => {
+        await deleteHeld;
+        return new Response(null, { status: 204 });
+      },
+      'POST /push-tokens': () => problem(401),
+      'POST /sessions/refresh': rotatingRefresh(),
+    });
+    const tokens = memoryTokenStore(OLD_TOKENS);
+    const client = createApiClient(BASE_URL, { tokenStore: tokens.store, fetch: api.fetch });
+    const signingOut = signOut(client, tokens.store);
+    await vi.waitFor(() => expect(api.calls('DELETE', '/sessions/current')).toHaveLength(1));
+
+    // Act
+    await registerPushToken(client, 'ExponentPushToken[device-1]');
+
+    // Assert
+    expect(api.calls('POST', '/sessions/refresh')).toHaveLength(0);
+    expect(api.calls('POST', '/push-tokens')).toHaveLength(1);
+
+    releaseDelete();
+    await signingOut;
+  });
+});
+
 describe('#162: the session recovers after a failed refresh', () => {
   let onSessionExpired: ReturnType<typeof vi.fn<() => void>>;
 

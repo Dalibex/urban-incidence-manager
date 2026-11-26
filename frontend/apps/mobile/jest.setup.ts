@@ -28,3 +28,7 @@ jest.mock('@maplibre/maplibre-react-native', () => {
     },
   };
 });
+
+// The real module needs the native notification handler at import time (`push.ts` sets the
+// foreground handler); tests that care about notifications mock the module themselves.
+jest.mock('expo-notifications', () => ({ setNotificationHandler: jest.fn() }));
