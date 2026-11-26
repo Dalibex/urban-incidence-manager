@@ -1,8 +1,9 @@
 # ADR-0031: Notify the citizen through Expo push notifications and email, without SMS
 
 - **Status:** Accepted
-- **Decision Makers:** Francisco Jordá (PO)
+- **Decision Makers:** Project Team
 - **Date:** 2026-11-25
+- **Design document:** None
 - **Supersedes:** [ADR-0019](0019-notification-delivery-providers.md): it keeps its email provider
   (Brevo) and its delivery mechanism, adds the push channel, drops SMS and sets the retry and
   idempotency rules. Its authenticated sending domain waits until the team has a domain of its
@@ -35,9 +36,10 @@ What the citizen app already is, and what a push channel has to fit:
   change waited for Expo or Brevo to answer, a slow provider would slow down every change, and a
   provider that is down would make the change fail and roll back, so the staff member's work would
   be lost because a message could not be sent. The change must therefore only record what has to
-  be sent, in its own transaction, and something else must send it afterwards, retrying a bounded
-  number of times. At worst a provider failure costs a late or missing message, never an incident.
-  The providers' keys stay out of the code ([ADR-0011](0011-deployment-12factor.md)).
+  be sent, in the same transaction as the status change, and something else must send it
+  afterwards, retrying a bounded number of times. At worst a provider failure costs a late or
+  missing message, never an incident. The providers' keys stay out of the code
+  ([ADR-0011](0011-deployment-12factor.md)).
 - **In the deployment, the backend has no route to the internet** except through the
   `egress-proxy`, which allows only the hosts on its list (today `api.open-meteo.com` and
   `nominatim.openstreetmap.org`, in `egress-proxy/squid.conf`).
@@ -59,10 +61,10 @@ notifications through the Expo push service** and **email through Brevo**, and *
   that no screen or endpoint reads would be dead data. An in-app inbox would bring back an `APP`
   channel together with the endpoint that reads it.
 - **How it is sent:** the status change writes one `notification` row per channel the citizen has
-  turned on as `PENDING`, in its own transaction. A unique key on (status change, recipient,
-  channel) stops a change processed twice from creating a second row. A scheduled job of `notifications` sends the rows after the commit, every 30 seconds,
-  through one sender per channel behind a common interface, so a provider is an adapter that can
-  be replaced.
+  turned on as `PENDING`, in the same transaction as the status change. A unique key on (status
+  change, recipient, channel) stops a change processed twice from creating a second row. A
+  scheduled job of `notifications` sends the rows after the commit, every 30 seconds, through one
+  sender per channel behind a common interface, so a provider is an adapter that can be replaced.
 - **Which changes notify:** every status change of the citizen's incident, including an
   information request (`REPORTED` to `REPORTED`), which carries a message for the citizen. Two
   cases create no rows: a reassignment (`ASSIGNED` to `ASSIGNED`), because the citizen learns
@@ -141,12 +143,16 @@ sends one citizen's notifications to someone else's phone. Expo explains it in
   receiving pushes at the first refresh.
 - **Registered by the app** at every sign-in and every start while signed in, when push is on;
   registering again only updates when it was last seen. The API accepts only Expo's token formats,
-  and only while the session of the request is still active (checked in the database on this
-  endpoint), so a request that arrives after the citizen signed out cannot bring the token back.
-  A `401` on this request means the session ended, probably by a sign-out racing the
-  registration, so the app does not refresh or retry: refreshing would present a revoked refresh
-  token, which the backend treats as reuse and answers by ending every session of the citizen.
-  The app registers again at its next start. The contract of `/push-tokens` in #373 says the
+  and only while the session of the request (`sid`) is still active, checked in the database on
+  this endpoint: the refresh token named by `sid` must be neither revoked nor expired. So a
+  request that arrives after the citizen signed out cannot bring the token back.
+- **A `401` on this request is handled like any other:** the app refreshes the session and
+  repeats the request once. The access token lives 15 minutes and the app registers at every
+  start, so the registration is often the first request with an expired token, and a refresh is
+  what lets it through. The request is marked with its session, as the photo upload is (#259), so
+  it is never repeated once a sign-out or a rejected refresh has ended that session, and the
+  client never presents the refresh token of a session that ended. The `401` stays the same for
+  every cause ([security guide](../security.md)). The contract of `/push-tokens` in #373 says the
   same.
 - **A shared phone never shows the previous citizen's notifications:** when another citizen signs
   in on it, the token moves to them, or is deleted if they have push off.
@@ -223,11 +229,12 @@ sends one citizen's notifications to someone else's phone. Expo explains it in
     be filtered as spam. A citizen who does not find it can look in the spam folder; push is not
     affected.
   - **No iOS push** until the team has a paid Apple developer account.
+  - **The push text leaves the EU** through Expo and, on Android, Google's FCM. The text is kept
+    to the citizen-visible minimum, and the privacy notice must name both.
   - **New migrations in #373:** the push token table (with the time each token was last
-    registered), a table with each phone's delivery of a push, the channel check reduced to `PUSH` and `EMAIL`
-    (without `SMS` and `APP`), and on
-    `notification` the status change, the unique key, the attempt count and the next attempt
-    time. The `egress-proxy` list also changes.
+    registered), a table with each phone's delivery of a push, the channel check reduced to `PUSH`
+    and `EMAIL` (without `SMS` and `APP`), and on `notification` the status change, the unique
+    key, the attempt count and the next attempt time. The `egress-proxy` list also changes.
   - **A phone whose session ended without reaching the API** (signed out without network, or
     unused for 14 days) keeps getting the previous citizen's pushes for up to 60 days, unless
     another citizen signs in on it first (see *Push tokens*).
