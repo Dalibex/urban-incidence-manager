@@ -74,6 +74,8 @@ How should the k6 results and the backend's metrics be collected and seen togeth
 ## Links Related
 
 - [ADR-0022](0022-redis-from-measurements.md): Redis only from measurements
+- [ADR-0030](0030-structured-logs.md) (Proposed): the structured logs, collected with Loki in the same
+  profile
 - #176 and its `[Test]` #297
 - [Load tests and results](../../backend/load-tests/practice/README.md)
 - [Datasets and measurements](../datasets.md)
