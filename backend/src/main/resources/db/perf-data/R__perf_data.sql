@@ -23,7 +23,7 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 TRUNCATE incident, location, status_change, assignment, comment, attachment, urban_context,
-    external_observation, incident_asset, notification CASCADE;
+    external_observation, incident_asset, notification, push_delivery, push_token CASCADE;
 
 SELECT setseed(0.84);
 
@@ -312,15 +312,27 @@ SELECT format('f6000000-0000-4000-8000-%s', lpad(to_hex(i.n), 12, '0'))::uuid,
 FROM perf_incident i
 WHERE i.r_attachment < 0.4;
 
--- The citizen hears about the last change of every incident that changed after the report.
-INSERT INTO notification (id, incident_id, recipient_id, message, channel, delivery_status, sent_at)
+-- The citizen hears about the last change of every incident that changed after the report, with
+-- the reason only when the citizen sees it (a rejection, an information request). None is pending,
+-- so the delivery job has nothing to send when the dataset is loaded.
+INSERT INTO notification (id, incident_id, recipient_id, status_change_id, message, channel, delivery_status,
+                          attempts, next_attempt_at, created_at, sent_at)
 SELECT format('fb000000-0000-4000-8000-%s', lpad(to_hex(i.n), 12, '0'))::uuid,
        i.id, i.reporter_id,
+       format('f2000000-0000-4000-8000-%s', lpad(to_hex(i.n * 8 + s.last_step), 12, '0'))::uuid,
        format('Your incident "%s on %s" is now %s.', i.category_title, i.street,
-              lower(replace(i.final_status, '_', ' '))),
-       CASE WHEN i.r_channel < 0.7 THEN 'APP' WHEN i.r_channel < 0.95 THEN 'EMAIL' ELSE 'SMS' END,
-       CASE WHEN i.r_delivery < 0.9 THEN 'DELIVERED' WHEN i.r_delivery < 0.95 THEN 'PENDING' ELSE 'FAILED' END,
-       CASE WHEN i.r_delivery < 0.9 OR i.r_delivery >= 0.95 THEN i.reported_at + s.last_step * i.gap END
+              lower(replace(i.final_status, '_', ' ')))
+           || CASE i.final_status
+                  WHEN 'REJECTED' THEN ' Message: Duplicate of a report that is already being handled.'
+                  WHEN 'REPORTED' THEN ' Message: Please add a photo so the crew can find the exact place.'
+                  ELSE ''
+              END,
+       CASE WHEN i.r_channel < 0.7 THEN 'PUSH' ELSE 'EMAIL' END,
+       CASE WHEN i.r_delivery < 0.9 THEN 'DELIVERED' ELSE 'FAILED' END,
+       CASE WHEN i.r_delivery < 0.9 THEN 1 ELSE 3 END,
+       i.reported_at + s.last_step * i.gap,
+       i.reported_at + s.last_step * i.gap,
+       i.reported_at + s.last_step * i.gap + interval '20 seconds'
 FROM perf_incident i
 JOIN perf_shape s ON s.id = i.id
 WHERE s.last_step > 0;

@@ -3,7 +3,6 @@ package es.uma.urbanpulse.identity.service;
 import es.uma.urbanpulse.identity.dto.CreatePasswordChangeRequest;
 import es.uma.urbanpulse.identity.entity.AuditAction;
 import es.uma.urbanpulse.identity.repository.MfaChallengeRepository;
-import es.uma.urbanpulse.identity.repository.RefreshTokenRepository;
 import es.uma.urbanpulse.identity.repository.UserRepository;
 import java.time.Clock;
 import java.time.OffsetDateTime;
@@ -26,7 +25,7 @@ public class PasswordChangeService {
 
     private final CredentialCheck credentials;
     private final UserRepository users;
-    private final RefreshTokenRepository refreshTokens;
+    private final SessionService sessions;
     private final MfaChallengeRepository challenges;
     private final PasswordEncoder passwordEncoder;
     private final AuditService audit;
@@ -36,7 +35,7 @@ public class PasswordChangeService {
     PasswordChangeService(
             CredentialCheck credentials,
             UserRepository users,
-            RefreshTokenRepository refreshTokens,
+            SessionService sessions,
             MfaChallengeRepository challenges,
             PasswordEncoder passwordEncoder,
             AuditService audit,
@@ -44,7 +43,7 @@ public class PasswordChangeService {
             Clock clock) {
         this.credentials = credentials;
         this.users = users;
-        this.refreshTokens = refreshTokens;
+        this.sessions = sessions;
         this.challenges = challenges;
         this.passwordEncoder = passwordEncoder;
         this.audit = audit;
@@ -55,9 +54,9 @@ public class PasswordChangeService {
     /**
      * Checks the current password like sign-in, under the same rate limit ({@link
      * CredentialCheck}), then replaces it, clears the obligation to change it, revokes every
-     * refresh token of the user, spends its open challenges of the second factor (#57) and records
-     * {@code CHANGE_PASSWORD}, in one transaction: if any of them fails, the password stays as it
-     * was.
+     * refresh token and push token of the user, spends its open challenges of the second factor
+     * (#57) and records {@code CHANGE_PASSWORD}, in one transaction: if any of them fails, the
+     * password stays as it was.
      *
      * <p>The two bcrypt steps (checking the current password and hashing the new one) run before
      * the transaction, so it does not hold a database connection for about 200 ms.
@@ -90,7 +89,7 @@ public class PasswordChangeService {
         user.setPasswordHash(newHash);
         user.setPasswordChangeRequired(false);
         var now = OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC);
-        refreshTokens.endAll(userId, now);
+        sessions.endEverySession(userId, now);
         // A challenge opened with the old password must not finish a sign-in.
         challenges.spendOpen(userId, now);
         // The account is its own actor: it is the only one who knows the password.

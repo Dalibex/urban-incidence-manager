@@ -46,6 +46,10 @@ final class ApiAuthorizationRules {
         // Sessions and users. /users/me goes before /users/*, which would match it too.
         auth.requestMatchers(DELETE, API + "/sessions/current").authenticated();
         auth.requestMatchers(GET, API + "/users/me").authenticated();
+        auth.requestMatchers(GET, API + "/users/me/notification-settings").hasRole(CITIZEN);
+        auth.requestMatchers(PATCH, API + "/users/me/notification-settings").hasRole(CITIZEN);
+        auth.requestMatchers(POST, API + "/push-tokens").hasRole(CITIZEN);
+        auth.requestMatchers(POST, API + "/push-token-deletions").hasRole(CITIZEN);
         auth.requestMatchers(GET, API + "/users").hasRole(ADMINISTRATOR);
         auth.requestMatchers(POST, API + "/users").hasRole(ADMINISTRATOR);
         auth.requestMatchers(GET, API + "/users/*").hasRole(ADMINISTRATOR);

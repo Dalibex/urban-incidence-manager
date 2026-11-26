@@ -11,11 +11,12 @@ spring:
     locale: en
     locale-resolver: fixed
   # One thread per scheduled job: the address worker waits a second between its calls to Nominatim
-  # (#375), and with one thread that wait would delay the weather worker too.
+  # (#375), and with one thread that wait would delay the weather worker too. The notifications of
+  # #373 add the delivery, receipt and push token jobs.
   task:
     scheduling:
       pool:
-        size: 3
+        size: 6
   jpa:
     open-in-view: false
     # SQL is not logged by default (it would also be logged in production). To see it locally,
@@ -110,6 +111,26 @@ urbanpulse:
     nominatim-timeout: PT3S
     # A pending address older than this becomes UNAVAILABLE.
     max-delay: PT24H
+  # The citizen's notifications of their status changes (#373, ADR-0031, docs/deployment.md): push
+  # through Expo and email through Brevo. A channel that is off only logs its rows. Off, the
+  # scheduled delivery and receipt jobs do not run, and status changes still create their rows.
+  notifications:
+    enabled: ${NOTIFICATIONS_ENABLED:true}
+    push-enabled: ${NOTIFICATIONS_PUSH_ENABLED:false}
+    expo-base-url: https://exp.host
+    # Required with push on.
+    expo-access-token: ${EXPO_ACCESS_TOKEN:}
+    email-enabled: ${NOTIFICATIONS_EMAIL_ENABLED:false}
+    brevo-base-url: https://api.brevo.com
+    # Both required with email on.
+    brevo-api-key: ${BREVO_API_KEY:}
+    mail-from: ${MAIL_FROM:}
+    # Empty: the calls go straight to Expo and Brevo.
+    proxy: ${NOTIFICATIONS_PROXY:}
+    timeout: PT5S
+    interval: PT30S
+    receipt-interval: PT5M
+    batch-size: 50
   # The address search of the report form (#179). Its calls to Nominatim share request-spacing with
   # the address worker. The limit per user and the cache are kept in memory: valid with one backend
   # replica only.

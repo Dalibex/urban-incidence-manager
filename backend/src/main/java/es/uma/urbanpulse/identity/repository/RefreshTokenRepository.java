@@ -24,6 +24,14 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<RefreshToken> findLockedByTokenHash(String tokenHash);
 
+    /**
+     * Reads the session with a shared lock until the transaction ends ({@code SELECT ... FOR
+     * SHARE}), so a sign-out or the end of every session waits for that transaction. Lock its user
+     * first ({@link UserRepository#findLockedById}).
+     */
+    @Lock(LockModeType.PESSIMISTIC_READ)
+    Optional<RefreshToken> findShareLockedById(UUID id);
+
     @Modifying
     @Query("DELETE FROM RefreshToken t WHERE t.expiresAt < :cutoff")
     int deleteExpiredBefore(@Param("cutoff") OffsetDateTime cutoff);

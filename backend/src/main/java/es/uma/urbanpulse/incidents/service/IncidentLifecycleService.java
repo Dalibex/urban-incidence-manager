@@ -9,6 +9,7 @@ import es.uma.urbanpulse.incidents.entity.InvalidIncidentDataException;
 import es.uma.urbanpulse.incidents.entity.InvalidTransitionException;
 import es.uma.urbanpulse.incidents.entity.TransitionDetails;
 import es.uma.urbanpulse.incidents.repository.IncidentRepository;
+import es.uma.urbanpulse.notifications.service.CitizenNotifications;
 import java.time.Clock;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -21,10 +22,10 @@ import org.springframework.transaction.annotation.Transactional;
  * Changes the status of an incident (ADR-0020). Every lifecycle action goes through here, so all of
  * them apply the same access rule, the same conflict control and the same transaction.
  *
- * <p>The status, the history entry and the assignment are written in one transaction: if anything
- * fails, nothing is saved. Conflicts are detected with the incident's {@code version}: the caller
- * sends the version it read, and a change made since then answers {@code 409} with the code {@code
- * CONCURRENT_MODIFICATION} instead of overwriting it.
+ * <p>The status, the history entry, the assignment and the citizen's notifications (#373) are
+ * written in one transaction: if anything fails, nothing is saved. Conflicts are detected with the
+ * incident's {@code version}: the caller sends the version it read, and a change made since then
+ * answers {@code 409} with the code {@code CONCURRENT_MODIFICATION} instead of overwriting it.
  */
 @Service
 @Transactional
@@ -32,12 +33,17 @@ public class IncidentLifecycleService {
 
     private final IncidentRepository incidents;
     private final UserRepository users;
+    private final CitizenNotifications notifications;
     private final Clock clock;
 
     public IncidentLifecycleService(
-            IncidentRepository incidents, UserRepository users, Clock clock) {
+            IncidentRepository incidents,
+            UserRepository users,
+            CitizenNotifications notifications,
+            Clock clock) {
         this.incidents = incidents;
         this.users = users;
+        this.notifications = notifications;
         this.clock = clock;
     }
 
@@ -113,10 +119,13 @@ public class IncidentLifecycleService {
             throw new ObjectOptimisticLockingFailureException(Incident.class, incidentId);
         }
 
-        incident.changeStatus(transition, actor, details, clock.instant());
+        var change = incident.changeStatus(transition, actor, details, clock.instant());
         // Writes now, so a change committed by someone else after the read above fails here, and
         // the response carries the new version.
         incidents.flush();
+        // After the flush: the notifications reference the history entry, which now exists, and
+        // a conflict above never reaches them. Same transaction, so they roll back with the change.
+        notifications.statusChanged(change);
 
         return IncidentResponse.of(incident, role);
     }

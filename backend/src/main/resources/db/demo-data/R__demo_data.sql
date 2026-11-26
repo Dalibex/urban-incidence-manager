@@ -22,7 +22,7 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 TRUNCATE incident, location, status_change, assignment, comment, attachment, urban_context,
-    external_observation, incident_asset, notification CASCADE;
+    external_observation, incident_asset, notification, push_delivery, push_token CASCADE;
 
 -- A plain string literal, not dollar quoting: Flyway does not replace placeholders inside
 -- $tag$...$tag$. DemoDatasetConfig doubles the single quotes of the password so it stays intact.

@@ -57,4 +57,15 @@ public class User {
     /** The time step of the last accepted code, so the same code is never accepted twice. */
     @Column(name = "mfa_last_time_step")
     private Long mfaLastTimeStep;
+
+    /**
+     * The channels of the citizen's notifications (#373, ADR-0031), as the database defaults them:
+     * Hibernate writes every column, so a user created here would otherwise skip those defaults.
+     * Push starts off because it needs the phone's permission and a registered device.
+     */
+    @Column(name = "notify_by_push", nullable = false)
+    private boolean notifyByPush = false;
+
+    @Column(name = "notify_by_email", nullable = false)
+    private boolean notifyByEmail = true;
 }
