@@ -287,7 +287,8 @@ the issues opened by people outside the team in the same way, or close them with
 Record dependencies in the issue's **Relationships**, with **Blocked by**: its pull request is not
 merged until the blocking one is, because it would not work without it. A `[Test]` issue has no
 **Blocked by**: it is worked on inside the draft pull request of its feature, while the feature is
-built.
+built. The checkpoint issue of a version uses **Blocked by** for its scope instead (see
+[Versioning](#versioning)).
 
 A blocked issue can still start when it only needs what the blocker looks like from outside, and
 that is already in `main`: the OpenAPI contract and its generated types, or an accepted decision.
@@ -401,8 +402,9 @@ end:
 - **Excluded:** what is already planned in a milestone and what is in *Accepted Risks* of the
   [architecture overview](docs/architecture.md).
 - **Threshold:** each high and medium finding, with a `file:line` and a concrete failure scenario,
-  gets its own issue and **blocks the release being prepared**. The low ones go to one issue that
-  blocks the next release, and the release notes list them as known issues.
+  gets its own issue and **blocks the release being prepared**. The low ones go to one issue of this
+  release that does not block it: the team fixes the ones it chooses before the release, and the
+  rest move to the next release and are listed as known issues in the release notes.
 - **Verification:** before being reported, each finding is checked against the current `main` and
   the open issues and pull requests.
 - **Stop:** one review pass and one verification pass. A second review only re-checks the list and
@@ -453,15 +455,26 @@ is defined by its scope, not by a date:
 - **A checkpoint issue per version**, `[Task]: Checkpoint vX.Y.Z`, whose **Blocked by** lists the
   issues that must be closed for it: features, tasks, their `[Test]`, the decisions its work starts
   from (ADRs, design documents), the previous checkpoint and the bugs of its review. An issue that
-  blocks no checkpoint does not hold any release.
+  blocks no checkpoint does not hold any release. The milestone of an issue says when it is worked
+  on; the checkpoint it blocks says in which version it ships.
+- **The scope grows while the version is prepared.** Any issue the version needs, opened before it
+  is released, is added to the **Blocked by** of its checkpoint: a bug, a small change, or a feature
+  nobody planned but the version cannot ship without. Its issue says so, and the product owner
+  agrees. Whatever does not need to be in this version goes to the next checkpoint instead.
 - **Released when every blocker is closed.** A date is a deadline, not the trigger: if it comes
-  first, the product owner moves blockers to the next version, and the release notes say what moved.
-- **Only the blockers merge while a release is being prepared.** A release is cut from `main`, so a
-  pull request outside its scope waits until the release is published.
+  first, the product owner moves blockers to the next version, never a high bug, and the release
+  notes say what moved.
+- **Only the blockers merge while a release is being prepared**, and the fixes of its low-findings
+  issue. The release being prepared is the open checkpoint with the lowest version. A release is cut
+  from `main`, so any other pull request waits until the release is published, unless it has no
+  changelog entry (documentation, tests, CI).
 - **A bug review before every release**, as [Release review](#release-review) says. A high or medium
   bug found before the release, in that review or by anyone meanwhile, gets its issue and is added to
-  the **Blocked by** of the checkpoint; a low one goes to the low-findings issue of the next
-  checkpoint and to the known issues of the release notes.
+  the **Blocked by** of the checkpoint. A low one goes to the low-findings issue of this version,
+  which never blocks it: the team decides which ones are fixed before the release, and the rest
+  move to the next version and to the known issues of the release notes.
+- **An idea is not in any version until it has an issue.** The product owner then places it: in the
+  version being prepared, as a blocker, if that version needs it, or in a later one.
 - **A fix that cannot wait for the next version** is released as a patch (`0.3.1`), with only
   *Fixed* entries in the changelog, when `main` has nothing else since the last release; otherwise
   it goes out with the next version.
