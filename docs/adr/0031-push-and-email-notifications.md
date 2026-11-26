@@ -59,17 +59,22 @@ notifications through the Expo push service** and **email through Brevo**, and *
   that no screen or endpoint reads would be dead data. An in-app inbox would bring back an `APP`
   channel together with the endpoint that reads it.
 - **How it is sent:** the status change writes one `notification` row per channel the citizen has
-  turned on as `PENDING`, in its own transaction. A unique
-  key on (status change, recipient, channel) stops a change processed twice from creating a second
-  row. A scheduled job of `notifications` sends the rows after the commit, every 30 seconds,
+  turned on as `PENDING`, in its own transaction. A unique key on (status change, recipient,
+  channel) stops a change processed twice from creating a second row. A scheduled job of `notifications` sends the rows after the commit, every 30 seconds,
   through one sender per channel behind a common interface, so a provider is an adapter that can
   be replaced.
+- **Which changes notify:** every status change of the citizen's incident, including an
+  information request (`REPORTED` to `REPORTED`), which carries a message for the citizen. Two
+  cases create no rows: a reassignment (`ASSIGNED` to `ASSIGNED`), because the citizen learns
+  nothing new from it, and a citizen whose account is disabled.
 - **Retries:** a transient failure (no answer, a network error, `429` or `5xx`) leaves the row
   `PENDING` for a later attempt, with growing waits, as Expo asks: the second attempt one minute
   after the first, the third five minutes after the second. After the third failed attempt the row
   is `FAILED`. Any other failure, such as a `4xx` that is not `429`, is `FAILED` at once, because
-  it would fail again. A crash between the provider accepting a message and the row being updated
-  sends it again, so a citizen may rarely get it twice.
+  it would fail again.
+- **At least once:** a message can be sent twice in two cases, so a citizen may rarely get it
+  twice: a crash between the provider accepting it and the row being updated, and a provider that
+  accepts it but answers after the timeout, which counts as no answer and is retried.
 - **Push through the Expo push service:**
   - **Calls:** the backend posts to `https://exp.host/--/api/v2/push/send` with Spring's HTTP
     client, up to 100 messages per request, so no SDK is needed. Each message goes to one phone,
@@ -116,8 +121,9 @@ notifications through the Expo push service** and **email through Brevo**, and *
   - no Twilio variables and no `NOTIFICATIONS_SMS_ENABLED`.
 - **Network:** the `egress-proxy` list gains the host of the Expo push service (`exp.host`) and
   Brevo's API host (`api.brevo.com`), and nothing else.
-- **Local and test profiles** use a logging sender, which writes the message to the log instead of
-  calling a provider. Tests and CI never call Expo or Brevo, and need no keys.
+- **Local and test profiles** use a logging sender instead of calling a provider. It writes only
+  the channel and the notification id, never the text or the address, so the logs hold no
+  citizen's data. Tests and CI never call Expo or Brevo, and need no keys.
 
 ### Push tokens
 
@@ -137,6 +143,11 @@ sends one citizen's notifications to someone else's phone. Expo explains it in
   registering again only updates when it was last seen. The API accepts only Expo's token formats,
   and only while the session of the request is still active (checked in the database on this
   endpoint), so a request that arrives after the citizen signed out cannot bring the token back.
+  A `401` on this request means the session ended, probably by a sign-out racing the
+  registration, so the app does not refresh or retry: refreshing would present a revoked refresh
+  token, which the backend treats as reuse and answers by ending every session of the citizen.
+  The app registers again at its next start. The contract of `/push-tokens` in #373 says the
+  same.
 - **A shared phone never shows the previous citizen's notifications:** when another citizen signs
   in on it, the token moves to them, or is deleted if they have push off.
 - **Deleted** when the citizen signs out or turns push off, when Expo answers that the phone is
