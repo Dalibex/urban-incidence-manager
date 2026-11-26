@@ -1,11 +1,21 @@
-import type { ApiResult, components, LocalFile, SessionMark } from '@urbanpulse/api-client';
-import { act, fireEvent, render, screen, userEvent, waitFor } from '@testing-library/react-native';
+import {
+  getAttachmentContent,
+  getIncident,
+  listIncidentAttachments,
+  listIncidentStatusChanges,
+  type ApiResult,
+  type components,
+  type LocalFile,
+  type SessionMark,
+} from '@urbanpulse/api-client';
+import { act, fireEvent, screen, userEvent, waitFor } from '@testing-library/react-native';
 import type { ComponentProps } from 'react';
 import { Linking } from 'react-native';
 
 import { pickPhoto } from '../attachments/photo-picker';
-import { failed, ok } from '../test-utils';
+import { failed, ok, renderWithQueries } from '../test-utils';
 import { AddPhotosScreen } from './AddPhotosScreen';
+import { IncidentDetailScreen } from './IncidentDetailScreen';
 
 type Attachment = components['schemas']['AttachmentResponse'];
 type Props = ComponentProps<typeof AddPhotosScreen>;
@@ -18,6 +28,17 @@ const mockUploadAttachment = jest.fn<
 const SESSION = { sessionEnds: 0 } as unknown as SessionMark;
 const mockMarkSession = jest.fn<SessionMark, []>();
 
+// Only the calls of the detail that shares the cache with the screen; the upload is mocked below.
+jest.mock('@urbanpulse/api-client', () => ({
+  getAttachmentContent: jest.fn(),
+  getIncident: jest.fn(),
+  listIncidentAttachments: jest.fn(),
+  listIncidentStatusChanges: jest.fn(),
+}));
+// A Blob cannot be read here; what the conversion does is tested in its own file.
+jest.mock('../attachments/blob-uri', () => ({
+  blobToDataUri: jest.fn(async () => 'data:image/jpeg;base64,AAAA'),
+}));
 jest.mock('../attachments/photo-picker', () => ({ pickPhoto: jest.fn() }));
 jest.mock('../attachments/upload-retry', () => ({
   ...jest.requireActual('../attachments/upload-retry'),
@@ -25,10 +46,16 @@ jest.mock('../attachments/upload-retry', () => ({
   RETRY_DELAYS_MS: [0, 0],
 }));
 jest.mock('../session/SessionContext', () => ({
-  useSession: () => ({ uploadAttachment: mockUploadAttachment, markSession: mockMarkSession }),
+  useSession: () => ({
+    api: {},
+    uploadAttachment: mockUploadAttachment,
+    markSession: mockMarkSession,
+  }),
 }));
 
 const mockedPickPhoto = jest.mocked(pickPhoto);
+const mockedGetIncident = jest.mocked(getIncident);
+const mockedListAttachments = jest.mocked(listIncidentAttachments);
 
 const INCIDENT_ID = '3f1c2a9e-7b4d-4c1a-9e2f-5d6b7a8c9d0e';
 const PHOTO: LocalFile = { uri: 'file:///resized.jpg', name: 'IMG_0001.jpg', type: 'image/jpeg' };
@@ -38,6 +65,28 @@ const ATTACHMENT: Attachment = {
   contentType: 'image/jpeg',
   size: 412_000,
   uploadedAt: '2026-11-02T10:00:12Z',
+};
+
+// The report the detail shows; past REPORTED, so it offers no "Add photos" button of its own.
+const INCIDENT: components['schemas']['IncidentResponse'] = {
+  id: INCIDENT_ID,
+  title: 'Street light off',
+  description: 'The light has been off for three nights.',
+  status: 'VALIDATED',
+  category: null,
+  location: {
+    latitude: 36.721,
+    longitude: -4.4208,
+    accuracy: 8,
+    address: 'Calle Larios 12',
+    addressStatus: 'AVAILABLE',
+    addressSource: null,
+    neighborhood: 'Centro Histórico',
+    district: 'Centro',
+  },
+  reportedAt: '2026-11-02T09:58:31Z',
+  updatedAt: '2026-11-02T09:58:31Z',
+  closedAt: null,
 };
 
 /** A call that stays in flight until the test answers it. */
@@ -50,7 +99,7 @@ function deferred<T>() {
 }
 
 async function renderScreen() {
-  await render(
+  return renderWithQueries(
     <AddPhotosScreen
       navigation={{} as Props['navigation']}
       route={{ key: 'AddPhotos', name: 'AddPhotos', params: { incidentId: INCIDENT_ID } }}
@@ -67,6 +116,13 @@ beforeEach(() => {
   mockUploadAttachment.mockReset();
   mockMarkSession.mockReset().mockReturnValue(SESSION);
   mockedPickPhoto.mockReset().mockResolvedValue({ kind: 'photo', photo: PHOTO });
+  mockedGetIncident.mockReset().mockResolvedValue(ok(INCIDENT));
+  jest.mocked(listIncidentStatusChanges).mockReset().mockResolvedValue(ok([]));
+  mockedListAttachments.mockReset().mockResolvedValue(ok([]));
+  jest
+    .mocked(getAttachmentContent)
+    .mockReset()
+    .mockResolvedValue(ok(new Blob(['x'])));
   jest.spyOn(console, 'warn').mockImplementation(() => undefined);
 });
 
@@ -94,6 +150,58 @@ describe('AddPhotosScreen', () => {
     );
     expect(screen.getByLabelText('Uploaded photo 1')).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: 'Upload photo' })).not.toBeOnTheScreen();
+  });
+
+  // #279, T5: the detail and the list show the new photo without a manual refresh.
+  describe('with the detail of the report on the same cache (#279 T5)', () => {
+    async function renderWithDetail() {
+      await renderWithQueries(
+        <>
+          <IncidentDetailScreen
+            navigation={{} as ComponentProps<typeof IncidentDetailScreen>['navigation']}
+            route={{
+              key: 'ReportDetail',
+              name: 'ReportDetail',
+              params: { incidentId: INCIDENT_ID },
+            }}
+          />
+          <AddPhotosScreen
+            navigation={{} as Props['navigation']}
+            route={{ key: 'AddPhotos', name: 'AddPhotos', params: { incidentId: INCIDENT_ID } }}
+          />
+        </>,
+      );
+      await screen.findByText('History');
+      await waitFor(() => expect(mockedListAttachments).toHaveBeenCalledTimes(1));
+    }
+
+    it('shows the uploaded photo in the detail', async () => {
+      mockUploadAttachment.mockResolvedValue(ok(ATTACHMENT));
+      await renderWithDetail();
+      expect(screen.queryByLabelText('Photo 1 of 1')).not.toBeOnTheScreen();
+      mockedListAttachments.mockResolvedValue(ok([ATTACHMENT]));
+
+      await fireEvent.press(await pickFrom('Choose from gallery'));
+
+      expect(await screen.findByLabelText('Photo 1 of 1')).toBeOnTheScreen();
+    });
+
+    it('asks for the photos again only after an upload that worked', async () => {
+      mockUploadAttachment
+        .mockResolvedValueOnce(failed({ kind: 'problem', status: 422, code: 'VALIDATION_FAILED' }))
+        .mockResolvedValueOnce(ok(ATTACHMENT));
+      await renderWithDetail();
+
+      await fireEvent.press(await pickFrom('Choose from gallery'));
+      await screen.findByText(/not a JPEG, PNG or WebP image/);
+      expect(mockedListAttachments).toHaveBeenCalledTimes(1);
+
+      mockedListAttachments.mockResolvedValue(ok([ATTACHMENT]));
+      await fireEvent.press(screen.getByRole('button', { name: 'Upload photo' }));
+
+      expect(await screen.findByLabelText('Photo 1 of 1')).toBeOnTheScreen();
+      expect(mockedListAttachments).toHaveBeenCalledTimes(2);
+    });
   });
 
   it('shows the real progress of the upload', async () => {
