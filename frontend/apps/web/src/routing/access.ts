@@ -51,9 +51,18 @@ export function mapDefaultPath(role: Role): string {
 /** The list of incidents a role works from: the inbox, or the technician's work queue. */
 export type IncidentList = 'inbox' | 'workQueue';
 
-const INCIDENT_LISTS: Record<IncidentList, { path: string; defaultPath: string }> = {
-  inbox: { path: PATHS.inbox, defaultPath: INBOX_DEFAULT_PATH },
-  workQueue: { path: PATHS.workQueue, defaultPath: WORK_QUEUE_DEFAULT_PATH },
+/** A screen that opens the detail of an incident, and that the detail leads back to. */
+export type DetailOrigin = IncidentList | 'map';
+
+const DETAIL_ORIGINS: Record<DetailOrigin, { path: string; roles: readonly Role[] }> = {
+  inbox: { path: PATHS.inbox, roles: OPERATOR_ROLES },
+  workQueue: { path: PATHS.workQueue, roles: ['TECHNICIAN'] },
+  map: { path: PATHS.map, roles: INCIDENT_DETAIL_ROLES },
+};
+
+const LIST_DEFAULT_PATHS: Record<IncidentList, string> = {
+  inbox: INBOX_DEFAULT_PATH,
+  workQueue: WORK_QUEUE_DEFAULT_PATH,
 };
 
 /** The list the detail of an incident leads back to for a role. */
@@ -61,19 +70,43 @@ export function incidentListOf(role: Role | undefined): IncidentList {
   return role === 'TECHNICIAN' ? 'workQueue' : 'inbox';
 }
 
-/** Navigation state of a link from a list, so a screen can lead back to the same filters. */
-export interface ListReturn {
-  listSearch: string;
+/** Navigation state of a link to the detail, so the detail can lead back to the same filters. */
+export interface DetailReturn {
+  from: DetailOrigin;
+  /** The query string of that screen, `''` or starting with `?`. */
+  search: string;
 }
 
-/** The list to go back to: as the user left it, or the default one after a direct link. */
-export function listReturnPath(state: unknown, list: IncidentList): string {
-  const search =
-    typeof state === 'object' && state !== null && 'listSearch' in state
-      ? state.listSearch
-      : undefined;
-  const { path, defaultPath } = INCIDENT_LISTS[list];
-  return typeof search === 'string' ? path + search : defaultPath;
+/** The screen the detail leads back to, and its address. */
+export interface DetailBack {
+  to: DetailOrigin;
+  path: string;
+}
+
+function isDetailReturn(state: unknown): state is DetailReturn {
+  if (typeof state !== 'object' || state === null) {
+    return false;
+  }
+  const { from, search } = state as Partial<DetailReturn>;
+  return (
+    typeof from === 'string' &&
+    Object.hasOwn(DETAIL_ORIGINS, from) &&
+    typeof search === 'string' &&
+    (search === '' || search.startsWith('?'))
+  );
+}
+
+/**
+ * Where the detail of an incident leads back to: the screen that opened it, as the user left it,
+ * if the role can open that screen. A detail opened directly (a shared link, a reload in a new tab)
+ * leads to the default list of the role.
+ */
+export function detailBack(state: unknown, role: Role | undefined): DetailBack {
+  if (isDetailReturn(state) && role && DETAIL_ORIGINS[state.from].roles.includes(role)) {
+    return { to: state.from, path: DETAIL_ORIGINS[state.from].path + state.search };
+  }
+  const list = incidentListOf(role);
+  return { to: list, path: LIST_DEFAULT_PATHS[list] };
 }
 
 /** Navigation state of the sign-in, so it can lead back to the screen that asked for it. */
