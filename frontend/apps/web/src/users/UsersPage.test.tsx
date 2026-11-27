@@ -173,6 +173,48 @@ describe('users screen', () => {
     expect((screen.getByLabelText('Name') as HTMLInputElement).disabled).toBe(false);
   });
 
+  // #274: only the technician can resolve their incidents in progress, so the API keeps the account.
+  it('says why a technician with incidents in progress keeps the account and the role', async () => {
+    const inProgress = (action: string) =>
+      `This technician has 1 incident in progress that only they can resolve: “Fallen tree”. ${action} once it is resolved.`;
+    renderApp(PATHS.users, {
+      role: 'ADMINISTRATOR',
+      fetch: usersApi([], {
+        'PATCH /users/11111111-1111-4111-8111-111111111111': async (request) => {
+          const body = (await request.json()) as Record<string, unknown>;
+          const field = 'enabled' in body ? 'enabled' : 'role';
+          return json(422, {
+            status: 422,
+            code: 'VALIDATION_FAILED',
+            errors: [
+              {
+                field,
+                message: inProgress(
+                  field === 'enabled' ? 'Deactivate the account' : 'Change the role',
+                ),
+              },
+            ],
+          });
+        },
+      }),
+    });
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit Pedro Gómez' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Deactivate account' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Yes, deactivate' }));
+
+    expect(await screen.findByText(inProgress('Deactivate the account'))).toBeDefined();
+    expect(screen.queryByText('Account deactivated.')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Deactivate account' })).toBeDefined();
+
+    await userEvent.selectOptions(screen.getByLabelText('Role'), 'Municipal operator');
+    await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    const message = await screen.findByText(inProgress('Change the role'));
+    expect(screen.getByLabelText('Role').getAttribute('aria-describedby')).toContain(message.id);
+    expect(screen.queryByText('Changes saved.')).toBeNull();
+  });
+
   describe('after the first answer', () => {
     const PEDRO = USERS[1]!;
     const PEDRO_PATH = `PATCH /users/${PEDRO.id}`;
