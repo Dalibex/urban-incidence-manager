@@ -10,6 +10,7 @@ import es.uma.urbanpulse.identity.entity.User;
 import es.uma.urbanpulse.identity.repository.MfaChallengeRepository;
 import es.uma.urbanpulse.identity.repository.RefreshTokenRepository;
 import es.uma.urbanpulse.identity.repository.UserRepository;
+import es.uma.urbanpulse.notifications.repository.PushTokenRepository;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -30,6 +31,7 @@ public class SessionService {
 
     private final UserRepository users;
     private final RefreshTokenRepository refreshTokens;
+    private final PushTokenRepository pushTokens;
     private final AccessTokenService accessTokens;
     private final CredentialCheck credentials;
     private final AccountSecurityProperties properties;
@@ -40,6 +42,7 @@ public class SessionService {
     public SessionService(
             UserRepository users,
             RefreshTokenRepository refreshTokens,
+            PushTokenRepository pushTokens,
             AccessTokenService accessTokens,
             CredentialCheck credentials,
             AccountSecurityProperties properties,
@@ -48,6 +51,7 @@ public class SessionService {
             Clock clock) {
         this.users = users;
         this.refreshTokens = refreshTokens;
+        this.pushTokens = pushTokens;
         this.accessTokens = accessTokens;
         this.credentials = credentials;
         this.properties = properties;
@@ -114,7 +118,7 @@ public class SessionService {
             throw new InvalidRefreshTokenException();
         }
         if (!Boolean.TRUE.equals(user.getEnabled())) {
-            refreshTokens.endAll(user.getId(), now);
+            endEverySession(user.getId(), now);
             throw new InvalidRefreshTokenException();
         }
         if (token.getRevokedAt() != null) {
@@ -123,7 +127,7 @@ public class SessionService {
                             + " of user {}",
                     token.getId(),
                     user.getId());
-            refreshTokens.endAll(user.getId(), now);
+            endEverySession(user.getId(), now);
             throw new InvalidRefreshTokenException();
         }
         var secondFactor = Boolean.TRUE.equals(token.getSecondFactor());
@@ -153,12 +157,24 @@ public class SessionService {
 
     /**
      * Revokes every refresh token of the user and makes it expire, for #40 when an administrator
-     * disables an account. Access tokens already issued keep working until they expire (about 15
-     * minutes, ADR-0004).
+     * disables an account, and deletes the user's push tokens ({@link #endEverySession}). Access
+     * tokens already issued keep working until they expire (about 15 minutes, ADR-0004).
      */
     @Transactional
     public void revokeAllSessions(UUID userId) {
-        refreshTokens.endAll(userId, now());
+        endEverySession(userId, now());
+    }
+
+    /**
+     * Ends every session of the user ({@link RefreshTokenRepository#endAll}) and then deletes every
+     * push token of the user (#373, ADR-0031), in the caller's transaction: a phone must stop
+     * showing the notifications of an account taken back. Every end of all sessions goes through
+     * here, so none can forget the tokens. After the sessions, so a registration that holds its
+     * session {@code FOR SHARE} commits first and its token is deleted too.
+     */
+    void endEverySession(UUID userId, OffsetDateTime now) {
+        refreshTokens.endAll(userId, now);
+        pushTokens.deleteAllOf(userId);
     }
 
     /** Only the hash of the token is stored, like a refresh token. */

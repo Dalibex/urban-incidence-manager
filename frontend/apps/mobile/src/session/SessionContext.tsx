@@ -1,7 +1,10 @@
 import {
   createApiClient,
+  deletePushToken,
   getCurrentUser,
+  getNotificationSettings,
   markSession as markStoreSession,
+  registerPushToken,
   signIn as signInOnApi,
   signOut as signOutOnApi,
   signUp as signUpOnApi,
@@ -27,6 +30,7 @@ import {
   type ReactNode,
 } from 'react';
 
+import { readPushPermission, readPushToken } from '../notifications/push';
 import { secureTokenStore } from './secure-token-store';
 
 /** The signed-in user, with the fields of `UserResponse` that the app shows. */
@@ -149,6 +153,57 @@ function withinTime<T>(work: Promise<T>, ms: number, late: T): Promise<T> {
   return Promise.race([work, timeout]).finally(() => clearTimeout(timer));
 }
 
+/**
+ * Keeps the push token of this device in line with the citizen's setting: registered when push is
+ * on and the permission is granted; deleted at sign-in when push is off, because the token may be
+ * the previous citizen's. It never breaks the session: the app works without push, so every
+ * failure is only logged.
+ */
+async function syncPushToken(api: ApiClient, signingIn: boolean): Promise<void> {
+  try {
+    const settings = await getNotificationSettings(api);
+    if (!settings.ok) {
+      return;
+    }
+    if (settings.data.push) {
+      if ((await readPushPermission()) !== 'granted') {
+        return;
+      }
+      const token = await readPushToken();
+      if (token) {
+        await registerPushToken(api, token);
+      }
+    } else if (signingIn) {
+      const token = await readPushToken();
+      if (token) {
+        await deletePushToken(api, token);
+      }
+    }
+  } catch (error) {
+    console.warn('The push token could not be synchronised', error);
+  }
+}
+
+/**
+ * Deletes the push token of this device after the session ended, with the access token the session
+ * had: it stays valid for a few minutes, and the deletion does not check the session (F2). Best
+ * effort: a failure leaves the token to the server's own cleanup.
+ */
+async function deleteDevicePushToken(
+  api: ApiClient,
+  token: Promise<string | null>,
+  accessToken: string | undefined,
+): Promise<void> {
+  try {
+    const deviceToken = await token;
+    if (deviceToken && accessToken) {
+      await deletePushToken(api, deviceToken, accessToken);
+    }
+  } catch (error) {
+    console.warn('The push token could not be deleted', error);
+  }
+}
+
 export function SessionProvider({ children }: { children: ReactNode }) {
   // The cached incidents belong to the user who read them: they go away with the session.
   const queryClient = useQueryClient();
@@ -184,6 +239,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         case 'signedIn':
           setUser(outcome.user);
           setRestore(DONE);
+          void syncPushToken(api, false);
           break;
         case 'signedOut':
           setRestore(DONE);
@@ -244,6 +300,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
         setExpired(false);
         setUser(me.data);
+        void syncPushToken(api, true);
         return { ok: true, data: undefined };
       },
       // Only creates the account: the contract does not sign in, so the screen signs in next and
@@ -253,14 +310,25 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         return account.ok ? { ok: true, data: undefined } : account;
       },
       signOut: async () => {
+        // Read before signing out, which discards both; neither read may stop the sign-out.
+        const deviceToken = readPushToken().catch(() => null);
+        let accessToken = await secureTokenStore
+          .load()
+          .then((tokens) => tokens?.accessToken)
+          .catch(() => undefined);
         try {
-          await signOutOnApi(api, secureTokenStore);
+          // If this throws a non-network error, the device token is not deleted (best effort).
+          // A refresh during the sign-out may have replaced the access token that revokes it.
+          await signOutOnApi(api, secureTokenStore, (tokens) => {
+            accessToken = tokens?.accessToken ?? accessToken;
+          });
         } finally {
           // The tokens are gone either way. A refresh rejected while signing out is not an expiry.
           queryClient.clear();
           setUser(null);
           setExpired(false);
         }
+        await deleteDevicePushToken(api, deviceToken, accessToken);
       },
     }),
     [api, queryClient, restore, retryRestore, user, expired],

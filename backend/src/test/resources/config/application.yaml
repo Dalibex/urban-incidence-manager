@@ -25,3 +25,12 @@ urbanpulse:
     enabled: false
     nominatim-base-url: http://127.0.0.1:9
     request-spacing: PT0S
+  # The same for the notifications of #373: the scheduled delivery and receipt jobs never run, a
+  # test calls NotificationDeliveryWorker.deliverPending() or PushReceiptWorker.readReceipts(), and
+  # nothing reaches the real Expo or Brevo. With both channels off, a row is only logged.
+  notifications:
+    enabled: false
+    push-enabled: false
+    email-enabled: false
+    expo-base-url: http://127.0.0.1:9
+    brevo-base-url: http://127.0.0.1:9

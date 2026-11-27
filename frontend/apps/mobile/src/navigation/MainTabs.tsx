@@ -4,6 +4,7 @@ import type { NavigatorScreenParams } from '@react-navigation/native';
 import { colors } from '@urbanpulse/ui';
 import type { ComponentProps } from 'react';
 
+import { useOpenIncidentOnNotificationTap } from '../notifications/useOpenIncidentOnNotificationTap';
 import { NewIncidentScreen } from '../screens/NewIncidentScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { MyReportsStack, type MyReportsStackParamList } from './MyReportsStack';
@@ -25,6 +26,7 @@ function tabIcon(name: IconName) {
 }
 
 export function MainTabs() {
+  useOpenIncidentOnNotificationTap();
   return (
     <Tab.Navigator
       screenOptions={{

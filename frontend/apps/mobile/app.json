@@ -2,6 +2,7 @@
   "expo": {
     "name": "UrbanPulse",
     "slug": "urbanpulse",
+    "owner": "urbanpulse-uma",
     "platforms": ["ios", "android"],
     "version": "0.2.0",
     "orientation": "portrait",
@@ -13,6 +14,7 @@
     },
     "android": {
       "package": "com.urbanpulse.app",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -37,7 +39,13 @@
           "locationWhenInUsePermission": "This application needs to access your location to report incidents accurately."
         }
       ],
-      "@maplibre/maplibre-react-native"
-    ]
+      "@maplibre/maplibre-react-native",
+      "expo-notifications"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d2256afb-b602-48e3-b3a7-c54d66566102"
+      }
+    }
   }
 }

@@ -83,7 +83,8 @@ export interface SessionMark {
  * whatever the store holds by then, another user's session or the refreshed tokens of the session
  * that ended (#259). A request sent while a sign-out waits for the server belongs to the session
  * being signed out, so its session ends when the sign-out finishes. The `DELETE` of `signOut` has
- * finished by then, so it is still repeated with a fresh token to revoke the session.
+ * finished by then, so it is still repeated with a fresh token to revoke the session. Until then,
+ * only that `DELETE` refreshes: any other request is answered as the server answered it (#373).
  */
 export function markSession(tokenStore: TokenStore): SessionMark {
   return { tokenStore, sessionEnds: sessionEndCount(tokenStore) };
@@ -170,6 +171,10 @@ export function createSessionFetch(baseUrl: string, options: SessionOptions) {
   function operationPath(request: Request): string {
     const { pathname } = new URL(request.url);
     return pathname.startsWith(basePath) ? pathname.slice(basePath.length) : pathname;
+  }
+
+  function isSignOutRequest(request: Request): boolean {
+    return request.method === 'DELETE' && operationPath(request) === '/sessions/current';
   }
 
   async function endSession(signOutsAtStart: number): Promise<null> {
@@ -275,7 +280,11 @@ export function createSessionFetch(baseUrl: string, options: SessionOptions) {
       !tokens ||
       PATHS_WITHOUT_REFRESH.has(operationPath(request)) ||
       // A request of a session that has ended neither refreshes nor is repeated (#259).
-      hasSessionEnded(session)
+      hasSessionEnded(session) ||
+      // While signing out the server may already have revoked the refresh token, and presenting
+      // it again is taken as reuse and ends every session (#125); `/push-tokens` answers 401 for
+      // a revoked session. Only the DELETE of the sign-out itself may still refresh first.
+      (isSigningOut(tokenStore) && !isSignOutRequest(request))
     ) {
       return response;
     }

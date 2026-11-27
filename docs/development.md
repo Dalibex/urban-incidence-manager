@@ -378,6 +378,20 @@ build again with `pnpm --filter @urbanpulse/mobile android`.
   reaches the real Nominatim, one call a second for the whole backend: a burst of searches answers
   `429`.
 
+#### Push notifications
+
+The *Notifications* switches in *Profile* need the development build above: **Expo Go cannot
+receive push notifications**, so there the app cannot read a push token and the switch stays off
+with an error.
+
+- **`google-services.json`:** Android receives push through Firebase, and the build reads
+  `apps/mobile/google-services.json`. Ask the PO for it privately and save it at that path. Git
+  ignores it until the team decides whether to commit it, and without it the Android build fails.
+- **Rebuild:** `app.json` gained the `expo-notifications` plugin, the Expo project and the
+  Firebase file, so build again once with `pnpm --filter @urbanpulse/mobile android`.
+- **Sending:** the backend only sends to Expo when `NOTIFICATIONS_PUSH_ENABLED=true`, as the
+  section on notifications above explains.
+
 ### Before pushing
 
 Run the checks of the `frontend` CI job and format the code as described in
@@ -427,11 +441,20 @@ stays pending. The tests never call it. The address of each new incident works t
 Nominatim ([ADR-0002](adr/0002-open-street-map.md)): the report saves its location
 with the address `PENDING`, and a worker of `geospatial` resolves it every 30 seconds, one call per
 second at most. Without internet, set `ADDRESS_ENRICHMENT_ENABLED=false`: the address stays
-pending, and the address search of the mobile app answers `503`. The providers proposed for traffic (TomTom,
-[ADR-0024](adr/0024-traffic-provider.md)) and for notification delivery (Brevo for email and the Expo push service,
-[ADR-0019](adr/0019-notification-delivery-providers.md) amended by
-[ADR-0031](adr/0031-push-and-email-notifications.md)) are not decided yet: the three ADRs are
-*Proposed*.
+pending, and the address search of the mobile app answers `503`. The provider proposed for traffic
+(TomTom, [ADR-0024](adr/0024-traffic-provider.md)) is not decided yet: that ADR is *Proposed*.
+
+The citizen's notifications of a status change ([ADR-0031](adr/0031-push-and-email-notifications.md))
+are sent by two scheduled jobs of `notifications`: push through Expo and email through Brevo. With
+the defaults of `backend/.env.example` both channels are off: a status change still creates its
+notification rows, and the jobs only log them, so the backend needs no key and no internet for
+this. To try a real send, set in `backend/.env` your own keys, which are secrets and never
+committed: `NOTIFICATIONS_EMAIL_ENABLED=true` with `BREVO_API_KEY` and `MAIL_FROM` (a sender
+verified in your Brevo account, whose *Authorized IPs* must include your machine's address), and
+`NOTIFICATIONS_PUSH_ENABLED=true` with `EXPO_ACCESS_TOKEN`. The backend does not start when a
+channel is on and its key is missing. `NOTIFICATIONS_ENABLED=false` stops both jobs. The tests
+never call Expo or Brevo. Every variable is in the
+[deployment guide](deployment.md#-configuration).
 
 ## 🧯 Troubleshooting
 

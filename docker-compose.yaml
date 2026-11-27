@@ -64,11 +64,19 @@ x-backend: &backend
     WEATHER_MAX_DELAY: ${WEATHER_MAX_DELAY:-PT1H}
     # Address of each incident from Nominatim (#375, docs/deployment.md).
     ADDRESS_ENRICHMENT_ENABLED: ${ADDRESS_ENRICHMENT_ENABLED:-true}
-    # The backend has no route to the internet: its calls to Open-Meteo and Nominatim go through
-    # egress-proxy, which only lets it reach the hosts of egress-proxy/squid.conf. Fixed here, not
-    # in .env.
+    # Push through Expo and email through Brevo to the citizen (#373, ADR-0031, docs/deployment.md).
+    NOTIFICATIONS_ENABLED: ${NOTIFICATIONS_ENABLED:-true}
+    NOTIFICATIONS_PUSH_ENABLED: ${NOTIFICATIONS_PUSH_ENABLED:-false}
+    EXPO_ACCESS_TOKEN: ${EXPO_ACCESS_TOKEN:-}
+    NOTIFICATIONS_EMAIL_ENABLED: ${NOTIFICATIONS_EMAIL_ENABLED:-false}
+    BREVO_API_KEY: ${BREVO_API_KEY:-}
+    MAIL_FROM: ${MAIL_FROM:-}
+    # The backend has no route to the internet: its calls to Open-Meteo, Nominatim, Expo and
+    # Brevo go through egress-proxy, which only lets it reach the hosts of
+    # egress-proxy/squid.conf. Fixed here, not in .env.
     OPEN_METEO_PROXY: http://egress-proxy:3128
     NOMINATIM_PROXY: http://egress-proxy:3128
+    NOTIFICATIONS_PROXY: http://egress-proxy:3128
     # Every request comes from nginx, so Tomcat takes the client address, the scheme, the host
     # and the port from the X-Forwarded-* headers that nginx writes (frontend/nginx.conf). Fixed
     # here, not in .env: development reaches the backend without nginx and must ignore those

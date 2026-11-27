@@ -19,7 +19,7 @@
 -- Coordinates are WGS 84, longitude first (ST_MakePoint(longitude, latitude)).
 
 TRUNCATE incident, location, status_change, assignment, comment, attachment, urban_context,
-    external_observation, incident_asset, notification CASCADE;
+    external_observation, incident_asset, notification, push_delivery, push_token CASCADE;
 
 INSERT INTO users (id, name, email, password_hash, role, enabled, password_change_required) VALUES
     ('d0000000-0000-4000-8000-000000000001', 'Carmen Ruiz', 'dev.citizen@example.com',
@@ -335,17 +335,23 @@ INSERT INTO incident_asset (id, incident_id, urban_asset_id, distance_to_inciden
     ('da000000-0000-4000-8000-000000008001', 'd1000000-0000-4000-8000-000000000008',
      'd9000000-0000-4000-8000-000000000004', 15.0, 0.90, 'CONFIRMED');
 
--- One per delivery status; sent_at stays empty while a notification is pending.
-INSERT INTO notification (id, incident_id, recipient_id, message, channel, delivery_status, sent_at) VALUES
+-- Notifications of the reporter, one per channel and final outcome, for a change of each history
+-- above. None is pending, so the delivery job has nothing to send when the dataset is loaded.
+INSERT INTO notification (id, incident_id, recipient_id, status_change_id, message, channel, delivery_status,
+                          attempts, next_attempt_at, created_at, sent_at) VALUES
     ('db000000-0000-4000-8000-000000004001', 'd1000000-0000-4000-8000-000000000004', 'd0000000-0000-4000-8000-000000000002',
-     'Your report "Overflowing bins" was rejected: duplicate of a report that is already being handled.',
-     'APP', 'DELIVERED', '2026-10-16T15:00:00Z'),
-    ('db000000-0000-4000-8000-000000007001', 'd1000000-0000-4000-8000-000000000007', 'd0000000-0000-4000-8000-000000000004',
-     'New incident assigned to you: "Fallen tree branch blocking a path".',
-     'APP', 'DELIVERED', '2026-10-10T17:05:00Z'),
+     'd2000000-0000-4000-8000-000000004002',
+     'Your incident "Overflowing bins" is now rejected. Message: Duplicate of a report that is already being handled.',
+     'PUSH', 'DELIVERED', 1, '2026-10-16T15:00:00Z', '2026-10-16T15:00:00Z', '2026-10-16T15:00:20Z'),
+    ('db000000-0000-4000-8000-000000007001', 'd1000000-0000-4000-8000-000000000007', 'd0000000-0000-4000-8000-000000000001',
+     'd2000000-0000-4000-8000-000000007003',
+     'Your incident "Fallen tree branch blocking a path" is now assigned.',
+     'EMAIL', 'DELIVERED', 1, '2026-10-10T17:05:00Z', '2026-10-10T17:05:00Z', '2026-10-10T17:05:20Z'),
     ('db000000-0000-4000-8000-000000008001', 'd1000000-0000-4000-8000-000000000008', 'd0000000-0000-4000-8000-000000000002',
-     'Your incident "Broken swing in a play area" has been resolved.',
-     'EMAIL', 'PENDING', NULL),
+     'd2000000-0000-4000-8000-000000008005',
+     'Your incident "Broken swing in a play area" is now resolved.',
+     'EMAIL', 'FAILED', 3, '2026-10-09T13:36:00Z', '2026-10-09T13:30:00Z', '2026-10-09T13:36:00Z'),
     ('db000000-0000-4000-8000-000000010001', 'd1000000-0000-4000-8000-000000000010', 'd0000000-0000-4000-8000-000000000001',
-     'Your incident "Pothole on Paseo del Parque" has been closed.',
-     'SMS', 'FAILED', '2026-09-27T09:00:00Z');
+     'd2000000-0000-4000-8000-000000010006',
+     'Your incident "Pothole on Paseo del Parque" is now closed.',
+     'PUSH', 'FAILED', 1, '2026-09-27T09:00:00Z', '2026-09-27T09:00:00Z', '2026-09-27T09:00:20Z');

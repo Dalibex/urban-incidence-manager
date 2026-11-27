@@ -1,9 +1,13 @@
+import { getNotificationSettings } from '@urbanpulse/api-client';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { useSession } from '../session/SessionContext';
+import { ok, renderWithQueries } from '../test-utils';
 import { ProfileScreen } from './ProfileScreen';
 import { UseWebScreen } from './UseWebScreen';
 
+jest.mock('@urbanpulse/api-client', () => ({ getNotificationSettings: jest.fn() }));
+jest.mock('../notifications/push', () => ({}));
 jest.mock('../session/SessionContext', () => ({ useSession: jest.fn() }));
 
 const mockedUseSession = jest.mocked(useSession);
@@ -25,12 +29,14 @@ function signedInAs(role: 'CITIZEN' | 'MUNICIPAL_OPERATOR') {
 
 beforeEach(() => {
   signOut.mockClear();
+  // Profile also shows the notification settings; their switches are tested in ProfileNotifications.
+  jest.mocked(getNotificationSettings).mockResolvedValue(ok({ push: false, email: true }));
 });
 
 describe('ProfileScreen', () => {
   it('shows who is signed in and signs them out', async () => {
     signedInAs('CITIZEN');
-    await render(<ProfileScreen />);
+    await renderWithQueries(<ProfileScreen />);
 
     expect(screen.getByText('Lucía Martín')).toBeOnTheScreen();
     expect(screen.getByText('lucia.martin@example.com')).toBeOnTheScreen();

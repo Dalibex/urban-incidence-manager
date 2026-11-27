@@ -40,6 +40,15 @@
     </Match>
 
     <!--
+      The same for PushTokenRepository (deleteByToken, deleteRegisteredBefore, #373): the services
+      keep the singleton that Spring injects.
+    -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP2" />
+        <Field type="es.uma.urbanpulse.notifications.repository.PushTokenRepository" />
+    </Match>
+
+    <!--
       The same for StorageService (put, delete): the services keep the singleton that Spring
       injects (ADR-0013).
     -->

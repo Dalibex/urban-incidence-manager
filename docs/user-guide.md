@@ -233,7 +233,21 @@ each change are not shown to citizens.
 
 ### Profile
 
-Your name and email, and *Sign out*.
+Your name and email, the *Notifications* switches and *Sign out*.
+
+*Notifications* chooses how the city tells you that the status of one of your reports changed.
+Each switch saves when you tap it and moves only after the change is saved; if it cannot be saved,
+the switch stays as it was and the screen says so.
+
+- **Push notifications:** a notification on this phone. The first time you turn it on, the phone
+  asks you to allow notifications; if you say no, the switch stays off and the screen explains how
+  to allow them in the phone's settings, with a link to open them. Tapping a notification opens
+  that report. It is off until you turn it on. Once it is on, it arrives on every phone where you
+  sign in with notifications allowed. Signing out stops it on that phone.
+- **Email:** a message to your account's email. It is on until you turn it off.
+
+A notification names your report and its new status, and gives the reason only when the city
+council asks you for more details or rejects the report.
 
 ## 📥 Municipal Operator (Web)
 

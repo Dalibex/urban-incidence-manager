@@ -22,7 +22,11 @@ export function FormMessage({ message, tone = 'error' }: FormMessageProps) {
     return null;
   }
   return (
-    <Text accessibilityLiveRegion="polite" style={[styles.message, styles[tone]]}>
+    <Text
+      accessibilityRole="alert"
+      accessibilityLiveRegion="polite"
+      style={[styles.message, styles[tone]]}
+    >
       {message}
     </Text>
   );

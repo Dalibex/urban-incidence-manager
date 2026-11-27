@@ -276,6 +276,105 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/me/notification-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the citizen's notification channels
+         * @description The channels through which the signed-in citizen hears about the status changes of their
+         *     own incidents. Email is on from sign-up; push starts off, because it needs the phone's
+         *     permission and a registered device. Every status change of the citizen's incident creates
+         *     one notification per channel that is on (push only while the citizen has a registered
+         *     device), sent after the change is saved, so a provider that is down never delays the
+         *     change (ADR-0031). A reassignment creates none, and a disabled account gets none.
+         *
+         *     Roles: citizen.
+         */
+        get: operations["getNotificationSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Turn the citizen's notification channels on or off
+         * @description Only the properties present in the body change. Turning push off stops push for every
+         *     device of the citizen; the app also deletes its own token with
+         *     `createPushTokenDeletion`. A change applies to the notifications created after it.
+         *
+         *     Roles: citizen.
+         */
+        patch: operations["updateNotificationSettings"];
+        trace?: never;
+    };
+    "/push-tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register the phone's Expo push token
+         * @description Registers the Expo push token of the phone for the signed-in citizen. The app sends it at
+         *     every sign-in and at every start while signed in, when the citizen has push on.
+         *
+         *     It is idempotent: registering a token the citizen already holds only updates the time it
+         *     was last registered. A token held by another user moves to this citizen, so a shared
+         *     phone never shows the previous citizen's notifications. A token is tied to the device and
+         *     the user, not to the session: refreshing or letting a session expire does not touch it. A
+         *     token not registered for 60 days is deleted.
+         *
+         *     Unlike other operations, this one checks in the database that the session of the access
+         *     token is still active (not signed out, revoked or expired), so an access token issued
+         *     before every session of the user ended cannot bring back a deleted token (ADR-0031). If
+         *     it is not, it returns `401`. A `401` means the access token expired or the session
+         *     ended: the client refreshes once and retries, except while signing out, when the refresh
+         *     token may already be revoked and presenting it again would end every session of the
+         *     user.
+         *
+         *     Roles: citizen.
+         */
+        post: operations["createPushToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/push-token-deletions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Delete the phone's Expo push token
+         * @description Deletes the token by its value, whoever holds it. The app calls it when the citizen signs
+         *     out on the phone or turns push off, and when a citizen signs in with push off, since the
+         *     phone's token may still belong to the previous citizen. The token travels in the body,
+         *     never in the path, so it stays out of access logs.
+         *
+         *     It is idempotent: an unknown token also returns `204`.
+         *
+         *     Roles: citizen.
+         */
+        post: operations["createPushTokenDeletion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users": {
         parameters: {
             query?: never;
@@ -1426,6 +1525,31 @@ export interface components {
             id: string;
             /** @example Pedro Gómez */
             name: string;
+        };
+        /** @description The channels of the citizen's notifications. There is no SMS channel (ADR-0031). */
+        NotificationSettings: {
+            /**
+             * @description Push notifications to the citizen's registered phones.
+             * @example true
+             */
+            push: boolean;
+            /**
+             * @description Email to the citizen's account address.
+             * @example true
+             */
+            email: boolean;
+        };
+        /** @description The channels to change. An absent property keeps its value. */
+        UpdateNotificationSettingsRequest: {
+            /** @example true */
+            push?: boolean;
+            /** @example false */
+            email?: boolean;
+        };
+        /** @description An Expo push token, as `expo-notifications` returns it. */
+        PushTokenRequest: {
+            /** @example ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx] */
+            token: string;
         };
         /** @description The credentials of the account and its new password. */
         CreatePasswordChangeRequest: {
@@ -2853,6 +2977,112 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    getNotificationSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The citizen's channels. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationSettings"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    updateNotificationSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateNotificationSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description The channels after the change. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationSettings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    createPushToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description The token is registered for the citizen. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    createPushTokenDeletion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description The token is no longer registered. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
             500: components["responses"]["InternalServerError"];
         };
     };

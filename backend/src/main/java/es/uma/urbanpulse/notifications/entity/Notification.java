@@ -2,6 +2,7 @@ package es.uma.urbanpulse.notifications.entity;
 
 import es.uma.urbanpulse.identity.entity.User;
 import es.uma.urbanpulse.incidents.entity.Incident;
+import es.uma.urbanpulse.incidents.entity.StatusChange;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -38,6 +39,10 @@ public class Notification {
     @JoinColumn(name = "recipient_id", nullable = false)
     private User recipient;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "status_change_id", nullable = false)
+    private StatusChange statusChange;
+
     @Column(nullable = false)
     private String message;
 
@@ -49,6 +54,16 @@ public class Notification {
     @Column(name = "delivery_status", nullable = false)
     private DeliveryStatus deliveryStatus;
 
+    @Column(nullable = false)
+    private short attempts;
+
+    @Column(name = "next_attempt_at", nullable = false)
+    private OffsetDateTime nextAttemptAt;
+
+    @Column(name = "created_at", nullable = false)
+    private OffsetDateTime createdAt;
+
+    /** The instant of the final outcome, {@code DELIVERED} or {@code FAILED}. */
     @Column(name = "sent_at")
     private OffsetDateTime sentAt;
 }

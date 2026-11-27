@@ -42,7 +42,9 @@ class DatabaseMigrationIT {
                     "urban_asset",
                     "incident_asset",
                     "data_source_config",
-                    "notification");
+                    "notification",
+                    "push_token",
+                    "push_delivery");
 
     private static final List<String> REFERENCE_CATEGORIES =
             List.of(
