@@ -8,6 +8,7 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.DefaultValue;
 
 /**
  * The second factor of the staff (#57, ADR-0021), read from the environment: {@code
@@ -23,6 +24,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param challengeTtl how long a sign-in challenge works
  * @param codeAttemptsPerChallenge wrong codes that spend a challenge
  * @param codeAttempts wrong codes allowed per account in each window
+ * @param maxConsecutiveWrongCodes consecutive wrong codes after which the code step of the account
+ *     is refused until an administrator resets it (#435); at most {@value
+ *     #MAX_CONSECUTIVE_WRONG_CODES}, as NIST SP 800-63B (5.2.2) asks
  */
 @ConfigurationProperties("urbanpulse.security.mfa")
 public record MfaProperties(
@@ -31,10 +35,14 @@ public record MfaProperties(
         String issuer,
         Duration challengeTtl,
         int codeAttemptsPerChallenge,
-        AttemptLimit codeAttempts) {
+        AttemptLimit codeAttempts,
+        @DefaultValue("100") int maxConsecutiveWrongCodes) {
 
     // AES-256.
     static final int KEY_BYTES = 32;
+
+    /** The most consecutive failed attempts NIST SP 800-63B (5.2.2) allows on an authenticator. */
+    static final int MAX_CONSECUTIVE_WRONG_CODES = 100;
 
     private static final Logger log = LoggerFactory.getLogger(MfaProperties.class);
 
@@ -62,6 +70,12 @@ public record MfaProperties(
         }
         if (codeAttempts == null) {
             throw new IllegalArgumentException("urbanpulse.security.mfa.code-attempts is required");
+        }
+        if (maxConsecutiveWrongCodes < 1
+                || maxConsecutiveWrongCodes > MAX_CONSECUTIVE_WRONG_CODES) {
+            throw new IllegalArgumentException(
+                    "urbanpulse.security.mfa.max-consecutive-wrong-codes must be between 1 and "
+                            + MAX_CONSECUTIVE_WRONG_CODES);
         }
     }
 
@@ -110,6 +124,8 @@ public record MfaProperties(
                 + codeAttemptsPerChallenge
                 + ", codeAttempts="
                 + codeAttempts
+                + ", maxConsecutiveWrongCodes="
+                + maxConsecutiveWrongCodes
                 + "]";
     }
 }

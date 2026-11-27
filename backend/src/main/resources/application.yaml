@@ -85,6 +85,9 @@ urbanpulse:
       code-attempts:
         max: 10
         window: PT15M
+      # Consecutive wrong codes per account, kept in the database (#435): at this many the code step
+      # is refused until an administrator resets the second factor. At most 100 (NIST SP 800-63B).
+      max-consecutive-wrong-codes: 100
   # The weather of each incident from Open-Meteo, after the report (ADR-0018, docs/deployment.md).
   weather:
     enabled: ${WEATHER_ENRICHMENT_ENABLED:true}

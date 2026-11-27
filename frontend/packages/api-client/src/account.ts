@@ -101,8 +101,9 @@ export function enrollMfa(
 /**
  * Answers a challenge with the code of the authenticator app and stores the tokens. `401` with
  * `INVALID_MFA_CODE` means the user types another code; `401` with `INVALID_MFA_CHALLENGE`, that
- * the sign-in starts again with the password, and so does `403` with `ACCOUNT_DISABLED`. `429` with
- * `TOO_MANY_ATTEMPTS` does not spend the challenge: the user waits and tries again.
+ * the sign-in starts again with the password, and so does `403` with `ACCOUNT_DISABLED` or
+ * `MFA_LOCKED` (too many consecutive wrong codes: an administrator resets the second factor). `429`
+ * with `TOO_MANY_ATTEMPTS` does not spend the challenge: the user waits and tries again.
  */
 export async function verifyMfa(
   client: ApiClient,

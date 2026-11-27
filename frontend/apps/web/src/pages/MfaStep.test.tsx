@@ -219,6 +219,24 @@ describe('second factor step', () => {
     expect(screen.getByLabelText('Password')).toBeDefined();
   });
 
+  // #435: once the code step is locked no code can answer it, so the form does not ask for another.
+  it('goes back to the password and names the administrator when the code step is locked', async () => {
+    const fetch = fakeApi({
+      ...challengeAnswer(),
+      'POST /mfa-verifications': problem(403, 'MFA_LOCKED'),
+    });
+    renderApp(PATHS.signIn, { fetch });
+
+    await enterPassword();
+    await enterCode();
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Too many wrong codes. Ask an administrator to reset your second factor, then set it up again.',
+    );
+    expect(screen.getByLabelText('Password')).toBeDefined();
+    expect(screen.queryByLabelText('Code')).toBeNull();
+  });
+
   it('tells the user to wait after too many wrong codes, and stays on the step', async () => {
     const fetch = fakeApi({
       ...challengeAnswer(),

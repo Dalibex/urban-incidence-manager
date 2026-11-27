@@ -237,6 +237,14 @@ export interface paths {
          *     `TOO_MANY_ATTEMPTS` with `Retry-After`, even for a right code (*Rate limits* in
          *     `docs/security.md`).
          *
+         *     Consecutive wrong codes are also counted per account in the database, across challenges and
+         *     windows, and only a valid code or `createUserMfaReset` sets the count back to zero. The
+         *     wrong code that reaches 100 (`urbanpulse.security.mfa.max-consecutive-wrong-codes`) is
+         *     still answered `INVALID_MFA_CODE` and records a `LOCK_MFA` audit entry, with the account as
+         *     its own actor; from then on every code, right or wrong, gets `403` `MFA_LOCKED` and spends
+         *     its challenge (or `429` while the limit per window above still lasts), until an
+         *     administrator resets the second factor.
+         *
          *     The account is checked again here: if it was disabled after the password step, or its role
          *     no longer needs the second factor, the answer is `403` `ACCOUNT_DISABLED` or `401`
          *     `INVALID_MFA_CHALLENGE`, and no token is issued. Of two verifications at once of the same
@@ -366,11 +374,15 @@ export interface paths {
          *     entry with the actor, the instant, the user (`target`) and the `reason` the administrator
          *     gives, in one transaction, as ADR-0021 asks. The user enrols again on their next sign-in.
          *
+         *     It also sets the count of consecutive wrong codes back to zero, so it is how an account
+         *     whose code step answers `MFA_LOCKED` is unlocked (`createMfaVerification`). An account still
+         *     enrolling, with no secret yet but with wrong codes, is reset and recorded the same way.
+         *
          *     A reset is a resource with a body, not a `DELETE`, because the audit needs that reason and a
          *     `DELETE` has no body.
          *
-         *     A user without a second factor also gets `204`, and then nothing changes and nothing is
-         *     recorded.
+         *     A user without a second factor and without wrong codes also gets `204`, and then nothing
+         *     changes and nothing is recorded.
          *
          *     Roles: `ADMINISTRATOR`.
          */
@@ -1451,7 +1463,7 @@ export interface components {
          * @example CHANGE_ROLE
          * @enum {string}
          */
-        AuditAction: "CREATE_USER" | "UPDATE_USER" | "CHANGE_ROLE" | "DISABLE_USER" | "ENABLE_USER" | "CHANGE_PASSWORD" | "CLASSIFY_INCIDENT" | "ENROLL_MFA" | "RESET_MFA";
+        AuditAction: "CREATE_USER" | "UPDATE_USER" | "CHANGE_ROLE" | "DISABLE_USER" | "ENABLE_USER" | "CHANGE_PASSWORD" | "CLASSIFY_INCIDENT" | "ENROLL_MFA" | "RESET_MFA" | "LOCK_MFA";
         /**
          * @description The kind of record an audit entry is about.
          * @example USER
@@ -2809,23 +2821,12 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description The account was disabled after the password step. Code: `ACCOUNT_DISABLED`. No token is issued. */
+            /** @description The account was disabled after the password step, code `ACCOUNT_DISABLED`. Or it reached its limit of consecutive wrong codes, code `MFA_LOCKED`: no code is checked until an administrator resets its second factor. No token is issued. */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    /**
-                     * @example {
-                     *       "type": "about:blank",
-                     *       "title": "Forbidden",
-                     *       "status": 403,
-                     *       "code": "ACCOUNT_DISABLED",
-                     *       "detail": "This account is disabled.",
-                     *       "instance": "/api/v1/mfa-verifications",
-                     *       "traceId": "4bf92f3577b34da6a3ce929d0e0e4736"
-                     *     }
-                     */
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };

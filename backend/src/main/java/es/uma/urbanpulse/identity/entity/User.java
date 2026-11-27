@@ -57,4 +57,11 @@ public class User {
     /** The time step of the last accepted code, so the same code is never accepted twice. */
     @Column(name = "mfa_last_time_step")
     private Long mfaLastTimeStep;
+
+    /**
+     * Wrong second-factor codes since the last valid one or the last reset (#435). At the limit of
+     * {@code MfaProperties.maxConsecutiveWrongCodes} the code step is refused until a reset.
+     */
+    @Column(name = "mfa_failed_codes", nullable = false)
+    private int mfaFailedCodes;
 }

@@ -37,6 +37,7 @@ describe('action labels', () => {
   it('names the second-factor actions and offers them in the filter', () => {
     expect(ACTION_LABELS.ENROLL_MFA).toBe('Second factor set up');
     expect(ACTION_LABELS.RESET_MFA).toBe('Second factor reset');
-    expect(AUDIT_ACTIONS).toEqual(expect.arrayContaining(['ENROLL_MFA', 'RESET_MFA']));
+    expect(ACTION_LABELS.LOCK_MFA).toBe('Second factor locked');
+    expect(AUDIT_ACTIONS).toEqual(expect.arrayContaining(['ENROLL_MFA', 'RESET_MFA', 'LOCK_MFA']));
   });
 });

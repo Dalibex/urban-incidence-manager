@@ -144,7 +144,10 @@ export function MfaResetPanel({ user, own }: MfaResetPanelProps) {
         </div>
       ) : (
         <>
-          <p className={styles.fieldNote}>For an account whose owner lost the authenticator app.</p>
+          <p className={styles.fieldNote}>
+            For an account whose owner lost the authenticator app, or whose code step is locked
+            after too many wrong codes.
+          </p>
           <p>
             <button
               ref={resetButton}

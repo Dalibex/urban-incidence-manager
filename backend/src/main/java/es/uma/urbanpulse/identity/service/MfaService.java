@@ -92,20 +92,25 @@ public class MfaService {
      * the secret, records {@code ENROLL_MFA} and spends every other open challenge of the account.
      * Once the account has one, every challenge checks it.
      *
-     * <p>A wrong code counts against the challenge (the last allowed one spends it) and against the
-     * account. Those changes, and the challenge spent for a disabled account or a role that no
-     * longer needs the second factor, are committed although the request fails.
+     * <p>A wrong code counts against the challenge (the last allowed one spends it), against the
+     * account in each window, and in the account's count of consecutive wrong codes (#435), which
+     * only a valid code or a reset sets back to zero. The wrong code that reaches {@code
+     * maxConsecutiveWrongCodes} records {@code LOCK_MFA}, and from then on the code step is
+     * refused. Those changes, and the challenge spent for a disabled, locked account or a role that
+     * no longer needs the second factor, are committed although the request fails.
      *
      * @throws InvalidMfaChallengeException if the challenge is unknown, expired or spent, or the
      *     role of the account no longer needs the second factor
      * @throws TooManyAttemptsException if the account reached its limit of wrong codes
      * @throws AccountDisabledException if the account was disabled after the password step
+     * @throws MfaLockedException if the account reached its limit of consecutive wrong codes
      * @throws InvalidMfaCodeException if the code is wrong, outside its window or already used
      */
     @Transactional(
             noRollbackFor = {
                 InvalidMfaChallengeException.class,
                 AccountDisabledException.class,
+                MfaLockedException.class,
                 InvalidMfaCodeException.class
             })
     public SessionResponse verify(String challengeToken, String code) {
@@ -125,6 +130,10 @@ public class MfaService {
             challenge.setSpentAt(now);
             throw new InvalidMfaChallengeException();
         }
+        if (isLocked(user)) {
+            challenge.setSpentAt(now);
+            throw new MfaLockedException();
+        }
 
         // An enrolment challenge created while another one was being confirmed checks the confirmed
         // secret, and never replaces it with its pending one.
@@ -143,10 +152,12 @@ public class MfaService {
                 challenge.setSpentAt(now);
             }
             log.warn("Wrong second-factor code for user {}", user.getId());
+            countWrongCode(user, challenge, now);
             throw new InvalidMfaCodeException();
         }
 
         limiter.reset(limiterKey);
+        user.setMfaFailedCodes(0);
         challenge.setSpentAt(now);
         if (enrollment) {
             user.setMfaSecret(storedSecret);
@@ -170,6 +181,33 @@ public class MfaService {
      */
     void restoreCodeAttempts(UUID userId) {
         limiter.reset(userId.toString());
+    }
+
+    private boolean isLocked(User user) {
+        return user.getMfaFailedCodes() >= properties.maxConsecutiveWrongCodes();
+    }
+
+    /**
+     * Adds a wrong code to the account's consecutive count. The user row is locked, so wrong codes
+     * sent at once are counted one after the other and none is lost. The one that reaches the limit
+     * spends the challenge and records {@code LOCK_MFA}, with the account as its own actor.
+     */
+    private void countWrongCode(User user, MfaChallenge challenge, OffsetDateTime now) {
+        user.setMfaFailedCodes(user.getMfaFailedCodes() + 1);
+        if (!isLocked(user)) {
+            return;
+        }
+        challenge.setSpentAt(now);
+        log.warn(
+                "Second factor of user {} locked after {} consecutive wrong codes",
+                user.getId(),
+                user.getMfaFailedCodes());
+        audit.record(
+                user.getId(),
+                AuditAction.LOCK_MFA,
+                AuditTarget.user(user.getId()),
+                Map.of(),
+                Map.of("consecutiveWrongCodes", user.getMfaFailedCodes()));
     }
 
     private LockedChallenge lock(String challengeToken) {
