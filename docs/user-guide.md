@@ -558,6 +558,9 @@ The menu shows *Users*, where you land, *Inbox*, *Map*, *Audit log* and *Reports
     their next sign-in. If you are the last administrator and lose your own phone, the maintainer
     follows the emergency procedure of the [deployment guide](deployment.md).
   - You cannot change your own role or deactivate yourself, and a citizen account keeps its role.
+  - A technician with incidents *In progress* keeps the account and the role until they resolve
+    them, because nobody else can: the panel says so and names up to five of them. Incidents only
+    *Assigned* do not stop you; reassign them from the incident detail.
   - Every change appears in the *Audit log*; a name change records that the name changed, not the
     name.
   - If the server cannot be reached, the form says so with *Try again* and keeps what you typed.
