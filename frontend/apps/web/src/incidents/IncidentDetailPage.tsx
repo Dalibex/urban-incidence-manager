@@ -1,11 +1,11 @@
 import type { components } from '@urbanpulse/api-client';
 import { addressText, formatInstant, NOT_AVAILABLE } from '@urbanpulse/ui';
-import { Fragment, type ReactNode } from 'react';
+import { Fragment, useEffect, useRef, type ReactNode } from 'react';
 import { Link, useLocation, useParams } from 'react-router';
 
 import { detailBack, type DetailOrigin } from '../routing/access';
 import { useSession } from '../session/SessionContext';
-import { useIncident } from './incident-queries';
+import { useIncidentDetail } from './incident-queries';
 import { ACTIONS_TITLE, IncidentActions } from './IncidentActions';
 import { IncidentTimeline } from './IncidentTimeline';
 import styles from './Incidents.module.css';
@@ -42,7 +42,7 @@ const SKELETON_FACTS = { report: 4, location: 5 } as const;
  */
 export function IncidentDetailPage() {
   const { incidentId = '' } = useParams();
-  const incident = useIncident(incidentId);
+  const { incident, addressWaitEnded } = useIncidentDetail(incidentId);
   const { state } = useLocation();
   const back = detailBack(state, useSession().user);
 
@@ -89,14 +89,39 @@ export function IncidentDetailPage() {
               onRetry={() => void incident.refetch()}
             />
           )}
-          <IncidentDetail incident={incident.data} />
+          <IncidentDetail
+            incident={incident.data}
+            addressCheck={{
+              waitEnded: addressWaitEnded,
+              checking: incident.isFetching,
+              // After a failed read, *Try again* of the notice already reads it again.
+              onCheck: incident.isRefetchError ? undefined : () => void incident.refetch(),
+            }}
+          />
         </>
       )}
     </article>
   );
 }
 
-function IncidentDetail({ incident }: { incident: Incident }) {
+/**
+ * What the address offers once the page stopped waiting for it on its own (#436). Without
+ * `onCheck`, it only says the address has not arrived: the notice of a failed read offers the
+ * same read with *Try again*.
+ */
+interface AddressCheck {
+  waitEnded: boolean;
+  checking: boolean;
+  onCheck?: () => void;
+}
+
+function IncidentDetail({
+  incident,
+  addressCheck,
+}: {
+  incident: Incident;
+  addressCheck: AddressCheck;
+}) {
   return (
     <>
       <header className={styles.detailHeader}>
@@ -110,7 +135,7 @@ function IncidentDetail({ incident }: { incident: Incident }) {
         <div>
           <ReportPanel incident={incident} />
           <PhotoGallery incidentId={incident.id} />
-          <LocationPanel location={incident.location} />
+          <LocationPanel location={incident.location} addressCheck={addressCheck} />
           <UrbanContextPanel incidentId={incident.id} />
           <IncidentTimeline incidentId={incident.id} />
         </div>
@@ -228,15 +253,52 @@ const COORDINATE = new Intl.NumberFormat('en-GB', {
 
 const METRES = new Intl.NumberFormat('en-GB', { maximumFractionDigits: 1 });
 
-function LocationPanel({ location }: { location: IncidentLocation }) {
+function LocationPanel({
+  location,
+  addressCheck,
+}: {
+  location: IncidentLocation;
+  addressCheck: AddressCheck;
+}) {
+  const heading = useRef<HTMLHeadingElement>(null);
+  const checkedByUser = useRef(false);
+  const notArrived = location.addressStatus === 'PENDING' && addressCheck.waitEnded;
+  const { onCheck } = addressCheck;
+  const showsCheck = notArrived && onCheck !== undefined;
+
+  // *Check again* disappears when the address arrives, or when the read fails and the notice
+  // offers *Try again*: keep the keyboard on the section.
+  useEffect(() => {
+    if (!checkedByUser.current || addressCheck.checking) {
+      return;
+    }
+    checkedByUser.current = false;
+    if (!showsCheck) {
+      heading.current?.focus();
+    }
+  }, [showsCheck, addressCheck.checking]);
+
   return (
     <section className={styles.panel} aria-labelledby="location-title">
-      <h2 id="location-title" className={styles.panelTitle}>
+      <h2 id="location-title" ref={heading} tabIndex={-1} className={styles.panelTitle}>
         {PANEL_TITLES.location}
       </h2>
       <dl className={styles.facts}>
         <Fact label="Address">
-          <Address location={location} />
+          {notArrived ? (
+            <AddressNotArrived
+              checking={addressCheck.checking}
+              onCheck={
+                onCheck &&
+                (() => {
+                  checkedByUser.current = true;
+                  onCheck();
+                })
+              }
+            />
+          ) : (
+            <Address location={location} />
+          )}
         </Fact>
         <Fact label="Neighbourhood">
           <Known value={location.neighborhood} />
@@ -288,6 +350,33 @@ function Address({ location }: { location: IncidentLocation }) {
             <span className={styles.visuallyHidden}> (opens in a new tab)</span>
           </a>
         </span>
+      )}
+    </>
+  );
+}
+
+/**
+ * A `PENDING` address the page no longer reads on its own: it says so instead of a progress it does
+ * not follow, and, given `onCheck`, checks once more on request, as the weather of the *Context*
+ * section does.
+ */
+function AddressNotArrived({ checking, onCheck }: { checking: boolean; onCheck?: () => void }) {
+  return (
+    <>
+      <span className={styles.muted}>The address has not arrived yet.</span>
+      {onCheck && (
+        <>
+          {' '}
+          {/* Not `disabled`: a browser moves the focus of a disabled button to the page. */}
+          <button
+            type="button"
+            className={styles.button}
+            aria-disabled={checking || undefined}
+            onClick={checking ? undefined : onCheck}
+          >
+            {checking ? 'Checking…' : 'Check again'}
+          </button>
+        </>
       )}
     </>
   );
