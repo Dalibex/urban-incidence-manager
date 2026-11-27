@@ -48,6 +48,7 @@ const PENDING: Incident = {
 };
 
 const LOOKING_UP = 'Looking up the address…';
+const NOT_ARRIVED = 'The address has not arrived yet.';
 const REASON = 'This streetlight belongs to a private estate; please contact its owners.';
 
 const EMPTY_PAGE = {
@@ -118,18 +119,55 @@ describe('address of the incident detail while it is looked up (#436)', () => {
     expect(incidentReads(fetch)).toBe(1);
   });
 
-  // The worker gives up after a day; the screen stops long before.
-  it('stops reading on its own after the last check', async () => {
-    const fetch = openDetail(() => json(200, PENDING));
+  async function waitUntilTheLastCheck() {
     await screen.findByText(LOOKING_UP);
-
     for (let check = 0; check < PENDING_CONTEXT_CHECKS; check++) {
       await advance(PENDING_CONTEXT_INTERVAL_MS);
     }
+  }
+
+  function location() {
+    return within(screen.getByRole('region', { name: 'Location' }));
+  }
+
+  // The worker gives up after a day; the screen stops long before, and no longer promises progress.
+  it('stops reading after the last check, says the address has not arrived and offers to check again once', async () => {
+    const fetch = openDetail(() => json(200, PENDING));
+    await waitUntilTheLastCheck();
+
     expect(incidentReads(fetch)).toBe(PENDING_CONTEXT_CHECKS + 1);
+    expect(await location().findByText(NOT_ARRIVED)).toBeTruthy();
+    expect(location().queryByText(LOOKING_UP)).toBeNull();
 
     await advance(PENDING_CONTEXT_INTERVAL_MS * 4);
     expect(incidentReads(fetch)).toBe(PENDING_CONTEXT_CHECKS + 1);
+
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await user.click(location().getByRole('button', { name: 'Check again' }));
+    await vi.waitFor(() => {
+      expect(incidentReads(fetch)).toBe(PENDING_CONTEXT_CHECKS + 2);
+    });
+    // Still pending: it says so again, without polling.
+    expect(await location().findByRole('button', { name: 'Check again' })).toBeTruthy();
+    await advance(PENDING_CONTEXT_INTERVAL_MS * 4);
+    expect(incidentReads(fetch)).toBe(PENDING_CONTEXT_CHECKS + 2);
+  });
+
+  it('shows the address when checking again finds it, and keeps the keyboard on the section', async () => {
+    let answer = PENDING;
+    openDetail(() => json(200, answer));
+    await waitUntilTheLastCheck();
+    await location().findByText(NOT_ARRIVED);
+
+    answer = RESOLVED;
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await user.click(location().getByRole('button', { name: 'Check again' }));
+
+    expect(await location().findByText('Calle Larios 12')).toBeTruthy();
+    expect(location().queryByRole('button', { name: 'Check again' })).toBeNull();
+    await vi.waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Location' }));
+    });
   });
 
   it('keeps the incident when a read fails, with a notice, and stops reading', async () => {
@@ -146,7 +184,9 @@ describe('address of the incident detail while it is looked up (#436)', () => {
       'The incident could not be refreshed.',
     );
     expect(screen.getByRole('heading', { name: RESOLVED.title })).toBeTruthy();
-    expect(screen.getByText(LOOKING_UP)).toBeTruthy();
+    // It no longer reads the incident, so it does not say the address is on its way.
+    expect(location().getByText(NOT_ARRIVED)).toBeTruthy();
+    expect(location().queryByText(LOOKING_UP)).toBeNull();
     const reads = incidentReads(fetch);
     await advance(PENDING_CONTEXT_INTERVAL_MS * 4);
     expect(incidentReads(fetch)).toBe(reads);

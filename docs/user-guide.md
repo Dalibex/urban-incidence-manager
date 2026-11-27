@@ -218,8 +218,8 @@ more. Tap a report to see:
 - **Location:** address, neighbourhood, district, coordinates and accuracy; *Not available* when
   a value is not known. The address shows *© OpenStreetMap contributors* under it, the source it
   comes from, or why there is none: *Looking up the address…* or *outside Málaga*. While it is
-  being looked up, the report checks again on its own for two minutes; after that, pull down to
-  refresh.
+  being looked up, the report checks again on its own for two minutes; then it says *The address
+  has not arrived yet. Pull down to check again.*
 - **History:** a timeline of each change of status, oldest first, with its date and time. Your
   report shows as yours (*You*) and every other change as the *City council*'s. A rejection shows
   its **reason**. When the city needs more details, the entry shows a *Message from the city
@@ -287,7 +287,8 @@ every incident, and the menu and the sign-in then open it that way.
   empty or guessed. The address, such as *Calle Larios, 5, 29005 Málaga*, is looked up from the
   position after the report and comes with *© OpenStreetMap contributors*, which opens the source;
   until then it says *Looking up the address…* and checks again on its own for two minutes, so the
-  address shows up without a reload; after that, reload the page to look again. A position outside
+  address shows up without a reload. Then it says *The address has not arrived yet.* with *Check
+  again*, which looks once more, as the *Context* section does with the weather. A position outside
   Málaga says so.
 - **Context:** the weather at the incident's position when it was reported, such as *Rainy*, with
   the time it was recorded and *Weather data by Open-Meteo.com*, which opens the source. The weather

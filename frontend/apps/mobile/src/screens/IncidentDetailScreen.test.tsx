@@ -268,16 +268,36 @@ describe('IncidentDetailScreen', () => {
       expect(mockedGetIncident).toHaveBeenCalledTimes(reads);
     });
 
-    it('stops on its own after two minutes', async () => {
+    const NOT_ARRIVED = 'The address has not arrived yet. Pull down to check again.';
+
+    it('stops on its own after two minutes, and says the address has not arrived', async () => {
       mockedGetIncident.mockResolvedValue(ok(PENDING_ADDRESS));
       await renderScreen();
       await screen.findByText('Looking up the address…');
 
       await advance(PENDING_ADDRESS_INTERVAL_MS * PENDING_ADDRESS_CHECKS);
       expect(mockedGetIncident).toHaveBeenCalledTimes(PENDING_ADDRESS_CHECKS + 1);
+      expect(screen.getByText(NOT_ARRIVED)).toBeOnTheScreen();
+      expect(screen.queryByText('Looking up the address…')).not.toBeOnTheScreen();
 
       await advance(PENDING_ADDRESS_INTERVAL_MS * 4);
       expect(mockedGetIncident).toHaveBeenCalledTimes(PENDING_ADDRESS_CHECKS + 1);
+    });
+
+    it('shows the address when a pull to refresh finds it after the wait', async () => {
+      mockedGetIncident.mockResolvedValue(ok(PENDING_ADDRESS));
+      await renderScreen();
+      await screen.findByText('Looking up the address…');
+      await advance(PENDING_ADDRESS_INTERVAL_MS * PENDING_ADDRESS_CHECKS);
+      expect(screen.getByText(NOT_ARRIVED)).toBeOnTheScreen();
+
+      mockedGetIncident.mockResolvedValue(ok(INCIDENT));
+      await act(async () => {
+        await screen.getByTestId('report-detail').props.refreshControl.props.onRefresh();
+      });
+
+      expect(screen.getByText('Calle Larios 12')).toBeOnTheScreen();
+      expect(screen.queryByText(NOT_ARRIVED)).not.toBeOnTheScreen();
     });
 
     it('keeps the report when a read fails, and stops reading', async () => {
@@ -291,7 +311,9 @@ describe('IncidentDetailScreen', () => {
       expect(
         screen.getByText('The report could not be refreshed. This is the last version loaded.'),
       ).toBeOnTheScreen();
-      expect(screen.getByText('Looking up the address…')).toBeOnTheScreen();
+      // It no longer reads the report, so it does not say the address is on its way.
+      expect(screen.getByText(NOT_ARRIVED)).toBeOnTheScreen();
+      expect(screen.queryByText('Looking up the address…')).not.toBeOnTheScreen();
       const reads = mockedGetIncident.mock.calls.length;
       await advance(PENDING_ADDRESS_INTERVAL_MS * 4);
       expect(mockedGetIncident).toHaveBeenCalledTimes(reads);

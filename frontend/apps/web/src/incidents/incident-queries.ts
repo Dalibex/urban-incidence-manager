@@ -138,7 +138,8 @@ export function useLatestIncidents(filters: IncidentFilters) {
 
 /**
  * One incident. While its address is `PENDING`, it is read again every 15 s, up to two minutes, so
- * the address the worker resolves after the report replaces *Looking up the address…* (#436).
+ * the address the worker resolves after the report replaces *Looking up the address…* (#436); then
+ * {@link useIncidentDetail} tells the page that it stopped.
  *
  * @param refetchInterval how often to read it again while it is shown, in ms, whatever its address;
  *   the map's summary reads it with the markers, so it never shows an older status than its marker
@@ -152,11 +153,40 @@ export function useIncident(incidentId: string, refetchInterval?: number) {
     refetchInterval:
       refetchInterval ??
       ((query) =>
-        waitingFor(query.state, (incident) => incident.location.addressStatus === 'PENDING') ===
-        'polling'
+        waitingFor(query.state, addressPending) === 'polling'
           ? PENDING_CONTEXT_INTERVAL_MS
           : false),
   });
+}
+
+/**
+ * The incident of its detail page, and whether the page stopped reading it on its own while its
+ * address is still `PENDING`: after the last check, or after a failed read. The page then says the
+ * address has not arrived yet and offers to check again, instead of a progress it no longer
+ * follows (#436).
+ */
+export function useIncidentDetail(incidentId: string) {
+  const queryClient = useQueryClient();
+  const incident = useIncident(incidentId);
+  // Read again on every answer and every failure (each changes one of the two), so the count and
+  // the status are current.
+  const state =
+    incident.dataUpdatedAt > 0 || incident.errorUpdatedAt > 0
+      ? queryClient.getQueryState<Incident>(incidentKeys.detail(incidentId))
+      : undefined;
+  return { incident, addressWaitEnded: state ? addressWaitEnded(state) : false };
+}
+
+function addressPending(incident: Incident): boolean {
+  return incident.location.addressStatus === 'PENDING';
+}
+
+function addressWaitEnded(state: QueryState<Incident>): boolean {
+  return (
+    state.data !== undefined &&
+    addressPending(state.data) &&
+    waitingFor(state, addressPending) !== 'polling'
+  );
 }
 
 /**

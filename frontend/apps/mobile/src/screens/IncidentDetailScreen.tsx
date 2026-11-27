@@ -32,7 +32,7 @@ import {
   incidentKeys,
   refetchFailedPhotos,
   useAttachmentContent,
-  useIncident,
+  useIncidentDetail,
   useIncidentAttachments,
   useIncidentHistory,
 } from '../incidents/incident-queries';
@@ -57,7 +57,7 @@ const SKELETON_FIELDS: Record<keyof typeof SECTIONS, number> = { details: 3, loc
 /** One of the citizen's reports: its data, where it is and what has happened to it (RF06). */
 export function IncidentDetailScreen({ navigation, route }: Props) {
   const { incidentId } = route.params;
-  const incident = useIncident(incidentId);
+  const { incident, addressWaitEnded } = useIncidentDetail(incidentId);
   const history = useIncidentHistory(incidentId);
   const photos = useIncidentAttachments(incidentId);
   const queryClient = useQueryClient();
@@ -117,7 +117,7 @@ export function IncidentDetailScreen({ navigation, route }: Props) {
       {(incident.isRefetchError || history.isRefetchError || photos.isRefetchError) && (
         <FormMessage message="The report could not be refreshed. This is the last version loaded." />
       )}
-      <IncidentData incident={incident.data} />
+      <IncidentData incident={incident.data} addressWaitEnded={addressWaitEnded} />
       {/* The API lets the reporter add photos only while the report waits for review (#44). */}
       {incident.data.status === 'REPORTED' && (
         <Button
@@ -239,7 +239,16 @@ function Photo({
   );
 }
 
-function IncidentData({ incident }: { incident: Incident }) {
+/** A `PENDING` address the screen no longer reads on its own (#436). */
+const ADDRESS_NOT_ARRIVED = 'The address has not arrived yet. Pull down to check again.';
+
+function IncidentData({
+  incident,
+  addressWaitEnded,
+}: {
+  incident: Incident;
+  addressWaitEnded: boolean;
+}) {
   const { location } = incident;
   return (
     <>
@@ -261,7 +270,11 @@ function IncidentData({ incident }: { incident: Incident }) {
       <Section title={SECTIONS.location}>
         <Field
           label="Address"
-          value={addressText(location.address, location.addressStatus).text}
+          value={
+            location.addressStatus === 'PENDING' && addressWaitEnded
+              ? ADDRESS_NOT_ARRIVED
+              : addressText(location.address, location.addressStatus).text
+          }
           source={location.addressSource?.attribution}
         />
         <Field label="Neighbourhood" value={location.neighborhood ?? NOT_AVAILABLE} />

@@ -11,6 +11,7 @@ import { FINAL_STATUSES, OPEN_STATUSES, type IncidentStatus } from '@urbanpulse/
 import {
   useInfiniteQuery,
   useQuery,
+  useQueryClient,
   type QueryClient,
   type QueryState,
 } from '@tanstack/react-query';
@@ -82,7 +83,8 @@ export const PENDING_ADDRESS_CHECKS = 8;
 /**
  * One of the citizen's reports. While its address is `PENDING`, it is read again every 15 s, up to
  * two minutes, so the address the worker resolves after the report replaces *Looking up the
- * address…* (#436); later, a pull to refresh or coming back to the app reads it.
+ * address…* (#436); later, a pull to refresh or coming back to the app reads it, and
+ * {@link useIncidentDetail} tells the screen that it stopped.
  */
 export function useIncident(incidentId: string) {
   const { api } = useSession();
@@ -92,6 +94,27 @@ export function useIncident(incidentId: string) {
     refetchInterval: (query) =>
       waitingForAddress(query.state) ? PENDING_ADDRESS_INTERVAL_MS : false,
   });
+}
+
+/**
+ * The report of its detail screen, and whether the screen stopped reading it on its own while its
+ * address is still `PENDING`: after the last check, or after a failed read. The screen then says
+ * the address has not arrived yet, instead of a progress it no longer follows (#436).
+ */
+export function useIncidentDetail(incidentId: string) {
+  const queryClient = useQueryClient();
+  const incident = useIncident(incidentId);
+  // Read again on every answer and every failure (each changes one of the two), so the count and
+  // the status are current.
+  const state =
+    incident.dataUpdatedAt > 0 || incident.errorUpdatedAt > 0
+      ? queryClient.getQueryState<Incident>(incidentKeys.detail(incidentId))
+      : undefined;
+  return {
+    incident,
+    addressWaitEnded:
+      state?.data?.location.addressStatus === 'PENDING' && !waitingForAddress(state),
+  };
 }
 
 /**
