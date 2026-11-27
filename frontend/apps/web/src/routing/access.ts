@@ -98,15 +98,23 @@ function isDetailReturn(state: unknown): state is DetailReturn {
 
 /**
  * Where the detail of an incident leads back to: the screen that opened it, as the user left it,
- * if the role can open that screen. A detail opened directly (a shared link, a reload in a new tab)
- * leads to the default list of the role.
+ * if the role can open that screen. A detail with no origin (a shared link, the audit log, a reload
+ * that asked to sign in again) leads to the list of the role with the filters the user last used on
+ * it, as the menu does: its defaults would replace those filters once the list opens (#433).
  */
-export function detailBack(state: unknown, role: Role | undefined): DetailBack {
+export function detailBack(
+  state: unknown,
+  user: { id: string; role: Role } | null | undefined,
+): DetailBack {
+  const role = user?.role;
   if (isDetailReturn(state) && role && DETAIL_ORIGINS[state.from].roles.includes(role)) {
     return { to: state.from, path: DETAIL_ORIGINS[state.from].path + state.search };
   }
   const list = incidentListOf(role);
-  return { to: list, path: LIST_DEFAULT_PATHS[list] };
+  const path = user
+    ? rememberedPath(DETAIL_ORIGINS[list].path, list, user.id, LIST_DEFAULT_PATHS[list])
+    : LIST_DEFAULT_PATHS[list];
+  return { to: list, path };
 }
 
 /** Navigation state of the sign-in, so it can lead back to the screen that asked for it. */

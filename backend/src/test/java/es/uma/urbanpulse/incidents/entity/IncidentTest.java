@@ -222,6 +222,32 @@ class IncidentTest {
         assertThat(incident.getStatusChanges()).hasSize(history);
     }
 
+    // #274: a disabled technician keeps a valid access token for some minutes. An acceptance then
+    // would leave the incident IN_PROGRESS with nobody to resolve it.
+    @Test
+    void aDisabledTechnicianCannotAcceptNorResolveTheirAssignment() {
+        var assigned = fixture.in(IncidentStatus.ASSIGNED);
+        var inProgress = fixture.in(IncidentStatus.IN_PROGRESS);
+        fixture.technician.setEnabled(false);
+
+        assertThatThrownBy(
+                        () ->
+                                assigned.changeStatus(
+                                        IncidentTransition.ACCEPTANCE,
+                                        fixture.technician,
+                                        TransitionDetails.none(),
+                                        LATER))
+                .isInstanceOf(InvalidTransitionException.class);
+        assertThatThrownBy(
+                        () ->
+                                inProgress.checkAllowed(
+                                        IncidentTransition.RESOLUTION, fixture.technician))
+                .isInstanceOf(InvalidTransitionException.class);
+        assertThat(assigned.getStatus()).isEqualTo(IncidentStatus.ASSIGNED);
+        // The operator can still reassign the incident the technician did not accept.
+        assigned.checkAllowed(IncidentTransition.ASSIGNMENT, fixture.operator);
+    }
+
     @Test
     void theClosureSetsTheClosingInstant() {
         var incident = fixture.in(IncidentStatus.RESOLVED);

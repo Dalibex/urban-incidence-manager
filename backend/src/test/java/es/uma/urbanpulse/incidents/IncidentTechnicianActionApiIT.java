@@ -265,6 +265,25 @@ class IncidentTechnicianActionApiIT {
         assertUnchanged(assigned, "ASSIGNED", 0, 2);
     }
 
+    // #274: a disabled technician whose access token has not expired yet cannot accept, or an
+    // incident accepted after the account was disabled would have nobody to resolve it.
+    @Test
+    void aDisabledTechnicianWithAValidTokenCannotAcceptNorResolve() throws Exception {
+        UUID toAccept = assignedTo(technician, "ASSIGNED");
+        UUID toResolve = assignedTo(technician, "IN_PROGRESS");
+        jdbc.update("UPDATE users SET enabled = false WHERE id = ?", technician);
+
+        act(technician, toAccept, ACCEPTANCE, body(0, null))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("INVALID_TRANSITION"));
+        act(technician, toResolve, RESOLUTION, body(0, RESOLUTION_NOTES))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("INVALID_TRANSITION"));
+
+        assertUnchanged(toAccept, "ASSIGNED", 0, 2);
+        assertUnchanged(toResolve, "IN_PROGRESS", 0, 2);
+    }
+
     // T10: only a technician accepts or resolves (docs/security.md).
     @Test
     void otherRolesAreForbidden() throws Exception {

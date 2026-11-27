@@ -127,6 +127,29 @@ describe('useIncidentLocation', () => {
     expect(result.current.gpsFix).not.toBe(first);
   });
 
+  it('says which tap of "Use my position" a fix answers, and none for the one read on opening', async () => {
+    const { result } = await renderHook(() => useIncidentLocation());
+    await waitFor(() => expect(result.current.gpsFix).not.toBeNull());
+    expect(result.current.gpsFixRequest).toBeNull();
+    expect(result.current.locationRequest).toBe(0);
+
+    await act(() => result.current.refreshLocation());
+
+    expect(result.current.locationRequest).toBe(1);
+    expect(result.current.gpsFixRequest).toBe(1);
+  });
+
+  it('counts the tap of "Use my position" before its fix arrives', async () => {
+    const { result } = await renderHook(() => useIncidentLocation());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    currentPosition.mockReturnValue(new Promise(() => undefined));
+
+    await act(async () => void result.current.refreshLocation());
+
+    expect(result.current.locationRequest).toBe(1);
+    expect(result.current.gpsFixRequest).toBeNull();
+  });
+
   it('forgets the last fix when a later read fails', async () => {
     const { result } = await renderHook(() => useIncidentLocation());
     await waitFor(() => expect(result.current.gpsFix).not.toBeNull());
@@ -149,6 +172,8 @@ describe('useIncidentLocation', () => {
     await waitFor(() => expect(result.current.gpsFix).not.toBeNull());
     expect(result.current.permissionDenied).toBe(false);
     expect(result.current.error).toBeNull();
+    // The citizen did not tap "Use my position": the fix must not move a pin they placed.
+    expect(result.current.gpsFixRequest).toBeNull();
   });
 
   it('does not ask again on returning when the location is still off', async () => {
