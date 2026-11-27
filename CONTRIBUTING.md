@@ -6,7 +6,7 @@ UrbanPulse is built by a university team. This guide says how to take part in it
 | --- | --- | --- |
 | [🌍 For everyone](#-for-everyone) | Anyone | [Report a bug or request a feature](#report-a-bug-or-request-a-feature) · [Report a vulnerability](#report-a-vulnerability) · [Propose a change](#propose-a-change) |
 | [📏 Conventions for every change](#-conventions-for-every-change) | Every change, whoever makes it | [Failure and limit cases](#failure-and-limit-cases) · [Branches](#branches) · [Commits](#commits) · [Pull requests](#pull-requests) · [Changelog](#changelog) · [Architecture decisions](#architecture-decisions) |
-| [👥 Team workflow](#-team-workflow) | The team members, who have write access | [Team and roles](#team-and-roles) · [Workflow at a glance](#workflow-at-a-glance) · [Issues](#issues) · [Testing lifecycle](#testing-lifecycle) · [Dependabot pull requests](#dependabot-pull-requests) · [Review and merge](#review-and-merge) · [Sprint review](#sprint-review) · [Protection of `main`](#protection-of-main) · [Versioning](#versioning) |
+| [👥 Team workflow](#-team-workflow) | The team members, who have write access | [Team and roles](#team-and-roles) · [Workflow at a glance](#workflow-at-a-glance) · [Issues](#issues) · [Testing lifecycle](#testing-lifecycle) · [Dependabot pull requests](#dependabot-pull-requests) · [Review and merge](#review-and-merge) · [Release review](#release-review) · [Protection of `main`](#protection-of-main) · [Versioning](#versioning) |
 
 Everyone who takes part in the project agrees to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
@@ -258,7 +258,8 @@ in the review.
    themselves.
 5. Fix what the CI or the reviewer reports, pushing to the same branch.
 6. A reviewer approves, and you merge with **Squash and merge**. The issues close and move to
-   **Done** by themselves.
+   **Done** by themselves. While a release is being prepared, only its blockers merge (see
+   [Versioning](#versioning)).
 
 The only card you move by hand is **Backlog → Ready**, when the issue is planned for the sprint.
 
@@ -285,17 +286,22 @@ or `priority: low` to order the work. The issue joins the project board in **Bac
 the issues opened by people outside the team in the same way, or close them with a reason.
 
 Record dependencies in the issue's **Relationships**, with **Blocked by**: its pull request is not
-merged until the blocking one is, because it would not work without it. A `[Test]` issue has no
-**Blocked by**: it is worked on inside the draft pull request of its feature, while the feature is
-built.
+merged until the blocking one is, because it would not work without it. A `[Test]` issue is not
+blocked by its feature: it is worked on inside the draft pull request of its feature, while the
+feature is built. The checkpoint issue of a version uses **Blocked by** for its scope instead (see
+[Versioning](#versioning)).
 
-A blocked issue can still start when it only needs what the blocker looks like from outside, and
-that is already in `main`: the OpenAPI contract and its generated types, or an accepted decision.
-Its tests simulate the missing part, and the manual test and the merge wait for the blocker. It
-waits to start when it needs the blocker's code: a migration or entity it uses, a backend class it
-calls, a shared component still being written, or a contract not decided yet. The *Dependencies*
-field of the issue says both, with `Start:` and `Merge after:`. Each issue still gets its own
-branch from `main`, never from the blocker's branch.
+An issue blocked by the checkpoint of an earlier version waits until that version is released: it
+does not start, and no pull request is opened for it. Only its documents can start before: an ADR,
+a design document, or the table of cases of its `[Test]`.
+
+An issue blocked by another issue (not by a checkpoint) can still start when it only needs what the
+blocker looks like from outside, and that is already in `main`: the OpenAPI contract and its
+generated types, or an accepted decision. Its tests simulate the missing part, and the manual test
+and the merge wait for the blocker. It waits to start when it needs the blocker's code: a migration
+or entity it uses, a backend class it calls, a shared component still being written, or a contract
+not decided yet. The *Dependencies* field of the issue says both, with `Start:` and `Merge after:`.
+Each issue still gets its own branch from `main`, never from the blocker's branch.
 
 Every feature, bug and task names, in its *Failure and limit cases* field, the cases of
 [Failure and limit cases](#failure-and-limit-cases) that apply to it, and in *Out of scope* what it
@@ -379,7 +385,9 @@ workflow, with three differences:
    itself, so this is your responsibility. Updating the branch with `main` or fixing formatting does
    not need a new review.
 4. **The author merges** with **Squash and merge**, keeping the pull request title as the commit
-   message. Merge commits and rebase merges are not used.
+   message. Merge commits and rebase merges are not used. While a release is being prepared, only
+   its blockers and the changes with no changelog entry merge; the rest wait until it is published
+   (see [Versioning](#versioning)).
 5. The branch is deleted after the merge. GitHub does it automatically; if it does not, the author
    deletes it.
 6. The issue closes and moves to **Done** by itself. If the pull request did not target `main`, the
@@ -388,10 +396,11 @@ workflow, with three differences:
 A review is judged against the acceptance criteria, this guide and `AGENTS.md`. A finding needs a
 `file:line` and a concrete failure; a style preference is not a finding.
 
-### Sprint review
+### Release review
 
-Each pull request is reviewed against its issue, so once per sprint someone reviews the whole. The
-review has an end:
+Each pull request is reviewed against its issue, so before every release someone reviews the whole
+for bugs. A version is never released without it (see [Versioning](#versioning)). The review has an
+end:
 
 - **Scope:** only the diff since the previous release (`git diff <release>..origin/main`), plus a
   short checklist: the seven cases of section 9 of `AGENTS.md`, consistency between the documents and
@@ -399,13 +408,17 @@ review has an end:
 - **Judged against:** the acceptance criteria, this guide and `AGENTS.md`, not style preferences.
 - **Excluded:** what is already planned in a milestone and what is in *Accepted Risks* of the
   [architecture overview](docs/architecture.md).
-- **Threshold:** only high and medium findings, each with a `file:line` and a concrete failure
-  scenario, become issues. Low ones go to one single improvements issue or to the backlog.
+- **Threshold:** each high and medium finding, with a `file:line` and a concrete failure scenario,
+  gets its own issue and **blocks the release being prepared**. The low ones go to one issue of this
+  release that does not block it: the team fixes the ones it chooses before the release, and the
+  rest move to the next release and are listed as known issues in the release notes.
 - **Verification:** before being reported, each finding is checked against the current `main` and
   the open issues and pull requests.
 - **Stop:** one review pass and one verification pass. A second review only re-checks the list and
-  does not look for new findings; whatever appears later goes to the next sprint.
-- **Decision:** the product owner chooses which findings enter the sprint.
+  does not look for new findings. After the fixes, a short pass on `main`, before the release
+  pull request, checks them; a bug found later, before the release, follows the same threshold.
+- **Decision:** the product owner can move a medium finding to the next release only when the
+  release has a deadline it would miss; it is then listed as a known issue.
 
 | Severity | Meaning |
 | --- | --- |
@@ -440,3 +453,55 @@ backend, both clients, the shared client packages and the API contract. The rele
 
 When the maintainer cuts a release, the same pull request moves the `[Unreleased]` entries under the new
 version in the changelog and updates every file in the table. Never change the version of a single part.
+
+#### What a version contains
+
+Every version, before and after `1.0.0`, follows these rules. The `0.x` versions are checkpoints on
+the way to `1.0.0`, the final delivery and the first stable version. The number says what a version
+holds:
+
+| Number | Goes up for | Example |
+| --- | --- | --- |
+| Patch | Only fixes of bugs of a released version | `0.3.1`, `1.0.1` |
+| Minor | New features that break nothing; the usual checkpoint | `0.4.0`, `1.1.0` |
+| Major | From `1.0.0`, a change that breaks a client: an incompatible contract or a removed feature | `2.0.0` |
+
+Before `1.0.0`, as Semantic Versioning allows, a change that breaks a client goes in a minor
+version, and its changelog entry says what breaks.
+
+Each version is defined by its scope, not by a date:
+
+- **A checkpoint issue per version**, `[Task]: Checkpoint vX.Y.Z`, whose **Blocked by** lists the
+  issues that must be closed for it: features, tasks, their `[Test]`, the decisions its work starts
+  from (ADRs, design documents), the previous checkpoint and the bugs of its review. An issue that
+  blocks no checkpoint does not hold any release. The milestone of an issue says when it is worked
+  on; the checkpoint it blocks says in which version it ships.
+- **One version at a time.** Each issue in the scope of a version, and each of its open
+  sub-issues, is also **blocked by the checkpoint of the previous version**, so its work starts when
+  that version is released (see [Issues](#issues) for what can start before).
+- **The scope grows while the version is prepared.** Any issue the version needs, opened before it
+  is released, is added to the **Blocked by** of its checkpoint: a bug, a small change, or a feature
+  nobody planned but the version cannot ship without. Its issue says so, and the product owner
+  agrees. Whatever does not need to be in this version goes to the next checkpoint instead.
+- **Released when every blocker is closed.** A date is a deadline, not the trigger: if it comes
+  first, the product owner moves blockers to the next version, never a high bug, and the release
+  notes say what moved.
+- **Only the blockers merge while a release is being prepared**, and the fixes of its low-findings
+  issue. The release being prepared is the open checkpoint with the lowest version. A release is cut
+  from `main`, so any other pull request waits until the release is published, unless it has no
+  changelog entry (documentation, tests, CI).
+- **A bug review before every release**, as [Release review](#release-review) says. A high or
+  medium bug found before the release, in that review or by anyone meanwhile, gets its issue and is
+  added to the **Blocked by** of the checkpoint. A low one goes to the low-findings issue of this
+  version, which never blocks it: the team decides which ones are fixed before the release, and the
+  rest move to the next version and to the known issues of the release notes.
+- **An idea is not in any version until it has an issue.** The product owner then places it: in the
+  version being prepared, as a blocker, if that version needs it, or in a later one.
+- **A fix that cannot wait for the next version** is released as a patch (`0.3.1`), with its own
+  checkpoint issue blocked by the fixes and a review limited to them, and only *Fixed* entries in
+  the changelog, when `[Unreleased]` holds nothing but the fix; otherwise it goes out with the next
+  version.
+
+A `0.x` release is published as a GitHub pre-release with its known issues. From `1.0.0`, a version
+may have release candidates first (`1.1.0-rc.1`); how a version reaches production is decided when
+there is one.

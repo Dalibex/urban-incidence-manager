@@ -3069,9 +3069,9 @@ export interface operations {
                 size?: components["parameters"]["Size"];
                 /** @description Sort criterion as `property,asc` or `property,desc`. Each listing documents the properties it accepts and its default; an unknown property returns `400`. */
                 sort?: components["parameters"]["Sort"];
-                /** @description Only entries at or after this instant (UTC, included). Together with `to` it must be earlier than `to`, or the request returns `400`. */
+                /** @description Only entries at or after this instant (UTC, included). Outside the years 1 to 9999 it returns `400`. Together with `to` it must be earlier than `to`, or the request returns `400`. */
                 from?: string;
-                /** @description Only entries before this instant (UTC, excluded), so consecutive ranges (`to` of one equal to `from` of the next) never count an entry twice. */
+                /** @description Only entries before this instant (UTC, excluded), so consecutive ranges (`to` of one equal to `from` of the next) never count an entry twice. Outside the years 1 to 9999 it returns `400`. */
                 to?: string;
                 /** @description Only entries made by this user. */
                 actorId?: string;
