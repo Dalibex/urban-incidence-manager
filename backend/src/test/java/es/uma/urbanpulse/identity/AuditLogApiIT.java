@@ -265,9 +265,11 @@ class AuditLogApiIT {
         list("from", "9999-12-31T00:00:00Z").andExpect(status().isOk());
     }
 
-    // #432, #406: the role is checked before the dates.
+    // #432, #406: the token and the role are checked before the dates.
     @Test
-    void anotherRoleIsForbiddenBeforeAnUnstorableDateIsRead() throws Exception {
+    void noTokenOrAnotherRoleComesBeforeAnUnstorableDate() throws Exception {
+        mvc.perform(get(AUDIT_ENTRIES).param("from", "+300000-01-01T00:00:00Z"))
+                .andExpect(status().isUnauthorized());
         mvc.perform(
                         get(AUDIT_ENTRIES)
                                 .param("from", "+300000-01-01T00:00:00Z")
