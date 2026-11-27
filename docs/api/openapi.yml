@@ -866,8 +866,9 @@ paths:
         - name: from
           in: query
           description: >-
-            Only entries at or after this instant (UTC, included). Together with `to` it must be
-            earlier than `to`, or the request returns `400`.
+            Only entries at or after this instant (UTC, included). Outside the years 1 to 9999 it
+            returns `400`. Together with `to` it must be earlier than `to`, or the request returns
+            `400`.
           schema:
             type: string
             format: date-time
@@ -876,7 +877,8 @@ paths:
           in: query
           description: >-
             Only entries before this instant (UTC, excluded), so consecutive ranges
-            (`to` of one equal to `from` of the next) never count an entry twice.
+            (`to` of one equal to `from` of the next) never count an entry twice. Outside the
+            years 1 to 9999 it returns `400`.
           schema:
             type: string
             format: date-time
