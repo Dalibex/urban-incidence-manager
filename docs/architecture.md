@@ -241,7 +241,7 @@ recorded yet (T1 of #67).
 
 ## 🚧 Accepted Risks
 
-Known limits the team accepts for now. A review does not report them (*Sprint review* in
+Known limits the team accepts for now. A review does not report them (*Release review* in
 `CONTRIBUTING.md`); each one is revisited when its source says.
 
 | Risk | Effect | Source |

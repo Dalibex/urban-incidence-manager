@@ -7,7 +7,8 @@ body:
     attributes:
       value: |
         Create this issue as a **sub-issue** of the functional issue it verifies, one per parent.
-        It has no **Blocked by**: its tests are added to the draft pull request of the feature (*Testing lifecycle* in `CONTRIBUTING.md`).
+        Its feature does not block it: its tests are added to the draft pull request of the feature (*Testing lifecycle* in `CONTRIBUTING.md`).
+        Like every issue of a version, it is **Blocked by** the checkpoint of the previous version (*Versioning* in `CONTRIBUTING.md`).
         The implementation PR is not merged until these tests exist and pass.
 
   - type: input

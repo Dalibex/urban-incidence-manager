@@ -22,8 +22,25 @@ const { cameraMethods } = jest.requireMock<{
 
 const onPinChange = jest.fn<void, Parameters<BaseMapProps['onPinChange']>>();
 
+/** `gpsFixRequest` is the tap of "Use my position" the fix answers; the last tap defaults to it. */
+function mapWith(
+  gpsFix: GpsFix | null,
+  gpsFixRequest: number | null = null,
+  locationRequest = gpsFixRequest ?? 0,
+) {
+  return (
+    <BaseMap
+      gpsFix={gpsFix}
+      gpsFixRequest={gpsFixRequest}
+      locationRequest={locationRequest}
+      onPinChange={onPinChange}
+      unavailableHint={HINT}
+    />
+  );
+}
+
 function renderMap(gpsFix: GpsFix | null = null) {
-  return render(<BaseMap gpsFix={gpsFix} onPinChange={onPinChange} unavailableHint={HINT} />);
+  return render(mapWith(gpsFix));
 }
 
 function map() {
@@ -148,7 +165,7 @@ describe('BaseMap', () => {
 
   it('does not go back to a fix that is gone when the map loads again', async () => {
     const { rerender } = await renderMap(FIX);
-    await rerender(<BaseMap gpsFix={null} onPinChange={onPinChange} unavailableHint={HINT} />);
+    await rerender(mapWith(null));
     await act(() => map().props.onDidFailLoadingMap());
     await fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
     cameraMethods.jumpTo.mockReset();
@@ -177,12 +194,11 @@ describe('BaseMap', () => {
     expect(onPinChange).toHaveBeenLastCalledWith(expect.objectContaining({ source: 'gpsFix' }));
   });
 
-  it('centres the map and the pin on a new GPS fix', async () => {
+  it('centres the map and the pin on a GPS fix that arrives after it loaded', async () => {
     const { rerender } = await renderMap();
     await act(() => map().props.onDidFinishLoadingMap());
-    await regionChanged([-4.4102, 36.7301], true);
 
-    await rerender(<BaseMap gpsFix={FIX} onPinChange={onPinChange} unavailableHint={HINT} />);
+    await rerender(mapWith(FIX));
 
     expect(cameraMethods.easeTo).toHaveBeenCalledWith(
       expect.objectContaining({ center: [-4.4214, 36.7213] }),
@@ -194,14 +210,44 @@ describe('BaseMap', () => {
     });
   });
 
-  it('centres the map again on a new fix at the same place', async () => {
+  it('keeps the pin where the citizen moved it when a fix they did not ask for arrives', async () => {
+    const { rerender } = await renderMap();
+    await act(() => map().props.onDidFinishLoadingMap());
+    await regionChanged([-4.4102, 36.7301], true);
+
+    await rerender(mapWith(FIX));
+
+    expect(cameraMethods.easeTo).not.toHaveBeenCalled();
+    expect(onPinChange).toHaveBeenLastCalledWith({
+      latitude: 36.7301,
+      longitude: -4.4102,
+      source: 'citizen',
+    });
+  });
+
+  it('puts the pin back on the fix the citizen asks for with "Use my position"', async () => {
+    const { rerender } = await renderMap();
+    await act(() => map().props.onDidFinishLoadingMap());
+    await regionChanged([-4.4102, 36.7301], true);
+
+    await rerender(mapWith(FIX, 1));
+
+    expect(cameraMethods.easeTo).toHaveBeenCalledWith(
+      expect.objectContaining({ center: [-4.4214, 36.7213] }),
+    );
+    expect(onPinChange).toHaveBeenLastCalledWith({
+      latitude: 36.7213,
+      longitude: -4.4214,
+      source: 'gpsFix',
+    });
+  });
+
+  it('centres the map again on a fix asked for at the same place', async () => {
     const { rerender } = await renderMap(FIX);
     await act(() => map().props.onDidFinishLoadingMap());
     await regionChanged([-4.4102, 36.7301], true);
 
-    await rerender(
-      <BaseMap gpsFix={{ ...FIX }} onPinChange={onPinChange} unavailableHint={HINT} />,
-    );
+    await rerender(mapWith({ ...FIX }, 1));
 
     expect(cameraMethods.easeTo).toHaveBeenCalledTimes(1);
     expect(onPinChange).toHaveBeenLastCalledWith(expect.objectContaining({ source: 'gpsFix' }));
@@ -245,15 +291,31 @@ describe('BaseMap', () => {
     };
     const searchPlaces = jest.fn<Promise<ApiResult<Place[]>>, [string]>();
 
-    function renderWithSearch(gpsFix: GpsFix | null = null) {
-      return render(
+    function mapWithSearch(
+      gpsFix: GpsFix | null,
+      gpsFixRequest: number | null = null,
+      locationRequest = gpsFixRequest ?? 0,
+    ) {
+      return (
         <BaseMap
           gpsFix={gpsFix}
+          gpsFixRequest={gpsFixRequest}
+          locationRequest={locationRequest}
           onPinChange={onPinChange}
           unavailableHint={HINT}
           searchPlaces={searchPlaces}
-        />,
+        />
       );
+    }
+
+    function renderWithSearch(gpsFix: GpsFix | null = null) {
+      return render(mapWithSearch(gpsFix));
+    }
+
+    async function choose(place: Place) {
+      await act(() => fireEvent.changeText(screen.getByLabelText(ADDRESS_LABEL), 'Alameda'));
+      await act(() => fireEvent.press(screen.getByRole('button', { name: SEARCH })));
+      await act(() => fireEvent.press(screen.getByRole('button', { name: place.displayName })));
     }
 
     beforeEach(() => {
@@ -275,9 +337,7 @@ describe('BaseMap', () => {
       await act(() => map().props.onDidFinishLoadingMap());
       cameraMethods.easeTo.mockReset();
 
-      await act(() => fireEvent.changeText(screen.getByLabelText(ADDRESS_LABEL), 'Alameda'));
-      await act(() => fireEvent.press(screen.getByRole('button', { name: SEARCH })));
-      await act(() => fireEvent.press(screen.getByRole('button', { name: ALAMEDA.displayName })));
+      await choose(ALAMEDA);
 
       expect(cameraMethods.easeTo).toHaveBeenCalledWith(
         expect.objectContaining({ center: [-4.4237, 36.7179], zoom: 16 }),
@@ -291,6 +351,69 @@ describe('BaseMap', () => {
       // The camera then stops on its own; the position stays the citizen's.
       await regionChanged([-4.4237, 36.7179], false);
       expect(onPinChange).toHaveBeenLastCalledWith(expect.objectContaining({ source: 'citizen' }));
+    });
+
+    it('keeps the chosen place when the first GPS fix arrives later (#434)', async () => {
+      const { rerender } = await renderWithSearch();
+      await act(() => map().props.onDidFinishLoadingMap());
+      await choose(ALAMEDA);
+      cameraMethods.easeTo.mockReset();
+
+      await rerender(mapWithSearch(FIX));
+
+      expect(cameraMethods.easeTo).not.toHaveBeenCalled();
+      expect(onPinChange).toHaveBeenLastCalledWith({
+        latitude: 36.7179,
+        longitude: -4.4237,
+        source: 'citizen',
+      });
+    });
+
+    it('leaves the chosen place for the fix of "Use my position"', async () => {
+      const { rerender } = await renderWithSearch(FIX);
+      await act(() => map().props.onDidFinishLoadingMap());
+      await choose(ALAMEDA);
+      cameraMethods.easeTo.mockReset();
+
+      await rerender(mapWithSearch({ ...FIX }, 1));
+
+      expect(cameraMethods.easeTo).toHaveBeenCalledWith(
+        expect.objectContaining({ center: [-4.4214, 36.7213] }),
+      );
+      expect(onPinChange).toHaveBeenLastCalledWith(expect.objectContaining({ source: 'gpsFix' }));
+    });
+
+    it('keeps a place chosen while the fix of "Use my position" was on its way', async () => {
+      const { rerender } = await renderWithSearch(FIX);
+      await act(() => map().props.onDidFinishLoadingMap());
+      // The citizen taps "Use my position" and, while it reads, chooses a place.
+      await rerender(mapWithSearch(FIX, null, 1));
+      await choose(ALAMEDA);
+      cameraMethods.easeTo.mockReset();
+
+      await rerender(mapWithSearch({ ...FIX }, 1));
+
+      expect(cameraMethods.easeTo).not.toHaveBeenCalled();
+      expect(onPinChange).toHaveBeenLastCalledWith({
+        latitude: 36.7179,
+        longitude: -4.4237,
+        source: 'citizen',
+      });
+    });
+
+    it('keeps a pan made after choosing a place when a fix arrives', async () => {
+      const { rerender } = await renderWithSearch();
+      await act(() => map().props.onDidFinishLoadingMap());
+      await choose(ALAMEDA);
+      await regionChanged([-4.4102, 36.7301], true);
+
+      await rerender(mapWithSearch(FIX));
+
+      expect(onPinChange).toHaveBeenLastCalledWith({
+        latitude: 36.7301,
+        longitude: -4.4102,
+        source: 'citizen',
+      });
     });
 
     it('hides the search with the map when the tiles cannot be reached', async () => {

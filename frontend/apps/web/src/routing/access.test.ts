@@ -55,18 +55,22 @@ describe('mapDefaultPath', () => {
 });
 
 describe('detailBack', () => {
+  const operator = { id: 'operator-1', role: 'MUNICIPAL_OPERATOR' } as const;
+  const administrator = { id: 'administrator-1', role: 'ADMINISTRATOR' } as const;
+  const technician = { id: 'technician-1', role: 'TECHNICIAN' } as const;
+  const inbox = { to: 'inbox', path: `${PATHS.inbox}?status=REPORTED` };
+  const queue = { to: 'workQueue', path: `${PATHS.workQueue}?status=ASSIGNED&status=IN_PROGRESS` };
+
   it('goes back to the list as the user left it', () => {
-    expect(
-      detailBack({ from: 'inbox', search: '?priority=HIGH&page=2' }, 'MUNICIPAL_OPERATOR'),
-    ).toEqual({
+    expect(detailBack({ from: 'inbox', search: '?priority=HIGH&page=2' }, operator)).toEqual({
       to: 'inbox',
       path: `${PATHS.inbox}?priority=HIGH&page=2`,
     });
-    expect(detailBack({ from: 'inbox', search: '' }, 'ADMINISTRATOR')).toEqual({
+    expect(detailBack({ from: 'inbox', search: '' }, administrator)).toEqual({
       to: 'inbox',
       path: PATHS.inbox,
     });
-    expect(detailBack({ from: 'workQueue', search: '?page=1' }, 'TECHNICIAN')).toEqual({
+    expect(detailBack({ from: 'workQueue', search: '?page=1' }, technician)).toEqual({
       to: 'workQueue',
       path: `${PATHS.workQueue}?page=1`,
     });
@@ -74,43 +78,77 @@ describe('detailBack', () => {
 
   it('goes back to the map as the user left it, for every role that opens the detail (#264)', () => {
     const search = '?status=REPORTED&q=farola';
-    for (const role of ['MUNICIPAL_OPERATOR', 'ADMINISTRATOR', 'TECHNICIAN'] as const) {
-      expect(detailBack({ from: 'map', search }, role)).toEqual({
+    for (const user of [operator, administrator, technician]) {
+      expect(detailBack({ from: 'map', search }, user)).toEqual({
         to: 'map',
         path: `${PATHS.map}${search}`,
       });
     }
   });
 
-  it('goes to the default list of the role after a direct link', () => {
-    const inbox = { to: 'inbox', path: `${PATHS.inbox}?status=REPORTED` };
-    const queue = {
-      to: 'workQueue',
-      path: `${PATHS.workQueue}?status=ASSIGNED&status=IN_PROGRESS`,
-    };
-    expect(detailBack(null, 'MUNICIPAL_OPERATOR')).toEqual(inbox);
-    expect(detailBack(undefined, 'ADMINISTRATOR')).toEqual(inbox);
-    expect(detailBack(null, 'TECHNICIAN')).toEqual(queue);
+  it('goes to the default list of the role after a direct link, the first time', () => {
+    expect(detailBack(null, operator)).toEqual(inbox);
+    expect(detailBack(undefined, administrator)).toEqual(inbox);
+    expect(detailBack(null, technician)).toEqual(queue);
   });
 
-  it('goes to the default list of the role when the origin is not a staff screen', () => {
-    const inbox = { to: 'inbox', path: `${PATHS.inbox}?status=REPORTED` };
-    expect(detailBack({ from: 'inbox', search: 42 }, 'MUNICIPAL_OPERATOR')).toEqual(inbox);
-    expect(detailBack({ from: 'users', search: '' }, 'MUNICIPAL_OPERATOR')).toEqual(inbox);
-    expect(detailBack({ from: 'toString', search: '' }, 'MUNICIPAL_OPERATOR')).toEqual(inbox);
-    expect(detailBack({ from: 'inbox', search: '/users' }, 'MUNICIPAL_OPERATOR')).toEqual(inbox);
-    expect(detailBack({ listSearch: '?page=2' }, 'MUNICIPAL_OPERATOR')).toEqual(inbox);
-  });
+  // #433: the defaults would replace the filters the user last used, once the list opens.
+  it('goes to the filters last used on the list of the role after a direct link', () => {
+    window.localStorage.setItem('urbanpulse.list-filters.inbox.operator-1', '?priority=HIGH');
+    window.localStorage.setItem(
+      'urbanpulse.list-filters.workQueue.technician-1',
+      '?status=IN_PROGRESS',
+    );
 
-  it('goes to the default list of the role when the role cannot open the origin', () => {
-    expect(detailBack({ from: 'inbox', search: '?page=2' }, 'TECHNICIAN')).toEqual({
-      to: 'workQueue',
-      path: `${PATHS.workQueue}?status=ASSIGNED&status=IN_PROGRESS`,
-    });
-    expect(detailBack({ from: 'workQueue', search: '' }, 'MUNICIPAL_OPERATOR')).toEqual({
+    expect(detailBack(null, operator)).toEqual({
       to: 'inbox',
-      path: `${PATHS.inbox}?status=REPORTED`,
+      path: `${PATHS.inbox}?priority=HIGH`,
     });
+    expect(detailBack(null, technician)).toEqual({
+      to: 'workQueue',
+      path: `${PATHS.workQueue}?status=IN_PROGRESS`,
+    });
+  });
+
+  it('goes to the filters of the user who is signed in, never those of another', () => {
+    window.localStorage.setItem('urbanpulse.list-filters.inbox.operator-1', '?priority=HIGH');
+
+    expect(detailBack(null, administrator)).toEqual(inbox);
+  });
+
+  // As the menu: after *Clear filters* the list opens with none, not with the defaults.
+  it('goes to the list with no filters when the user cleared them', () => {
+    window.localStorage.setItem('urbanpulse.list-filters.inbox.operator-1', '');
+
+    expect(detailBack(null, operator)).toEqual({ to: 'inbox', path: PATHS.inbox });
+  });
+
+  it('drops the remembered filters the API would reject', () => {
+    window.localStorage.setItem(
+      'urbanpulse.list-filters.inbox.operator-1',
+      '?priority=URGENT&status=VALIDATED',
+    );
+
+    expect(detailBack(null, operator)).toEqual({
+      to: 'inbox',
+      path: `${PATHS.inbox}?status=VALIDATED`,
+    });
+  });
+
+  it('goes to the list of the role when the origin is not a staff screen', () => {
+    window.localStorage.setItem('urbanpulse.list-filters.inbox.operator-1', '?priority=HIGH');
+    const remembered = { to: 'inbox', path: `${PATHS.inbox}?priority=HIGH` };
+
+    expect(detailBack({ from: 'inbox', search: 42 }, operator)).toEqual(remembered);
+    expect(detailBack({ from: 'users', search: '' }, operator)).toEqual(remembered);
+    expect(detailBack({ from: 'toString', search: '' }, operator)).toEqual(remembered);
+    expect(detailBack({ from: 'inbox', search: '/users' }, operator)).toEqual(remembered);
+    expect(detailBack({ listSearch: '?page=2' }, operator)).toEqual(remembered);
+  });
+
+  it('goes to the list of the role when the role cannot open the origin', () => {
+    expect(detailBack({ from: 'inbox', search: '?page=2' }, technician)).toEqual(queue);
+    expect(detailBack({ from: 'workQueue', search: '' }, operator)).toEqual(inbox);
   });
 });
 
