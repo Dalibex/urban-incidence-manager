@@ -153,9 +153,7 @@ export function useIncident(incidentId: string, refetchInterval?: number) {
     refetchInterval:
       refetchInterval ??
       ((query) =>
-        waitingFor(query.state, addressPending) === 'polling'
-          ? PENDING_CONTEXT_INTERVAL_MS
-          : false),
+        waitingFor(query, addressPending) === 'polling' ? PENDING_POLL_INTERVAL_MS : false),
   });
 }
 
@@ -170,22 +168,23 @@ export function useIncidentDetail(incidentId: string) {
   const incident = useIncident(incidentId);
   // Read again on every answer and every failure (each changes one of the two), so the count and
   // the status are current.
-  const state =
+  const query =
     incident.dataUpdatedAt > 0 || incident.errorUpdatedAt > 0
-      ? queryClient.getQueryState<Incident>(incidentKeys.detail(incidentId))
+      ? queryClient
+          .getQueryCache()
+          .find<Incident>({ queryKey: incidentKeys.detail(incidentId), exact: true })
       : undefined;
-  return { incident, addressWaitEnded: state ? addressWaitEnded(state) : false };
+  return { incident, addressWaitEnded: query ? addressWaitEnded(query) : false };
 }
 
 function addressPending(incident: Incident): boolean {
   return incident.location.addressStatus === 'PENDING';
 }
 
-function addressWaitEnded(state: QueryState<Incident>): boolean {
+function addressWaitEnded(query: CachedQuery<Incident>): boolean {
+  const { data } = query.state;
   return (
-    state.data !== undefined &&
-    addressPending(state.data) &&
-    waitingFor(state, addressPending) !== 'polling'
+    data !== undefined && addressPending(data) && waitingFor(query, addressPending) !== 'polling'
   );
 }
 
@@ -193,10 +192,10 @@ function addressWaitEnded(state: QueryState<Incident>): boolean {
  * How often a pending weather or address is read again: the backend's workers run every 30 s
  * (ADR-0018, #375).
  */
-export const PENDING_CONTEXT_INTERVAL_MS = 15_000;
+export const PENDING_POLL_INTERVAL_MS = 15_000;
 
 /** Reads of a pending weather or address before the screen stops on its own: two minutes in all. */
-export const PENDING_CONTEXT_CHECKS = 8;
+export const PENDING_POLL_CHECKS = 8;
 
 /**
  * The urban context of an incident. While it is `PENDING`, it is read again every 15 s, up to two
@@ -210,16 +209,18 @@ export function useIncidentUrbanContext(incidentId: string) {
     queryKey,
     queryFn: () => dataOf(getIncidentUrbanContext(api, incidentId)),
     refetchInterval: (query) =>
-      waitingFor(query.state, weatherPending) === 'polling' ? PENDING_CONTEXT_INTERVAL_MS : false,
+      waitingFor(query, weatherPending) === 'polling' ? PENDING_POLL_INTERVAL_MS : false,
   });
   // Read again on every answer (dataUpdatedAt changes with each one), so the count is current.
-  const state =
+  const query =
     context.dataUpdatedAt > 0
-      ? queryClient.getQueryState<components['schemas']['UrbanContextResponse']>(queryKey)
+      ? queryClient
+          .getQueryCache()
+          .find<components['schemas']['UrbanContextResponse']>({ queryKey, exact: true })
       : undefined;
   return {
     context,
-    stoppedWaiting: state ? waitingFor(state, weatherPending) === 'stopped' : false,
+    stoppedWaiting: query ? waitingFor(query, weatherPending) === 'stopped' : false,
   };
 }
 
@@ -229,18 +230,32 @@ function weatherPending(context: components['schemas']['UrbanContextResponse']):
 
 /**
  * Whether data a worker has still to fill in is read again on its own. Only successful reads
- * count, and a failed read stops it too: the screen then shows the failure with *Try again*, never
- * a poll that keeps failing. The count belongs to the cached query, so it survives a navigation
- * while it is kept.
+ * count, not the answers of the operator's actions, and a failed read stops it too: the screen
+ * then shows the failure with *Try again*, never a poll that keeps failing. The count belongs to
+ * the cached query, so it survives a navigation while it is kept.
  */
 function waitingFor<T>(
-  state: QueryState<T>,
+  query: CachedQuery<T>,
   pending: (data: T) => boolean,
 ): 'polling' | 'stopped' | 'no' {
+  const { state } = query;
   if (state.status !== 'success' || state.data === undefined || !pending(state.data)) {
     return 'no';
   }
-  return state.dataUpdateCount <= PENDING_CONTEXT_CHECKS ? 'polling' : 'stopped';
+  const reads = state.dataUpdateCount - (actionAnswers.get(query) ?? 0);
+  return reads <= PENDING_POLL_CHECKS ? 'polling' : 'stopped';
+}
+
+/**
+ * How many answers of an action {@link afterIncidentChange} put in each cached incident. They
+ * raise `dataUpdateCount` as a read does, but they are not one of the reads of a pending address.
+ * Kept per query, so the entry goes when the cache drops the query.
+ */
+const actionAnswers = new WeakMap<object, number>();
+
+/** A query of the cache: its state, and its identity, which keys {@link actionAnswers}. */
+interface CachedQuery<T> {
+  readonly state: QueryState<T>;
 }
 
 export function useIncidentHistory(incidentId: string) {
@@ -362,6 +377,11 @@ export async function afterIncidentChange(
 ): Promise<void> {
   const detail = incidentKeys.detail(incident.id);
   await queryClient.cancelQueries({ queryKey: detail, exact: true });
+  // Counted before it is set: setting it already decides whether the address is read again.
+  const query = queryClient
+    .getQueryCache()
+    .build(queryClient, queryClient.defaultQueryOptions({ queryKey: detail }));
+  actionAnswers.set(query, (actionAnswers.get(query) ?? 0) + 1);
   queryClient.setQueryData(detail, incident);
   await queryClient.invalidateQueries({
     predicate: ({ queryKey }) =>

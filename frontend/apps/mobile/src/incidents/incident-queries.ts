@@ -75,10 +75,10 @@ export function useMyReports(group: ReportGroup) {
 }
 
 /** How often a pending address is read again: the backend's worker runs every 30 s (#375). */
-export const PENDING_ADDRESS_INTERVAL_MS = 15_000;
+export const PENDING_POLL_INTERVAL_MS = 15_000;
 
 /** Reads of a pending address before the screen stops on its own: two minutes in all. */
-export const PENDING_ADDRESS_CHECKS = 8;
+export const PENDING_POLL_CHECKS = 8;
 
 /**
  * One of the citizen's reports. While its address is `PENDING`, it is read again every 15 s, up to
@@ -91,8 +91,7 @@ export function useIncident(incidentId: string) {
   return useQuery({
     queryKey: incidentKeys.detail(incidentId),
     queryFn: () => dataOf(getIncident(api, incidentId)),
-    refetchInterval: (query) =>
-      waitingForAddress(query.state) ? PENDING_ADDRESS_INTERVAL_MS : false,
+    refetchInterval: (query) => (waitingForAddress(query.state) ? PENDING_POLL_INTERVAL_MS : false),
   });
 }
 
@@ -126,7 +125,7 @@ function waitingForAddress(state: QueryState<Incident>): boolean {
   return (
     state.status === 'success' &&
     state.data?.location.addressStatus === 'PENDING' &&
-    state.dataUpdateCount <= PENDING_ADDRESS_CHECKS
+    state.dataUpdateCount <= PENDING_POLL_CHECKS
   );
 }
 

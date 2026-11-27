@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { incidentPath } from '../routing/access';
 import { fakeApi, json, renderApp } from '../test-utils';
-import { PENDING_CONTEXT_CHECKS, PENDING_CONTEXT_INTERVAL_MS } from './incident-queries';
+import { PENDING_POLL_CHECKS, PENDING_POLL_INTERVAL_MS } from './incident-queries';
 
 type UrbanContext = components['schemas']['UrbanContextResponse'];
 type Answer = () => Response | Promise<Response>;
@@ -253,7 +253,7 @@ describe('context section in the incident detail (#308)', () => {
       expect(panel.queryByText('Rainy')).toBeNull();
 
       answer = RAINY;
-      await advance(PENDING_CONTEXT_INTERVAL_MS);
+      await advance(PENDING_POLL_INTERVAL_MS);
 
       expect(await panel.findByText('Rainy')).toBeTruthy();
       // The same region, so a screen reader hears the change instead of a new element.
@@ -271,13 +271,13 @@ describe('context section in the incident detail (#308)', () => {
       const panel = within(await findContextPanel());
       await panel.findByText('Getting the weather…');
       fails = true;
-      await advance(PENDING_CONTEXT_INTERVAL_MS);
+      await advance(PENDING_POLL_INTERVAL_MS);
 
       expect((await panel.findByRole('alert')).textContent).toContain(
         'The weather could not be loaded.',
       );
       const reads = contextReads(fetch);
-      await advance(PENDING_CONTEXT_INTERVAL_MS * 4);
+      await advance(PENDING_POLL_INTERVAL_MS * 4);
       expect(contextReads(fetch)).toBe(reads);
       expect(panel.getByRole('button', { name: 'Try again' })).toBeTruthy();
       expect(panel.queryByText('Getting the weather…')).toBeNull();
@@ -290,19 +290,19 @@ describe('context section in the incident detail (#308)', () => {
 
       const panel = within(await findContextPanel());
       await panel.findByText('Getting the weather…');
-      for (let check = 0; check < PENDING_CONTEXT_CHECKS; check++) {
-        await advance(PENDING_CONTEXT_INTERVAL_MS);
+      for (let check = 0; check < PENDING_POLL_CHECKS; check++) {
+        await advance(PENDING_POLL_INTERVAL_MS);
       }
 
       expect(await panel.findByText('The weather has not arrived yet.')).toBeTruthy();
-      expect(contextReads(fetch)).toBe(PENDING_CONTEXT_CHECKS + 1);
+      expect(contextReads(fetch)).toBe(PENDING_POLL_CHECKS + 1);
 
-      await advance(PENDING_CONTEXT_INTERVAL_MS * 4);
-      expect(contextReads(fetch)).toBe(PENDING_CONTEXT_CHECKS + 1);
+      await advance(PENDING_POLL_INTERVAL_MS * 4);
+      expect(contextReads(fetch)).toBe(PENDING_POLL_CHECKS + 1);
 
       await userEvent.click(panel.getByRole('button', { name: 'Check again' }));
       await vi.waitFor(() => {
-        expect(contextReads(fetch)).toBe(PENDING_CONTEXT_CHECKS + 2);
+        expect(contextReads(fetch)).toBe(PENDING_POLL_CHECKS + 2);
       });
     });
 
@@ -313,8 +313,8 @@ describe('context section in the incident detail (#308)', () => {
 
       const panel = within(await findContextPanel());
       await panel.findByText('Getting the weather…');
-      for (let check = 0; check < PENDING_CONTEXT_CHECKS; check++) {
-        await advance(PENDING_CONTEXT_INTERVAL_MS);
+      for (let check = 0; check < PENDING_POLL_CHECKS; check++) {
+        await advance(PENDING_POLL_INTERVAL_MS);
       }
       await panel.findByText('The weather has not arrived yet.');
 
@@ -335,8 +335,8 @@ describe('context section in the incident detail (#308)', () => {
 
       const panel = within(await findContextPanel());
       await panel.findByText('Getting the weather…');
-      for (let check = 0; check < PENDING_CONTEXT_CHECKS; check++) {
-        await advance(PENDING_CONTEXT_INTERVAL_MS);
+      for (let check = 0; check < PENDING_POLL_CHECKS; check++) {
+        await advance(PENDING_POLL_INTERVAL_MS);
       }
       await panel.findByText('The weather has not arrived yet.');
 
@@ -364,8 +364,8 @@ describe('context section in the incident detail (#308)', () => {
 
       const panel = within(await findContextPanel());
       await panel.findByText('Getting the weather…');
-      for (let check = 0; check < PENDING_CONTEXT_CHECKS; check++) {
-        await advance(PENDING_CONTEXT_INTERVAL_MS);
+      for (let check = 0; check < PENDING_POLL_CHECKS; check++) {
+        await advance(PENDING_POLL_INTERVAL_MS);
       }
       await panel.findByText('The weather has not arrived yet.');
       const readsBefore = contextReads(fetch);

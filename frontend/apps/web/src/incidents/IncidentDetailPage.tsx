@@ -94,7 +94,8 @@ export function IncidentDetailPage() {
             addressCheck={{
               waitEnded: addressWaitEnded,
               checking: incident.isFetching,
-              onCheck: () => void incident.refetch(),
+              // After a failed read, *Try again* of the notice already reads it again.
+              onCheck: incident.isRefetchError ? undefined : () => void incident.refetch(),
             }}
           />
         </>
@@ -103,11 +104,15 @@ export function IncidentDetailPage() {
   );
 }
 
-/** What the address offers once the page stopped waiting for it on its own (#436). */
+/**
+ * What the address offers once the page stopped waiting for it on its own (#436). Without
+ * `onCheck`, it only says the address has not arrived: the notice of a failed read offers the
+ * same read with *Try again*.
+ */
 interface AddressCheck {
   waitEnded: boolean;
   checking: boolean;
-  onCheck: () => void;
+  onCheck?: () => void;
 }
 
 function IncidentDetail({
@@ -257,9 +262,12 @@ function LocationPanel({
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
   const checkedByUser = useRef(false);
-  const showsCheck = location.addressStatus === 'PENDING' && addressCheck.waitEnded;
+  const notArrived = location.addressStatus === 'PENDING' && addressCheck.waitEnded;
+  const { onCheck } = addressCheck;
+  const showsCheck = notArrived && onCheck !== undefined;
 
-  // *Check again* disappears when the address arrives: keep the keyboard on the section.
+  // *Check again* disappears when the address arrives, or when the read fails and the notice
+  // offers *Try again*: keep the keyboard on the section.
   useEffect(() => {
     if (!checkedByUser.current || addressCheck.checking) {
       return;
@@ -277,13 +285,16 @@ function LocationPanel({
       </h2>
       <dl className={styles.facts}>
         <Fact label="Address">
-          {showsCheck ? (
+          {notArrived ? (
             <AddressNotArrived
               checking={addressCheck.checking}
-              onCheck={() => {
-                checkedByUser.current = true;
-                addressCheck.onCheck();
-              }}
+              onCheck={
+                onCheck &&
+                (() => {
+                  checkedByUser.current = true;
+                  onCheck();
+                })
+              }
             />
           ) : (
             <Address location={location} />
@@ -346,21 +357,27 @@ function Address({ location }: { location: IncidentLocation }) {
 
 /**
  * A `PENDING` address the page no longer reads on its own: it says so instead of a progress it does
- * not follow, and checks once more on request, as the weather of the *Context* section does.
+ * not follow, and, given `onCheck`, checks once more on request, as the weather of the *Context*
+ * section does.
  */
-function AddressNotArrived({ checking, onCheck }: { checking: boolean; onCheck: () => void }) {
+function AddressNotArrived({ checking, onCheck }: { checking: boolean; onCheck?: () => void }) {
   return (
     <>
-      <span className={styles.muted}>The address has not arrived yet.</span>{' '}
-      {/* Not `disabled`: a browser moves the focus of a disabled button to the page. */}
-      <button
-        type="button"
-        className={styles.button}
-        aria-disabled={checking || undefined}
-        onClick={checking ? undefined : onCheck}
-      >
-        {checking ? 'Checking…' : 'Check again'}
-      </button>
+      <span className={styles.muted}>The address has not arrived yet.</span>
+      {onCheck && (
+        <>
+          {' '}
+          {/* Not `disabled`: a browser moves the focus of a disabled button to the page. */}
+          <button
+            type="button"
+            className={styles.button}
+            aria-disabled={checking || undefined}
+            onClick={checking ? undefined : onCheck}
+          >
+            {checking ? 'Checking…' : 'Check again'}
+          </button>
+        </>
+      )}
     </>
   );
 }

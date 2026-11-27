@@ -288,7 +288,8 @@ every incident, and the menu and the sign-in then open it that way.
   position after the report and comes with *© OpenStreetMap contributors*, which opens the source;
   until then it says *Looking up the address…* and checks again on its own for two minutes, so the
   address shows up without a reload. Then it says *The address has not arrived yet.* with *Check
-  again*, which looks once more, as the *Context* section does with the weather. A position outside
+  again*, which looks once more, as the *Context* section does with the weather; when a read of
+  the incident failed, *Try again* in the notice at the top does that instead. A position outside
   Málaga says so.
 - **Context:** the weather at the incident's position when it was reported, such as *Rainy*, with
   the time it was recorded and *Weather data by Open-Meteo.com*, which opens the source. The weather
