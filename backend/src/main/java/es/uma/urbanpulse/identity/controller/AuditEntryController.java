@@ -10,6 +10,7 @@ import es.uma.urbanpulse.shared.web.PageResponse;
 import es.uma.urbanpulse.shared.web.QueryParameters;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Set;
@@ -70,10 +71,14 @@ class AuditEntryController {
         }
         var filter =
                 new AuditEntryFilter(
-                        from == null ? null : from.toInstant(),
-                        to == null ? null : to.toInstant(),
+                        storable("from", from),
+                        storable("to", to),
                         actorId,
                         action == null ? Set.of() : Set.copyOf(action));
         return auditEntries.list(filter, PageRequests.of(page, size, sort, SORTABLE, NEWEST_FIRST));
+    }
+
+    private static Instant storable(String name, OffsetDateTime value) {
+        return QueryParameters.requireStorable(name, value == null ? null : value.toInstant());
     }
 }
