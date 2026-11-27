@@ -50,9 +50,6 @@ and this project follows [Semantic Versioning](https://semver.org/).
 - Two photos uploaded at the same time to an incident with one place left could both be saved and go over `EVIDENCE_MAX_FILES_PER_INCIDENT`, and a citizen's photo uploaded while an operator validated the incident could be saved after it left `REPORTED`. Now the second one answers `422` or `409` and its file is removed (#275).
 - After a password change, or after an account was disabled and enabled again, an old refresh token sent by another tab or device was taken as stolen and closed every session of the user, including the one just opened with the new password. Now it only gets `401` (#275).
 - An evidence upload whose multipart body the server cannot read, such as a boundary that is never closed or missing, answers `400` with the code `MALFORMED_REQUEST` instead of a `500`, and no longer writes an `ERROR` line in the log (#407).
-
-### Fixed
-
 - Without a connection, the web incident actions no longer stay on *Saving…* and are no longer sent on their own when the connection comes back, and the incident pages and the map no longer wait without a message: they say that the server cannot be reached, with *Try again*, and load by themselves once the connection is back (#276).
 - A failed reload of the web incident detail or of *Users*, for example when coming back to the tab, keeps the page and what was typed in its forms, with a notice that it could not be refreshed, instead of replacing it with an error (#276).
 - A request the server accepts and never answers ends after waiting 30 seconds for each attempt as *cannot be reached* on the web and the mobile app, which keep the form, instead of waiting for ever on *Sending…* (#276).
@@ -62,9 +59,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
 - Creating a staff account again after the answer of the first attempt was lost no longer says only that the email has an account: the web says the account may have been created and leads to it in the list (#283).
 - The mobile app tells a staff account that must change its password to do it on the website first, instead of "Sign-in failed. Try again in a moment." (#283).
 - `400` instead of `500` for an empty value in an incident filter (`?status=REPORTED,`), a reporting date outside the years 1 to 9999 and a page past item 2,147,483,647, `400` instead of ignoring an unknown parameter of the classification changes, and `401` instead of `500` or `404` for a lifecycle action by a user who no longer exists (#282).
-
-### Fixed
-
+- The audit log answers `400` with `MALFORMED_REQUEST` for a `from` or `to` outside the years 1 to 9999, such as `+300000-01-01T00:00:00Z`, instead of `500`, as the other listings do (#432).
 - Mobile: with the GPS position outside the area the map covers, the report was saved at that position while the map showed the pin on its border. The app now says the position is outside the map and waits for the citizen to place the pin (#290).
 - Web: after an incident action the map dashboard shows the change at once instead of up to 30 seconds later, and after a change to a staff account so do the technicians of the assignment form and the audit log. The incident detail no longer goes back to the old status, with a `409` on the next action, when a slower reload answers after the action; the summary of an incident on the map refreshes with its marker, and keeps what it showed when a refresh fails; and an action that answers after signing out no longer puts its incident in the cache of the next user of the tab (#287).
 

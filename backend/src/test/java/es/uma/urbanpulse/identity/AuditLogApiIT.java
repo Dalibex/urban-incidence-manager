@@ -252,6 +252,31 @@ class AuditLogApiIT {
         expectBadRequest(list("to", "2026-11-01"));
     }
 
+    // #432: a date outside the years the database holds is a 400 that names the parameter, as on
+    // the other listings, and the first one when both are; the last year still works.
+    @Test
+    void aDateOutsideTheStorableYearsIsABadRequestAndYear9999Works() throws Exception {
+        expectInvalidValue(list("from", "+300000-01-01T00:00:00Z"), "from");
+        expectInvalidValue(list("to", "+300000-01-01T00:00:00Z"), "to");
+        expectInvalidValue(list("from", "-0001-01-01T00:00:00Z"), "from");
+        expectInvalidValue(
+                list("from", "+300000-01-01T00:00:00Z", "to", "+300001-01-01T00:00:00Z"), "from");
+
+        list("from", "9999-12-31T00:00:00Z").andExpect(status().isOk());
+    }
+
+    // #432, #406: the token and the role are checked before the dates.
+    @Test
+    void noTokenOrAnotherRoleComesBeforeAnUnstorableDate() throws Exception {
+        mvc.perform(get(AUDIT_ENTRIES).param("from", "+300000-01-01T00:00:00Z"))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(
+                        get(AUDIT_ENTRIES)
+                                .param("from", "+300000-01-01T00:00:00Z")
+                                .header(HttpHeaders.AUTHORIZATION, tokens.bearer(Role.ANALYST)))
+                .andExpect(status().isForbidden());
+    }
+
     // T7: an unknown action, an actor that is not a UUID, a page size out of range, an unknown or
     // empty parameter, an unknown sort property.
     @Test
@@ -427,6 +452,15 @@ class AuditLogApiIT {
         result.andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.content").doesNotExist());
+    }
+
+    private static void expectInvalidValue(ResultActions result, String parameter)
+            throws Exception {
+        expectBadRequest(result);
+        result.andExpect(jsonPath("$.code").value("MALFORMED_REQUEST"))
+                .andExpect(
+                        jsonPath("$.detail")
+                                .value("Invalid value of the parameter " + parameter + "."));
     }
 
     /** An entry about a user, as the services write it: the role before and after. */
