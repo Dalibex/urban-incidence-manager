@@ -246,6 +246,29 @@ describe('incident map on the web (#196, test #76)', () => {
     expect(router.state.location.pathname).toBe(incidentPath(POTHOLE.id));
   });
 
+  // #264: the detail opened from the map leads back to it, with the same filters and search.
+  it.each(['MUNICIPAL_OPERATOR', 'TECHNICIAN'] as const)(
+    'leads a %s from Manage back to the map with the same filters',
+    async (role) => {
+      const filtered = `${PATHS.map}?status=REPORTED&priority=HIGH&q=Larios`;
+      const router = renderApp(filtered, { role, fetch: mapApi([positions([POTHOLE])]) });
+
+      await userEvent.click(await screen.findByRole('button', { name: `Marker ${POTHOLE.id}` }));
+      const panel = await screen.findByRole('complementary', { name: POTHOLE_DETAIL.title });
+      await userEvent.click(
+        within(panel).getByRole('link', { name: `Manage ${POTHOLE_DETAIL.title}` }),
+      );
+      expect(
+        await screen.findByRole('heading', { level: 1, name: POTHOLE_DETAIL.title }),
+      ).toBeDefined();
+
+      await userEvent.click(screen.getByRole('link', { name: 'Back to the map' }));
+      const { pathname, search } = router.state.location;
+      expect(pathname + search).toBe(filtered);
+      expect(await screen.findByRole('button', { name: `Marker ${POTHOLE.id}` })).toBeDefined();
+    },
+  );
+
   // Failure case 404: the incident left the user's scope (closed, or no longer assigned to a
   // technician) between a refresh of the map and the click on its marker.
   it('says the incident is no longer visible, and keeps the map, when its summary answers 404', async () => {

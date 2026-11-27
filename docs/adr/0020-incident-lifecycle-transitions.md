@@ -39,7 +39,8 @@ incident stays `REPORTED` and the request is recorded in its history (option B b
 
 `—` means creation. **Operator** means `MUNICIPAL_OPERATOR` or `ADMINISTRATOR`: an administrator
 can do everything an operator can. **Assigned technician** means the `TECHNICIAN` of the active
-assignment of the incident.
+assignment of the incident, with the account enabled: a disabled technician whose access token has
+not expired yet can no longer accept or resolve it (`409`, #274).
 
 | From | To | Domain action (sub-resource) | Who | Required data | Citizen sees |
 |---|---|---|---|---|---|

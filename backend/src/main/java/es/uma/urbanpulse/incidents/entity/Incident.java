@@ -342,8 +342,11 @@ public class Incident {
         if (!transition.performer().hasRole(actor.getRole())) {
             return false;
         }
+        // A disabled technician keeps a valid access token for some minutes, but no longer acts on
+        // the assignment: an incident accepted after the account was disabled would stay
+        // IN_PROGRESS with nobody to resolve it (#274).
         return transition.performer() != IncidentTransition.Performer.ASSIGNED_TECHNICIAN
-                || isAssignedTo(actor);
+                || (Boolean.TRUE.equals(actor.getEnabled()) && isAssignedTo(actor));
     }
 
     private void requireData(IncidentTransition transition, TransitionDetails details) {
