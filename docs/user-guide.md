@@ -361,8 +361,9 @@ every incident, and the menu and the sign-in then open it that way.
 
 The link at the top leads back to where you opened the incident, as you left it: *Back to the
 inbox* to the same filters and page, or *Back to the map* to the same filters and search. An
-incident opened from a link or a bookmark leads *Back to the inbox*. An incident that does not
-exist shows *Incident not found*.
+incident opened from a link, a bookmark or the audit log, or reloaded, leads *Back to the inbox*
+with the filters you last used on it, as the menu does. An incident that does not exist shows
+*Incident not found*.
 
 Dates are shown in Málaga time.
 
@@ -522,9 +523,9 @@ server has kept the change. If it was not kept, your notes are still there:
   the page says that the incident changed, and *Reload the incident* shows it.
 
 The link at the top leads back to where you opened the incident: *Back to the work queue* or
-*Back to the map*, as you left it. An incident opened from a link or a bookmark leads *Back to the
-work queue*. An incident that is not assigned to you, opened from a link, shows *Incident not
-found*.
+*Back to the map*, as you left it. An incident opened from a link or a bookmark, or reloaded, leads
+*Back to the work queue* with the filters you last used on it, as the menu does. An incident that
+is not assigned to you, opened from a link, shows *Incident not found*.
 
 ## 🏢 Administrator (Web)
 

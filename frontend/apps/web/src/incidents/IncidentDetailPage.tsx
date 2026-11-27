@@ -44,7 +44,7 @@ export function IncidentDetailPage() {
   const { incidentId = '' } = useParams();
   const incident = useIncident(incidentId);
   const { state } = useLocation();
-  const back = detailBack(state, useSession().user?.role);
+  const back = detailBack(state, useSession().user);
 
   return (
     <article className={styles.page} aria-labelledby="page-title">
