@@ -77,8 +77,9 @@ export function NewIncidentScreen({ navigation }: Props) {
   const reportedLocation = locationToReport(location.gpsFix, pin);
   const fromGps = location.gpsFix !== null && (pin === null || pin.source === 'gpsFix');
   const fixOutsideMap = isGpsFixOutsideMap(location.gpsFix, pin);
-  // The first fix recentres the map: waiting for it keeps a report from leaving with a pin that is
-  // about to move.
+  // The fix being read may still recentre the map: the first one, unless the citizen already placed
+  // the pin, and the one of "Use my position". Waiting for it keeps a report from leaving with a pin
+  // that is about to move.
   const canSubmit = !location.isLoading && !isSubmitting && reportedLocation !== null;
 
   async function submit() {
@@ -181,6 +182,8 @@ export function NewIncidentScreen({ navigation }: Props) {
 
         <BaseMap
           gpsFix={location.gpsFix}
+          gpsFixRequest={location.gpsFixRequest}
+          locationRequest={location.locationRequest}
           onPinChange={setPin}
           unavailableHint={mapHint(location.gpsFix !== null, location.permissionDenied)}
           searchPlaces={(query) => listPlaces(api, query)}

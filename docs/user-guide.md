@@ -146,7 +146,9 @@ If the email already has an account, the app says so: sign in instead.
    of Málaga it covers. Under the map, *Your GPS position* shows the accuracy the phone reported
    (for example *Accuracy: 12 m*; outdoors it is usually a few metres, indoors much worse). Once
    you move the map it says *Position chosen on the map*, and no accuracy is sent with the report.
-   *Use my position* reads your position again and puts the pin back on it. If your position is
+   *Use my position* reads your position again and puts the pin back on it. A position the phone
+   finds after you moved the map, which indoors can take up to 15 seconds, does not move the pin,
+   even if you had tapped *Use my position* before moving it: tap it again. If your position is
    outside that area, the map stops at its border and says so: *Submit* stays disabled until you
    move the map to the incident.
 
@@ -364,8 +366,9 @@ every incident, and the menu and the sign-in then open it that way.
 
 The link at the top leads back to where you opened the incident, as you left it: *Back to the
 inbox* to the same filters and page, or *Back to the map* to the same filters and search. An
-incident opened from a link or a bookmark leads *Back to the inbox*. An incident that does not
-exist shows *Incident not found*.
+incident opened from a link, a bookmark or the audit log, or reloaded, leads *Back to the inbox*
+with the filters you last used on it, as the menu does. An incident that does not exist shows
+*Incident not found*.
 
 Dates are shown in Málaga time.
 
@@ -525,9 +528,9 @@ server has kept the change. If it was not kept, your notes are still there:
   the page says that the incident changed, and *Reload the incident* shows it.
 
 The link at the top leads back to where you opened the incident: *Back to the work queue* or
-*Back to the map*, as you left it. An incident opened from a link or a bookmark leads *Back to the
-work queue*. An incident that is not assigned to you, opened from a link, shows *Incident not
-found*.
+*Back to the map*, as you left it. An incident opened from a link or a bookmark, or reloaded, leads
+*Back to the work queue* with the filters you last used on it, as the menu does. An incident that
+is not assigned to you, opened from a link, shows *Incident not found*.
 
 ## 🏢 Administrator (Web)
 
@@ -561,6 +564,9 @@ The menu shows *Users*, where you land, *Inbox*, *Map*, *Audit log* and *Reports
     their next sign-in. If you are the last administrator and lose your own phone, the maintainer
     follows the emergency procedure of the [deployment guide](deployment.md).
   - You cannot change your own role or deactivate yourself, and a citizen account keeps its role.
+  - A technician with incidents *In progress* keeps the account and the role until they resolve
+    them, because nobody else can: the panel says so and names up to five of them. Incidents only
+    *Assigned* do not stop you; reassign them from the incident detail.
   - Every change appears in the *Audit log*; a name change records that the name changed, not the
     name.
   - If the server cannot be reached, the form says so with *Try again* and keeps what you typed.
