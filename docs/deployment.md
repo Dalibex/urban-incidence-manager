@@ -332,17 +332,19 @@ How it behaves (what it checks, and why, is in the [security guide](security.md#
 
 ## 🆘 Reset the Second Factor of the Last Administrator
 
-An administrator who lost their phone gets their second factor reset by another administrator, on
-the *Users* screen. When no other enabled administrator exists, the maintainer resets it in the
+An administrator who lost their phone, or whose code step is locked after too many consecutive
+wrong codes (`MFA_LOCKED`, #435), gets their second factor reset by another administrator, on the
+*Users* screen. When no other enabled administrator exists, the maintainer resets it in the
 database, as [ADR-0021](adr/0021-multi-factor-authentication.md) asks: one transaction that clears
-the secret, ends the open sign-ins and sessions of the account, and records who did it and why in
-the audit trail. With the deployment running, from the repository root:
+the secret and the count of wrong codes, ends the open sign-ins and sessions of the account, and
+records who did it and why in the audit trail. With the deployment running, from the repository
+root:
 
 ```bash
 docker compose exec -T postgres psql -U urbanpulse -d urbanpulse -v ON_ERROR_STOP=1   -v email='admin@example.com' -v reason='Lost phone; reset by <maintainer> on <date>' <<'SQL'
 BEGIN;
 SELECT id AS uid FROM users WHERE email = :'email' AND role = 'ADMINISTRATOR' \gset
-UPDATE users SET mfa_secret = NULL, mfa_last_time_step = NULL WHERE id = :'uid';
+UPDATE users SET mfa_secret = NULL, mfa_last_time_step = NULL, mfa_failed_codes = 0 WHERE id = :'uid';
 UPDATE mfa_challenges SET spent_at = now() WHERE user_id = :'uid' AND spent_at IS NULL;
 UPDATE refresh_token SET revoked_at = COALESCE(revoked_at, now()), expires_at = now()
   WHERE user_id = :'uid' AND expires_at > now();

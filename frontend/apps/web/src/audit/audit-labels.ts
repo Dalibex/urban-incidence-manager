@@ -14,6 +14,7 @@ export const ACTION_LABELS: Record<AuditAction, string> = {
   CLASSIFY_INCIDENT: 'Incident classified',
   ENROLL_MFA: 'Second factor set up',
   RESET_MFA: 'Second factor reset',
+  LOCK_MFA: 'Second factor locked',
 };
 
 /** Every action, in the order the filter shows them. */

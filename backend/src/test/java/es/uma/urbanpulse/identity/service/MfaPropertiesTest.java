@@ -75,6 +75,34 @@ class MfaPropertiesTest {
                                 .hasMessageContaining("MFA_ENCRYPTION_KEY"));
     }
 
+    // #435: without a value, the limit of consecutive wrong codes is the most NIST allows.
+    @Test
+    void limitsConsecutiveWrongCodesTo100ByDefault() {
+        runner.withPropertyValues("urbanpulse.security.mfa.encryption-key=" + KEY)
+                .run(
+                        context ->
+                                assertThat(
+                                                context.getBean(MfaProperties.class)
+                                                        .maxConsecutiveWrongCodes())
+                                        .isEqualTo(100));
+    }
+
+    // #435: no limit, or one above NIST's 100 consecutive failures, stops the start.
+    @ParameterizedTest
+    @ValueSource(strings = {"0", "101"})
+    void doesNotStartWithALimitOfWrongCodesOutside1To100(String limit) {
+        runner.withPropertyValues(
+                        "urbanpulse.security.mfa.encryption-key=" + KEY,
+                        "urbanpulse.security.mfa.max-consecutive-wrong-codes=" + limit)
+                .run(
+                        context ->
+                                assertThat(context)
+                                        .hasFailed()
+                                        .getFailure()
+                                        .rootCause()
+                                        .hasMessageContaining("max-consecutive-wrong-codes"));
+    }
+
     @Test
     void bindsAnEmptyListOfRolesAsNoRole() {
         runner.withPropertyValues(
@@ -141,7 +169,8 @@ class MfaPropertiesTest {
                 "UrbanPulse",
                 Duration.ofMinutes(5),
                 5,
-                new AttemptLimit(10, Duration.ofMinutes(15)));
+                new AttemptLimit(10, Duration.ofMinutes(15)),
+                100);
     }
 
     @Configuration(proxyBeanMethods = false)

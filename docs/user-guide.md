@@ -94,6 +94,7 @@ every 30 seconds and works only once.
 | *That code is not correct. Check the app and type the one it shows now.* | Type the current code; check that the phone's clock is right |
 | *Your sign-in has expired. Enter your password again.* | The code step lasts 5 minutes, or too many wrong codes were typed: sign in again |
 | *Too many wrong codes. Wait a few minutes and try again.* | After 10 wrong codes in 15 minutes the account waits; a right password does not shorten it |
+| *Too many wrong codes. Ask an administrator to reset your second factor, then set it up again.* | After 100 wrong codes in a row the code step is locked, however long you wait: an administrator resets it on *Users*, and you set up the app again on the next sign-in. If you did not type those codes, someone else knows your password: change it |
 | *Your code was accepted, but the sign-in could not be finished. Enter your password again.* | The server failed right after the code; sign in again from the password |
 | *UrbanPulse cannot be reached…* or *The code could not be checked…* | Your password is still valid: press *Verify* again, there is no need to type the password |
 
@@ -561,7 +562,9 @@ The menu shows *Users*, where you land, *Inbox*, *Map*, *Audit log* and *Reports
     sessions end within about 15 minutes. Accounts are never deleted: incidents and the audit log
     keep referring to them. *Reactivate account* lets them sign in again.
   - **Second factor:** in an opened staff account, *Reset second factor* is for a person who lost
-    their phone. Write the reason (it is kept in the audit log, so write no personal data) and
+    their phone, or whose code step is locked after 100 wrong codes in a row (the audit log shows
+    *Second factor locked*; if they did not type those codes, ask them to change their password
+    too). Write the reason (it is kept in the audit log, so write no personal data) and
     confirm. Their sessions end within about 15 minutes and they set up the second factor again at
     their next sign-in. If you are the last administrator and lose your own phone, the maintainer
     follows the emergency procedure of the [deployment guide](deployment.md).

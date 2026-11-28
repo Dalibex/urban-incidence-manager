@@ -13,13 +13,15 @@ const NETWORK = 'UrbanPulse cannot be reached. Check your connection and try aga
 
 /**
  * Whether the sign-in must start again with the password: the challenge is unknown, expired or
- * spent, or its account was disabled, so no code can answer it.
+ * spent, its account was disabled, or its code step is locked by too many wrong codes, so no code
+ * can answer it.
  */
 export function endsChallenge(failure: ApiFailure): boolean {
   return (
     failure.kind === 'problem' &&
     ((failure.status === 401 && failure.code === 'INVALID_MFA_CHALLENGE') ||
-      failure.code === 'ACCOUNT_DISABLED')
+      failure.code === 'ACCOUNT_DISABLED' ||
+      failure.code === 'MFA_LOCKED')
   );
 }
 
@@ -35,6 +37,8 @@ export function mfaCodeMessage(failure: ApiFailure): string {
       return 'Your sign-in has expired. Enter your password again.';
     case 'ACCOUNT_DISABLED':
       return 'This account is disabled. Ask an administrator to enable it.';
+    case 'MFA_LOCKED':
+      return 'Too many wrong codes. Ask an administrator to reset your second factor, then set it up again.';
   }
   switch (failure.status) {
     case 400:

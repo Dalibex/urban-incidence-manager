@@ -24,5 +24,8 @@ public enum AuditAction {
 
     // Second factor of the staff (#57).
     ENROLL_MFA,
-    RESET_MFA
+    RESET_MFA,
+
+    // The code step locked after too many consecutive wrong codes (#435).
+    LOCK_MFA
 }

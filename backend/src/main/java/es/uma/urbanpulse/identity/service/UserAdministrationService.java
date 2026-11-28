@@ -252,12 +252,15 @@ public class UserAdministrationService {
     }
 
     /**
-     * Removes the second factor of a user who lost their phone (#57, ADR-0021): clears the secret,
-     * spends every open sign-in challenge, revokes every refresh token and records {@code
-     * RESET_MFA} with the reason, in one transaction. Once it commits, the account gets back its
-     * wrong-code attempts, also when it had no second factor yet (its first enrolment may have used
-     * them up). The user enrols again at the next sign-in. A user without a second factor is left
-     * as it is otherwise, and nothing is recorded.
+     * Removes the second factor of a user who lost their phone (#57, ADR-0021), or unlocks one
+     * whose code step was locked by consecutive wrong codes (#435): clears the secret and that
+     * count, spends every open sign-in challenge, revokes every refresh token and records {@code
+     * RESET_MFA} with the reason, in one transaction. An account still enrolling has no secret to
+     * clear but may have wrong codes, and is unlocked the same way. Once it commits, the account
+     * gets back its wrong-code attempts of the window, also when it had no second factor yet (its
+     * first enrolment may have used them up). The user enrols again at the next sign-in. A user
+     * without a second factor and without wrong codes is left as it is otherwise, and nothing is
+     * recorded.
      *
      * <p>The user row is locked first, like {@link #update}, so a verification of a code that runs
      * at the same time either finishes before or finds the secret gone.
@@ -281,11 +284,12 @@ public class UserAdministrationService {
                         mfa.restoreCodeAttempts(userId);
                     }
                 });
-        if (user.getMfaSecret() == null) {
+        if (user.getMfaSecret() == null && user.getMfaFailedCodes() == 0) {
             return;
         }
         user.setMfaSecret(null);
         user.setMfaLastTimeStep(null);
+        user.setMfaFailedCodes(0);
         challenges.spendOpen(userId, OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC));
         sessions.revokeAllSessions(userId);
         audit.record(

@@ -189,6 +189,7 @@ Do not define a new error body. If an error needs extra information, add an opti
 | `INVALID_MFA_CHALLENGE` | 401 | `createMfaEnrollment`, `createMfaVerification` | The sign-in challenge is unknown, expired or used: sign in again |
 | `INVALID_MFA_CODE` | 401 | `createMfaVerification` | The code is wrong, outside its time window or already used: type another one (five per challenge) |
 | `MFA_ALREADY_ENROLLED` | 409 | `createMfaEnrollment` | The account already has a second factor: send a code instead |
+| `MFA_LOCKED` | 403 | `createMfaVerification` | Too many consecutive wrong codes (100): no code is checked until an administrator resets the second factor (`createUserMfaReset`) |
 | `GEOCODING_UNAVAILABLE` | 503 | `listPlaces` | The address search provider is down or too slow: place the pin by hand |
 
 Add a row in the same PR that introduces a new code.

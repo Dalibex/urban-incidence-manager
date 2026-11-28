@@ -77,6 +77,7 @@ class MfaSecretCipherTest {
                         "UrbanPulse",
                         Duration.ofMinutes(5),
                         5,
-                        new AttemptLimit(10, Duration.ofMinutes(15))));
+                        new AttemptLimit(10, Duration.ofMinutes(15)),
+                        100));
     }
 }

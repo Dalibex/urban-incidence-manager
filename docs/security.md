@@ -141,7 +141,7 @@ any user and role.
 | --- | --- | --- |
 | `POST /sessions` and `POST /password-changes` | 5 failed attempts per 15 minutes, counted together | Email and client address |
 | `POST /registrations` | 10 attempts per hour | Client address |
-| `POST /mfa-verifications` | 10 wrong codes per 15 minutes, separate from the password limit; and 5 wrong codes spend a challenge | Account only (not the client address) |
+| `POST /mfa-verifications` | 10 wrong codes per 15 minutes, separate from the password limit; 5 wrong codes spend a challenge; and 100 consecutive wrong codes lock the code step until an administrator resets it (*Second factor*) | Account only (not the client address) |
 | `GET /places` | 10 searches a minute (`urbanpulse.places.searches-per-user`), even those answered from the cache; and one call a second to Nominatim for every user together, shared with the address worker: a search waits up to a second for its turn, and one refused because the turn is further away does not count against the user | User, and the whole backend |
 
 Past the limit the API answers `429 TOO_MANY_ATTEMPTS` with `Retry-After` (seconds, rounded up),
@@ -236,11 +236,20 @@ app, which has no code step.
   answers `500`, administrators included, so nobody can reset from the web and each account needs the
   [emergency procedure](deployment.md#-reset-the-second-factor-of-the-last-administrator) (for
   another user, the same SQL with their email and without the role condition).
-- **Reset:** `POST /users/{id}/mfa-resets`, administrators only, with a reason. It clears the secret,
-  spends the open challenges, revokes every refresh token of the user and records `RESET_MFA` with the
-  reason, in one transaction. The user enrols again on the next sign-in. A last administrator who
-  loses their phone follows the emergency procedure of the
-  [deployment guide](deployment.md#-reset-the-second-factor-of-the-last-administrator).
+- **Consecutive wrong codes (#435):** besides the limit per window (*Rate limits*), the database
+  counts the wrong codes of each account in a row, across challenges, windows and restarts of the
+  backend, as NIST SP 800-63B (5.2.2) asks: at most 100 consecutive failures on an authenticator.
+  A valid code or a reset sets the count back to zero. The wrong code that reaches 100
+  (`urbanpulse.security.mfa.max-consecutive-wrong-codes`, from 1 to 100) records `LOCK_MFA`, with the
+  account as its own actor; from then on every code, right or wrong, gets
+  `403 MFA_LOCKED` and spends its challenge, until an administrator resets the second factor. The
+  user row is locked while a code is checked, so wrong codes sent at once all count.
+- **Reset:** `POST /users/{id}/mfa-resets`, administrators only, with a reason. It clears the secret
+  and the count of consecutive wrong codes, spends the open challenges, revokes every refresh token
+  of the user and records `RESET_MFA` with the reason, in one transaction; an account locked while it
+  was still enrolling is unlocked the same way. The user enrols again on the next sign-in. A last
+  administrator who loses their phone, or whose code step is locked, follows the emergency procedure
+  of the [deployment guide](deployment.md#-reset-the-second-factor-of-the-last-administrator).
 - **Logs:** a wrong code is logged with the user id only. The secret, the codes and the challenge
   tokens are never written to the logs.
 
@@ -249,10 +258,12 @@ Known limits, also in *Accepted Risks* of the [architecture](architecture.md):
 - **Trust on first use.** While an account has no second factor (after the deployment of #57, after
   a reset, and for a new account), whoever knows its password can enrol their own phone first. The
   real user's sign-in then asks for a code their app cannot give, and an administrator resets it.
-- **Lock-out by whoever has the password.** The limit of wrong codes is per account and a right
+- **Lock-out by whoever has the password.** The limits of wrong codes are per account and a right
   password does not give the attempts back, so someone with the password can lock the real user
-  out of the code step for up to 15 minutes. The counter lives in the backend process, like the
-  password limit.
+  out of the code step: for up to 15 minutes with the limit per window, whose counter lives in the
+  backend process like the password limit, and until an administrator resets the second factor once
+  they reach 100 consecutive wrong codes (#435). The `LOCK_MFA` entry of the audit log shows when
+  that happened; the password should then be changed too.
 - **A password change does not ask for a code.** Whoever knows the password of a staff account can
   change it without the phone, and the real user is then locked out until an administrator gives
   them a new password; their data is still protected, because a sign-in with the new password asks
@@ -293,7 +304,8 @@ an operational log: the application logs on stdout never replace it.
 | `CHANGE_PASSWORD` | Password change (#165), with the account as its own actor: only its owner knows the password. `details` holds `passwordChangeRequired`, never a password or hash |
 | `CLASSIFY_INCIDENT` | Incident classification (#47) |
 | `ENROLL_MFA` | The first valid code of an enrolment (#57), with the account as its own actor. `details` never holds the secret |
-| `RESET_MFA` | An administrator resets a user's second factor (#57); `after` holds the `reason` |
+| `RESET_MFA` | An administrator resets a user's second factor (#57), which also unlocks a code step locked by wrong codes (#435); `after` holds the `reason` |
+| `LOCK_MFA` | The wrong code that reaches the limit of consecutive wrong codes locks the code step (#435), with the account as its own actor; `after` holds `consecutiveWrongCodes`, never a code |
 | `CREATE_USER` (`"origin": "BOOTSTRAP"`) | The one-off process that creates the first administrator (#126) |
 
 Staff read one part of the trail: the classification changes of an incident
