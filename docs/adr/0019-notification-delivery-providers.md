@@ -1,12 +1,11 @@
 # ADR-0019: Use Brevo for email and Twilio for SMS notifications
 
-- **Status:** Proposed
+- **Status:** Superseded by [ADR-0031](0031-push-and-email-notifications.md): the citizen gets
+  push notifications through the Expo push service and email through Brevo, and no SMS. ADR-0031
+  restates what still applies from this ADR (Brevo and the delivery mechanism) and drops Twilio
+  and SMS.
 - **Decision Makers:** Project Team
 - **Date:** 2026-10-25
-- **Amended by:** [ADR-0031](0031-push-and-email-notifications.md) (proposed): the citizen gets
-  push notifications through the Expo push service and email through Brevo, and no SMS. What this
-  ADR says about Twilio and SMS no longer applies; its delivery mechanism and Brevo stay, with the
-  retry and idempotency rules of ADR-0031.
 
 ## Context
 
