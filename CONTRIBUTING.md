@@ -258,8 +258,8 @@ in the review.
    themselves.
 5. Fix what the CI or the reviewer reports, pushing to the same branch.
 6. A reviewer approves, and you merge with **Squash and merge**. The issues close and move to
-   **Done** by themselves. While a release is being prepared, only its blockers merge (see
-   [Versioning](#versioning)).
+   **Done** by themselves. While a release is being prepared, [Versioning](#versioning) says which
+   pull requests merge.
 
 The only card you move by hand is **Backlog → Ready**, when the issue is planned for the sprint.
 
@@ -385,9 +385,8 @@ workflow, with three differences:
    itself, so this is your responsibility. Updating the branch with `main` or fixing formatting does
    not need a new review.
 4. **The author merges** with **Squash and merge**, keeping the pull request title as the commit
-   message. Merge commits and rebase merges are not used. While a release is being prepared, only
-   its blockers and the changes with no changelog entry merge; the rest wait until it is published
-   (see [Versioning](#versioning)).
+   message. Merge commits and rebase merges are not used. While a release is being prepared,
+   [Versioning](#versioning) says which pull requests merge; the rest wait until it is published.
 5. The branch is deleted after the merge. GitHub does it automatically; if it does not, the author
    deletes it.
 6. The issue closes and moves to **Done** by itself. If the pull request did not target `main`, the

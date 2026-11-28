@@ -40,10 +40,10 @@ reason.
 
 ## 📌 Requirements
 
-**In the MVP** says how much of the requirement the MVP (Sprint 1 and Sprint 2, until 2026-11-17)
-covers: *Yes*, *Partly* (the note says what is left out), *Stretch* (planned only if there is time)
-or *No* (after the MVP). **After the MVP** says what the next milestones add and which issue covers
-it, and which accepted decision a requirement of the [final delivery](#-final-delivery) replaces.
+**In the MVP** says how much of the requirement the MVP, released as `v0.3.0`, covers: *Yes*,
+*Partly* (the note says what is left out) or *No* (after the MVP). **After the MVP** says what the
+next milestones add and which issue covers it, and which accepted decision a requirement of the
+[final delivery](#-final-delivery) replaces.
 Every requirement is planned in the monolith before the refactor, except the analyst's (RF17,
 RF25) and RF20, which is out of the final delivery. The refactor then moves part of RF18, RF23 and
 RF26 into the services of the final delivery (#327, #346, #353). Whether an issue is finished, and
@@ -69,13 +69,13 @@ in which milestone, is in GitHub, not here.
 | ID | Requirement | In the MVP | Issues | After the MVP |
 | --- | --- | --- | --- | --- |
 | RF05 | **Evidence.** Photos or other files, with type and size validation. | Yes | #44 (ADR-0013; #192 API, #193 mobile, #194 web), #279 (the citizen sees their photos) | The photos in an external image service ([final delivery](#-final-delivery)). Planned: #341. Replaces the local volume of ADR-0013. |
-| RF07 | **Search.** Staff filter by status, category, date, priority, district and department. | Yes. The district filter needs RF21. A text search on the title and the description came after the MVP, on the web map. | #58 (#182 API, #183 web); #266 (text search) | The district filter comes with RF21. Planned: #59. |
+| RF07 | **Search.** Staff filter by status, category, date, priority, district and department. | Yes, with a text search on the title and the description on the web map. The district filter needs RF21. | #58 (#182 API, #183 web); #266 (text search) | The district filter comes with RF21. Planned: #59. |
 | RF08 | **Map** of incidents and relevant urban layers. | Partly. Incidents on the web map, with the icon of their category, clustered by zoom and refreshed on their own; the mobile report form places the incident with a pin on the base map; urban layers need urban data, which the MVP does not load. | #53 (#195 API, #196 web, #267 icons); #60 (mobile: #197, #198) | Urban layers on the staff map. Planned: #374. |
 | RF10 | **Priority**, manual or assisted, keeping its justification. | Partly. Manual priority with a required justification; assisted priority comes with RF20. | #47 | Assisted priority stays out with RF20. |
 | RF13 | **Collaboration.** Operators and technicians add comments, evidence and resolution data. | Yes. Every comment is internal in the MVP. | #50, #51, #44 | — |
 | RF14 | **Notifications** of relevant changes through configurable channels. | No. The delivery providers are only proposed (ADR-0019). | — | Notifications to the citizen. Planned: #373; the providers in ADR-0031, Planned: #397. |
 | RF19 | **Reports.** Exportable operational and territorial reports. | Yes. The district grouping needs RF21: without it, new reports have no district. | #42 | The district grouping comes with RF21. Planned: #59. |
-| RF21 | **District and neighbourhood** from the location. | Stretch | #59 | Planned before the refactor: #59. |
+| RF21 | **District and neighbourhood** from the location. | No. It was a stretch goal. | #59 | Planned before the refactor: #59. |
 
 ### Low
 
@@ -254,5 +254,5 @@ changed.
   updates its row in *Final Delivery*.
 - **A new priority** is a team decision: record the old and the new value in *Changes From the
   Original Prioritization*, with the reason.
-- **After the MVP** (from 2026-11-18), the requirements marked *No*, *Partly* or *Stretch* are
-  prioritized for the next delivery and get their issues.
+- **After the MVP** (after `v0.3.0`), the requirements marked *No* or *Partly* are prioritized for
+  the next delivery and get their issues.

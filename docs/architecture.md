@@ -57,8 +57,9 @@ In the order the team prioritises them when two of them conflict:
   self-hosted to avoid a tile provider ([ADR-0016](adr/0016-self-hosted-osm-base-map.md)).
 - **One machine:** the whole system runs with Docker Compose on one VM, with one backend replica
   ([ADR-0011](adr/0011-deployment-12factor.md)).
-- **Time:** the MVP is Sprint 1 (one week, until 2026-11-03) and Sprint 2 (two weeks, until
-  2026-11-17). Sprint 3, from 2026-11-18 to 2026-11-24, is for the remaining requirements, and a
+- **Time:** Sprint 1 (one week, until 2026-11-03) and Sprint 2 (two weeks, until 2026-11-17)
+  built the MVP, released as `v0.3.0` on 2026-11-28 with the first work of Sprint 3 and the fixes
+  of its review. Sprint 3, from 2026-11-18 to 2026-11-24, is for the remaining requirements, and a
   reserve week until 2026-12-01 is for delays and fixes.
 - **Data sources:** Málaga open data, OpenStreetMap and Open-Meteo for the weather, with their
   usage policies ([ADR-0002](adr/0002-open-street-map.md), [ADR-0009](adr/0009-urban-data-source.md),
