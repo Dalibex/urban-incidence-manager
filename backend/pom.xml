@@ -12,7 +12,7 @@
 
 	<groupId>es.uma</groupId>
 	<artifactId>urbanpulse</artifactId>
-	<version>0.2.0</version>
+	<version>0.3.0</version>
 	<name>UrbanPulse backend</name>
 	<description>REST API of UrbanPulse, the platform for managing the urban incidents of Málaga</description>
 	<url>https://github.com/Dalibex/urban-incidence-manager</url>
